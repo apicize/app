@@ -9,11 +9,11 @@ import PlayCircleFilledIcon from '@mui/icons-material/PlayCircleFilled'
 export const RequestInfoEditor = observer((props: { request: EditableRequest }) => {
     const request = props.request
     const workspace = useWorkspace()
-    const feedback = useFeedback()
 
     workspace.nextHelpTopic = 'requests/info'
     const execution = workspace.executions.get(request.id)
     const running = execution?.isRunning ?? false
+    const zeroRuns = request.runs < 1
 
     const methodMenuItems = () => {
         return Methods.map(method => (
@@ -107,15 +107,15 @@ export const RequestInfoEditor = observer((props: { request: EditableRequest }) 
                         type='number'
                         slotProps={{
                             htmlInput: {
-                                min: 1,
+                                min: 0,
                                 max: 1000
                             }
                         }}
                         value={request.runs}
                         onChange={e => request.setRuns(parseInt(e.target.value))}
                     />
-                    <ToggleButton value='Run' title={`Run selected request ${times}`} disabled={running} size='small' onClick={handleRunClick()}>
-                        <PlayCircleFilledIcon color={running ? 'disabled' : 'success'} />
+                    <ToggleButton value='Run' title={`Run selected request ${times}`} disabled={running || zeroRuns} size='small' onClick={handleRunClick()}>
+                        <PlayCircleFilledIcon color={running || zeroRuns ? 'disabled' : 'success'} />
                     </ToggleButton>
                 </Grid>
                 <Grid>

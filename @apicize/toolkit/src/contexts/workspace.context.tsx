@@ -1019,11 +1019,12 @@ export class WorkspaceStore {
 
     @action
     launchExecution(requestOrGroupId: string, singleRun: boolean = false) {
+        let execution: Execution | undefined
         (async () => {
             const requestOrGroup = await this.getRequestEntry(requestOrGroupId)
             if (!requestOrGroup) throw new Error(`Invalid ID ${requestOrGroupId}`)
 
-            let execution = this.executions.get(requestOrGroupId)
+            execution = this.executions.get(requestOrGroupId)
             if (!execution) {
                 execution = new Execution(requestOrGroupId)
                 this.executions.set(requestOrGroupId, execution)
@@ -1071,7 +1072,6 @@ export class WorkspaceStore {
                 if (execution.isRunning) {
                     execution.stopExecution()
                 }
-
                 let idx = this.executingRequestIDs.indexOf(execution.requestOrGroupId)
                 if (idx !== -1) {
                     this.executingRequestIDs.splice(idx, 1)
@@ -1079,9 +1079,20 @@ export class WorkspaceStore {
             }
         })()
             .catch((error) => {
+                if (execution) {
+                    if (execution.isRunning) {
+                        execution.stopExecution()
+                    }
+                    runInAction(() => {
+                        this.updateExecutionStatus({
+                            requestOrGroupId: requestOrGroupId,
+                            running: false
+                        })
+                    })
+                }
                 const msg = `${error}`
-                const isCancelled = msg == 'Cancelled'
-                this.feedback.toast(msg, isCancelled ? ToastSeverity.Warning : ToastSeverity.Error)
+                const asWarning = msg == 'cancelled' || msg == 'No results returned'
+                this.feedback.toast(msg, asWarning ? ToastSeverity.Warning : ToastSeverity.Error)
 
             })
     }
