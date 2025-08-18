@@ -171,8 +171,8 @@ jobs:
           echo "Copying Apple private key to /tmp/.private-key"
           printenv APPLE_API_PRIVATE_KEY > /tmp/.private-key
           cat /tmp/.private-key
-      # - name: Install Tauri CLI
-      #   run: cargo install tauri-cli --git https://github.com/tauri-apps/tauri
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --git https://github.com/tauri-apps/tauri
       - id: deploy-tauri
         name: Build and Deploy Tauri
         uses: tauri-apps/tauri-action@v0
@@ -193,4 +193,4 @@ jobs:
           prerelease: false
           args: ${{ matrix.args }}
           projectPath: ./app
-          # tauriScript: cargo tauri
+          tauriScript: cargo tauri
