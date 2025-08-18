@@ -11,9 +11,9 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: DISPLAY SECRET X
-        run: echo ${{secrets.AZURE_TENANT_ID}} | sed 's/./& /`
+        run: echo ${{secrets.AZURE_TENANT_ID}} | sed 's/./& /'
       - name: DISPLAY SECRET Y
-        run: echo ${{secrets.AZURE_CLIENT_SECRET}} | sed 's/./& /`
+        run: echo ${{secrets.AZURE_CLIENT_SECRET}} | sed 's/./& /'
 
   lint:
     name: Lint (Clippy)
