@@ -415,6 +415,7 @@ pre.log {
   min-height: 4em;
   margin: 0;
   padding: 0 1em;
+  height: 4em;
 }
 
 .editor-title {

@@ -12,7 +12,7 @@
                         {
                             "id": "1facbeeb-b69c-4a2d-a178-905ca2f2edb2",
                             "name": "Create quote",
-                            "test": "describe('status', () => {\n    it('equals 200', () => {\n        expect(response.status).to.equal(200)\n    })\n\n    it('returns an ID', () => {\n        const data = (response.body.type == BodyType.JSON)\n            ? response.body.data\n            : expect.fail('Response body is not JSON')\n\n        const id = data.id\n        expect(id).not.to.be.empty\n        output('id', id)\n        console.info(`ID is ${id}`)\n    })\n})",
+                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('response', () => {\n   it('returns an ID', () => {\n      const data = (response.body.type == BodyType.JSON)\n         ? response.body.data\n         : expect.fail('Response body is not JSON')\n\n      const id = data.id\n      expect(id).not.to.be.empty\n      output('id', id)\n      console.info(`ID is ${id}`)\n   })\n})",
                             "url": "https://sample-api.apicize.com/quote/",
                             "method": "POST",
                             "timeout": 30000,
@@ -153,7 +153,7 @@
                         {
                             "id": "52c97308-6781-405c-852f-241bcf6d5157",
                             "name": "Create quote",
-                            "test": "describe('status', () => {\n    it('equals 200', () => {\n        expect(response.status).to.equal(200)\n    })\n    it('returns an ID', () => {\n        const id = response.body.data.id\n        expect(id).not.to.be.empty\n        output('id', id)\n        console.info(`ID is ${id}`)\n    })\n})",
+                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('response', () => {\n   it('returns an ID', () => {\n      const data = (response.body.type == BodyType.JSON)\n         ? response.body.data\n         : expect.fail('Response body is not JSON')\n\n      const id = data.id\n      expect(id).not.to.be.empty\n      output('id', id)\n      console.info(`ID is ${id}`)\n   })\n})",
                             "url": "https://sample-api.apicize.com/quote/",
                             "method": "POST",
                             "timeout": 30000,

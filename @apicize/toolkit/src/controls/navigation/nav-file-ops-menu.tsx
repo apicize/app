@@ -65,7 +65,7 @@ export const NavFileOpsMenu = observer((props: { sx?: SxProps, orientation: 'hor
                     if (!(workspace.activeSelection && (workspace.activeSelection.type === EntityType.Request || workspace.activeSelection.type === EntityType.Group))) {
                         return
                     }
-                    workspace.executeRequest(workspace.activeSelection.id, !e.shiftKey)
+                    workspace.launchExecution(workspace.activeSelection.id, !e.shiftKey)
                     break
                 case 'n':
                     fileOps.newWorkbook(false)
@@ -168,7 +168,7 @@ export const NavFileOpsMenu = observer((props: { sx?: SxProps, orientation: 'hor
                         id="file-open-menu"
                         autoFocus
                         className="drop-down-menu"
-                        sx={{fontSize: settings.navigationFontSize}}
+                        sx={{ fontSize: settings.navigationFontSize }}
                         slotProps={{
                             list: {
                                 'aria-labelledby': 'file-open-menu-button',
@@ -188,7 +188,7 @@ export const NavFileOpsMenu = observer((props: { sx?: SxProps, orientation: 'hor
                     id="file-open-menu"
                     autoFocus
                     className="drop-down-menu"
-                    sx={{fontSize: settings.navigationFontSize}}
+                    sx={{ fontSize: settings.navigationFontSize }}
                     slotProps={{
                         list: {
                             'aria-labelledby': 'file-open-menu-button',
@@ -200,7 +200,7 @@ export const NavFileOpsMenu = observer((props: { sx?: SxProps, orientation: 'hor
                 >
                     {
                         settings.recentWorkbookFileNames.map((f, idx) => (
-                            <MenuItem autoFocus={idx == 0} key={`nav-file-${idx}`} sx={{ fontSize: 'inherit' }}  className='recent-file' disableRipple onClick={() => handleFileOpen(f, false)}>
+                            <MenuItem autoFocus={idx == 0} key={`nav-file-${idx}`} sx={{ fontSize: 'inherit' }} className='recent-file' disableRipple onClick={() => handleFileOpen(f, false)}>
                                 <Box className='filename'>{normalizeWorkbookFileName(f)}</Box>
                                 <IconButton title='Open in New Window' onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleFileOpen(f, true); }}><OpenInBrowserIcon sx={{ marginRight: 0 }} fontSize='inherit' /></IconButton>
                             </MenuItem>

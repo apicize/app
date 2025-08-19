@@ -40,7 +40,6 @@ export function WorkspaceProvider({ store, children }: { store: WorkspaceStore, 
 
             }
         })
-
         return (() => {
             unlistenClose.then(f => f())
         })

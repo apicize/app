@@ -20,6 +20,7 @@ use dirs::home_dir;
 use dragdrop::DroppedFile;
 use error::ApicizeAppError;
 use pkce::{OAuth2PkceInfo, OAuth2PkceRequest, OAuth2PkceService};
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use sessions::{Session, SessionInitialization, SessionSaveState, SessionStartupState, Sessions};
 use settings::{ApicizeSettings, ColorScheme};
@@ -30,7 +31,6 @@ use std::{
     path::{Path, PathBuf},
     sync::{Arc, Mutex, OnceLock},
 };
-use rustc_hash::FxHashMap;
 use tauri::{
     AppHandle, Emitter, LogicalSize, Manager, PhysicalSize, State, WebviewWindowBuilder, Wry,
 };
@@ -275,16 +275,20 @@ async fn main() {
 }
 
 fn format_window_title(display_name: &str, dirty: bool) -> String {
-    let name_part = if display_name.is_empty() { "(New)" } else { display_name };
+    let name_part = if display_name.is_empty() {
+        "(New)"
+    } else {
+        display_name
+    };
     let mut title = String::with_capacity(name_part.len() + 12); // Pre-allocate: " - Apicize *"
-    
+
     title.push_str(name_part);
     title.push_str(" - Apicize");
     if dirty {
         title.push(' ');
         title.push('*');
     }
-    
+
     title
 }
 
@@ -921,19 +925,33 @@ async fn run_request(
     // Phase 2: Quick read to get workspace data, then release lock immediately
     let (cloned_workspace, other_session_ids) = {
         let sessions = sessions_state.sessions.read().await;
-        
+
         // Acquire write lock for minimal time - just to update execution state
-        let cloned_workspace = {
+        let mut cloned_workspace = {
             let mut workspaces = workspaces_state.workspaces.write().await;
             let info = workspaces.get_workspace_info_mut(&workspace_id)?;
-            info.executing_request_ids.insert(request_or_group_id.to_string());
+            info.executing_request_ids
+                .insert(request_or_group_id.to_string());
             info.workspace.clone()
         }; // Write lock released here
-        
+
+        if single_run {
+            if let Some(request) = cloned_workspace
+                .requests
+                .entities
+                .get_mut(request_or_group_id)
+            {
+                if request.get_runs() < 1 {
+                    request.set_runs(1);
+                }
+            }
+        }
+
         // Get session IDs with read lock (can be done concurrently)
-        let other_session_ids = get_workspace_sessions(&workspace_id, &sessions, Some(request_or_group_id))
-            .unwrap_or_default();
-            
+        let other_session_ids =
+            get_workspace_sessions(&workspace_id, &sessions, Some(request_or_group_id))
+                .unwrap_or_default();
+
         (cloned_workspace, other_session_ids)
     };
 
@@ -960,7 +978,7 @@ async fn run_request(
 
     // Phase 5: Execute request (no locks held)
     let responses = runner.run(vec![request_or_group_id.to_string()]).await;
-    
+
     // Clean up cancellation token
     cancellation_tokens()
         .lock()
@@ -972,16 +990,18 @@ async fn run_request(
         Some(Ok(result)) => {
             // Assemble results outside of lock
             let (summaries, details) = result.assemble_results(&runner);
-            
+
             // Quick write lock just for state updates
             {
                 let mut workspaces = workspaces_state.workspaces.write().await;
                 let info = workspaces.get_workspace_info_mut(&workspace_id)?;
-                info.result_summaries.insert(request_or_group_id.to_string(), summaries.clone());
-                info.result_details.insert(request_or_group_id.to_string(), details);
+                info.result_summaries
+                    .insert(request_or_group_id.to_string(), summaries.clone());
+                info.result_details
+                    .insert(request_or_group_id.to_string(), details);
                 info.executing_request_ids.remove(request_or_group_id);
             } // Write lock released immediately
-            
+
             // Emit completion status outside of locks
             let execution_status = ExecutionStatus {
                 request_or_group_id: request_or_group_id.to_string(),
@@ -1004,22 +1024,22 @@ async fn run_request(
                 let info = workspaces.get_workspace_info_mut(&workspace_id)?;
                 info.executing_request_ids.remove(request_or_group_id);
             } // Write lock released immediately
-            
+
             // Emit error status outside of locks
             let status = ExecutionStatus {
                 request_or_group_id: request_or_group_id.to_string(),
                 running: false,
                 results: None,
             };
-            
+
             for session_id in &other_session_ids {
                 app.emit_to(session_id, "update_execution", &status)
                     .unwrap();
             }
-            
+
             Err(ApicizeAppError::ApicizeError(err))
         }
-        
+
         None => {
             // Quick cleanup for unexpected case
             {
@@ -1027,7 +1047,7 @@ async fn run_request(
                 let info = workspaces.get_workspace_info_mut(&workspace_id)?;
                 info.executing_request_ids.remove(request_or_group_id);
             }
-            Err(ApicizeAppError::UnspecifiedError)
+            Err(ApicizeAppError::NoResults)
         }
     }
 }

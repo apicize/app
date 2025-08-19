@@ -58,10 +58,13 @@ pub enum ApicizeAppError {
     #[error("invalid operation {0}")]
     InvalidOperation(String),
 
-    #[error("unspecified error")]
+    #[error("Unspecified error")]
     UnspecifiedError,
 
-    #[error("concurrency_error '{0}'")]
+    #[error("No results returned")]
+    NoResults,
+
+    #[error("ConcurrencyE rror '{0}'")]
     ConcurrencyError(String),
 }
 

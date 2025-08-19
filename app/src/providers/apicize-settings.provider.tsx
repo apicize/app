@@ -24,8 +24,6 @@ export function ApicizeSettingsProvider({
                 document.addEventListener('contextmenu', event => event.preventDefault())
             }
 
-            debugger
-
             settings.changeApp(
                 name,
                 version,

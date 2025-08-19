@@ -31,22 +31,12 @@ export const RunToolbar = observer((props: { sx?: SxProps, requestEntry: Editabl
         return null
     }
 
-    const handleRunClick = (singleRun: boolean = false) => async () => {
-        try {
-            await workspace.executeRequest(requestId, singleRun)
-        } catch (e) {
-            let msg1 = `${e}`
-            feedback.toast(msg1, msg1 == 'Cancelled' ? ToastSeverity.Warning : ToastSeverity.Error)
-        }
+    const handleRunClick = (singleRun: boolean = false) => () => {
+        workspace.launchExecution(requestId, singleRun)
     }
 
-    const handleCancel = async () => {
-        try {
-            await workspace.cancelRequest(requestId)
-            feedback.toast('Request cancelled', ToastSeverity.Info)
-        } catch (e) {
-            feedback.toast(`Unable to cancel request - ${e}`, ToastSeverity.Error)
-        }
+    const handleCancel = () => {
+        workspace.cancelRequest(requestId)
     }
 
     const label = props.requestEntry.entityType === EntityType.Group ? 'group' : 'request'

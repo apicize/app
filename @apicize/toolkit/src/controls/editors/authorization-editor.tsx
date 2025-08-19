@@ -91,15 +91,6 @@ export const AuthorizationEditor = observer((props: { sx: SxProps }) => {
                     </Grid>
                 </Grid>
             </Box>
-            <Box>
-                {
-                    authorization.validationErrors
-                        ? Object.entries(authorization.validationErrors).map((x) => (
-                            <Box>{x[0]}: {x[1]}</Box>
-                        ))
-                        : <></>
-                }
-            </Box>
         </Stack>
     )
 })

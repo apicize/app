@@ -21,7 +21,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@apicize/toolkit@npm:^0.27.1, @apicize/toolkit@workspace:@apicize/toolkit":
+"@apicize/toolkit@npm:^0.28.3, @apicize/toolkit@workspace:@apicize/toolkit":
   version: 0.0.0-use.local
   resolution: "@apicize/toolkit@workspace:@apicize/toolkit"
   dependencies:
@@ -3400,7 +3400,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "app@workspace:app"
   dependencies:
-    "@apicize/toolkit": "npm:^0.27.1"
+    "@apicize/toolkit": "npm:^0.28.3"
     "@dnd-kit/core": "npm:^6.1.0"
     "@fontsource/open-sans": "npm:^5.1.1"
     "@fontsource/roboto-mono": "npm:^5.1.1"

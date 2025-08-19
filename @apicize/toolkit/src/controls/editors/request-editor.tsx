@@ -153,7 +153,7 @@ export const RequestEditor = observer((props: { sx?: SxProps }) => {
                     }
                 </PanelGroup>
             </Box>
-            : <Box className='editor panels request' sx={props.sx}>
+            : <Box className='editor request'>
                 <RequestPanel />
             </Box>
     })

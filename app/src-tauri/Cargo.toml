@@ -1,6 +1,6 @@
 [package]
 name = "apicize"
-version = "0.27.1"
+version = "0.28.3"
 description = "Apicize HTTP call testing application"
 authors = ["Jason Terando"]
 license = "MIT"
@@ -15,34 +15,34 @@ rust-version = "1.82"
 tauri-build = { version = "2.0.0", features = [] }
 
 [dependencies]
-serde_json = "1.0"
-serde = { version = "1.0", features = ["derive"] }
-apicize_lib = { version = "^0.26.0", features = ["editing"] }
+serde_json = "^1.0"
+serde = { version = "^1.0", features = ["derive"] }
+apicize_lib = { version = "^0.28.1", features = ["editing"] }
 # apicize_lib = { path = "../../../lib-rust", features = ["editing"] }
-tauri = { version = "2.2.0", features = ["image-png", "unstable"] }
-tokio-util = "0.7.11"
-tauri-plugin-fs = "2.2.0"
-# tauri-plugin-clipboard-manager = "2.1.0"
-tauri-plugin-dialog = "2.2.0"
-tauri-plugin-window-state = "2.2.0"
+tauri = { version = "^2.2.0", features = ["image-png", "unstable"] }
+tokio-util = "^0.7.11"
+tauri-plugin-fs = "^2.2.0"
+# tauri-plugin-clipboard-manager = "^2.1.0"
+tauri-plugin-dialog = "^2.2.0"
+tauri-plugin-window-state = "^2.2.0"
 tauri-plugin-clipboard = { git = "https://github.com/jasonterando/tauri-plugin-clipboard/", branch = "v2-yarn-friendly" }
-env_logger = "0.10.2"
-tauri-plugin-log = "2.0.0"
-tauri-plugin-single-instance = "2.2.0"
-actix-web = "4.9.0"
-parking_lot = "0.12.3"
-dirs = "6.0.0"
-async-trait = "0.1.86"
-regex = "1.11.1"
-log = "0.4.25"
-chrono = "0.4.39"
-tauri-plugin-os = "2.2.0"
-rustc-hash = "2.0.0"
-thiserror = "2.0.12"
-uuid = "1.16.0"
-tokio = "1.44.2"
-serde_repr = "0.1.20"
-tauri-plugin-opener = "2.2.7"
+env_logger = "^0.10.2"
+tauri-plugin-log = "^2.0.0"
+tauri-plugin-single-instance = "^2.2.0"
+actix-web = "^4.9.0"
+parking_lot = "^0.12.3"
+dirs = "^6.0.0"
+async-trait = "^0.1.86"
+regex = "^1.11.1"
+log = "^0.4.25"
+chrono = "^0.4.39"
+tauri-plugin-os = "^2.2.0"
+rustc-hash = "^2.0.0"
+thiserror = "^2.0.12"
+uuid = "^1.16.0"
+tokio = "^1.44.2"
+serde_repr = "^0.1.20"
+tauri-plugin-opener = "^2.2.7"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.

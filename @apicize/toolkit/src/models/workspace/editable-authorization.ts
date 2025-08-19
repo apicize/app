@@ -290,7 +290,7 @@ export class EditableAuthorization extends Editable<Authorization> {
         if (this.headerInvalid) {
             results.header = 'Header is invalid'
         }
-        if (this.username) {
+        if (this.usernameInvalid) {
             results.usernanme = 'User name is invalid'
         }
         if (this.accessTokenUrlInvalid) {

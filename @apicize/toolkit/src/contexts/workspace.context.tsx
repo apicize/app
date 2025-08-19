@@ -1018,69 +1018,83 @@ export class WorkspaceStore {
     }
 
     @action
-    async executeRequest(requestOrGroupId: string, singleRun: boolean = false) {
-        const requestOrGroup = await this.getRequestEntry(requestOrGroupId)
-        if (!requestOrGroup) throw new Error(`Invalid ID ${requestOrGroupId}`)
+    launchExecution(requestOrGroupId: string, singleRun: boolean = false) {
+        let execution: Execution | undefined
+        (async () => {
+            const requestOrGroup = await this.getRequestEntry(requestOrGroupId)
+            if (!requestOrGroup) throw new Error(`Invalid ID ${requestOrGroupId}`)
 
-        let execution = this.executions.get(requestOrGroupId)
-        if (!execution) {
-            execution = new Execution(requestOrGroupId)
-            this.executions.set(requestOrGroupId, execution)
-        }
+            execution = this.executions.get(requestOrGroupId)
+            if (!execution) {
+                execution = new Execution(requestOrGroupId)
+                this.executions.set(requestOrGroupId, execution)
+            }
 
-        execution.startExecution()
+            execution.startExecution()
 
-        // Check if PKCE and initialize PKCE flow, queuing request upon completion
-        const auth = await this.getRequestActiveAuthorization(requestOrGroup)
-        if (auth?.type === AuthorizationType.OAuth2Pkce) {
-            const tokenInfo = this.pkceTokens.get(auth.id)
-            if (tokenInfo === undefined) {
-                this.addPendingPkceRequest(auth.id, requestOrGroupId, singleRun)
-                this.callbacks.initializePkce({
-                    authorizationId: auth.id
-                })
-                return
-            } else if (tokenInfo.expiration) {
-                const nowInSec = Date.now() / 1000
-                if (tokenInfo.expiration - nowInSec < 3) {
+            // Check if PKCE and initialize PKCE flow, queuing request upon completion
+            const auth = await this.getRequestActiveAuthorization(requestOrGroup)
+            if (auth?.type === AuthorizationType.OAuth2Pkce) {
+                const tokenInfo = this.pkceTokens.get(auth.id)
+                if (tokenInfo === undefined) {
                     this.addPendingPkceRequest(auth.id, requestOrGroupId, singleRun)
-                    this.callbacks.refreshToken({
+                    this.callbacks.initializePkce({
                         authorizationId: auth.id
                     })
                     return
+                } else if (tokenInfo.expiration) {
+                    const nowInSec = Date.now() / 1000
+                    if (tokenInfo.expiration - nowInSec < 3) {
+                        this.addPendingPkceRequest(auth.id, requestOrGroupId, singleRun)
+                        this.callbacks.refreshToken({
+                            authorizationId: auth.id
+                        })
+                        return
+                    }
                 }
-            }
-        }
-
-        let idx = this.executingRequestIDs.indexOf(execution.requestOrGroupId)
-        if (idx === -1) {
-            this.executingRequestIDs.push(requestOrGroupId)
-        }
-
-        try {
-            let executionResults = await this.callbacks.executeRequest(
-                requestOrGroupId,
-                this.fileName,
-                singleRun)
-
-            this.resultModels.delete(requestOrGroupId)
-            this.cachedExecutionDetail = null
-            execution.completeExecution(executionResults)
-        } catch (e) {
-            const msg1 = `${e}`
-            const isCancelled = msg1 == 'Cancelled'
-
-            this.feedback.toast(msg1, isCancelled ? ToastSeverity.Warning : ToastSeverity.Error)
-        } finally {
-            if (execution.isRunning) {
-                execution.stopExecution()
             }
 
             let idx = this.executingRequestIDs.indexOf(execution.requestOrGroupId)
-            if (idx !== -1) {
-                this.executingRequestIDs.splice(idx, 1)
+            if (idx === -1) {
+                this.executingRequestIDs.push(requestOrGroupId)
             }
-        }
+
+            try {
+                let executionResults = await this.callbacks.executeRequest(
+                    requestOrGroupId,
+                    this.fileName,
+                    singleRun)
+
+                this.resultModels.delete(requestOrGroupId)
+                this.cachedExecutionDetail = null
+                execution.completeExecution(executionResults)
+            } finally {
+                if (execution.isRunning) {
+                    execution.stopExecution()
+                }
+                let idx = this.executingRequestIDs.indexOf(execution.requestOrGroupId)
+                if (idx !== -1) {
+                    this.executingRequestIDs.splice(idx, 1)
+                }
+            }
+        })()
+            .catch((error) => {
+                if (execution) {
+                    if (execution.isRunning) {
+                        execution.stopExecution()
+                    }
+                    runInAction(() => {
+                        this.updateExecutionStatus({
+                            requestOrGroupId: requestOrGroupId,
+                            running: false
+                        })
+                    })
+                }
+                const msg = `${error}`
+                const asWarning = msg == 'cancelled' || msg == 'No results returned'
+                this.feedback.toast(msg, asWarning ? ToastSeverity.Warning : ToastSeverity.Error)
+
+            })
     }
 
     @action
@@ -1158,7 +1172,7 @@ export class WorkspaceStore {
 
         // Execute pending requests
         for (const [requestOrGroupId, singleRun] of pendingRequests) {
-            this.executeRequest(requestOrGroupId, singleRun)
+            this.launchExecution(requestOrGroupId, singleRun)
         }
     }
 
@@ -1293,7 +1307,7 @@ export class WorkspaceStore {
                 model.dispose()
             }
         }
-        
+
         for (const [, resultMap] of this.resultModels) {
             for (const [, typeMap] of resultMap) {
                 for (const [, model] of typeMap) {
@@ -1301,7 +1315,7 @@ export class WorkspaceStore {
                 }
             }
         }
-        
+
         this.requestModels.clear()
         this.resultModels.clear()
     }

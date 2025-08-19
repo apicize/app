@@ -1,5 +1,22 @@
 # Change Log
 
+# 0.28.3
+
+* Support setting request and group runs to zero
+
+# 0.28.2
+
+* Standardize Cancellation handling
+
+# 0.28.1
+
+* Fix Basic Authorization validation
+
+# 0.28.0
+
+* Remove Zephyr report format
+* README.md updates
+
 # 0.27.1
 
 * Enable Monaco autoLayout option

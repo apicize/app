@@ -14,8 +14,9 @@ import { useApicizeSettings } from "../../../contexts/apicize-settings.context"
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
 
 const ApicizeErrorToString = (error?: ApicizeError): string => {
-    const sub = (err?: ApicizeError) => err ? `, ${err.description}${ApicizeErrorToString(err.source)}` : ''
-    return error ? `[${error.type}] ${error.description}${sub(error.source)}` : ''
+    const desc = error?.description ? ` ${error.description}` : ''
+    const sub = error?.source ? ` ${ApicizeErrorToString(error.source)}` : ''
+    return error ? `[${error.type}]${desc}${sub}` : ''
 }
 
 export const ResultInfoViewer = observer((props: { requestOrGroupId: string, resultIndex: number, results: ExecutionResultSummary[] }) => {
@@ -119,20 +120,6 @@ export const ResultInfoViewer = observer((props: { requestOrGroupId: string, res
                         Apicize CSV Format
                         {
                             settings.reportFormat === ExecutionReportFormat.CSV
-                                ? <CheckIcon sx={{ marginLeft: '0.5em' }} />
-                                : null
-                        }
-                    </Box>
-                </MenuItem>
-                <MenuItem autoFocus={settings.reportFormat == ExecutionReportFormat.CSV} key='report-format-zephyr' disableRipple onClick={e => {
-                    copyToClipboard(e, requestOrGroupId, index, ExecutionReportFormat.ZEPHYR)
-                    settings.setReportFormat(ExecutionReportFormat.ZEPHYR)
-                    handleFormatMenuClose()
-                }}>
-                    <Box display='flex' alignContent='center'>
-                        Simplified Zephyr Format
-                        {
-                            settings.reportFormat === ExecutionReportFormat.ZEPHYR
                                 ? <CheckIcon sx={{ marginLeft: '0.5em' }} />
                                 : null
                         }

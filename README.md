@@ -3,20 +3,7 @@
 ## Overview
 
 Apicize is a testing platform that facilitates webservice testing both via GUI and CLI.  It utilizes Rust and V8 for file I/O and
-to execute  HTTP requests and tests.  Tauri, React, MobX and MUI are used for the UI.
-
-> ## Breaking Changes (0.20.0)
->
-> In order to better support data assignment at the request or group level, and to improve consistency in how
-> output variables are passed between requests, the following changes have been made:
->
-> 1. To output variables in a test, call `output('name', {value})` instead of adding properties to the `output` global variable.  This will include some level of validation to ensure that output is a valid object that can be
-passed to subsequent requests
-> 2. The global variable `$` will contain a merged list of scenario variables, output variables from previous requests and data row values.  Output defined variables will take precedence over same-named scenario variables, and data row variables will take precedence over both of these. See [Testing in Apicize](#testing-in-apicize) for more information.
-> 3. Output variables will no longer be added to `variables`; instead use `output` or `$` to access them
-
-> Some of this will break existing scripts that leverage output variables.  Sorry, but things were getting unweildy.  As we continue to barrel toward 1.0, we'll try and minimize these sort of breakages.
-
+to execute  HTTP requests and tests.  Tauri, React, MobX and MUI are used for the UI.  The Monaco editor is used to edit JSON and JavaScript.
 
 ### Contents
 
@@ -72,12 +59,14 @@ The Apicize file format is simple JSON, making it straightforward to integrate w
 
 The following are terms used in Apicize
 
-* **Workbook**:  Contains a set of Requests, optionally including Authorizations, Scenarios, Certificates and/or Proxies
+* **Workbook**:  A file that contains Requests, optionally including Authorizations, Scenarios, Certificates and/or Proxies
+* **Vault**:  A shared store of Authorizations, Scenarios, Certificates and/or Proxies
+* **Workspace**:  An opened Workbook and Vault opened for editing and execution
 * **Request**:  Information required to make a webservice call *and* evaluate its succesful completion.  Success may be defined as a 200 status, it may involve evaluating the response body, or it may be a negative test (i.e. you expect to get a 404 Not Found)
 * **Authorization**:  Webservices often enforce authorization of the caller.  Currently supported authorizations include Basic Authentication, API Key Authentication, and OAuth2 Client Authentication
 * **Scenario**:  A list of variables that can be substituted in a Request.  For example, you may have a set of calls that you want to test against different products.  Rather than having to create a copy of those requests, you can just execute the same tests against different scenarios.
 * **Certificate**:  Client certificates used to establish identity.  These can be either PKCS or PEM format.
-* **Proxy*": A SOCKS5 or HTTP proxy to route HTTP traffic
+* **Proxy**: A SOCKS5 or HTTP proxy to route HTTP traffic
 * **Test**: A block of JavaScript that either runs to completion (success) or throws an error (failure)
 
 ## Testing in Apicize
@@ -101,13 +90,13 @@ When authoring a test, the following global variables will be available for use 
 * `scenario`:  A list of variables defined in the currently active Scenario (if any)
 * `output`: A list of values output from previous requests in the group
 * `data`:  When a data seed is defined, this will hold the values for the current data row
-* `$`: A merged list of previously scenario variables, output variables and data row variables.  These values, as defined, are used 
+* `$`: A merged list of previously output variables, scenario variables, and data row variables.  These values, as defined, are used 
 to populate handlebars values in the request URL, headers, body, etc.
 * `request`: Properties describing an HTTP request
 * `resposne`: Properties describe an HTTP response
 
-After executing a request, you can view the response details and examine `textContext` to see all 
-global variables available for use in your testing.
+After executing a request, you can view the response details and examine `dataContext` to see all 
+variables available for use in your testing.
 
 **request** properties include:
 
@@ -126,19 +115,24 @@ for Raw, it will be a Base64 representation of the binary data
 * `status_text`
 * `headers`
 * `body`
-* `auth_token_cached` (set to true if previously generated OAuth token was used)
+* `auth_token_cached` (set to `true` if previously generated OAuth token was used)
 
 To output a value for use a subsequent request in the group, call the `output` function with a
 variable name and value.  The value must be JSON serializable (basically, any value but a 
 JavaScript function or symbol)
 
 ```js
-describe('status', () => {
-  it('equals 200', () => {
-    expect(response.status).to.equal(200)
-    // Assuming id is a property returned in the response...
-    output('id', JSON.parse(response.body.text).id)
-  })
+describe('response', () => {
+    it('includes an ID', () => {
+        const data = (response.body.type == BodyType.JSON)
+            ? response.body.data
+            : expect.fail('Response body is not JSON')
+
+        const id = data.id
+        expect(id).not.to.be.empty
+        output('id', id)
+        console.info(`ID is ${id}`)
+    })
 })
 
 ```
@@ -147,7 +141,7 @@ describe('status', () => {
 
 ### Getting Started
 
-To build Apicize, you'll need yarn and Rust (1.6 or greater)
+To build Apicize, you'll need yarn and Rust (1.8 or greater)
 
 On Linux, you will need to have the following dependencies installed to build:
 
@@ -175,6 +169,7 @@ These are the components in this monorepo that comprise Apicize:
 * [**@apicize/toolkit**](./@apicize/toolkit/README.md):  React/MobX UI component toolkit for view and editing Apicize workbooks
 
 Ideally, you could reuse lib-typescript and toolkit to build things like a Visual Studio Code extension, a hosted solution to execute Apicize tests, etc. 
+Eventually these projects will be broken off from this monorepo.
 
 Supporting Rust projects include:
 

@@ -12,7 +12,6 @@ export const RequestGroupInfoEditor = observer((props: {
     group: EditableRequestGroup | null
 }) => {
     const workspace = useWorkspace()
-    const feedback = useFeedback()
 
     const group = props.group
     if (!group) {
@@ -21,17 +20,14 @@ export const RequestGroupInfoEditor = observer((props: {
 
     const execution = workspace.executions.get(group.id)
     const running = execution?.isRunning ?? false
+    const zeroRuns = group.runs < 1
+
     workspace.nextHelpTopic = 'workspace/groups'
 
     const isUsingSeedData = workspace.defaults.selectedData.id !== NO_SELECTION_ID
 
-    const handleRunClick = () => async () => {
-        try {
-            await workspace.executeRequest(group.id)
-        } catch (e) {
-            let msg1 = `${e}`
-            feedback.toast(msg1, msg1 == 'Cancelled' ? ToastSeverity.Warning : ToastSeverity.Error)
-        }
+    const handleRunClick = () => () => {
+        workspace.launchExecution(group.id)
     }
 
     let times = group.runs == 1 ? 'one time' : `${group.runs} times`
@@ -81,15 +77,15 @@ export const RequestGroupInfoEditor = observer((props: {
                         type='number'
                         slotProps={{
                             htmlInput: {
-                                min: 1,
+                                min: 0,
                                 max: 1000
                             }
                         }}
                         value={group.runs}
                         onChange={e => group.setRuns(parseInt(e.target.value))}
                     />
-                    <ToggleButton value='Run' title={`Run selected group ${times}`} disabled={running} onClick={handleRunClick()} size='small'>
-                        <PlayCircleFilledIcon color={running ? 'disabled' : 'success'} />
+                    <ToggleButton value='Run' title={`Run selected group ${times}`} disabled={running || zeroRuns} onClick={handleRunClick()} size='small'>
+                        <PlayCircleFilledIcon color={running || zeroRuns ? 'disabled' : 'success'} />
                     </ToggleButton>
                 </Grid>
                 <Grid>
