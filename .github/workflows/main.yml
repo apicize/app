@@ -92,25 +92,18 @@ jobs:
             Throw "Unable to locate Tauri configuration at $taurConfJson"
           }
 
-          $signTool = Get-Command "signtool.exe" -ErrorAction SilentlyContinue
-          if ($signTool) {
-            $signToolPath = Split-Path $signTool
-          } else {
-            if (Test-Path -path "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22000.0\x64\signtool.exe") {
-              $signToolpath = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22000.0\x64"
-            } else {
-              Write-Host "Searching for signtool.exe in C:\Program Files (x86)"
-              $signtoolMatches = Get-Childitem –Path "C:\Program Files (x86)" -Include signtool.exe -File -Recurse -ErrorAction SilentlyContinue
+          $testPaths = 
+          "C:\Program Files\Windows Kits",
+          "C:\Program Files (x86)\Windows Kits",
+          "C:\Program Files (x86)",
+          "C:\Program Files"
+          foreach ( $testPath in $testPaths ) {
+              "Searching for signtool.exe in $testPath"
+              $signtoolMatches = Get-Childitem -Path $testPath -Include signtool.exe -File -Recurse -ErrorAction SilentlyContinue
               if ($signtoolMatches.Length -gt 0) {
-                $signToolPath = Split-path $signtoolMatches[0].FullName
-              } else {
-                Write-Host "Searching for signtool.exe in C:\Program Files"
-                $signtoolMatches = Get-Childitem –Path "C:\Program Files" -Include signtool.exe -File -Recurse -ErrorAction SilentlyContinue
-                if ($signtoolMatches.Length -gt 0) {
                   $signToolPath = Split-path $signtoolMatches[0].FullName
-                }
+                  break
               }
-            }
           }
 
           if ($signToolPath) {
