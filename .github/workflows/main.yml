@@ -132,9 +132,6 @@ jobs:
           $metadataAsJson = ConvertTo-Json -Depth 100 $metadata
           Set-Content -Path $dmdName -Value $metadataAsJson
 
-          $batchName = Join-Path $tempFolderPath "signtool.bat"
-          Set-Content -Path $batchName -Value """$signToolPath"" sign /v /fd SHA256 /tr http://timestamp.acs.microsoft.com /td SHA256 /dlib $dlibName /dmdf $dmdName %1"
-
           $signCommand = "signtool sign /v /fd SHA256 /tr http://timestamp.acs.microsoft.com /td SHA256 /dlib $dlibName /dmdf $dmdName %1"
           Write-Host "Updating Windows signCommand in $tauriConfJson to $signCommand"
           $tauriConfigData = ConvertFrom-Json(Get-Content $tauriConfJson -Raw)
