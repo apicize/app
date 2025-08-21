@@ -50,6 +50,10 @@ body .light {
   background: linear-gradient(#111, #111) no-repeat center/4px 100%;
 }
 
+.resize-handle {
+  margin-bottom: 12px;
+}
+
 @media (pointer: coarse) {
   .resize-handle {
     flex: 0 0 2em;
@@ -288,7 +292,7 @@ pre.log {
   top: 0;
   left: 0;
   width: 4em;
-  padding: 12px;
+  padding: 0;
   background-color: #202020;
   display: flex;
   flex-direction: column;
@@ -318,6 +322,17 @@ pre.log {
 
 .nav-node-text {
   flex-grow: 1;
+  display: flex;
+  align-content: center;
+}
+
+.nav-node-text-state {
+  display: flex;
+  flex-direction: row;
+  justify-items: center;
+  align-items: center;
+  height: 1.5em;
+  width: 3em;
 }
 
 .nav-icon-box {
@@ -394,7 +409,7 @@ pre.log {
   height: 100vh;
   display: flex !important;
   flex-direction: column;
-  padding: 0 0 0 12px;
+  padding: 12px 0 0 12px;
   margin: 0;
 }
 
@@ -578,7 +593,7 @@ pre.log {
 }
 
 .results-test-name {
-  font-weight: 600;
+  font-weight: 400;
   font-size: inherit;
 }
 

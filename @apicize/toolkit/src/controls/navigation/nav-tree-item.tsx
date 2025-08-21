@@ -157,7 +157,9 @@ export const NavTreeItem = React.memo(observer((props: {
                     display='flex'
                 >
                     {settings.showDiagnosticInfo ? `${entry.name} (${entry.state})` : entry.name}
-                    {iconsFromState(entry)}
+                    <Box className='nav-node-text-state'>
+                        {iconsFromState(entry)}
+                    </Box>
                 </Box>
                 {
                     props.onMenu

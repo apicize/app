@@ -1,5 +1,10 @@
 # Change Log
 
+# 0.28.4
+
+* Switched to Roboto Flex for font
+* Small tweaks to navigation bar
+
 # 0.28.3
 
 * Support setting request and group runs to zero

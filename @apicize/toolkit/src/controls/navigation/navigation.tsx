@@ -97,7 +97,7 @@ export const NavigationControl = observer(() => {
                 </ToggleButtonGroup>
                 <NavFileOpsMenu orientation='vertical' sx={{ marginTop: '5em' }} />
             </Stack>
-            <NavOpsMenu orientation='vertical' sx={{ display: 'flex', alignSelf: 'flex-end', marginLeft: 'auto', alignContent: 'right', gap: '0.2em' }} />
+            <NavOpsMenu orientation='vertical' sx={{ display: 'flex', alignSelf: 'flex-end', margin: '0', alignContent: 'center', gap: '0.2em', width: '100%' }} />
         </Box>
         : <Stack bgcolor='workspace.main' direction='column' useFlexGap gap='0.2em' className='nav-selection-pane' typography='navigation'>
             <Stack direction='row' bgcolor='toolbar.main' padding='0.5em 1em 0.5em 0.5em' minWidth='22em' className='nav-toolbar' fontSize='inherit' typography='navigation'>

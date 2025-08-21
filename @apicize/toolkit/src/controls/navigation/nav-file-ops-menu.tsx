@@ -3,7 +3,7 @@ import { createRef, useRef, useState } from "react";
 import { useApicizeSettings } from "../../contexts/apicize-settings.context";
 import { useFileOperations } from "../../contexts/file-operations.context";
 import { useWorkspace } from "../../contexts/workspace.context";
-import { IconButton, MenuItem } from "@mui/material";
+import { ButtonGroup, IconButton, MenuItem } from "@mui/material";
 import { Stack, Box, ResponsiveStyleValue, SxProps } from "@mui/system";
 import { EntityType } from "../../models/workspace/entity-type";
 import { DropdownMenu } from "./dropdown-menu";
@@ -107,11 +107,11 @@ export const NavFileOpsMenu = observer((props: { sx?: SxProps, orientation: 'hor
         direction = 'column'
         firstPanelTPad = '10em'
         alignDropBtnSelf = 'end'
-        buttonSpacing = '1em'
+        // buttonSpacing = '1em'
         alignDropBtnItems = 'begin'
     }
 
-    return <Stack direction={direction} sx={props.sx}>
+    return <ButtonGroup orientation={props.orientation} sx={props.sx}>
         <IconButton
             size='large'
             aria-label='new'
@@ -125,7 +125,7 @@ export const NavFileOpsMenu = observer((props: { sx?: SxProps, orientation: 'hor
             id='file-new-menu-button'
             title='New Workspace'
             size="large"
-            sx={{ minWidth: '1em', width: '1em', alignSelf: alignDropBtnSelf, alignItems: 'alignDropBtnItems' }}
+            sx={{ minWidth: '1em', width: '1em', alignSelf: alignDropBtnSelf, alignItems: alignDropBtnItems }}
             onClick={handleNewFileMenuClick}
         ><KeyboardArrowDownIcon />
         </IconButton>
@@ -149,7 +149,7 @@ export const NavFileOpsMenu = observer((props: { sx?: SxProps, orientation: 'hor
             size="large"
             aria-label='open'
             id='file-open-btn'
-            sx={{ marginTop: buttonSpacing, paddingRight: settings.recentWorkbookFileNames.length > 1 ? '4px' : '8px' }}
+            sx={{ marginTop: buttonSpacing }}
             title={`Open Workbook (${settings.ctrlKey} + O)`}
             onClick={() => fileOps.openWorkbook(false, undefined, true)}>
             <FileOpenIcon />
@@ -160,7 +160,7 @@ export const NavFileOpsMenu = observer((props: { sx?: SxProps, orientation: 'hor
                     id='file-open-menu-button'
                     title='Open Recent Workbook'
                     size="large"
-                    sx={{ minWidth: '1em', width: '1em' }}
+                    sx={{ minWidth: '1em', width: '1em', alignSelf: alignDropBtnSelf, alignItems: alignDropBtnItems }}
                     onClick={handleOpenFileMenuClick}
                 ><KeyboardArrowDownIcon />
                 </IconButton>
@@ -222,5 +222,5 @@ export const NavFileOpsMenu = observer((props: { sx?: SxProps, orientation: 'hor
             title={`Save to Workbook As (${settings.ctrlKey} + Shift + S)`} onClick={() => fileOps.saveWorkbookAs()}>
             <SaveAsIcon />
         </IconButton>
-    </Stack>
+    </ButtonGroup>
 })

@@ -98,12 +98,25 @@ export const ConfigurableTheme = observer((props: {
       }),
     },
     typography: {
+      body: {
+        fontFamily: "'Roboto Flex','sans'",
+        fontSize: settings.fontSize
+      },
+      body1: {
+        fontFamily: "'Roboto Flex','sans'",
+        fontSize: settings.fontSize
+      },
+      body2: {
+        fontFamily: "'Roboto Flex','sans'",
+        fontSize: settings.fontSize
+      },
       fontSize: settings.fontSize,
-      fontFamily: "'Open Sans','sans'",
+      fontFamily: "'Roboto Flex','sans'",
       code: {
         fontFamily: "'Roboto Mono','monospace'"
       },
       navigation: {
+        fontFamily: "'Roboto Flex','sans'",
         fontSize: settings.navigationFontSize
       },
     } as TypographyVariantsOptions,

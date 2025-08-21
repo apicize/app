@@ -3,8 +3,8 @@
 import * as core from '@tauri-apps/api/core'
 import { EditableSettings, DragDropProvider, Entity, EntityType, FeedbackStore, IndexedEntityPosition, LogStore, MainPanel, Navigation, ReqwestEvent, SessionInitialization, SessionSaveState, ToastSeverity, UpdatedNavigationEntry, WorkspaceStore } from '@apicize/toolkit'
 import React, { useEffect, useState } from 'react'
-import "@fontsource/open-sans/latin.css"
 import "@fontsource/roboto-mono/latin.css"
+import '@fontsource/roboto-flex'
 import { ClipboardProvider } from './providers/clipboard.provider';
 import { FeedbackProvider } from './providers/feedback.provider';
 import { FileOperationsProvider } from './providers/file-operations.provider';

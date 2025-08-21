@@ -1,6 +1,6 @@
 {
   "name": "app",
-  "version": "0.28.3",
+  "version": "0.28.4",
   "type": "module",
   "scripts": {
     "dev": "webpack serve --mode development --progress --hot --config ./webpack.config.development.js",
@@ -12,9 +12,9 @@
     "tauri": "tauri"
   },
   "dependencies": {
-    "@apicize/toolkit": "^0.28.3",
+    "@apicize/toolkit": "^0.28.4",
     "@dnd-kit/core": "^6.1.0",
-    "@fontsource/open-sans": "^5.1.1",
+    "@fontsource/roboto-flex": "^5.2.6",
     "@fontsource/roboto-mono": "^5.1.1",
     "@mui/material": "^7.1.0",
     "@mui/system": "^7.1.0",
