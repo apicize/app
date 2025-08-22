@@ -1,5 +1,9 @@
 # Change Log
 
+# 0.28.5
+
+* Standardize Monaco editor font size (remove 20% increase)
+
 # 0.28.4
 
 * Switched to Roboto Flex for font

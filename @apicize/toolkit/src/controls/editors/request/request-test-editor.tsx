@@ -144,7 +144,7 @@ export const RequestTestEditor = observer((props: { request: EditableRequest }) 
                         folding: true,
                         formatOnType: true,
                         formatOnPaste: true,
-                        fontSize: settings.fontSize * 1.2,
+                        fontSize: settings.fontSize
                     }}
                     editorDidMount={(me) => {
                         editor.current = me

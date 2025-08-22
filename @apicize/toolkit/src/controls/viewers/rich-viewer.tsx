@@ -84,7 +84,7 @@ export const RichViewer = React.memo(observer((props: {
             autoIndent: 'full',
             formatOnType: true,
             formatOnPaste: true,
-            fontSize: settings.fontSize * 1.2,
+            fontSize: settings.fontSize,
             readOnly: true,
             wordWrap: props.wrap === true ? 'on' : 'off',
         }} />

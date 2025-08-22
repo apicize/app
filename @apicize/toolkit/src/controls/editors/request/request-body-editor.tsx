@@ -362,7 +362,7 @@ export const RequestBodyEditor = observer((props: { body: EditableRequestBody | 
                   autoIndent: 'full',
                   formatOnType: true,
                   formatOnPaste: true,
-                  fontSize: settings.fontSize * 1.2,
+                  fontSize: settings.fontSize
                 }}
               />
         }
