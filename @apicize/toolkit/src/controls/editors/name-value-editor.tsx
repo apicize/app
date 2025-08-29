@@ -33,45 +33,25 @@ export const NameValueEditor = React.memo((props: {
         props.onUpdate(values)
     }
 
-    const debouncedUpdateName = useMemo(() => {
-        let timeoutId: NodeJS.Timeout
-        return (id: string, value: string) => {
-            clearTimeout(timeoutId)
-            timeoutId = setTimeout(() => {
-                if (!props.values) return
-                const values = toJS(props.values)
-                const match = values.find(v => v.id === id)
-                if (match) {
-                    match.name = value
-                    props.onUpdate(values)
-                }
-            }, 300)
+    const updateName = (id: string, value: string) => {
+        if (!props.values) return
+        const values = toJS(props.values)
+        const match = values.find(v => v.id === id)
+        if (match) {
+            match.name = value
+            props.onUpdate(values)
         }
-    }, [props.values, props.onUpdate])
+    }
 
-    const debouncedUpdateValue = useMemo(() => {
-        let timeoutId: NodeJS.Timeout
-        return (id: string, value: string) => {
-            clearTimeout(timeoutId)
-            timeoutId = setTimeout(() => {
-                if (!props.values) return
-                const values = toJS(props.values)
-                const match = values.find(v => v.id === id)
-                if (match) {
-                    match.value = value
-                    props.onUpdate(values)
-                }
-            }, 300)
+    const updateValue = (id: string, value: string) => {
+        if (!props.values) return
+        const values = toJS(props.values)
+        const match = values.find(v => v.id === id)
+        if (match) {
+            match.value = value
+            props.onUpdate(values)
         }
-    }, [props.values, props.onUpdate])
-
-    const onNameUpdate = useCallback((id: string, value: string) => {
-        debouncedUpdateName(id, value)
-    }, [debouncedUpdateName])
-
-    const onValueUpdate = useCallback((id: string, value: string) => {
-        debouncedUpdateValue(id, value)
-    }, [debouncedUpdateValue])
+    }
 
     let ctr = 0
     return <Stack direction='column' position='relative' spacing={4} width='100%'>
@@ -85,7 +65,7 @@ export const NameValueEditor = React.memo((props: {
                             aria-label={props.nameHeader}
                             size="small"
                             value={value.name}
-                            onChange={(e) => onNameUpdate(value.id, e.target.value)}
+                            onChange={(e) => updateName(value.id, e.target.value)}
                             fullWidth
                         />
                     </Grid>
@@ -96,7 +76,7 @@ export const NameValueEditor = React.memo((props: {
                             aria-label={props.valueHeader}
                             size="small"
                             value={value.value}
-                            onChange={(e) => onValueUpdate(value.id, e.target.value)}
+                            onChange={(e) => updateValue(value.id, e.target.value)}
                             fullWidth
                         />
                     </Grid>

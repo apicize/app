@@ -1,5 +1,9 @@
 # Change Log
 
+# 0.28.6
+
+* Restore header/query string functionality that was broken by AI
+
 # 0.28.5
 
 * Standardize Monaco editor font size (remove 20% increase)
