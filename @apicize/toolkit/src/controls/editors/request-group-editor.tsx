@@ -17,30 +17,21 @@ import { useFileOperations } from '../../contexts/file-operations.context';
 import { useApicizeSettings } from '../../contexts/apicize-settings.context'
 import { RequestGroupInfoEditor } from './request/request-group-info-editor';
 import { WarningsEditor } from './warnings-editor';
+import { EditableRequestGroup } from '../../models/workspace/editable-request-group';
 
-export const RequestGroupEditor = observer((props: { sx?: SxProps }) => {
+export const RequestGroupEditor = observer(({ group, sx }: { group: EditableRequestGroup, sx?: SxProps }) => {
     const settings = useApicizeSettings()
     const fileOps = useFileOperations()
 
     const workspace = useWorkspace()
-    const activeSelection = workspace.activeSelection
-
-    if (!activeSelection?.group) {
-        return null
-    }
 
     workspace.nextHelpTopic = 'workspace/groups'
-
-    const group = activeSelection.group
-    const execution = workspace.getExecution(group.id)
 
     const handlePanelChanged = (_: React.SyntheticEvent, newValue: GroupPanel) => {
         if (newValue) {
             workspace.changeGroupPanel(newValue)
         }
     }
-
-    const isRunning = execution.isRunning
 
     let usePanel = workspace.groupPanel
     const hasWarnings = group.warnings.hasEntries
@@ -79,7 +70,7 @@ export const RequestGroupEditor = observer((props: { sx?: SxProps }) => {
                     name={group.name.length ?? 0 > 0 ? `${group.name} - ${usePanel}` : '(Unnamed)'}
                     diag={settings.showDiagnosticInfo ? group.id : undefined}
                 >
-                    <Box display='inline-flex' paddingLeft='1em' visibility={isRunning ? "visible" : "hidden"} width='2em'><PlayArrowIcon color="success" /></Box>
+                    <Box display='inline-flex' paddingLeft='1em' visibility={group.isRunning ? "visible" : "hidden"} width='2em'><PlayArrowIcon color="success" /></Box>
                 </EditorTitle>
                 <RunToolbar requestEntry={group} />
             </Stack>
@@ -114,9 +105,9 @@ export const RequestGroupEditor = observer((props: { sx?: SxProps }) => {
         </>
     })
 
-    const GroupEditorLayout = observer((props: { sx?: SxProps, lastExecuted: number }) => {
-        return execution && execution.hasResults
-            ? <Box sx={props.sx}>
+    const GroupEditorLayout = observer(({ sx: editorSx }: { sx?: SxProps }) => {
+        return group.resultMenuItems.length > 0 && group.selectedResultMenuItem
+            ? <Box sx={editorSx}>
                 <PanelGroup autoSaveId="apicize-request" direction="horizontal" className='editor split' storage={sizeStorage}>
                     <Panel id='request-editor' order={0} defaultSize={50} minSize={20} className='split-left'>
                         <GroupPanel />
@@ -130,23 +121,29 @@ export const RequestGroupEditor = observer((props: { sx?: SxProps }) => {
                                     width='calc(100% - 1em)'
                                     height='100%'
                                     position='absolute'
-                                    display={isRunning ? 'block' : 'none'}
+                                    display={group.isRunning ? 'block' : 'none'}
                                     className="MuiBackdrop-root MuiModal-backdrop"
                                     sx={{ zIndex: 99999, opacity: 0.5, transition: "opacity 225ms cubic-bezier(0.4, 0, 0.2, 1) 0ms", backgroundColor: "#000000" }} />
                                 <Box position='relative' display='flex' flexGrow={1} flexDirection='column' className='split-right'>
-                                    <RunResultsToolbar className='editor-panel-header' lastExecuted={execution.lastExecuted} />
-                                    <ResultsViewer className='results-panel' lastExecuted={execution.lastExecuted} />
+                                    <RunResultsToolbar
+                                        className='editor-panel-header'
+                                        request={group}
+                                    />
+                                    <ResultsViewer
+                                        className='results-panel'
+                                        request={group}
+                                        detail={workspace.currentExecutionDetail} />
                                 </Box>
                             </Box>
                         </Panel>
                     }
                 </PanelGroup>
             </Box>
-            : <Box className='editor group' sx={props.sx}>
+            : <Box className='editor group' sx={editorSx}>
                 <GroupPanel />
             </Box>
     })
 
-    return <GroupEditorLayout sx={props.sx} lastExecuted={execution.lastExecuted} />
+    return <GroupEditorLayout sx={sx} />
 
 })

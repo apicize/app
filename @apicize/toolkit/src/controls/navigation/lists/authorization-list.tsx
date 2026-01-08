@@ -8,13 +8,15 @@ import { observer } from "mobx-react-lite";
 import { SimpleTreeView } from "@mui/x-tree-view/SimpleTreeView";
 import { useWorkspace } from "../../../contexts/workspace.context";
 
-export const AuthorizationList = observer((props: {
+export const AuthorizationList = observer(({
+    sx
+}: {
     sx?: SxProps
 }) => {
     const workspace = useWorkspace()
     workspace.nextHelpTopic = 'workspace/authorizations'
 
-    return <Box sx={props.sx} className='editor'>
+    return <Box sx={sx} className='editor'>
         <Stack direction='row' className='editor-panel-header' flexGrow={0}>
             <EditorTitle icon={<SvgIcon color='authorization'><AuthIcon /></SvgIcon>} name='Authorizations'>
                 <IconButton color='primary' size='medium' aria-label='Close' title='Close' sx={{ marginLeft: '1rem' }} onClick={() => workspace.returnToNormal()}><CloseIcon fontSize='inherit' /></IconButton>
@@ -24,7 +26,7 @@ export const AuthorizationList = observer((props: {
             <Box sx={{ width: 'fit-content' }}>
                 <SimpleTreeView
                     expandedItems={workspace.expandedItems}
-                    sx={props.sx}
+                    sx={sx}
                     multiSelect={false}
                     onItemExpansionToggle={(_, id, isExpanded) => {
                         workspace.updateExpanded(id, isExpanded)

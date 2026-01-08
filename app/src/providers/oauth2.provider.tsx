@@ -1,18 +1,18 @@
 import { ReactNode, useEffect, useRef } from "react";
 import * as core from '@tauri-apps/api/core'
-import { PkceContext, ToastSeverity, useApicizeSettings, useFeedback, useWorkspace, WorkspaceStore } from "@apicize/toolkit";
+import { OAuth2Context, ToastSeverity, useApicizeSettings, useFeedback, useWorkspace, WorkspaceStore } from "@apicize/toolkit";
 import { listen } from "@tauri-apps/api/event";
 import { Window } from "@tauri-apps/api/window"
 import { Webview } from "@tauri-apps/api/webview"
 import { EditableAuthorization } from "@apicize/toolkit";
 import { observer } from "mobx-react-lite";
 import { autorun, reaction, toJS } from "mobx";
-import { AuthorizationType, OAuth2PkceAuthorization } from "@apicize/lib-typescript";
+import { AuthorizationType, OAuth2PkceAuthorization, TokenResult } from "@apicize/lib-typescript";
 
 /**
  * Implementation of file opeartions via Tauri
  */
-export const PkceProvider = observer(({ store, children }: { store: WorkspaceStore, children?: ReactNode }) => {
+export const OAuth2Provider = observer(({ store, children }: { store: WorkspaceStore, children?: ReactNode }) => {
 
     const settings = useApicizeSettings()
     const feedback = useFeedback()
@@ -26,13 +26,16 @@ export const PkceProvider = observer(({ store, children }: { store: WorkspaceSto
     let lastPortTimeout = useRef<NodeJS.Timeout | null>(null)
 
     useEffect(() => {
-        const unlistenPkceInit = listen<OAuthPkceInitParams>('oauth2-pkce-init', (event) => {
+        const unlistenOAuth2ClientToken = listen<OAuthAuthorizationParams>('oauth2-client-token', (event) => {
+            getOAuth2ClientToken(event.payload.authorizationId)
+        })
+        const unlistenPkceInit = listen<OAuthAuthorizationParams>('oauth2-pkce-init', (event) => {
             launchPkceWindow(event.payload)
         })
-        const unlistenPkceClose = listen<OAuthPkceInitParams>('oauth2-pkce-close', async (event) => {
+        const unlistenPkceClose = listen<OAuthAuthorizationParams>('oauth2-pkce-close', async (event) => {
             await closePkceWindows(event.payload)
         })
-        const unlistenRefreshToken = listen<OAuthPkceInitParams>('oauth2-refresh-token', (event) => {
+        const unlistenRefreshToken = listen<OAuthAuthorizationParams>('oauth2-refresh-token', (event) => {
             refreshToken(event.payload)
         })
         const unlistenPkceAuthResponse = listen<OAuthPkceAuthParams>('oauth2-pkce-auth-response', async (event) => {
@@ -67,6 +70,7 @@ export const PkceProvider = observer(({ store, children }: { store: WorkspaceSto
         )
 
         return () => {
+            unlistenOAuth2ClientToken.then(f => f())
             unlistenPkceInit.then(f => f())
             unlistenPkceClose.then(f => f())
             unlistenRefreshToken.then(f => f())
@@ -77,9 +81,16 @@ export const PkceProvider = observer(({ store, children }: { store: WorkspaceSto
     })
 
     /**
+     * Retrieve OAuth2 client token manually (as opposed to automatically during a test)
+     * @param authorizationId
+     */
+    const getOAuth2ClientToken = (authorizationId: string): Promise<TokenResult> =>
+        core.invoke<TokenResult>('retrieve_oauth2_client_token', { authorizationId })
+
+    /**
      * Close any open PKCE windows
      */
-    const closePkceWindows = async (params: OAuthPkceInitParams) => {
+    const closePkceWindows = async (params: OAuthAuthorizationParams) => {
         const allWindows = await Window.getAll()
         return Promise.all(
             allWindows.filter(w => w.label.startsWith(`apicize-pkce-${params.authorizationId}`)).map(w => w.close())
@@ -90,7 +101,7 @@ export const PkceProvider = observer(({ store, children }: { store: WorkspaceSto
      * Launch the PKCE window for the specified PKCE authorization, store information required
      * @param auth 
      */
-    const launchPkceWindow = async (params: OAuthPkceInitParams) => {
+    const launchPkceWindow = async (params: OAuthAuthorizationParams) => {
         try {
             const auth = await workspace.getAuthorization(params.authorizationId)
             if (!auth) {
@@ -183,7 +194,7 @@ export const PkceProvider = observer(({ store, children }: { store: WorkspaceSto
             if (!(matchAuth && matchEntry)) {
                 throw new Error('OAuth2 response received with invalid CSRF token')
             }
-            const exchangeResponse = await core.invoke<OAuthPkceAuthResponse>('retrieve_access_token', {
+            const exchangeResponse = await core.invoke<OAuthPkceAuthResponse>('retrieve_oauth2_pkce_token', {
                 tokenUrl: matchAuth.accessTokenUrl,
                 redirectUrl: matchEntry.redirectUrl,
                 code: response.code,
@@ -206,7 +217,7 @@ export const PkceProvider = observer(({ store, children }: { store: WorkspaceSto
      * Use refresh token to request updated access token
      * @param auth 
      */
-    const refreshToken = async (params: OAuthPkceInitParams) => {
+    const refreshToken = async (params: OAuthAuthorizationParams) => {
         try {
             const auth = await workspace.getAuthorization(params.authorizationId)
             if (!auth) {
@@ -228,9 +239,9 @@ export const PkceProvider = observer(({ store, children }: { store: WorkspaceSto
     }
 
     return (
-        <PkceContext.Provider value={store}>
+        <OAuth2Context.Provider value={store}>
             {children}
-        </PkceContext.Provider>
+        </OAuth2Context.Provider>
     )
 })
 
@@ -241,7 +252,7 @@ interface OAuthPkceRequest {
     redirectUrl: string,
 }
 
-interface OAuthPkceInitParams {
+interface OAuthAuthorizationParams {
     authorizationId: string
 }
 

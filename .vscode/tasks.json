@@ -17,7 +17,7 @@
 				"base": "$rustc",
 				"fileLocation": "autoDetect"
 			},
-			// "dependsOn": ["ui:deps"],
+			"dependsOn": ["ui:deps"],
 		},
 		{ 
 			"label": "ui:deps",

@@ -8,11 +8,13 @@ use std::{
 };
 
 use apicize_lib::{
-    open_data_file, save_data_file, ExecutionReportFormat, FileAccessError,
-    SerializationOpenSuccess, SerializationSaveSuccess,
+    ExecutionReportFormat, SerializationOpenSuccess, SerializationSaveSuccess, open_data_file,
+    save_data_file,
 };
 use dirs::{config_dir, document_dir, home_dir};
 use serde::{Deserialize, Serialize};
+
+use crate::error::ApicizeAppError;
 
 fn default_font_size() -> i32 {
     12
@@ -170,10 +172,11 @@ impl ApicizeSettings {
     }
 
     /// Open Apicize common environment from the specified name in the default path
-    pub fn open() -> Result<SerializationOpenSuccess<ApicizeSettings>, FileAccessError> {
+    pub fn open() -> Result<SerializationOpenSuccess<ApicizeSettings>, ApicizeAppError> {
         let file_name = &Self::get_settings_filename();
         if Path::new(&file_name).is_file() {
             open_data_file::<ApicizeSettings>(&Self::get_settings_filename())
+                .map_err(ApicizeAppError::ApicizeError)
         } else {
             // Return default settings if no existing settings file exists
             let settings = ApicizeSettings {
@@ -202,13 +205,13 @@ impl ApicizeSettings {
     }
 
     /// Save Apicize common environment to the specified name in the default path
-    pub fn save(&self) -> Result<SerializationSaveSuccess, FileAccessError> {
+    pub fn save(&self) -> Result<SerializationSaveSuccess, ApicizeAppError> {
         let dir = Self::get_settings_directory();
-        if !Path::new(&dir).is_dir() {
-            if let Err(err) = create_dir_all(&dir) {
-                panic!("Unable to create {} - {}", &dir.to_string_lossy(), err);
-            }
+        if !Path::new(&dir).is_dir()
+            && let Err(err) = create_dir_all(&dir)
+        {
+            panic!("Unable to create {} - {}", &dir.to_string_lossy(), err);
         }
-        save_data_file(&Self::get_settings_filename(), self)
+        save_data_file(&Self::get_settings_filename(), self).map_err(ApicizeAppError::ApicizeError)
     }
 }

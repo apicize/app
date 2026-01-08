@@ -2,7 +2,7 @@ import { Proxy } from "@apicize/lib-typescript"
 import { Editable } from "../editable"
 import { action, computed, observable } from "mobx"
 import { EntityType } from "./entity-type"
-import { EntityProxy, WorkspaceStore } from "../../contexts/workspace.context"
+import { EntityProxy, EntityTypeName, WorkspaceStore } from "../../contexts/workspace.context"
 
 export class EditableProxy extends Editable<Proxy> {
     public readonly entityType = EntityType.Proxy
@@ -18,11 +18,10 @@ export class EditableProxy extends Editable<Proxy> {
     protected onUpdate() {
         this.markAsDirty()
         this.workspace.updateProxy({
-            entityType: 'Proxy',
+            entityTypeName: EntityTypeName.Proxy,
             id: this.id,
             name: this.name,
             url: this.url,
-            validationErrors: this.validationErrors,
         })
     }
 

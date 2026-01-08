@@ -6,9 +6,9 @@ import { ExecutionResultSuccess } from "./execution-result-success"
  */
 export interface ExecutionResultSummary {
     requestOrGroupId: string
-    index: number
-    parentIndex?: number
-    childIndexes?: number[]
+    execCtr: number
+    parentExecCtr?: number
+    childExecCtrs?: number[]
     level: number
     name: string
     key?: string
@@ -22,6 +22,9 @@ export interface ExecutionResultSummary {
     responseBodyLength?: number
     success: ExecutionResultSuccess
     error?: ApicizeError
+    requestSuccessCount: number
+    requestFailureCount: number
+    requestErrorCount: number
     testResults?: ApicizeTestBehavior[]
     runNumber?: number
     runCount?: number

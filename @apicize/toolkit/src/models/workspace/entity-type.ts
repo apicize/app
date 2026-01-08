@@ -2,8 +2,6 @@ export enum EntityType {
     RequestEntry = 1,
     Request = 2,
     Group = 3,
-    Body = 4,
-    Headers = 5,
     Scenario = 6,
     Authorization = 7,
     Certificate = 8,
@@ -12,4 +10,7 @@ export enum EntityType {
     Parameters = 11,
     Defaults = 12,
     Warnings = 13,
+    DataList = 14,
+    RequestHeaders = 100,
+    RequestBody = 101,
 }

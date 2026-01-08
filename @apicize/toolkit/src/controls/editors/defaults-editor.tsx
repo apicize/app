@@ -30,7 +30,7 @@ import { WarningsEditor } from './warnings-editor';
 
 type DefaultsPanels = 'Parameters' | 'External Data' | 'Warnings'
 
-export const DefaultsEditor = observer((props: { sx: SxProps }) => {
+export const DefaultsEditor = observer(({ sx }: { sx: SxProps }) => {
     const workspace = useWorkspace()
     const feedback = useFeedback()
     workspace.nextHelpTopic = 'workspace/defaults'
@@ -50,7 +50,6 @@ export const DefaultsEditor = observer((props: { sx: SxProps }) => {
         workspace.initializeDataList()
         return null
     }
-
 
     const handlePanelChanged = (_: React.SyntheticEvent, newValue: DefaultsPanels) => {
         if (newValue) setPanel(newValue)
@@ -212,7 +211,7 @@ export const DefaultsEditor = observer((props: { sx: SxProps }) => {
         </Box>
     </Stack>
 
-    return <Box marginBottom='1.5em' sx={props.sx} className='editor'>
+    return <Box marginBottom='1.5em' sx={sx} className='editor'>
         <Stack direction='row' className='editor-panel-header'>
             <EditorTitle icon={<SvgIcon color='defaults'><DefaultsIcon /></SvgIcon>} name={`Workbook Defaults - ${panel}`}>
                 <IconButton color='primary' size='medium' aria-label='Close' title='Close' sx={{ marginLeft: '1rem' }} onClick={() => workspace.returnToNormal()}><CloseIcon fontSize='inherit' /></IconButton>

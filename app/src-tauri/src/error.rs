@@ -1,6 +1,7 @@
-use std::io;
+use std::{io, string::FromUtf8Error};
 
-use apicize_lib::{ApicizeError, FileAccessError};
+use apicize_lib::{ApicizeError};
+use serde_xml_rs::Error as XmlError;
 use thiserror::Error;
 
 use crate::workspaces::EntityType;
@@ -11,13 +12,13 @@ pub enum ApicizeAppError {
     ApicizeError(#[from] ApicizeError),
 
     #[error(transparent)]
+    XmlError(#[from] XmlError),
+
+    #[error(transparent)]
     IOError(#[from] io::Error),
 
-    #[error("file access error")]
-    FileAccessError(#[from] FileAccessError),
-
     #[error("serialization error")]
-    SerializationError(#[from] serde_json::Error),
+    JsonError(#[from] serde_json::Error),
 
     #[error("invalid session '{0}'")]
     InvaliedSession(String),
@@ -27,6 +28,9 @@ pub enum ApicizeAppError {
 
     #[error("invalid request '{0}'")]
     InvalidRequest(String),
+
+    #[error("invalid execution '{0}'")]
+    InvalidExecution(usize),
 
     #[error("invalid group '{0}'")]
     InvalidGroup(String),
@@ -49,8 +53,8 @@ pub enum ApicizeAppError {
     #[error("invalid operation type '{0}'")]
     InvalidTypeForOperation(EntityType),
 
-    #[error("invalid request '{0}' index {1}")]
-    InvalidResult(String, usize),
+    #[error("invalid index {0}")]
+    InvalidResult(usize),
 
     #[error("file name required")]
     FileNameRequired(),
@@ -64,8 +68,14 @@ pub enum ApicizeAppError {
     #[error("No results returned")]
     NoResults,
 
-    #[error("ConcurrencyE rror '{0}'")]
+    #[error("Clipboard Error '{0}'")]
+    ClipboardError(String),
+
+    #[error("Concurrency Error '{0}'")]
     ConcurrencyError(String),
+
+    #[error(transparent)]
+    FromUtf8Error(#[from] FromUtf8Error),
 }
 
 impl serde::Serialize for ApicizeAppError {

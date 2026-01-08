@@ -335,6 +335,31 @@ pre.log {
   width: 3em;
 }
 
+.nav-state-icon-container {
+  display: inline-flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  margin-left: 0.5em;
+}
+
+.nav-state-icon-container .MuiSvgIcon-fontSizeSmall {
+  font-size: 1.0em;
+}
+
+.run-toolbar-menuitem,
+.run-toolbar .MuiInputBase-input {
+  display: flex;
+  align-items: center;
+}
+
+.run-toolbar-menuitem .MuiSvgIcon-fontSizeSmall,
+.run-toolbar .MuiInputBase-input .MuiSvgIcon-fontSizeSmall {
+  display: inline-flex;
+  margin-left: 0.5em;
+  font-size: 1.0em;
+}
+
 .nav-icon-box {
   flex-grow: 0;
   display: flex;
@@ -569,8 +594,6 @@ pre.log {
   font-size: 0.8em;
 }
 
-
-
 .results-panel {
   display: flex;
   flex-grow: 1;
@@ -620,6 +643,10 @@ pre.log {
   align-content: center;
 }
 
+.results-url {
+  font-weight: 500;
+}
+
 .test-result-detail-info {
   margin: 0.2em 0;
 }
@@ -661,6 +688,9 @@ code.results-log {
   white-space: pre-wrap;
 }
 
+.borderless {
+  border: none!important;
+}
 
 /* .section {
   display: flex;

@@ -1,29 +1,15 @@
 import { Box, Grid, Stack, Typography } from "@mui/material"
 import { useState } from "react"
-import { useWorkspace } from "../../../contexts/workspace.context"
-import { useFeedback } from "../../../contexts/feedback.context"
-import { Execution } from "../../../models/workspace/execution"
-import { toJS } from "mobx"
+import { ExecutionResultDetail } from "@apicize/lib-typescript"
 
-export function ResponseHeadersViewer(props: { execution: Execution }) {
+export function ResponseHeadersViewer({ detail }: { detail: ExecutionResultDetail | null }) {
 
-    const workspace = useWorkspace()
-    const feedback = useFeedback()
-
-    const [headers, setHeaders] = useState<[string, string][] | null>(null)
-
-    if (!headers) {
-        workspace.getExecutionResultDetail(props.execution.requestOrGroupId, props.execution.resultIndex, false)
-            .then(details => {
-                setHeaders((details.entityType === 'request' && details.testContext.response?.headers)
-                    ? Object.entries(details.testContext.response.headers)
-                    : [])
-            }).catch(e => feedback.toastError(e))
+    if (detail?.entityType !== 'request') {
         return
     }
 
+    const [headers] = useState(Object.entries(detail.testContext.response?.headers ?? {}))
     let hdrCtr = 0
-
     return (
         <Stack direction="column" sx={{ flexGrow: 1, maxWidth: '80em', position: 'absolute', top: '0', bottom: '0' }}>
             {

@@ -4,33 +4,37 @@
 pub mod dragdrop;
 pub mod error;
 pub mod pkce;
+pub mod results;
 pub mod sessions;
 pub mod settings;
 pub mod trace;
 pub mod workspaces;
-
 use apicize_lib::{
-    clear_all_oauth2_tokens_from_cache, clear_oauth2_token_from_cache,
-    editing::indexed_entities::IndexedEntityPosition, store_oauth2_token_in_cache, ApicizeRunner,
-    Authorization, CachedTokenInfo, ExecutionReportFormat, ExecutionResultDetail,
-    ExecutionResultSummary, ExecutionStatus, ExternalData, Parameters, PkceTokenResult,
-    TestRunnerContext, Warnings, Workspace,
+    ApicizeRunner, Authorization, CachedTokenInfo, ExecutionResultSuccess, ExecutionResultSummary,
+    ExecutionState, ExternalData, Parameters, PkceTokenResult, RequestEntry, TestRunnerContext,
+    TokenResult, Validated, Workspace, clear_all_oauth2_tokens_from_cache,
+    clear_oauth2_token_from_cache, editing::indexed_entities::IndexedEntityPosition,
+    get_oauth2_client_credentials, store_oauth2_token_in_cache,
 };
 use dirs::home_dir;
 use dragdrop::DroppedFile;
 use error::ApicizeAppError;
+use indexmap::IndexMap;
 use pkce::{OAuth2PkceInfo, OAuth2PkceRequest, OAuth2PkceService};
+use results::ExecutionResultDetail;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use sessions::{Session, SessionInitialization, SessionSaveState, SessionStartupState, Sessions};
+use sessions::{ExecutionResultViewState, Session, SessionSaveState, Sessions};
 use settings::{ApicizeSettings, ColorScheme};
 use std::{
+    collections::{HashMap, HashSet},
     env,
     fs::{self, exists},
     io::{self},
     path::{Path, PathBuf},
     sync::{Arc, Mutex, OnceLock},
 };
+use tauri::async_runtime::RwLock;
 use tauri::{
     AppHandle, Emitter, LogicalSize, Manager, PhysicalSize, State, WebviewWindowBuilder, Wry,
 };
@@ -38,11 +42,15 @@ use tauri_plugin_clipboard::Clipboard;
 use tokio_util::sync::CancellationToken;
 use trace::{ReqwestEvent, ReqwestLogger};
 use workspaces::{
-    Entities, Entity, EntityType, Navigation, OpenWorkspaceResult, WorkspaceInfo,
-    WorkspaceSaveStatus, Workspaces,
+    Entities, Entity, EntityType, ExecutionEvent, Navigation, OpenWorkspaceResult,
+    RequestEntryInfo, RequestExecution, WorkspaceInfo, WorkspaceMode, WorkspaceSaveStatus,
+    Workspaces,
 };
 
-use tauri::async_runtime::RwLock;
+use crate::{
+    sessions::SessionEntity,
+    workspaces::{ClipboardPayloadRequest, PersistableData, WorkspaceInitialization},
+};
 
 struct AuthState {
     pkce: Mutex<OAuth2PkceService>,
@@ -94,12 +102,11 @@ async fn main() {
             let mut load_workbook: Option<String> = None;
 
             let args: Vec<String> = env::args().collect();
-            if args.len() > 1 {
-                if let Some(file_argument) = args.get(1) {
-                    if let Ok(true) = fs::exists(file_argument) {
-                        load_workbook = Some(file_argument.to_string());
-                    }
-                }
+            if args.len() > 1
+                && let Some(file_argument) = args.get(1)
+                && let Ok(true) = fs::exists(file_argument)
+            {
+                load_workbook = Some(file_argument.to_string());
             }
 
             let mut settings = if let Ok(loaded_settings) = ApicizeSettings::open() {
@@ -118,28 +125,28 @@ async fn main() {
 
             if is_new_install {
                 // If we have not loaded a workbook before, copy the demo
-                if let Some(workbook_directory) = &settings.workbook_directory {
-                    if let Ok(resources) = &app.path().resource_dir() {
-                        let src_demo_directory = resources.join("help").join("demo");
-                        let dest_demo_directory = Path::new(workbook_directory);
+                if let Some(workbook_directory) = &settings.workbook_directory
+                    && let Ok(resources) = &app.path().resource_dir()
+                {
+                    let src_demo_directory = resources.join("help").join("demo");
+                    let dest_demo_directory = Path::new(workbook_directory);
 
-                        if let Err(err) = copy_files(&src_demo_directory, dest_demo_directory) {
-                            eprintln!(
-                                "Unable to copy demo files from {} to {}: {}",
-                                src_demo_directory.to_string_lossy(),
-                                dest_demo_directory.to_string_lossy(),
-                                err
-                            );
-                        }
-
-                        load_workbook = Some(
-                            dest_demo_directory
-                                .join("demo.apicize")
-                                .as_os_str()
-                                .to_string_lossy()
-                                .to_string(),
+                    if let Err(err) = copy_files(&src_demo_directory, dest_demo_directory) {
+                        eprintln!(
+                            "Unable to copy demo files from {} to {}: {}",
+                            src_demo_directory.to_string_lossy(),
+                            dest_demo_directory.to_string_lossy(),
+                            err
                         );
                     }
+
+                    load_workbook = Some(
+                        dest_demo_directory
+                            .join("demo.apicize")
+                            .as_os_str()
+                            .to_string_lossy()
+                            .to_string(),
+                    );
                 }
             }
 
@@ -175,16 +182,25 @@ async fn main() {
                 sessions: RwLock::new(sessions),
             });
 
+            // Set up PKCE service
+            let auth_state = AuthState {
+                pkce: Mutex::new(OAuth2PkceService::new(app.handle().clone())),
+            };
+
+            if settings.pkce_listener_port > 0 {
+                auth_state
+                    .pkce
+                    .lock()
+                    .unwrap()
+                    .activate_listener(settings.pkce_listener_port);
+            }
+
+            app.manage(auth_state);
+
             // Set up settings
             app.manage(SettingsState {
                 settings: RwLock::new(settings),
             });
-
-            // Set up PKCE service
-            app.manage(AuthState {
-                pkce: Mutex::new(OAuth2PkceService::new(app.handle().clone())),
-            });
-
             // Set up workspaces
             app.manage(WorkspacesState {
                 workspaces: RwLock::new(workspaces),
@@ -228,34 +244,43 @@ async fn main() {
         // .plugin(tauri_plugin_window_state::Builder::default()
         //     .build())
         .invoke_handler(tauri::generate_handler![
-            initialize_session,
+            // initialize_session,
             generate_settings_defaults,
             new_workspace,
             open_workspace,
             save_workspace,
             close_workspace,
             clone_workspace,
+            show_session,
             get_workspace_save_status,
             open_settings,
             save_settings,
-            run_request,
+            execute_request,
             cancel_request,
-            generate_report,
             get_result_detail,
+            get_execution_result_view_state,
+            update_execution_result_view_state,
             store_token,
             clear_all_cached_authorizations,
             clear_cached_authorization,
+            copy_to_clipboard,
             // get_environment_variables,
             is_release_mode,
             get_clipboard_image,
             set_pkce_port,
             generate_authorization_info,
             // launch_pkce_window,
-            retrieve_access_token,
+            retrieve_oauth2_client_token,
+            retrieve_oauth2_pkce_token,
             refresh_token,
             get_clipboard_file_data,
             get,
+            update_active_entity,
+            update_expanded_items,
+            update_mode,
+            update_help_topic,
             get_title,
+            get_execution,
             get_dirty,
             get_request_active_authorization,
             get_request_active_data,
@@ -292,51 +317,69 @@ fn format_window_title(display_name: &str, dirty: bool) -> String {
     title
 }
 
-#[tauri::command]
-async fn initialize_session(
-    app: AppHandle,
-    session_state: State<'_, SessionsState>,
-    workspaces_state: State<'_, WorkspacesState>,
-    settings_state: State<'_, SettingsState>,
-    session_id: &str,
-) -> Result<SessionInitialization, ApicizeAppError> {
-    let sessions = session_state.sessions.read().await;
-    let workspaces = workspaces_state.workspaces.read().await;
-    let settings = settings_state.settings.read().await;
-    let session = sessions.get_session(session_id)?;
-    let editor_count = sessions
-        .get_workspace_session_ids(&session.workspace_id)
-        .len();
-    let info = workspaces.get_workspace_info(&session.workspace_id)?;
+// #[tauri::command]
+// async fn initialize_session(
+//     app: AppHandle,
+//     session_state: State<'_, SessionsState>,
+//     workspaces_state: State<'_, WorkspacesState>,
+//     settings_state: State<'_, SettingsState>,
+//     session_id: &str,
+//     init_data: WorkspaceInitialization,
+// ) -> Result<(), ApicizeAppError> {
+//     let sessions = session_state.sessions.read().await;
+//     let workspaces = workspaces_state.workspaces.read().await;
+//     let settings = settings_state.settings.read().await;
+//     let session = sessions.get_session(session_id)?;
 
-    let startup_state = session.startup_state.as_ref();
+//     let editor_count = sessions
+//         .get_workspace_session_ids(&session.workspace_id)
+//         .len();
+//     let info = workspaces.get_workspace_info(&session.workspace_id)?;
 
-    let init = SessionInitialization {
-        workspace_id: session.workspace_id.clone(),
-        settings: settings.clone(),
-        navigation: info.navigation.clone(),
-        executing_request_ids: info.executing_request_ids.clone(),
-        result_summaries: info.result_summaries.clone(),
-        file_name: info.file_name.clone(),
-        display_name: info.display_name.clone(),
-        dirty: info.dirty,
-        editor_count,
-        defaults: info.workspace.defaults.clone(),
-        error: startup_state.and_then(|s| s.error.clone()),
-        expanded_items: startup_state.and_then(|s| s.expanded_items.clone()),
-        mode: session.startup_state.as_ref().and_then(|s| s.mode),
-        active_id: startup_state.and_then(|s| s.active_id.clone()),
-        active_type: startup_state.and_then(|s| s.active_type.clone()),
-        help_topic: startup_state.and_then(|s| s.help_topic.clone()),
-    };
+//     let init = SessionInitialization {
+//         workspace_id: session.workspace_id.clone(),
+//         settings: settings.clone(),
+//         navigation: info.navigation.clone(),
+//         file_name: info.file_name.clone(),
+//         display_name: info.display_name.clone(),
+//         dirty: info.dirty,
+//         editor_count,
+//         defaults: info.workspace.defaults.clone(),
+//         error: None,
+//         active_entity: session.active_entity.clone(),
+//         expanded_items: session.expanded_items.clone(),
+//         mode: session.mode,
+//         executions: info
+//             .executions
+//             .iter()
+//             .filter_map(|(id, exec)| match exec.execution_state {
+//                 ExecutionState::RUNNING => Some((
+//                     id.to_string(),
+//                     ExecutionEvent::Start {
+//                         execution_state: ExecutionState::RUNNING,
+//                     },
+//                 )),
+//                 ExecutionState::ERROR => None,
+//                 _ => Some((
+//                     id.to_string(),
+//                     ExecutionEvent::Complete(RequestExecution {
+//                         menu: exec.menu.clone(),
+//                         execution_state: exec.execution_state.clone(),
+//                         active_summaries: exec.active_summaries.clone(),
+//                     }),
+//                 )),
+//             })
+//             .collect::<FxHashMap<String, ExecutionEvent>>(),
+//         help_topic: session.help_topic.clone(),
+//     };
 
-    if let Some(window) = app.get_webview_window(session_id) {
-        window.show().unwrap();
-        window.set_focus().unwrap();
-    }
+//     if let Some(window) = app.get_webview_window(session_id) {
+//         window.show().unwrap();
+//         window.set_focus().unwrap();
+//     }
 
-    Ok(init)
-}
+//     Ok(init)
+// }
 
 #[tauri::command]
 fn generate_settings_defaults(app: AppHandle) -> Result<ApicizeSettings, ApicizeAppError> {
@@ -381,6 +424,10 @@ fn create_workspace(
 ) -> Result<(), ApicizeAppError> {
     let mut save_recent_file_name: Option<String> = None;
 
+    for (id, info) in &workspaces.workspaces {
+        println!("*** Open workspace {} ({id})", info.file_name);
+    }
+
     // Find the existing workspace for the file, if there is one
     let mut existing_workspace_id = match &open_existing_file_name {
         Some(file_name) => workspaces.workspaces.iter().find_map(|(id, info)| {
@@ -393,24 +440,32 @@ fn create_workspace(
         None => None,
     };
 
-    // Identifiy any open sessions
-    let existing_session_ids = match &existing_workspace_id {
-        Some(existing_workspace_id) => sessions.get_workspace_session_ids(existing_workspace_id),
-        None => Vec::new(),
+    // If this is an open workspace, and we are on the last session, then close the workspace
+    // to clear any changes made *without* saving
+    let session_to_clear = if let Some(current_session_id) = &current_session_id
+        && !open_in_new_session
+        && let Some(id) = &existing_workspace_id
+    {
+        let existing_sessions = sessions.get_workspace_session_ids(id);
+        if existing_sessions.len() == 1 && current_session_id == existing_sessions.first().unwrap()
+        {
+            Some(id.clone())
+        } else {
+            None
+        }
+    } else {
+        None
     };
 
-    // If this is an open workbook, but we are on the last session, then close the workbook and the session
-    // to "reset" any changes made
-    if existing_session_ids.len() == 1 && !open_in_new_session {
-        if let Some(workspace_id) = &existing_workspace_id {
-            workspaces.remove_workspace(workspace_id);
-            existing_workspace_id = None;
-        }
+    if let Some(id) = session_to_clear {
+        workspaces.remove_workspace(&id);
+        existing_workspace_id = None;
     }
 
     let workspace_result = match &open_existing_file_name {
         Some(file_name) => {
             if let Some(existing_workspace_id) = &existing_workspace_id {
+                // If there is a workspace already open for this file, switch to that
                 Ok(OpenWorkspaceResult {
                     workspace_id: existing_workspace_id.clone(),
                     display_name: workspaces
@@ -419,10 +474,21 @@ fn create_workspace(
                         .unwrap()
                         .display_name
                         .clone(),
-                    startup_state: SessionStartupState::default(),
+                    error: None,
                 })
             } else {
-                match Workspace::open(&PathBuf::from(&file_name)) {
+                // If there is not a workspace already open for this file, open the file,
+                // create a workspace and add a session
+                let path = PathBuf::from(&file_name);
+                match Workspace::open(
+                    Some(&path),
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    path.parent().unwrap(),
+                ) {
                     Ok(workspace) => {
                         save_recent_file_name = Some(file_name.clone());
                         Ok(workspaces.add_workspace(workspace, file_name, false))
@@ -430,7 +496,7 @@ fn create_workspace(
                     Err(err) => {
                         if create_new_if_error {
                             let mut result = workspaces.add_workspace(Workspace::new()?, "", true);
-                            result.startup_state.error = Some(format!("{err}"));
+                            result.error = Some(format!("{err}"));
                             Ok(result)
                         } else {
                             Err(err)
@@ -442,59 +508,227 @@ fn create_workspace(
         None => Ok(workspaces.add_workspace(Workspace::new()?, "", true)),
     }?;
 
-    let info = workspaces.get_workspace_info_mut(&workspace_result.workspace_id)?;
-    let trace_title = {
-        let session_name = match &current_session_id {
-            Some(id) => id.as_str(),
-            None => "new",
-        };
-        let mut title = String::with_capacity(32 + session_name.len() + info.display_name.len());
-        title.push_str("Open (session: ");
-        title.push_str(session_name);
-        title.push_str(", workspace: ");
-        title.push_str(&info.display_name);
-        title.push(')');
-        title
-    };
-
-    let open_in_session_id = if let (Some(active_session_id), false) =
-        (current_session_id.as_ref(), open_in_new_session)
-    {
-        sessions.change_workspace(active_session_id, &workspace_result.workspace_id)?;
-
-        let window = app.get_webview_window(active_session_id).unwrap();
-        window
-            .set_title(format_window_title(&workspace_result.display_name, info.dirty).as_str())
-            .unwrap();
-
-        active_session_id.to_string()
-    } else {
-        let active_session_id = sessions.add_session(Session {
-            workspace_id: workspace_result.workspace_id.clone(),
-            startup_state: Some(workspace_result.startup_state),
-        });
-
-        let webview_url = tauri::WebviewUrl::App("index.html".into());
-        let mut builder =
-            tauri::WebviewWindowBuilder::new(&app, active_session_id.clone(), webview_url.clone())
-                .visible(false)
-                .prevent_overflow_with_margin(LogicalSize::new(64, 64))
-                .title(format_window_title(&workspace_result.display_name, info.dirty).as_str());
-
-        builder = position_window_builder(&app, builder, &current_session_id);
-        let window = builder.build().unwrap();
-        window.hide().unwrap();
-
-        active_session_id
-    };
-
+    // Update the recently accessed workbook list in settings
     if let Some(file_name) = save_recent_file_name {
         settings.update_recent_workbook_file_name(&file_name);
         settings.save()?;
         app.emit("update_settings", settings.clone()).unwrap();
     }
 
-    // Remove any workspaces that no longer have active sessions
+    let trace_title: String;
+    {
+        let info = workspaces.get_workspace_info_mut(&workspace_result.workspace_id)?;
+        trace_title = {
+            let session_name = match &current_session_id {
+                Some(id) => id.as_str(),
+                None => "new",
+            };
+            let mut title =
+                String::with_capacity(32 + session_name.len() + info.display_name.len());
+            title.push_str("Open (session: ");
+            title.push_str(session_name);
+            title.push_str(", workspace: ");
+            title.push_str(&info.display_name);
+            title.push(')');
+            title
+        };
+
+        if let Some(active_session_id) = current_session_id.as_ref()
+            && !open_in_new_session
+        {
+            // If we are assigning the opened workspace to an existing session, send necessary info
+            let session =
+                sessions.change_workspace(active_session_id, &workspace_result.workspace_id)?;
+
+            if let Some(id) = info.workspace.requests.top_level_ids.first() {
+                match info.workspace.requests.entities.get(id) {
+                    Some(RequestEntry::Request(request)) => {
+                        session.active_entity = Some(SessionEntity {
+                            entity_id: request.id.clone(),
+                            entity_type: EntityType::Request,
+                        });
+                        session.expanded_items = Some(vec!["hdr-r".to_string()]);
+                    }
+                    Some(RequestEntry::Group(group)) => {
+                        session.active_entity = Some(SessionEntity {
+                            entity_id: group.id.clone(),
+                            entity_type: EntityType::Group,
+                        });
+                        session.expanded_items = Some(vec![
+                            "hdr-r".to_string(),
+                            format!("{}-{}", 3, group.id.clone()),
+                        ]);
+                    }
+                    None => {
+                        session.active_entity = None;
+                        session.expanded_items = None;
+                    }
+                }
+            }
+            session.request_exec_ctrs.clear();
+            session.mode = WorkspaceMode::Normal;
+            session.help_topic = None;
+
+            let window = app.get_webview_window(active_session_id).unwrap();
+            window
+                .set_title(format_window_title(&workspace_result.display_name, info.dirty).as_str())
+                .unwrap();
+
+            let init = WorkspaceInitialization {
+                session: session.clone(),
+                navigation: info.navigation.clone(),
+                save_state: SessionSaveState {
+                    file_name: info.file_name.clone(),
+                    display_name: info.display_name.clone(),
+                    dirty: info.dirty,
+                    editor_count: sessions
+                        .get_workspace_session_ids(&workspace_result.workspace_id)
+                        .len(),
+                },
+                defaults: info.workspace.defaults.clone(),
+                settings: settings.clone(),
+                executions: info
+                    .executions
+                    .iter()
+                    .filter_map(|(id, exec)| match exec.execution_state {
+                        ExecutionState::RUNNING => Some((
+                            id.to_string(),
+                            ExecutionEvent::Start {
+                                execution_state: ExecutionState::RUNNING,
+                            },
+                        )),
+                        ExecutionState::ERROR => None,
+                        _ => Some((
+                            id.to_string(),
+                            ExecutionEvent::Complete(RequestExecution {
+                                menu: exec.menu.clone(),
+                                execution_state: exec.execution_state,
+                                active_summaries: exec.active_summaries.clone(),
+                            }),
+                        )),
+                    })
+                    .collect::<FxHashMap<String, ExecutionEvent>>(),
+                error: None,
+            };
+
+            app.emit_to(active_session_id, "initialize", init).unwrap();
+        } else {
+            let active_entity: Option<SessionEntity>;
+            let expanded_items: Option<Vec<String>>;
+            let mode: WorkspaceMode;
+            let help_topic: Option<String>;
+
+            if let Some(existing_session_id) = &current_session_id
+                && let Ok(existing_session) = sessions.get_session(existing_session_id)
+                && existing_session.workspace_id == workspace_result.workspace_id
+            {
+                // Match current session's display state
+                active_entity = existing_session.active_entity.clone();
+                expanded_items = existing_session.expanded_items.clone();
+                mode = existing_session.mode;
+                help_topic = existing_session.help_topic.clone();
+                // existing_session.startup_state.mode = existing_session.mode;
+            } else {
+                if let Some(id) = info.workspace.requests.top_level_ids.first() {
+                    match info.workspace.requests.entities.get(id) {
+                        Some(RequestEntry::Request(request)) => {
+                            active_entity = Some(SessionEntity {
+                                entity_id: request.id.clone(),
+                                entity_type: EntityType::Request,
+                            });
+                            expanded_items = Some(vec!["hdr-r".to_string()]);
+                        }
+                        Some(RequestEntry::Group(group)) => {
+                            active_entity = Some(SessionEntity {
+                                entity_id: group.id.clone(),
+                                entity_type: EntityType::Group,
+                            });
+                            expanded_items = Some(vec![
+                                "hdr-r".to_string(),
+                                format!("{}-{}", 3, group.id.clone()),
+                            ]);
+                        }
+                        None => {
+                            active_entity = None;
+                            expanded_items = None;
+                        }
+                    };
+                } else {
+                    active_entity = None;
+                    expanded_items = None;
+                }
+                mode = WorkspaceMode::Normal;
+                help_topic = None;
+            }
+
+            let session = Session {
+                workspace_id: workspace_result.workspace_id.clone(),
+                active_entity,
+                expanded_items,
+                mode,
+                help_topic,
+                request_exec_ctrs: HashMap::default(),
+                execution_result_view_state: HashMap::default(),
+            };
+
+            let init = WorkspaceInitialization {
+                session: session.clone(),
+                navigation: info.navigation.clone(),
+                save_state: SessionSaveState {
+                    file_name: info.file_name.clone(),
+                    display_name: info.display_name.clone(),
+                    dirty: info.dirty,
+                    editor_count: sessions
+                        .get_workspace_session_ids(&session.workspace_id)
+                        .len(),
+                },
+                defaults: info.workspace.defaults.clone(),
+                settings: settings.clone(),
+                executions: info
+                    .executions
+                    .iter()
+                    .filter_map(|(id, exec)| match exec.execution_state {
+                        ExecutionState::RUNNING => Some((
+                            id.to_string(),
+                            ExecutionEvent::Start {
+                                execution_state: ExecutionState::RUNNING,
+                            },
+                        )),
+                        ExecutionState::ERROR => None,
+                        _ => Some((
+                            id.to_string(),
+                            ExecutionEvent::Complete(RequestExecution {
+                                menu: exec.menu.clone(),
+                                execution_state: exec.execution_state,
+                                active_summaries: exec.active_summaries.clone(),
+                            }),
+                        )),
+                    })
+                    .collect::<FxHashMap<String, ExecutionEvent>>(),
+                error: None,
+            };
+
+            let init_data = serde_json::to_string(&init).unwrap();
+            let active_session_id = sessions.add_session(session);
+
+            let webview_url = tauri::WebviewUrl::App("index.html".into());
+            let mut builder = tauri::WebviewWindowBuilder::new(
+                &app,
+                active_session_id.clone(),
+                webview_url.clone(),
+            )
+            .visible(false)
+            .prevent_overflow_with_margin(LogicalSize::new(64, 64))
+            .title(format_window_title(&workspace_result.display_name, info.dirty).as_str())
+            .initialization_script(format!("window.__INIT_DATA__= {init_data};"));
+
+            builder = position_window_builder(&app, builder, &current_session_id);
+            let window = builder.build().unwrap();
+            window.hide().unwrap();
+        }
+    }
+
+    // We will remove any workspaces that no longer have active sessions
     let workspace_ids_to_remove = workspaces
         .workspaces
         .keys()
@@ -507,20 +741,13 @@ fn create_workspace(
         })
         .collect::<Vec<String>>();
 
-    workspace_ids_to_remove
-        .into_iter()
-        .for_each(|workspace_id| workspaces.remove_workspace(&workspace_id));
-
-    let info1 = workspaces.get_workspace_info(&workspace_result.workspace_id)?;
-    dispatch_save_state(&app, sessions, &workspace_result.workspace_id, info1, false);
+    for workspace_id in workspace_ids_to_remove {
+        workspaces.remove_workspace(workspace_id.as_str());
+    }
 
     println!("*** {trace_title} ***");
     workspaces.trace_all_workspaces();
     sessions.trace_all_sessions();
-
-    if !open_in_new_session {
-        app.emit_to(&open_in_session_id, "initialize", ()).unwrap();
-    }
 
     Ok(())
 }
@@ -530,30 +757,28 @@ fn position_window_builder<'a>(
     builder: WebviewWindowBuilder<'a, Wry, AppHandle>,
     session_id: &Option<String>,
 ) -> WebviewWindowBuilder<'a, Wry, AppHandle> {
-    if let Some(id) = &session_id {
-        if let Some(w) = app.get_webview_window(id) {
-            let factor = if let Ok(Some(monitor)) = app.primary_monitor() {
-                monitor.scale_factor()
-            } else {
-                1.0
-            };
-
-            let mut result: WebviewWindowBuilder<'a, Wry, AppHandle> = builder;
-            // If opening from an existing session, position at a 64 pixel offset
-            if let Ok(p) = w.outer_position() {
-                result =
-                    result.position(f64::from(p.x + 64) / factor, f64::from(p.y + 64) / factor);
-            }
-            if let Ok(b) = w.is_maximized() {
-                result = result.maximized(b);
-            }
-            if let Ok(s) = w.inner_size() {
-                result =
-                    result.inner_size(f64::from(s.width) / factor, f64::from(s.height) / factor);
-            }
-            result = result.prevent_overflow();
-            return result;
+    if let Some(id) = &session_id
+        && let Some(w) = app.get_webview_window(id)
+    {
+        let factor = if let Ok(Some(monitor)) = app.primary_monitor() {
+            monitor.scale_factor()
+        } else {
+            1.0
         };
+
+        let mut result: WebviewWindowBuilder<'a, Wry, AppHandle> = builder;
+        // If opening from an existing session, position at a 64 pixel offset
+        if let Ok(p) = w.outer_position() {
+            result = result.position(f64::from(p.x + 64) / factor, f64::from(p.y + 64) / factor);
+        }
+        if let Ok(b) = w.is_maximized() {
+            result = result.maximized(b);
+        }
+        if let Ok(s) = w.inner_size() {
+            result = result.inner_size(f64::from(s.width) / factor, f64::from(s.height) / factor);
+        }
+        result = result.prevent_overflow();
+        return result;
     }
 
     // If opening window without referencing existing session, open at 80% of monitor size
@@ -586,18 +811,25 @@ async fn clone_workspace(
     sessions_state: State<'_, SessionsState>,
     workspaces_state: State<'_, WorkspacesState>,
     session_id: String,
-    startup_state: Option<SessionStartupState>,
 ) -> Result<(), ApicizeAppError> {
     let workspaces = workspaces_state.workspaces.read().await;
     let mut sessions = sessions_state.sessions.write().await;
-    let session = sessions.get_session(&session_id)?;
-    let workspace_id = session.workspace_id.clone();
-    let info = workspaces.get_workspace_info(&workspace_id)?;
 
-    let active_session_id = sessions.add_session(Session {
-        workspace_id: workspace_id.clone(),
-        startup_state,
-    });
+    let new_session = {
+        let session = sessions.get_session(&session_id)?;
+        Session {
+            workspace_id: session.workspace_id.clone(),
+            request_exec_ctrs: session.request_exec_ctrs.clone(),
+            active_entity: session.active_entity.clone(),
+            expanded_items: session.expanded_items.clone(),
+            mode: session.mode,
+            help_topic: session.help_topic.clone(),
+            execution_result_view_state: session.execution_result_view_state.clone(),
+        }
+    };
+
+    let info = workspaces.get_workspace_info(&new_session.workspace_id)?;
+    let active_session_id = sessions.add_session(new_session);
 
     println!(
         "*** Clone (session: {}, workspace: {}) ***",
@@ -616,6 +848,13 @@ async fn clone_workspace(
     let window = builder.build().unwrap();
     window.hide().unwrap();
     Ok(())
+}
+
+#[tauri::command]
+fn show_session(app: AppHandle, session_id: String) {
+    if let Some(w) = app.get_webview_window(&session_id) {
+        w.show().unwrap()
+    }
 }
 
 #[tauri::command]
@@ -726,7 +965,7 @@ async fn save_workspace(
             dispatch_save_state(&app, &sessions, &session.workspace_id, info, false);
             Ok(())
         }
-        Err(err) => Err(ApicizeAppError::FileAccessError(err)),
+        Err(err) => Err(ApicizeAppError::ApicizeError(err)),
     }
 }
 
@@ -836,12 +1075,10 @@ async fn get_workspace_save_status(
         false
     };
 
-    let any_invalid = info
-        .workspace
-        .requests
-        .entities
-        .values()
-        .any(|e| (e.get_warnings().as_ref()).is_some_and(|w| !w.is_empty()));
+    let any_invalid = info.workspace.requests.entities.values().any(|e| {
+        (e.get_validation_warnings().as_ref()).is_some_and(|w| !w.is_empty())
+            || (e.get_validation_errors().as_ref()).is_some_and(|w| !w.is_empty())
+    });
 
     Ok(WorkspaceSaveStatus {
         dirty: info.dirty,
@@ -859,7 +1096,7 @@ async fn open_settings() -> Result<ApicizeSettings, String> {
             clear_all_oauth2_tokens_from_cache().await;
             Ok(result.data)
         }
-        Err(err) => Err(err.error.to_string()),
+        Err(err) => Err(err.to_string()),
     }
 }
 
@@ -876,7 +1113,7 @@ async fn save_settings(
             app.emit("update_settings", updated_settings).unwrap();
             Ok(())
         }
-        Err(err) => Err(err.error.to_string()),
+        Err(err) => Err(err.to_string()),
     }
 }
 
@@ -886,7 +1123,7 @@ fn cancellation_tokens() -> &'static Mutex<FxHashMap<String, CancellationToken>>
 }
 
 #[tauri::command]
-async fn run_request(
+async fn execute_request(
     app: AppHandle,
     sessions_state: State<'_, SessionsState>,
     workspaces_state: State<'_, WorkspacesState>,
@@ -894,7 +1131,7 @@ async fn run_request(
     request_or_group_id: &str,
     workbook_full_name: String,
     single_run: bool,
-) -> Result<Vec<ExecutionResultSummary>, ApicizeAppError> {
+) -> Result<(), ApicizeAppError> {
     let cancellation = CancellationToken::new();
     {
         cancellation_tokens()
@@ -922,62 +1159,63 @@ async fn run_request(
         session.workspace_id.clone()
     };
 
-    // Phase 2: Quick read to get workspace data, then release lock immediately
-    let (cloned_workspace, other_session_ids) = {
+    // Phase 2: Quick read to get workspace data, with # of run overrides if specified, then release lock immediately
+    let (cloned_workspace, all_session_ids, previous_state) = {
         let sessions = sessions_state.sessions.read().await;
+        let previous_state: ExecutionState;
 
         // Acquire write lock for minimal time - just to update execution state
         let mut cloned_workspace = {
             let mut workspaces = workspaces_state.workspaces.write().await;
             let info = workspaces.get_workspace_info_mut(&workspace_id)?;
-            info.executing_request_ids
-                .insert(request_or_group_id.to_string());
+
+            let exec = info.get_execution_mut(request_or_group_id);
+            previous_state = exec.execution_state;
+            exec.execution_state = ExecutionState::RUNNING;
             info.workspace.clone()
         }; // Write lock released here
 
-        if single_run {
-            if let Some(request) = cloned_workspace
+        if single_run
+            && let Some(request) = cloned_workspace
                 .requests
                 .entities
                 .get_mut(request_or_group_id)
-            {
-                if request.get_runs() < 1 {
-                    request.set_runs(1);
-                }
-            }
+            && request.get_runs() < 1
+        {
+            request.set_runs(1);
         }
 
         // Get session IDs with read lock (can be done concurrently)
-        let other_session_ids =
-            get_workspace_sessions(&workspace_id, &sessions, Some(request_or_group_id))
-                .unwrap_or_default();
-
-        (cloned_workspace, other_session_ids)
+        let all_session_ids =
+            get_workspace_sessions(&workspace_id, &sessions, None).unwrap_or_default();
+        (cloned_workspace, all_session_ids, previous_state)
     };
 
-    // Phase 3: Emit status updates outside of any locks
-    let execution_status = ExecutionStatus {
-        request_or_group_id: request_or_group_id.to_string(),
-        running: true,
-        results: None,
-    };
+    // Phase 3: Emit execution events
+    let start_event = HashMap::<String, ExecutionEvent>::from([(
+        request_or_group_id.to_string(),
+        ExecutionEvent::Start {
+            execution_state: ExecutionState::RUNNING,
+        },
+    )]);
 
-    for emit_to_session_id in &other_session_ids {
-        app.emit_to(emit_to_session_id, "update_execution", &execution_status)
+    for emit_to_session_id in &all_session_ids {
+        app.emit_to(emit_to_session_id, "execution_event", &start_event)
             .unwrap();
     }
 
     // Phase 4: Create runner outside of locks
-    let runner = Arc::new(TestRunnerContext::new(
+    let context = Arc::new(TestRunnerContext::new(
         cloned_workspace,
         Some(cancellation),
+        request_or_group_id,
         single_run,
         &allowed_data_path,
         true, // enable detailed trace capture to get read/write data
     ));
 
     // Phase 5: Execute request (no locks held)
-    let responses = runner.run(vec![request_or_group_id.to_string()]).await;
+    let responses = context.run(vec![request_or_group_id.to_string()]).await;
 
     // Clean up cancellation token
     cancellation_tokens()
@@ -988,33 +1226,89 @@ async fn run_request(
     // Phase 6: Process results with minimal lock scope
     match responses.into_iter().next() {
         Some(Ok(result)) => {
-            // Assemble results outside of lock
-            let (summaries, details) = result.assemble_results(&runner);
-
-            // Quick write lock just for state updates
-            {
+            let executed_request_ids = {
                 let mut workspaces = workspaces_state.workspaces.write().await;
                 let info = workspaces.get_workspace_info_mut(&workspace_id)?;
-                info.result_summaries
-                    .insert(request_or_group_id.to_string(), summaries.clone());
-                info.result_details
-                    .insert(request_or_group_id.to_string(), details);
-                info.executing_request_ids.remove(request_or_group_id);
-            } // Write lock released immediately
+                let executing_request_ids = info
+                    .get_running_request_ids()
+                    .iter()
+                    .filter(|id| id != &request_or_group_id)
+                    .cloned()
+                    .collect::<Vec<String>>();
 
-            // Emit completion status outside of locks
-            let execution_status = ExecutionStatus {
-                request_or_group_id: request_or_group_id.to_string(),
-                running: false,
-                results: Some(summaries.clone()),
+                let requests_to_update = info.execution_results.process_result(&context, result);
+
+                // info.execution_results.dump_current_indexes();
+
+                requests_to_update
+                    .iter()
+                    .map(|request_id| {
+                        let execution_menu = info.build_result_menu_items(request_id).unwrap();
+
+                        let mut execution_state = ExecutionState::empty();
+
+                        let active_summaries = info
+                            .execution_results
+                            .get_summaries(request_id, true)
+                            .values()
+                            .flatten()
+                            .map(|s| {
+                                let result_state = match s.success {
+                                    ExecutionResultSuccess::Success => ExecutionState::SUCCESS,
+                                    ExecutionResultSuccess::Failure => ExecutionState::FAILURE,
+                                    ExecutionResultSuccess::Error => ExecutionState::ERROR,
+                                };
+                                execution_state |= result_state;
+                                (s.exec_ctr, (*s).to_owned())
+                            })
+                            .collect::<IndexMap<usize, ExecutionResultSummary>>();
+
+                        if executing_request_ids.contains(request_id) {
+                            execution_state |= ExecutionState::RUNNING;
+                        }
+
+                        if let Some(nav) = info.get_navigation_mut(request_id) {
+                            nav.execution_state = execution_state;
+                        }
+
+                        let execution = info.get_execution_mut(request_id);
+
+                        execution.menu = execution_menu;
+                        execution.execution_state = execution_state;
+                        execution.active_summaries = active_summaries;
+
+                        request_id.to_string()
+                    })
+                    .collect::<HashSet<String>>()
             };
 
-            for emit_to_session_id in &other_session_ids {
-                app.emit_to(emit_to_session_id, "update_execution", &execution_status)
-                    .unwrap();
-            }
+            // Emit completion status outside of locks
+            let workspaces = workspaces_state.workspaces.read().await;
+            let info = workspaces.get_workspace_info(&workspace_id)?;
 
-            Ok(summaries)
+            let executed_requests = executed_request_ids
+                .into_iter()
+                .filter_map(|processed_request_id| {
+                    if let Some(execution) = info.executions.get(&processed_request_id) {
+                        let execution_event = ExecutionEvent::Complete(RequestExecution {
+                            execution_state: execution.execution_state,
+                            menu: execution.menu.clone(),
+                            active_summaries: execution.active_summaries.clone(),
+                        });
+                        Some((processed_request_id, execution_event))
+                    } else {
+                        None
+                    }
+                })
+                .collect::<HashMap<String, ExecutionEvent>>();
+
+            if !executed_requests.is_empty() {
+                for emit_to_session_id in &all_session_ids {
+                    app.emit_to(emit_to_session_id, "execution_event", &executed_requests)
+                        .unwrap();
+                }
+            }
+            Ok(())
         }
 
         Some(Err(err)) => {
@@ -1022,21 +1316,20 @@ async fn run_request(
             {
                 let mut workspaces = workspaces_state.workspaces.write().await;
                 let info = workspaces.get_workspace_info_mut(&workspace_id)?;
-                info.executing_request_ids.remove(request_or_group_id);
+                let exec = info.get_execution_mut(request_or_group_id);
+                exec.execution_state = previous_state;
+                let abort_event = HashMap::from([(
+                    request_or_group_id.to_string(),
+                    ExecutionEvent::Cancel {
+                        execution_state: previous_state,
+                    },
+                )]);
+
+                for session_id in &all_session_ids {
+                    app.emit_to(session_id, "execution_event", &abort_event)
+                        .unwrap();
+                }
             } // Write lock released immediately
-
-            // Emit error status outside of locks
-            let status = ExecutionStatus {
-                request_or_group_id: request_or_group_id.to_string(),
-                running: false,
-                results: None,
-            };
-
-            for session_id in &other_session_ids {
-                app.emit_to(session_id, "update_execution", &status)
-                    .unwrap();
-            }
-
             Err(ApicizeAppError::ApicizeError(err))
         }
 
@@ -1045,8 +1338,20 @@ async fn run_request(
             {
                 let mut workspaces = workspaces_state.workspaces.write().await;
                 let info = workspaces.get_workspace_info_mut(&workspace_id)?;
-                info.executing_request_ids.remove(request_or_group_id);
-            }
+                let exec = info.get_execution_mut(request_or_group_id);
+                exec.execution_state = previous_state;
+                let abort_event = HashMap::from([(
+                    request_or_group_id.to_string(),
+                    ExecutionEvent::Cancel {
+                        execution_state: previous_state,
+                    },
+                )]);
+
+                for session_id in &all_session_ids {
+                    app.emit_to(session_id, "execution_event", &abort_event)
+                        .unwrap();
+                }
+            } // Write lock released immediately
             Err(ApicizeAppError::NoResults)
         }
     }
@@ -1065,28 +1370,36 @@ async fn get_result_detail(
     sessions_state: State<'_, SessionsState>,
     workspaces_state: State<'_, WorkspacesState>,
     session_id: &str,
-    request_id: &str,
-    index: usize,
+    exec_ctr: usize,
 ) -> Result<ExecutionResultDetail, ApicizeAppError> {
     let sessions = sessions_state.sessions.read().await;
     let session = sessions.get_session(session_id)?;
     let workspaces = workspaces_state.workspaces.read().await;
-    workspaces.get_result_detail(&session.workspace_id, request_id, index)
+    workspaces.get_result_detail(&session.workspace_id, exec_ctr)
 }
 
 #[tauri::command]
-async fn generate_report(
+async fn get_execution_result_view_state(
     sessions_state: State<'_, SessionsState>,
-    workspaces_state: State<'_, WorkspacesState>,
     session_id: &str,
     request_id: &str,
-    index: usize,
-    format: ExecutionReportFormat,
-) -> Result<String, ApicizeAppError> {
+) -> Result<ExecutionResultViewState, ApicizeAppError> {
     let sessions = sessions_state.sessions.read().await;
     let session = sessions.get_session(session_id)?;
-    let workspaces = workspaces_state.workspaces.read().await;
-    workspaces.generate_report(&session.workspace_id, request_id, index, format)
+    Ok(session.get_execution_result_view_state(request_id).clone())
+}
+
+#[tauri::command]
+async fn update_execution_result_view_state(
+    sessions_state: State<'_, SessionsState>,
+    session_id: &str,
+    request_id: &str,
+    execution_result_view_state: ExecutionResultViewState,
+) -> Result<(), ApicizeAppError> {
+    let mut sessions = sessions_state.sessions.write().await;
+    let session = sessions.get_session_mut(session_id)?;
+    session.update_execution_result_view_state(request_id, execution_result_view_state);
+    Ok(())
 }
 
 #[tauri::command]
@@ -1104,6 +1417,88 @@ async fn clear_cached_authorization(authorization_id: String) -> bool {
     clear_oauth2_token_from_cache(authorization_id.as_str()).await
 }
 
+#[tauri::command]
+async fn retrieve_oauth2_client_token(
+    sessions_state: State<'_, SessionsState>,
+    workspaces_state: State<'_, WorkspacesState>,
+    session_id: &str,
+    authorization_id: &str,
+) -> Result<TokenResult, ApicizeAppError> {
+    let sessions = sessions_state.sessions.read().await;
+    let session = sessions.get_session(session_id)?;
+    let workspaces = workspaces_state.workspaces.write().await;
+    let workspace = workspaces.get_workspace(&session.workspace_id)?;
+
+    let auth = workspaces.get_authorization(&session.workspace_id, authorization_id)?;
+
+    match auth {
+        Authorization::OAuth2Client {
+            id,
+            access_token_url,
+            client_id,
+            client_secret,
+            send_credentials_in_body,
+            scope,
+            audience,
+            selected_certificate,
+            selected_proxy,
+            ..
+        } => {
+            let certificate = workspace
+                .certificates
+                .get_optional(&selected_certificate.map(|c| c.id));
+            let proxy = workspace
+                .proxies
+                .get_optional(&selected_proxy.map(|p| p.id));
+
+            clear_oauth2_token_from_cache(&id).await;
+            Ok(get_oauth2_client_credentials(
+                &id,
+                &access_token_url,
+                &client_id,
+                &client_secret,
+                send_credentials_in_body.unwrap_or_default(),
+                &scope,
+                &audience,
+                certificate,
+                proxy,
+                true,
+            )
+            .await?)
+        }
+        _ => Err(ApicizeAppError::InvalidAuthorization(
+            "Not an OAuth2 client authorization".to_string(),
+        )),
+    }
+}
+
+#[tauri::command]
+async fn copy_to_clipboard(
+    sessions_state: State<'_, SessionsState>,
+    workspaces_state: State<'_, WorkspacesState>,
+    clipboard_state: State<'_, Clipboard>,
+    settings_state: State<'_, SettingsState>,
+    session_id: &str,
+    payload_request: ClipboardPayloadRequest,
+    // payload_type: &str,
+) -> Result<(), ApicizeAppError> {
+    let workspaces = workspaces_state.workspaces.read().await;
+    let sessions = sessions_state.sessions.read().await;
+    let session = sessions.get_session(session_id)?;
+    let settings = settings_state.settings.read().await;
+    let info = workspaces.get_workspace_info(&session.workspace_id)?;
+
+    if let Some(payload) =
+        info.get_clipboard_payload(payload_request, settings.editor_indent_size as usize)?
+    {
+        return match payload {
+            PersistableData::Text(data) => clipboard_state.write_text(data),
+            PersistableData::Binary(data) => clipboard_state.write_image_binary(data),
+        }
+        .map_err(ApicizeAppError::ClipboardError);
+    }
+    Ok(())
+}
 #[tauri::command]
 fn get_clipboard_image(clipboard: State<Clipboard>) -> Result<Vec<u8>, String> {
     match clipboard.has_image() {
@@ -1169,7 +1564,7 @@ fn generate_authorization_info(
 // }
 
 #[tauri::command]
-async fn retrieve_access_token(
+async fn retrieve_oauth2_pkce_token(
     token_url: &str,
     redirect_url: &str,
     code: &str,
@@ -1204,10 +1599,10 @@ fn get_workspace_sessions(
         .sessions
         .iter()
         .filter_map(|(sid, s)| {
-            if let Some(skip) = skip_session_id {
-                if skip == sid.as_str() {
-                    return None;
-                }
+            if let Some(skip) = skip_session_id
+                && skip == sid.as_str()
+            {
+                return None;
             }
             if workspace_id != s.workspace_id {
                 None
@@ -1267,7 +1662,7 @@ async fn list(
         EntityType::Parameters => {
             Entities::Parameters(workspaces.list_parameters(&session.workspace_id, request_id)?)
         }
-        EntityType::Data => Entities::Data {
+        EntityType::DataList => Entities::DataList {
             data: workspaces.list_data(&session.workspace_id)?,
         },
         _ => {
@@ -1292,11 +1687,26 @@ async fn get(
         EntityType::RequestEntry => {
             Entity::RequestEntry(workspaces.get_request_entry(&session.workspace_id, entity_id)?)
         }
-        EntityType::Headers => {
-            Entity::Headers(workspaces.get_request_headers(&session.workspace_id, entity_id)?)
+        EntityType::Request => {
+            if let RequestEntryInfo::Request { request } =
+                workspaces.get_request_entry(&session.workspace_id, entity_id)?
+            {
+                Entity::Request(request)
+            } else {
+                return Err(ApicizeAppError::InvalidRequest(entity_id.to_string()));
+            }
         }
-        EntityType::Body => {
-            Entity::Body(workspaces.get_request_body(&session.workspace_id, entity_id)?)
+        EntityType::RequestBody => {
+            Entity::RequestBody(workspaces.get_request_body(&session.workspace_id, entity_id)?)
+        }
+        EntityType::Group => {
+            if let RequestEntryInfo::Group { group } =
+                workspaces.get_request_entry(&session.workspace_id, entity_id)?
+            {
+                Entity::Group(group)
+            } else {
+                return Err(ApicizeAppError::InvalidGroup(entity_id.to_string()));
+            }
         }
         EntityType::Scenario => Entity::Scenario(
             workspaces
@@ -1319,6 +1729,53 @@ async fn get(
             return Err(ApicizeAppError::InvalidTypeForOperation(entity_type));
         }
     })
+}
+
+#[tauri::command]
+async fn update_active_entity(
+    sessions_state: State<'_, SessionsState>,
+    session_id: &str,
+    entity: Option<SessionEntity>,
+) -> Result<(), ApicizeAppError> {
+    let mut sessions = sessions_state.sessions.write().await;
+    let session = sessions.get_session_mut(session_id)?;
+    session.update_active_entity(&entity)
+}
+
+#[tauri::command]
+async fn update_expanded_items(
+    sessions_state: State<'_, SessionsState>,
+    session_id: &str,
+    ids: Option<Vec<String>>,
+) -> Result<(), ApicizeAppError> {
+    let mut sessions = sessions_state.sessions.write().await;
+    let session = sessions.get_session_mut(session_id)?;
+    session.expanded_items = ids;
+    Ok(())
+}
+
+#[tauri::command]
+async fn update_mode(
+    sessions_state: State<'_, SessionsState>,
+    session_id: &str,
+    mode: u8, // WorkspaceMode,
+) -> Result<(), ApicizeAppError> {
+    let mut sessions = sessions_state.sessions.write().await;
+    let session = sessions.get_session_mut(session_id)?;
+    session.mode = WorkspaceMode::from(mode);
+    Ok(())
+}
+
+#[tauri::command]
+async fn update_help_topic(
+    sessions_state: State<'_, SessionsState>,
+    session_id: &str,
+    help_topic: Option<String>,
+) -> Result<(), ApicizeAppError> {
+    let mut sessions = sessions_state.sessions.write().await;
+    let session = sessions.get_session_mut(session_id)?;
+    session.help_topic = help_topic;
+    Ok(())
 }
 
 #[tauri::command]
@@ -1349,6 +1806,19 @@ async fn get_title(
             return Err(ApicizeAppError::InvalidTypeForOperation(entity_type));
         }
     })
+}
+
+#[tauri::command]
+async fn get_execution(
+    sessions_state: State<'_, SessionsState>,
+    workspaces_state: State<'_, WorkspacesState>,
+    session_id: &str,
+    request_or_group_id: &str,
+) -> Result<RequestExecution, ApicizeAppError> {
+    let sessions = sessions_state.sessions.read().await;
+    let session = sessions.get_session(session_id)?;
+    let mut workspaces = workspaces_state.workspaces.write().await;
+    workspaces.get_execution(&session.workspace_id, request_or_group_id)
 }
 
 #[tauri::command]
@@ -1433,7 +1903,7 @@ async fn add(
     }?;
 
     let info = workspaces.get_workspace_info_mut(&workspace_id)?;
-    info.navigation = Navigation::new(&info.workspace, &info.executing_request_ids);
+    info.navigation = Navigation::new(&info.workspace, &info.executions);
 
     dispatch_save_state(&app, &sessions, &workspace_id, info, true);
 
@@ -1460,21 +1930,16 @@ async fn update(
         None
     };
 
-    let mut extra_event: Option<Entity> = None;
-
     // Perform updates and, when applicable, navigation updates
     let result = match entity {
         Entity::Request(request) => workspaces.update_request(&session.workspace_id, request),
         Entity::Group(group) => workspaces.update_group(&session.workspace_id, group),
-        Entity::Headers(header_info) => {
-            let request_info =
-                workspaces.update_request_headers(&session.workspace_id, header_info)?;
-            extra_event = Some(Entity::Request(request_info));
+        Entity::RequestHeaders(header_info) => {
+            workspaces.update_request_headers(&session.workspace_id, header_info)?;
             Ok(None)
         }
-        Entity::Body(body_info) => {
-            let request_info = workspaces.update_request_body(&session.workspace_id, body_info)?;
-            extra_event = Some(Entity::Request(request_info));
+        Entity::RequestBody(body_info) => {
+            workspaces.update_request_body(&session.workspace_id, body_info)?;
             Ok(None)
         }
         Entity::Scenario(scenario) => workspaces.update_scenario(&session.workspace_id, scenario),
@@ -1488,6 +1953,39 @@ async fn update(
         Entity::Data(data) => workspaces.update_data(&session.workspace_id, data),
         Entity::Defaults(defaults) => {
             workspaces.update_defaults(&session.workspace_id, defaults)?;
+            let workspace_session_ids =
+                get_workspace_sessions(&session.workspace_id, &sessions, None);
+            if let Some(session_ids) = workspace_session_ids {
+                for session_id in session_ids {
+                    if let Ok(session) = sessions.get_session(&session_id)
+                        && let Some(request_id) = match &session.active_entity {
+                            Some(entity) => match entity.entity_type {
+                                EntityType::Request => Some(entity.entity_id.clone()),
+                                EntityType::Group => Some(entity.entity_id.clone()),
+                                _ => None,
+                            },
+                            None => None,
+                        }
+                    {
+                        match workspaces.get_request_entry(&session.workspace_id, &request_id) {
+                            Ok(RequestEntryInfo::Request { request }) => {
+                                app.emit_to(
+                                    &session_id,
+                                    "update",
+                                    Entity::Request(request.clone()),
+                                )
+                                .unwrap();
+                            }
+                            Ok(RequestEntryInfo::Group { group }) => {
+                                app.emit_to(&session_id, "update", Entity::Group(group.clone()))
+                                    .unwrap();
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+
             Ok(None)
         }
         _ => {
@@ -1518,16 +2016,12 @@ async fn update(
 
     // Publish updates on all other sessions than the one sending the update
     // so they can update themselves
-    if let Some(other_session_ids) = other_sessions {
-        if let Some(event_to_send) = event {
-            for other_session_id in other_session_ids {
-                app.emit_to(&other_session_id, "update", &event_to_send)
-                    .unwrap();
-                if let Some(extra_event_to_send) = &extra_event {
-                    app.emit_to(&other_session_id, "update", extra_event_to_send)
-                        .unwrap();
-                }
-            }
+    if let Some(other_session_ids) = other_sessions
+        && let Some(event_to_send) = event
+    {
+        for other_session_id in other_session_ids {
+            app.emit_to(&other_session_id, "update", &event_to_send)
+                .unwrap();
         }
     }
 
@@ -1545,28 +2039,40 @@ async fn delete(
     entity_type: EntityType,
     entity_id: &str,
 ) -> Result<(), ApicizeAppError> {
-    let sessions = sessions_state.sessions.read().await;
-    let session = sessions.get_session(session_id)?;
+    let mut sessions = sessions_state.sessions.write().await;
     let mut workspaces = workspaces_state.workspaces.write().await;
 
-    let workspace_id = &session.workspace_id;
+    let workspace_id = {
+        let session = sessions.get_session(session_id)?;
+        session.workspace_id.clone()
+    };
+
+    let mut deleted_request = false;
 
     match entity_type {
-        EntityType::RequestEntry => workspaces.delete_request_entry(workspace_id, entity_id),
-        EntityType::Request => workspaces.delete_request_entry(workspace_id, entity_id),
-        EntityType::Group => workspaces.delete_request_entry(workspace_id, entity_id),
-        EntityType::Body => workspaces.delete_request_entry(workspace_id, entity_id),
-        EntityType::Scenario => workspaces.delete_scenario(workspace_id, entity_id),
-        EntityType::Authorization => workspaces.delete_authorization(workspace_id, entity_id),
-        EntityType::Certificate => workspaces.delete_certificate(workspace_id, entity_id),
-        EntityType::Proxy => workspaces.delete_proxy(workspace_id, entity_id),
+        EntityType::RequestEntry => {
+            deleted_request = true;
+            workspaces.delete_request_entry(&workspace_id, entity_id)
+        }
+        EntityType::Request => {
+            deleted_request = true;
+            workspaces.delete_request_entry(&workspace_id, entity_id)
+        }
+        EntityType::Group => {
+            deleted_request = true;
+            workspaces.delete_request_entry(&workspace_id, entity_id)
+        }
+        EntityType::Scenario => workspaces.delete_scenario(&workspace_id, entity_id),
+        EntityType::Authorization => workspaces.delete_authorization(&workspace_id, entity_id),
+        EntityType::Certificate => workspaces.delete_certificate(&workspace_id, entity_id),
+        EntityType::Proxy => workspaces.delete_proxy(&workspace_id, entity_id),
         EntityType::Data => {
-            workspaces.delete_data(workspace_id, entity_id)?;
+            workspaces.delete_data(&workspace_id, entity_id)?;
             dispatch_data_list_notification(
                 &app,
                 &sessions,
-                workspace_id,
-                workspaces.list_data(workspace_id)?,
+                &workspace_id,
+                workspaces.list_data(&workspace_id)?,
             );
             Ok(())
         }
@@ -1575,9 +2081,19 @@ async fn delete(
         )),
     }?;
 
-    let info = workspaces.get_workspace_info_mut(workspace_id)?;
-    info.navigation = Navigation::new(&info.workspace, &info.executing_request_ids);
-    dispatch_save_state(&app, &sessions, workspace_id, info, true);
+    let info = workspaces.get_workspace_info_mut(&workspace_id)?;
+    info.executions.remove(entity_id);
+    if deleted_request {
+        for session_id in sessions.get_workspace_session_ids(&workspace_id) {
+            if let Ok(session) = sessions.get_session_mut(&session_id) {
+                session.remove_request_exec_ctr(entity_id);
+                session.remove_execution_result_view_state(entity_id);
+            }
+        }
+    }
+
+    info.navigation = Navigation::new(&info.workspace, &info.executions);
+    dispatch_save_state(&app, &sessions, &workspace_id, info, true);
     Ok(())
 }
 
@@ -1639,7 +2155,7 @@ async fn move_entity(
 
     let results = if was_moved {
         let info = workspaces.get_workspace_info_mut(&workspace_id)?;
-        info.navigation = Navigation::new(&info.workspace, &info.executing_request_ids);
+        info.navigation = Navigation::new(&info.workspace, &info.executions);
 
         dispatch_save_state(&app, &sessions, &workspace_id, info, true);
 
@@ -1736,12 +2252,6 @@ fn dispatch_data_list_notification(
             app.emit_to(send_to_session_id, "update", &event).unwrap();
         }
     }
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-struct UpdateEvent {
-    session_id: String,
-    entity: Entity,
 }
 
 #[derive(Clone, Serialize, Deserialize)]

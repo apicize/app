@@ -1,9 +1,8 @@
 # :icon[scenario] Scenarios :toolbar
 
-A Scenario is a set of variables that are available for when testing [requests](help:requests).  These can be set for any request](help:requests) or group.  If they are set for a Group, they will apply to any Requests or child Groups.  At the simplest level, you can use this capability to inject different values into the same request(s), without having to modify them.
+A Scenario is a set of variables that are available when testing [requests](help:requests).  These can be set for any [Request](help:requests) or Group.  If they are set for a Group, they will apply to call child Requests or Groups.  At the simplest level, you can use this capability to inject different values into the same Request(s), without having to modify them.
 
-Scenario variables can be used to dynamically set URLs and posted body content.  Assume you have a Scenario variables called `author` and `quote`.  You can inject those into a 
-[requests's body](help:requests/body) by using handlebar syntax:
+Scenario variables can be used to dynamically set URLs and posted body content.  Assume you have a Scenario variables called `author` and `quote`.  You can inject those into a [Requests's body](help:requests/body) by using handlebar syntax:
 
 ```json
 {

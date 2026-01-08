@@ -1,13 +1,12 @@
 import { Box } from "@mui/material"
-import { base64Encode } from "../../services/base64"
 
 export const KNOWN_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'bmp', 'tif', 'tiff']
 
-export function ImageViewer(props: {
-    data: Uint8Array | undefined,
+export function ImageViewer({ base64Data, extensionToRender }: {
+    base64Data: string | undefined,
     extensionToRender?: string
 }) {
-    if (props.data && props.data.length > 0 && props.extensionToRender && props.extensionToRender.length > 0) {
+    if (base64Data && base64Data.length > 0 && extensionToRender && extensionToRender.length > 0) {
         return (
             <Box
                 style={{
@@ -26,7 +25,7 @@ export function ImageViewer(props: {
                     style={{
                         position: 'absolute'
                     }}
-                    src={`data:image/${props.extensionToRender};base64,${base64Encode(props.data)}`}
+                    src={`data:image/${extensionToRender};base64,${base64Data}`}
                 />
             </Box>
         )

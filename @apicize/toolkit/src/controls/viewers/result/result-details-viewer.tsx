@@ -3,39 +3,37 @@ import { Stack } from "@mui/material"
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import beautify from "js-beautify"
 import { observer } from "mobx-react-lite"
-import { useClipboard } from "../../../contexts/clipboard.context"
 import { RichViewer } from "../rich-viewer"
 import { EditorMode } from "../../../models/editor-mode"
 import { ResultEditSessionType } from "../../editors/editor-types"
-import { ExecutionResultDetail } from "@apicize/lib-typescript"
 import { useWorkspace } from "../../../contexts/workspace.context"
-import { useFeedback } from "../../../contexts/feedback.context"
-import { useState } from "react"
-import { Execution } from "../../../models/workspace/execution"
+import { ExecutionResultDetailWithBase64 } from "../../../models/workspace/execution"
+import { toJS } from "mobx"
 
-export const ResultDetailsViewer = observer((props: { execution: Execution }) => {
+export const ResultDetailsViewer = observer(({ detail }: { detail: ExecutionResultDetailWithBase64 | null }) => {
 
     const workspace = useWorkspace()
-    const feedback = useFeedback()
-    const clipboard = useClipboard()
 
-    const requestOrGroupId = props.execution.requestOrGroupId
-    const resultIndex = props.execution.resultIndex
-    const updateKey = `${props.execution.requestOrGroupId}-${props.execution.resultIndex}-${props.execution.lastExecuted}`
-
-    const [details, setDetails] = useState<ExecutionResultDetail | null>(null)
-    const [currentUpdateKey, setCurrentUpdateKey] = useState('')
-
-    if (!details || updateKey !== currentUpdateKey) {
-        workspace.getExecutionResultDetail(requestOrGroupId, resultIndex, true)
-            .then(d => {
-                setDetails(d)
-                setCurrentUpdateKey(updateKey)
-            }).catch(e => feedback.toastError(e))
+    if (!detail) {
         return
     }
 
-    const text = beautify.js_beautify(JSON.stringify(details), {})
+    const detailToRender = structuredClone(toJS(detail))
+
+    // Render binary request or responses as Base64 because large byte arrays are painful to render
+    if (detailToRender.entityType === 'request') {
+        if (detailToRender.testContext.request?.body?.type === 'Binary') {
+            (detailToRender as any).testContext.request.body.data = detailToRender.requestBodyBase64
+            detailToRender.requestBodyBase64 = undefined
+        }
+        if (detailToRender.testContext.response?.body?.type === 'Binary') {
+            (detailToRender as any).testContext.response.body.data = detailToRender.resultBodyBase64
+            detailToRender.resultBodyBase64 = undefined
+        }
+    }
+
+    const text = beautify.js_beautify(JSON.stringify(detailToRender), {})
+    const model = workspace.getResultEditModel(detail, ResultEditSessionType.Details, EditorMode.json)
 
     return (
         <Stack sx={{ bottom: 0, overflow: 'hidden', position: 'relative', height: '100%', display: 'flex' }}>
@@ -45,11 +43,14 @@ export const ResultDetailsViewer = observer((props: { execution: Execution }) =>
                     title="Copy Details to Clipboard"
                     color='primary'
                     sx={{ marginLeft: '16px' }}
-                    onClick={_ => { if (text) clipboard.writeTextToClipboard(text) }}>
+                    onClick={_ => workspace.copyToClipboard({
+                        payloadType: 'ResponseDetail',
+                        execCtr: detail.execCtr,
+                    }, 'Response details')}>
                     <ContentCopyIcon />
                 </IconButton>
             </Typography>
-            <RichViewer id={requestOrGroupId} index={resultIndex} type={ResultEditSessionType.Details} text={text} mode={EditorMode.json} beautify={true} wrap={true} sx={{ width: '100%', height: '100%' }} />
+            <RichViewer text={text} model={model} mode={EditorMode.json} beautify={true} wrap={true} />
         </Stack>
     )
 })

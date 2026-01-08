@@ -1,73 +1,128 @@
-import { FormControl, InputLabel, Select, MenuItem, Box, IconButton } from "@mui/material";
+import { FormControl, InputLabel, Select, MenuItem, Box, IconButton, SvgIcon } from "@mui/material";
 import { Stack, SxProps } from "@mui/material";
 import { observer } from "mobx-react-lite";
-import { useWorkspace } from "../contexts/workspace.context";
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import KeyboardReturnIcon from '@mui/icons-material/KeyboardReturn';
-import { EntityType } from "../models/workspace/entity-type";
+import {
+    ResultSuccessIcon, ResultFailureIcon, ResultErrorIcon,
+    ResultSuccessFailureIcon, ResultSuccessErrorIcon, ResultFailureErrorIcon, ResultSuccessFailureErrorIcon,
+} from "../icons"
+import { ExecutionState } from "@apicize/lib-typescript";
+import { useApicizeSettings } from "../contexts/apicize-settings.context";
+import { EditableRequestEntry } from "../models/workspace/editable-request-entry";
+import { useWorkspace } from "../contexts/workspace.context";
 
-export const RunResultsToolbar = observer((props: {
-    className?: string,
-    sx?: SxProps,
-    lastExecuted: number, // here just to force a refresh
-}) => {
+export const RunResultsToolbar = observer((
+    {
+        className,
+        sx,
+        request,
+    }: {
+        className: string | undefined,
+        sx?: SxProps,
+        request: EditableRequestEntry,
+    }
+) => {
+    const settings = useApicizeSettings()
     const workspace = useWorkspace()
 
-    const activeSelection = workspace.activeSelection
-    if (!(activeSelection &&
-        (activeSelection.type === EntityType.Request || activeSelection?.type === EntityType.Group)
-    )) {
+    if (request.resultMenuItems.length < 1 || !request.selectedResultMenuItem) {
         return null
     }
 
-    const execution = workspace.getExecution(activeSelection.id)
-    if (!execution) {
+    if (workspace.currentExecutionDetail?.execCtr !== request.selectedResultMenuItem.execCtr) {
+        workspace.updateExecutionDetail(request.selectedResultMenuItem.execCtr)
+    }
+
+    const disableUp = request.selectedResultMenuItem.prevExecCtr === undefined
+    const disableDown = request.selectedResultMenuItem.nextExecCtr === undefined
+    const disableParent = request.selectedResultMenuItem.parentExecCtr === undefined
+
+    const updateSelectedResult = (execCtr: number | undefined) => {
+        if (!(execCtr && execCtr >= 0)) return
+        request.changeExecCtr(execCtr)
+    }
+
+    const ExecutionStateIcon = ({ executionState }: { executionState: ExecutionState }) => {
+        if ((executionState & (ExecutionState.success | ExecutionState.failure | ExecutionState.error)) ===
+            (ExecutionState.success | ExecutionState.failure | ExecutionState.error)) {
+            return <SvgIcon fontSize='small'><ResultSuccessFailureErrorIcon /></SvgIcon>
+        }
+        if ((executionState & (ExecutionState.success | ExecutionState.failure)) ===
+            (ExecutionState.success | ExecutionState.failure)) {
+            return <SvgIcon fontSize='small'><ResultSuccessFailureIcon /></SvgIcon>
+        }
+        if ((executionState & (ExecutionState.success | ExecutionState.error)) ===
+            (ExecutionState.success | ExecutionState.error)) {
+            return <SvgIcon fontSize='small'><ResultSuccessErrorIcon /></SvgIcon>
+        }
+        if ((executionState & (ExecutionState.failure | ExecutionState.error)) ===
+            (ExecutionState.failure | ExecutionState.error)) {
+            return <SvgIcon fontSize='small'><ResultFailureErrorIcon /></SvgIcon>
+        }
+        if ((executionState & ExecutionState.success) === ExecutionState.success) {
+            return <SvgIcon fontSize='small'><ResultSuccessIcon /></SvgIcon>
+        }
+        if ((executionState & ExecutionState.failure) === ExecutionState.failure) {
+            return <SvgIcon fontSize='small'><ResultFailureIcon /></SvgIcon>
+        }
+        if ((executionState & ExecutionState.error) === ExecutionState.error) {
+            return <SvgIcon fontSize='small'><ResultErrorIcon /></SvgIcon>
+        }
         return null
     }
 
-    const index = execution.resultIndex
-    const length = execution.results.length
-    const result = execution.results[index]
-    const parentIndex = result?.parentIndex
-
-
-    const disableUp = index == 0
-    const disableDown = index >= length - 1
-
-    const updateSelectedResult = (index: number) => {
-        execution.changeResultIndex(index)
-    }
-
-    return <Stack direction='row' className={props.className} sx={props.sx} maxWidth='None' paddingTop='0.25em' paddingBottom='1.5em' display='flex' justifyContent='center'>
+    return <Stack direction='row' className={className} sx={sx} maxWidth='None' paddingTop='0.25em' paddingBottom='1.5em' display='flex' justifyContent='center'>
         {
-            length > 1
+            request.resultMenuItems.length > 0
                 ? <FormControl>
                     <InputLabel id='run-id'>Results</InputLabel>
                     <Select
                         labelId='run-id'
                         id='run'
-                        disabled={execution.isRunning}
+                        className='run-toolbar'
+                        disabled={request.isRunning}
                         label='Results'
                         sx={{ minWidth: '10em' }}
                         size='small'
-                        value={index.toString()}
+                        value={request.selectedResultMenuItem.execCtr.toString()}
                         onChange={e => updateSelectedResult(parseInt(e.target.value))}
                     >
                         {
-                            execution.results.map((run, index) =>
-                            (
-                                <MenuItem key={`run-${index}`} sx={{ paddingLeft: `${1 + run.level * 1.5}em`, paddingRight: '24px', lineHeight: '1.1' }} value={index}>{run.name}</MenuItem>)
-                            )
+                            request.resultMenuItems.map((result) => {
+                                let label = result.executingName && result.level === 0
+                                    ? `${result.name} [${result.executingName}]`
+                                    : result.name
+
+                                if (settings.showDiagnosticInfo) {
+                                    label += ` (${result.execCtr})`
+                                }
+
+                                return (
+                                    <MenuItem key={`exresult-${result.executingRequestOrGroupId}-${result.execCtr}`}
+                                        className="run-toolbar-menuitem"
+                                        sx={{
+                                            borderTop: result.executingOffset === 0 ? '0.2em solid #404040' : 'none',
+                                            paddingTop: '0.5em',
+                                            paddingBottom: '0.5em',
+                                            paddingLeft: `${1 + result.level * 1.5}em`,
+                                            paddingRight: '1.5em'
+                                        }} value={result.execCtr}>
+                                        {label}
+                                        <ExecutionStateIcon executionState={result.executionState} />
+                                    </MenuItem>
+                                )
+                            })
                         }
                     </Select>
                 </FormControl>
                 : null
         }
         <Box display='flex' flexDirection='row' flexGrow={1} justifyContent='end'>
-            <IconButton color='primary' title='View Previous Result' onClick={() => updateSelectedResult(index - 1)} disabled={disableUp}><ArrowUpwardIcon /></IconButton>
-            <IconButton color='primary' title='View Next Result' onClick={() => updateSelectedResult(index + 1)} disabled={disableDown}><ArrowDownwardIcon /></IconButton>
-            <IconButton color='primary' title='View Parent Result' onClick={() => updateSelectedResult(parentIndex ?? 0)} disabled={parentIndex === undefined}><KeyboardReturnIcon /></IconButton>
+            <IconButton color='primary' title='View Previous Result' onClick={() => updateSelectedResult(request.selectedResultMenuItem?.prevExecCtr)} disabled={disableUp}><ArrowUpwardIcon /></IconButton>
+            <IconButton color='primary' title='View Next Result' onClick={() => updateSelectedResult(request.selectedResultMenuItem?.nextExecCtr)} disabled={disableDown}><ArrowDownwardIcon /></IconButton>
+            <IconButton color='primary' title='View Parent Result' onClick={() => updateSelectedResult(request.selectedResultMenuItem?.parentExecCtr)} disabled={disableParent}><KeyboardReturnIcon /></IconButton>
         </Box>
-    </Stack>
+    </Stack >
 })

@@ -11,6 +11,7 @@ declare module '@mui/material/styles' {
         certificate: Palette['primary']
         proxy: Palette['primary']
         defaults: Palette['primary']
+        unselected: Palette['primary']
     }
 
     interface PaletteOptions {
@@ -26,6 +27,7 @@ declare module '@mui/material/styles' {
         private?: PaletteOptions['primary']
         vault?: PaletteOptions['primary']
         defaults?: PaletteOptions['primary']
+        unselected: Palette['primary']
     }
 
     interface TypographyVariants {
@@ -35,6 +37,12 @@ declare module '@mui/material/styles' {
     // allow configuration using `createTheme()`
     interface TypographyVariantsOptions {
         navigation?: React.CSSProperties;
+    }
+}
+
+declare module '@mui/material/Button' {
+    interface ButtonPropsColorOverrides {
+        unselected: true
     }
 }
 

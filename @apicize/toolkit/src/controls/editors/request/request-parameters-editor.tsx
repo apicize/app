@@ -9,14 +9,14 @@ import { EditableRequest } from '../../../models/workspace/editable-request'
 import { useFeedback } from '../../../contexts/feedback.context'
 import { reaction } from 'mobx'
 
-export const RequestParametersEditor = observer((props: {
+export const RequestParametersEditor = observer(({
+    requestOrGroup,
+}: {
     requestOrGroup: EditableRequest | EditableRequestGroup,
 }) => {
     const workspace = useWorkspace()
     const feedback = useFeedback()
     workspace.nextHelpTopic = 'requests/parameters'
-
-    const requestOrGroup = props.requestOrGroup
 
     if (!requestOrGroup.parameters) {
         workspace.getRequestParameterList(requestOrGroup.id)

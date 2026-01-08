@@ -1,14 +1,17 @@
-import { Selection, BodyType, GroupExecution, Method, NameValuePair, Request, RequestGroup, BaseRequest, Warnings, ValidationErrors } from "@apicize/lib-typescript"
-import { action, computed, observable, reaction, toJS } from "mobx"
+import { Selection, Body, BodyType, MultiRunExecution, Method, NameValuePair, Request, ValidationWarnings, ValidationErrors, BodyJSON, BodyNone, BodyRaw, BodyText, BodyXML } from "@apicize/lib-typescript"
+import { action, computed, observable, toJS } from "mobx"
 import { EditableNameValuePair } from "./editable-name-value-pair"
 import { GenerateIdentifier } from "../../services/random-identifier-generator"
 import { EntityType } from "./entity-type"
-import { EntityRequest, WorkspaceStore } from "../../contexts/workspace.context"
+import { EntityRequest, EntityTypeName, WorkspaceStore } from "../../contexts/workspace.context"
 import { EditableRequestEntry } from "./editable-request-entry"
 import { RequestDuplex } from "undici-types"
 import { EditableWarnings } from "./editable-warnings"
-import { monaco } from "react-monaco-editor"
-
+import { RequestExecution } from "../request-execution"
+import { editor } from "monaco-editor"
+import { EditorMode } from "../editor-mode"
+import { IRequestEditorTextModel } from "../editor-text-model"
+import { ExecutionResultViewState } from "./execution"
 export class EditableRequest extends EditableRequestEntry {
     public readonly entityType = EntityType.Request
 
@@ -20,24 +23,30 @@ export class EditableRequest extends EditableRequestEntry {
     @observable public accessor keepAlive = false
     @observable public accessor acceptInvalidCerts = false
     @observable public accessor numberOfRedirects = 10
-    // @observable public accessor headers: EditableNameValuePair[] = []
     @observable public accessor queryStringParams: EditableNameValuePair[] = []
-    // @observable public accessor body: Body = { type: BodyType.None, data: undefined }
-    @observable public accessor test = ''
+    @observable public accessor headers: EditableNameValuePair[] | undefined = undefined
     @observable public accessor redirect: RequestRedirect | undefined = undefined
     @observable public accessor mode: RequestMode | undefined = undefined
     @observable public accessor referrer: string | undefined = undefined
     @observable public accessor referrerPolicy: ReferrerPolicy | undefined = undefined
     @observable public accessor duplex: RequestDuplex | undefined = undefined
-    @observable accessor warnings = new EditableWarnings()
 
-    public constructor(entry: BaseRequest, workspace: WorkspaceStore) {
-        super(workspace)
+    @observable public accessor test = ''
+
+    @observable public accessor isBodyInitialized = false
+    @observable public accessor body: EditableBody = { type: BodyType.None, data: undefined }
+    @observable public accessor bodyMimeType: string | null = null
+    @observable public accessor bodyLanguage: EditorMode | null = null
+    @observable public accessor bodyEditorModel: IRequestEditorTextModel | null = null
+
+    @observable accessor validationWarnings = new EditableWarnings()
+
+    public constructor(entry: Request, workspace: WorkspaceStore, executionResultViewState: ExecutionResultViewState, requestExecution: RequestExecution) {
+        super(workspace, executionResultViewState, requestExecution)
 
         this.id = entry.id
         this.name = entry.name ?? ''
         this.key = entry.key ?? ''
-
         this.runs = entry.runs
         this.multiRunExecution = entry.multiRunExecution
 
@@ -47,21 +56,23 @@ export class EditableRequest extends EditableRequestEntry {
         this.selectedProxy = entry.selectedProxy ?? undefined
         this.selectedData = entry.selectedData ?? undefined
 
-        this.warnings.set(entry.warnings)
+        this.validationWarnings.set(entry.validationWarnings)
+        // this.validationErrors.set(entry.validationErrors)
 
         this.url = entry.url ?? ''
         this.method = entry.method ?? Method.Get
         this.timeout = entry.timeout ?? 30000
         this.acceptInvalidCerts = entry.acceptInvalidCerts
         this.keepAlive = entry.keepAlive
-        // this.headers = entry.headers?.map(h => ({
-        //     id: GenerateIdentifier(),
-        //     ...h
-        // })) ?? []
         this.queryStringParams = entry.queryStringParams?.map(q => ({
             id: GenerateIdentifier(),
             ...q
         })) ?? []
+        this.headers = entry.headers?.map(h => ({
+            id: GenerateIdentifier(),
+            ...h
+        })) ?? []
+
 
         let idxQuery = this.url.indexOf('?')
         if (idxQuery !== -1) {
@@ -75,7 +86,10 @@ export class EditableRequest extends EditableRequestEntry {
             }
             this.url = this.url.substring(0, idxQuery)
         }
-
+        // this.body = entry.body ?? {
+        //     type: BodyType.None,
+        //     data: undefined,
+        // }
         this.test = entry.test ?? ''
 
         this.mode = entry.mode
@@ -84,17 +98,24 @@ export class EditableRequest extends EditableRequestEntry {
         this.duplex = entry.duplex
     }
 
+    public initializeBody(body: Body | undefined) {
+        this.body = EditableRequest.createEditableBody(body)
+        this.isBodyInitialized = true
+        this.checkEditModel()
+    }
+
     public onUpdate() {
         this.markAsDirty()
 
+        const validationWarnings = this.validationWarnings.hasEntries ? [...this.validationWarnings.entries.values()] : undefined
+
         const request: EntityRequest = {
-            entityType: 'Request',
+            entityTypeName: EntityTypeName.Request,
             id: this.id,
             name: this.name,
             key: this.key.length > 0 ? this.key : undefined,
             url: this.url,
             method: this.method,
-            // headers: toJS(this.headers),
             queryStringParams: toJS(this.queryStringParams),
             // body: (this.body && this.body.type !== BodyType.None)
             //     ? toJS(this.body)
@@ -114,13 +135,10 @@ export class EditableRequest extends EditableRequestEntry {
             selectedCertificate: this.selectedCertificate,
             selectedProxy: this.selectedProxy,
             selectedData: this.selectedData,
-            warnings: this.warnings.hasEntries ? [...this.warnings.entries.values()] : undefined,
+            validationWarnings: this.validationWarnings.entries.size > 0
+                ? undefined
+                : [...this.validationWarnings.entries.values()],
             validationErrors: this.validationErrors,
-        }
-        if ((request.headers?.length ?? 0) === 0) {
-            delete request.headers
-        } else {
-            request.headers?.forEach(h => delete (h as unknown as any).id)
         }
         if ((request.queryStringParams?.length ?? 0) === 0) {
             delete request.queryStringParams
@@ -129,6 +147,29 @@ export class EditableRequest extends EditableRequestEntry {
         }
 
         this.workspace.updateRequest(request)
+    }
+
+    public onUpdateHeader() {
+        this.markAsDirty()
+        this.workspace.updateRequestHeaders({
+            entityTypeName: EntityTypeName.ReqeustHeaders,
+            id: this.id,
+            headers: this.headers
+        })
+    }
+
+    public onUpdateBody() {
+        this.markAsDirty()
+        this.workspace.updateRequestBody({
+            entityTypeName: EntityTypeName.RequestBody,
+            id: this.id,
+            body: this.body.type === BodyType.None
+                ? undefined
+                : {
+                    type: this.body.type,
+                    data: this.body.data
+                } as Body
+        })
     }
 
     @action
@@ -183,11 +224,124 @@ export class EditableRequest extends EditableRequestEntry {
         this.onUpdate()
     }
 
-    // @action
-    // setHeaders(value: EditableNameValuePair[] | undefined) {
-    //     this.headers = value ?? []
-    //     this.onUpdate()
-    // }
+    @action
+    setHeaders(value: EditableNameValuePair[] | undefined) {
+        this.headers = value ?? []
+        this.onUpdate()
+    }
+
+    @action
+    setBody(body: Body | undefined) {
+        this.body = EditableRequest.createEditableBody(body)
+        this.checkEditModel()
+        this.onUpdateBody()
+    }
+
+    @action
+    setBodyType(newBodyType: BodyType) {
+        switch (newBodyType) {
+            case BodyType.Raw:
+                switch (this.body.type) {
+                    case BodyType.Form:
+                        this.body = {
+                            type: BodyType.Raw,
+                            data: (new TextEncoder()).encode(
+                                encodeFormData(this.body.data)
+                            )
+                        }
+                        break
+                    case BodyType.XML:
+                    case BodyType.JSON:
+                    case BodyType.Text:
+                        this.body = {
+                            type: BodyType.Raw,
+                            data: (new TextEncoder()).encode(this.body.data)
+                        }
+                        break
+                    case BodyType.Raw:
+                        break
+                    default:
+                        this.body = {
+                            type: BodyType.Raw,
+                            data: new Uint8Array()
+                        }
+                        break
+                }
+                break
+            case BodyType.Form:
+                switch (this.body.type) {
+                    case BodyType.JSON:
+                    case BodyType.XML:
+                    case BodyType.Text:
+                        this.body = {
+                            type: BodyType.Form,
+                            data: decodeFormData(this.body.data)
+                        }
+                        break
+                    case BodyType.Raw:
+                        this.body = {
+                            type: BodyType.Form,
+                            data: decodeFormData(new TextDecoder().decode(this.body.data))
+                        }
+                        break
+                    case BodyType.Form:
+                        this.body = {
+                            type: BodyType.Form,
+                            data: this.body.data,
+                        }
+                        break
+                    default:
+                        this.body = {
+                            type: BodyType.Form,
+                            data: []
+                        }
+                        break
+                }
+                break
+            case BodyType.JSON:
+            case BodyType.XML:
+            case BodyType.Text:
+                switch (this.body.type) {
+                    case BodyType.JSON:
+                    case BodyType.XML:
+                    case BodyType.Text:
+                        this.body = {
+                            type: newBodyType,
+                            data: this.body.data
+                        }
+                        break
+                    case BodyType.Raw:
+                        this.body = {
+                            type: newBodyType,
+                            data: (new TextDecoder()).decode(this.body.data)
+                        }
+                        break
+                    default:
+                        this.body = {
+                            type: BodyType.None,
+                            data: undefined,
+                        }
+                        break
+                }
+                break
+            case BodyType.None:
+            default:
+                this.body = {
+                    type: BodyType.None,
+                    data: undefined
+                }
+                break
+        }
+        this.checkEditModel()
+        this.onUpdateBody()
+    }
+
+    @action
+    setBodyData(value: string | Uint8Array | EditableNameValuePair[]) {
+        this.body.data = value
+        this.checkEditModel()
+        this.onUpdateBody()
+    }
 
     @action
     setTest(value: string | undefined) {
@@ -197,7 +351,7 @@ export class EditableRequest extends EditableRequestEntry {
 
     @action
     deleteWarning(id: string) {
-        this.warnings.delete(id)
+        this.validationWarnings.delete(id)
         this.onUpdate()
     }
 
@@ -213,19 +367,20 @@ export class EditableRequest extends EditableRequestEntry {
         this.mode = entity.mode
         this.runs = entity.runs
         this.multiRunExecution = entity.multiRunExecution
-        // this.headers = entity.headers?.map((h) => ({ id: GenerateIdentifier(), ...h })) ?? []
         this.queryStringParams = entity.queryStringParams?.map((q) => ({ id: GenerateIdentifier(), ...q })) ?? []
+        this.headers = entity.headers?.map((h) => ({ id: GenerateIdentifier(), ...h })) ?? []
         this.redirect = entity.redirect
         this.referrer = entity.referrer
         this.referrerPolicy = entity.referrerPolicy
         this.duplex = entity.duplex
+        this.body = EditableRequest.createEditableBody(entity.body)
         this.test = entity.test ?? ''
         this.selectedScenario = entity.selectedScenario
         this.selectedAuthorization = entity.selectedAuthorization
         this.selectedCertificate = entity.selectedCertificate
         this.selectedProxy = entity.selectedProxy
         this.selectedData = entity.selectedData
-        this.warnings.set(entity.warnings)
+        this.validationWarnings.set(entity.validationWarnings)
     }
 
     @computed get nameInvalid() {
@@ -247,12 +402,90 @@ export class EditableRequest extends EditableRequestEntry {
         return Object.keys(results).length > 0 ? results : undefined
     }
 
+    private static createEditableBody(body: Body | undefined): EditableBody {
+        if (body?.type === BodyType.Form) {
+            return {
+                type: BodyType.Form,
+                data: body.data.map(d => ({
+                    id: GenerateIdentifier(),
+                    name: d.name,
+                    value: d.value,
+                    disabled: d.disabled
+                }))
+            }
+        } else {
+            return body ?? {
+                type: BodyType.None,
+                data: undefined
+            }
+        }
+    }
+
+    private checkEditModel() {
+        switch (this.body?.type) {
+            case BodyType.JSON:
+                this.bodyMimeType = 'application/json'
+                this.bodyLanguage = EditorMode.json
+                break
+            case BodyType.XML:
+                this.bodyMimeType = 'application/xml'
+                this.bodyLanguage = EditorMode.xml
+                break
+            case BodyType.Text:
+                this.bodyMimeType = 'text/plain'
+                this.bodyLanguage = EditorMode.txt
+                break
+            case BodyType.Form:
+                this.bodyMimeType = 'application/x-www-form-urlencoded'
+                this.bodyLanguage = null
+                break
+            case BodyType.Raw:
+                this.bodyMimeType = 'application/octet-stream'
+                this.bodyLanguage = null
+                break
+            default:
+                this.bodyMimeType = null
+                this.bodyLanguage = null
+                return
+        }
+    }
+}
+
+const encodeFormData = (data: EditableNameValuePair[]) =>
+    (data.length === 0)
+        ? ''
+        : data.map(nv =>
+            `${encodeURIComponent(nv.name)}=${encodeURIComponent(nv.value)}`
+        ).join('&')
+
+const decodeFormData = (bodyData: string | number[] | undefined) => {
+    let data: string | undefined;
+    if (bodyData instanceof Array) {
+        const buffer = Uint8Array.from(bodyData)
+        data = (new TextDecoder()).decode(buffer)
+    } else {
+        data = bodyData
+    }
+    if (data && data.length > 0) {
+        const parts = data.split('&')
+        return parts.map(p => {
+            const id = GenerateIdentifier()
+            const nv = p.split('=')
+            if (nv.length == 1) {
+                return { id, name: decodeURIComponent(nv[0]), value: "" } as EditableNameValuePair
+            } else {
+                return { id, name: decodeURIComponent(nv[0]), value: decodeURIComponent(nv[1]) } as EditableNameValuePair
+            }
+        })
+    } else {
+        return []
+    }
 }
 
 /**
  * This is all request information, excluding the request body
  */
-export interface RequestInfo extends Warnings, ValidationErrors {
+export interface RequestInfo extends ValidationWarnings, ValidationErrors {
     id: string
     name: string
     key?: string
@@ -264,7 +497,7 @@ export interface RequestInfo extends Warnings, ValidationErrors {
     numberOfRedirects: number
     mode?: RequestMode
     runs: number
-    multiRunExecution: GroupExecution
+    multiRunExecution: MultiRunExecution
     headers?: NameValuePair[]
     queryStringParams?: NameValuePair[]
     redirect?: RequestRedirect
@@ -279,7 +512,9 @@ export interface RequestInfo extends Warnings, ValidationErrors {
     selectedData?: Selection,
 }
 
-export interface RequestEntryInfo {
-    request?: RequestInfo
-    group?: RequestGroup
+export type EditableBody = BodyNone | BodyJSON | BodyXML | BodyText | EditableBodyForm | BodyRaw
+
+export interface EditableBodyForm {
+    type: BodyType.Form
+    data: EditableNameValuePair[]
 }

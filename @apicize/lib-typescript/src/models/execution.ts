@@ -237,3 +237,10 @@ export interface ApicizeError {
     url?: string
     source?: ApicizeError
 }
+
+export enum ExecutionState {
+    running = 1,
+    success = 2,
+    failure = 4,
+    error = 8,
+}

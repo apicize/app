@@ -14,7 +14,7 @@ import SaveAsIcon from '@mui/icons-material/SaveAs'
 import OpenInBrowserIcon from '@mui/icons-material/OpenInBrowser'
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
 
-export const NavFileOpsMenu = observer((props: { sx?: SxProps, orientation: 'horizontal' | 'vertical' }) => {
+export const NavFileOpsMenu = observer(({ sx, orientation }: { sx?: SxProps, orientation: 'horizontal' | 'vertical' }) => {
     const settings = useApicizeSettings()
     const workspace = useWorkspace()
     const fileOps = useFileOperations()
@@ -62,7 +62,7 @@ export const NavFileOpsMenu = observer((props: { sx?: SxProps, orientation: 'hor
         if (e.ctrlKey) {
             switch (e.key) {
                 case 'Enter':
-                    if (!(workspace.activeSelection && (workspace.activeSelection.type === EntityType.Request || workspace.activeSelection.type === EntityType.Group))) {
+                    if (!(workspace.activeSelection && (workspace.activeSelection.entityType === EntityType.Request || workspace.activeSelection.entityType === EntityType.Group))) {
                         return
                     }
                     workspace.launchExecution(workspace.activeSelection.id, !e.shiftKey)
@@ -98,7 +98,7 @@ export const NavFileOpsMenu = observer((props: { sx?: SxProps, orientation: 'hor
     let firstPanelTPad: string
     let buttonSpacing: string | undefined
 
-    if (props.orientation == 'horizontal') {
+    if (orientation == 'horizontal') {
         direction = 'row'
         firstPanelTPad = 'None'
         alignDropBtnSelf = 'begin'
@@ -111,7 +111,7 @@ export const NavFileOpsMenu = observer((props: { sx?: SxProps, orientation: 'hor
         alignDropBtnItems = 'begin'
     }
 
-    return <ButtonGroup orientation={props.orientation} sx={props.sx}>
+    return <ButtonGroup orientation={orientation} sx={sx}>
         <IconButton
             size='large'
             aria-label='new'

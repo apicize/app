@@ -10,3 +10,12 @@ export { default as ScienceOutlinedIcon } from '@mui/icons-material/ScienceOutli
 export { default as WarningAmberIcon } from '@mui/icons-material/WarningAmber'
 export { default as PreviewIcon } from '@mui/icons-material/Preview'
 export { default as AirlineStopsIcon } from '@mui/icons-material/AirlineStops'
+
+// Status icons
+export { default as ResultSuccessIcon } from './result-success-icon'
+export { default as ResultFailureIcon } from './result-failure-icon'
+export { default as ResultErrorIcon } from './result-error-icon'
+export { default as ResultSuccessFailureIcon } from './result-success-failure-icon'
+export { default as ResultSuccessErrorIcon } from './result-success-error-icon'
+export { default as ResultFailureErrorIcon } from './result-failure-error-icon'
+export { default as ResultSuccessFailureErrorIcon } from './result-success-failure-error-icon'

@@ -69,7 +69,7 @@ import { HelpContents } from '../models/help-contents';
 // Register directive nodes in mdast:
 /// <reference types="mdast-util-directive" />
 
-export const HelpPanel = observer((props: { sx?: SxProps }) => {
+export const HelpPanel = observer(({ sx }: { sx?: SxProps }) => {
     const settings = useApicizeSettings()
     const workspace = useWorkspace()
     const fileOps = useFileOperations()
@@ -78,6 +78,7 @@ export const HelpPanel = observer((props: { sx?: SxProps }) => {
     let name = settings.appName
     let version = settings.appVersion
 
+    let [isLoading, setIsLoading] = useState(false)
     let [content, setContent] = useState(createElement(Fragment));
     const [contentsMenu, setContentsMenu] = useState<null | HTMLElement>(null)
     const [helpContents, setHelpContents] = useState<null | HelpContents>(null)
@@ -100,7 +101,7 @@ export const HelpPanel = observer((props: { sx?: SxProps }) => {
 
     const handleShowHelp = (topic: string) => {
         setContentsMenu(null);
-        workspace.showHelp(topic, true)
+        workspace.showHelp(topic)
     }
     const handleContentsMenuClose = () => {
         setContentsMenu(null);
@@ -335,6 +336,7 @@ export const HelpPanel = observer((props: { sx?: SxProps }) => {
 
         (async () => {
             try {
+                setIsLoading(true)
                 const contents = await fileOps.retrieveHelpTopic(activeTopic.current)
                 const r = await unified()
                     .use(remarkParse)
@@ -364,6 +366,7 @@ export const HelpPanel = observer((props: { sx?: SxProps }) => {
                         }
                     })
                     .process(contents)
+                setIsLoading(false)
                 setContent(r.result)
             } catch (e) {
                 feedback.toast(`Unable to render help topic "${activeTopic.current} - ${e}}`, ToastSeverity.Error)
@@ -393,7 +396,8 @@ export const HelpPanel = observer((props: { sx?: SxProps }) => {
         return Object.entries(helpContents).map(renderHelpContent)
     }
 
-    return <Box className='help' sx={props.sx}>
+    return <Box className='help' sx={sx}>
+        <Typography variant='h2' display={isLoading === true ? 'block' : 'none'}>Loading Help, One Moment Please...</Typography>
         <Box className='help-text'>
             {content}
         </Box>

@@ -3,7 +3,7 @@ import { Editable } from "../editable"
 import { action, computed, observable, toJS } from "mobx"
 import { GenerateIdentifier } from "../../services/random-identifier-generator"
 import { EntityType } from "./entity-type"
-import { EntityScenario, WorkspaceStore } from "../../contexts/workspace.context"
+import { EntityScenario, EntityTypeName, WorkspaceStore } from "../../contexts/workspace.context"
 
 export class EditableScenario extends Editable<Scenario> {
     public readonly entityType = EntityType.Scenario
@@ -25,11 +25,10 @@ export class EditableScenario extends Editable<Scenario> {
     protected onUpdate() {
         this.markAsDirty()
         this.workspace.updateScenario({
-            entityType: 'Scenario',
+            entityTypeName: EntityTypeName.Scenario,
             id: this.id,
             name: this.name,
             variables: this.variables.map(v => v.toWorkspace()),
-            validationErrors: this.validationErrors
         })
     }
 

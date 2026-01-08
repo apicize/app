@@ -9,7 +9,7 @@ interface ExtendedTypographyOptions extends TypographyVariantsOptions {
   navigation: React.CSSProperties;
 }
 
-export const ConfigurableTheme = observer((props: {
+export const ConfigurableTheme = observer(({ children }: {
   children?: ReactNode,
 }) => {
   const settings = useApicizeSettings()
@@ -95,6 +95,12 @@ export const ConfigurableTheme = observer((props: {
           main: '#cc2900'
         },
         name: 'vault'
+      }),
+      unselected: palette.palette.augmentColor({
+        color: {
+          main: isDark ? '#808080' : '#404040',
+        },
+        name: 'toolbar'
       }),
     },
     typography: {
@@ -185,7 +191,7 @@ export const ConfigurableTheme = observer((props: {
   return (
     <ThemeProvider theme={theme}>
       <div className={isDark ? 'dark' : 'light'}>
-        {props.children}
+        {children}
       </div>
     </ThemeProvider>
   )

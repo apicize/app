@@ -4,5 +4,5 @@ export enum EditorMode {
     xml = 'xml',
     html = 'html',
     css = 'css',
-    txt = 'text'
+    txt = 'plaintext'
 }

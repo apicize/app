@@ -1,7 +1,11 @@
 'use client'
 
 import * as core from '@tauri-apps/api/core'
-import { EditableSettings, DragDropProvider, Entity, EntityType, FeedbackStore, IndexedEntityPosition, LogStore, MainPanel, Navigation, ReqwestEvent, SessionInitialization, SessionSaveState, ToastSeverity, UpdatedNavigationEntry, WorkspaceStore } from '@apicize/toolkit'
+import {
+  EditableSettings, DragDropProvider, Entity, EntityType, FeedbackStore, IndexedEntityPosition, LogStore, MainPanel, Navigation, ReqwestEvent,
+  SessionSaveState, ToastSeverity, UpdatedNavigationEntry, WorkspaceStore, ClipboardPaylodRequest, ExecutionEvent, SessionEntity, WorkspaceInitialization,
+  WorkspaceMode
+} from '@apicize/toolkit'
 import React, { useEffect, useState } from 'react'
 import "@fontsource/roboto-mono/latin.css"
 import '@fontsource/roboto-flex'
@@ -9,23 +13,26 @@ import { ClipboardProvider } from './providers/clipboard.provider';
 import { FeedbackProvider } from './providers/feedback.provider';
 import { FileOperationsProvider } from './providers/file-operations.provider';
 import { WorkspaceProvider } from './providers/workspace.provider';
-import { ExecutionResultSummary, ExecutionStatus } from '@apicize/lib-typescript';
 import { ApicizeSettingsProvider } from './providers/apicize-settings.provider';
 import { ConfigurableTheme } from './controls/configurable-theme';
-import { PkceProvider } from './providers/pkce.provider';
+import { OAuth2Provider } from './providers/oauth2.provider';
 import { emit } from '@tauri-apps/api/event';
 import { LogProvider } from './providers/log.provider';
 import { CssBaseline } from '@mui/material'
 import { FileDragDropProvider } from './providers/file-dragdrop.provider'
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
+import { toJS } from 'mobx'
+import { TokenResult } from '@apicize/lib-typescript'
 
 // This is defined externally via Tauri main or other boostrap application
-const sessionId = (window as any).__TAURI_INTERNALS__.metadata.currentWindow.label
+const sessionId: string = (window as any).__TAURI_INTERNALS__.metadata.currentWindow.label
+const initData: WorkspaceInitialization = (window as any).__INIT_DATA__;
 
 const feedbackStore = new FeedbackStore()
 const logStore = new LogStore()
 
 const workspaceStore = new WorkspaceStore(
+  initData,
   feedbackStore,
   {
     close: () => {
@@ -33,15 +40,32 @@ const workspaceStore = new WorkspaceStore(
         sessionId
       })
     },
+
     get: (entityType: EntityType, entityId: string) => core.invoke('get', {
       sessionId,
       entityType,
-      entityId
+      entityId,
+    }),
+    updateActiveEntity: (entity?: SessionEntity) => core.invoke('update_active_entity', {
+      sessionId,
+      entity,
+    }),
+    updateExpandedItems: (ids?: string[]) => core.invoke('update_expanded_items', {
+      sessionId,
+      ids,
+    }),
+    updateMode: (mode: WorkspaceMode) => core.invoke('update_mode', {
+      sessionId,
+      mode
     }),
     getTitle: (entityType: EntityType, entityId: string) => core.invoke('get_title', {
       sessionId,
       entityType,
       entityId
+    }),
+    getExecution: (requestOrGroupId: string) => core.invoke('get_execution', {
+      sessionId,
+      requestOrGroupId,
     }),
     getDirty: () => core.invoke('get_dirty', {
       sessionId,
@@ -94,14 +118,17 @@ const workspaceStore = new WorkspaceStore(
     clearAllTokens: () => core.invoke(
       'clear_all_cached_authorizations'),
     executeRequest: async (requestOrGroupId: string, workbookFullName: string, singleRun: boolean) =>
-      core.invoke<ExecutionResultSummary[]>('run_request', { sessionId, requestOrGroupId, workbookFullName, singleRun }),
+      core.invoke<{ [executingRequestOrGroupId: string]: undefined }>('execute_request', { sessionId, requestOrGroupId, workbookFullName, singleRun }),
     cancelRequest: (requestId) => core.invoke(
       'cancel_request', { sessionId, requestId }),
-    getResultDetail: (requestId, index) => core.invoke(
-      'get_result_detail', { sessionId, requestId, index }
+    getResultDetail: (execCtr) => core.invoke(
+      'get_result_detail', { sessionId, execCtr }
     ),
-    generateReport: (requestId, index, format) => core.invoke(
-      'generate_report', { sessionId, requestId, index, format }
+    getExecutionResultViewState: (requestId) => core.invoke(
+      'get_execution_result_view_state', { sessionId, requestId }
+    ),
+    updateExecutionResultViewState: (requestId, executionResultViewState) => core.invoke(
+      'update_execution_result_view_state', { sessionId, requestId, executionResultViewState }
     ),
     getEntityType: (entityId) => core.invoke(
       'get_entity_type', { sessionId, entityId }
@@ -109,25 +136,29 @@ const workspaceStore = new WorkspaceStore(
     findDescendantGroups: (groupId) => core.invoke(
       'find_descendant_groups', { sessionId, groupId }
     ),
+    getOAuth2ClientToken: (data: { authorizationId: string }) =>
+      core.invoke<TokenResult>('retrieve_oauth2_client_token', { sessionId, authorizationId: data.authorizationId }),
     initializePkce: (data: { authorizationId: string }) =>
       emit('oauth2-pkce-init', data),
     closePkce: (data: { authorizationId: string }) =>
       emit('oauth2-pkce-close', data),
     refreshToken: (data: { authorizationId: string }) =>
       emit('oauth2-refresh-token', data),
+    copyToClipboard: (payloadRequest: ClipboardPaylodRequest) => core.invoke<void>(
+      'copy_to_clipboard', { sessionId, payloadRequest }
+    ),
   },
 )
 
 export default function Home() {
 
-  const [settings, setSettings] = useState<EditableSettings | null>(null)
+  const [settings, setSettings] = useState(new EditableSettings(initData.settings))
 
   useEffect(() => {
     const w = getCurrentWebviewWindow()
     // Notification sent for when initialization data is available
-    let unlistenInitialize = w.listen<SessionInitialization>('initialize', () => {
-      // Clear settings to trigger a reload
-      setSettings(null)
+    let unlistenInitialize = w.listen<WorkspaceInitialization>('initialize', (data) => {
+      workspaceStore.initialize(data.payload)
     })
     // Notification sent on entire navigation tree update
     let unlistenNavigation = w.listen<Navigation>('navigation', (data) => {
@@ -135,7 +166,7 @@ export default function Home() {
     })
     // Notification sent on individual navigation entry update
     let unlistenNavigationEntry = w.listen<UpdatedNavigationEntry>('navigation_entry', (data) => {
-      workspaceStore.updateNavigationEntry(data.payload)
+      workspaceStore.updateNavigationState(data.payload)
     })
     // Notification sent when the save state changes (file name change, dirty status change)
     let unlistenSaveState = w.listen<SessionSaveState>('save_state', (data) => {
@@ -146,9 +177,13 @@ export default function Home() {
       workspaceStore.dirty = true
       workspaceStore.refreshFromExternalUpdate(data.payload)
     })
-    // Notification on request execution starts or stops
-    let unlistenExecution = w.listen<ExecutionStatus>('update_execution', (data) => {
-      workspaceStore.updateExecutionStatus(data.payload)
+    // // Notification on request execution starts or stops
+    // let unlistenExecution = w.listen<ExecutionStatus>('update_execution', (data) => {
+    //   workspaceStore.updateExecutionStatus(data.payload)
+    // })
+    // Notification on request execution results
+    let unlistenExecutionResults = w.listen<{ [requestOrGroupId: string]: ExecutionEvent }>('execution_event', (data) => {
+      workspaceStore.processExecutionEvents(data.payload)
     })
     // Notification on settings update
     let unlistenSettingsUpdate = w.listen<EditableSettings>('update_settings', (data) => {
@@ -157,35 +192,23 @@ export default function Home() {
     let unlistenListLogs = w.listen<ReqwestEvent[]>('list_logs', () => {
       workspaceStore.listLogs()
     })
+
+    // Show the winodow once everything is mostly set up
+    setTimeout(() => {
+      core.invoke('show_session', { sessionId })
+    }, 100)
+
     return () => {
       unlistenInitialize.then(() => { })
       unlistenNavigation.then(() => { })
       unlistenNavigationEntry.then(() => { })
       unlistenSaveState.then(() => { })
       unlistenUpdate.then(() => { })
-      unlistenExecution.then(() => { })
+      unlistenExecutionResults.then(() => { })
       unlistenSettingsUpdate.then(() => { })
       unlistenListLogs.then(() => { })
     }
-  }, [settings])
-
-  if (!settings) {
-    const newSettings = new EditableSettings()
-    core.invoke<SessionInitialization>('initialize_session', {
-      sessionId,
-    }).then((info) => {
-      setSettings(new EditableSettings(info.settings))
-      workspaceStore.initialize(info)
-    }).catch((e) => {
-      feedbackStore.toast(`${e}`, ToastSeverity.Error)
-    })
-    return <ApicizeSettingsProvider settings={newSettings}>
-      <ConfigurableTheme>
-        <CssBaseline />
-        <FeedbackProvider store={feedbackStore} />
-      </ConfigurableTheme>
-    </ApicizeSettingsProvider>
-  }
+  })
 
   return (
     <LogProvider store={logStore}>
@@ -197,11 +220,11 @@ export default function Home() {
               <WorkspaceProvider store={workspaceStore}>
                 <DragDropProvider>
                   <FileDragDropProvider>
-                    <PkceProvider store={workspaceStore}>
+                    <OAuth2Provider store={workspaceStore}>
                       <ClipboardProvider>
                         <MainPanel />
                       </ClipboardProvider>
-                    </PkceProvider>
+                    </OAuth2Provider>
                   </FileDragDropProvider>
                 </DragDropProvider>
               </WorkspaceProvider>

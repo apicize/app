@@ -1,7 +1,11 @@
+import { ExecutionState, ValidationState } from "@apicize/lib-typescript"
+import { EntityType } from "./workspace/entity-type"
+
 export interface NavigationEntry {
     id: string
     name: string
-    state: NavigationEntryState
+    executionState?: ExecutionState
+    validationState?: ValidationState
 }
 
 export interface NavigationRequestEntry extends NavigationEntry {
@@ -20,13 +24,4 @@ export interface Navigation {
     authorizations: ParamNavigationSection
     certificates: ParamNavigationSection
     proxies: ParamNavigationSection
-}
-
-export enum NavigationEntryState {
-    None = 0,
-    Dirty = 1,
-    Warning = 2,
-    Error = 4,
-    Running = 8,
-
 }

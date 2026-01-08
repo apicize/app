@@ -16,26 +16,73 @@ import { useDragDrop } from "../../contexts/dragdrop.context"
 import { useApicizeSettings } from "../../contexts/apicize-settings.context"
 import { useWorkspace } from "../../contexts/workspace.context"
 import { IndexedEntityPosition } from "../../models/workspace/indexed-entity-position"
-import { NavigationEntry, NavigationEntryState } from "../../models/navigation"
+import { NavigationEntry } from "../../models/navigation"
+import {
+    ResultSuccessIcon, ResultFailureIcon, ResultErrorIcon,
+    ResultSuccessFailureIcon, ResultSuccessErrorIcon, ResultFailureErrorIcon, ResultSuccessFailureErrorIcon,
+} from "../../icons"
+import { ExecutionState, ValidationState } from "@apicize/lib-typescript"
 
 
 export const iconsFromState = (entry: NavigationEntry) => {
     let icons = []
-    if (entry.state & NavigationEntryState.Error) {
-        icons.push(<ErrorIcon color="error" fontSize='medium' sx={{ marginLeft: '0.25em' }} key={`err-${entry.id}`} />)
+    if (entry.executionState) {
+        if ((entry.executionState & ExecutionState.running) === ExecutionState.running) {
+            icons.push(<PlayArrowIcon color="success" fontSize='medium' key={`play-${entry.id}`} />)
+        } else {
+            if ((entry.executionState & (ExecutionState.success | ExecutionState.failure | ExecutionState.error)) ===
+                (ExecutionState.success | ExecutionState.failure | ExecutionState.error)) {
+                icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultSuccessFailureErrorIcon /></SvgIcon>)
+            } else if ((entry.executionState & (ExecutionState.success | ExecutionState.failure)) ===
+                (ExecutionState.success | ExecutionState.failure)) {
+                icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultSuccessFailureIcon /></SvgIcon>)
+            } else if ((entry.executionState & (ExecutionState.success | ExecutionState.error)) ===
+                (ExecutionState.success | ExecutionState.error)) {
+                icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultSuccessErrorIcon /></SvgIcon>)
+            } else if ((entry.executionState & (ExecutionState.failure | ExecutionState.error)) ===
+                (ExecutionState.failure | ExecutionState.error)) {
+                icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultFailureErrorIcon /></SvgIcon>)
+            } else if ((entry.executionState & ExecutionState.success) === ExecutionState.success) {
+                icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultSuccessIcon /></SvgIcon>)
+            } else if ((entry.executionState & ExecutionState.failure) === ExecutionState.failure) {
+                icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultFailureIcon /></SvgIcon>)
+            } else if ((entry.executionState & ExecutionState.error) === ExecutionState.error) {
+                icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultErrorIcon /></SvgIcon>)
+            }
+        }
     }
-    if (entry.state & NavigationEntryState.Warning) {
-        icons.push(<WarningAmberIcon color="warning" fontSize='medium' sx={{ marginLeft: '0.25em' }} key={`warn-${entry.id}`} />)
+
+    if (entry.validationState) {
+        if ((entry.validationState & ValidationState.warning) === ValidationState.warning) {
+            icons.push(<WarningAmberIcon color="warning" fontSize='medium' sx={{ marginLeft: icons.length === 0 ? 'none' : '0.5em' }} key={`warn-${entry.id}`} />)
+        }
+        if ((entry.validationState & ValidationState.error) === ValidationState.error) {
+            icons.push(<ErrorIcon color="error" fontSize='medium' sx={{ marginLeft: icons.length === 0 ? 'none' : '0.5em' }} key={`err-${entry.id}`} />)
+        }
     }
-    if (entry.state & NavigationEntryState.Running) {
-        icons.push(<PlayArrowIcon color="success" fontSize='medium' sx={{ marginLeft: '0.25em' }} key={`play-${entry.id}`} />)
-    }
+
+
     return icons.length > 0
-        ? <Box display='inline-flex' flexDirection='row' marginLeft='0.5em' justifyContent='center' typography='navigation'>{icons}</Box>
+        ? <Box className='nav-state-icon-container' typography='navigation'>{icons}</Box>
+        // ? <Box display='inline-flex' flexDirection='row' marginLeft='0.5em' justifyContent='center' typography='navigation'>{icons}</Box>
         : null
+
 }
 
-export const NavTreeItem = React.memo(observer((props: {
+export const NavTreeItem = React.memo(observer(({
+    entry,
+    type,
+    depth,
+    isDraggable,
+    acceptDropTypes,
+    acceptDropAppends,
+    icon,
+    iconColor,
+    children,
+    onSelect,
+    onMenu,
+    onMove
+}: {
     entry: NavigationEntry,
     type: EntityType,
     depth: number,
@@ -62,19 +109,18 @@ export const NavTreeItem = React.memo(observer((props: {
     const settings = useApicizeSettings()
     const workspace = useWorkspace()
     const dragDrop = useDragDrop()
-    const entry = props.entry
-    const itemId = `${props.type}-${entry.id}`
+    const itemId = `${type}-${entry.id}`
 
     const [focused, setFocused] = useState<boolean>(false)
 
-    const { attributes, listeners, setNodeRef: setDragRef, transform } = props.isDraggable
+    const { attributes, listeners, setNodeRef: setDragRef, transform } = isDraggable
         ? useDraggable({
             id: entry.id,
             data: {
-                type: props.type,
+                type: type,
                 move: (relativeToId: string, relativePosition: IndexedEntityPosition) => {
-                    if (props.onMove) {
-                        props.onMove(entry.id, relativeToId, relativePosition)
+                    if (onMove) {
+                        onMove(entry.id, relativeToId, relativePosition)
                     }
                 }
             } as DraggableData
@@ -86,14 +132,14 @@ export const NavTreeItem = React.memo(observer((props: {
             transform: null
         }
 
-    const { isOver, setNodeRef: setDropRef } = props.acceptDropTypes
+    const { isOver, setNodeRef: setDropRef } = acceptDropTypes
         ? useDroppable({
             id: entry.id,
             data: {
-                acceptAppend: props.acceptDropAppends === true,
+                acceptAppend: acceptDropAppends === true,
                 acceptReposition: true,
-                acceptsTypes: props.acceptDropTypes,
-                depth: props.depth,
+                acceptsTypes: acceptDropTypes,
+                depth: depth,
                 isHeader: false,
             } as DroppableData
         })
@@ -132,7 +178,7 @@ export const NavTreeItem = React.memo(observer((props: {
                     // Override click behavior to set active item, but not to propogate upward
                     // because we don't want to toggle expansion on anything other than the
                     // lefticon click
-                    workspace.changeActive(props.type, entry.id)
+                    workspace.changeActive(type, entry.id)
                     e.preventDefault()
                     e.stopPropagation()
                 }}
@@ -146,8 +192,8 @@ export const NavTreeItem = React.memo(observer((props: {
                 }}
             >
                 {
-                    (props.icon && props.iconColor)
-                        ? <Box className='nav-icon-box'><SvgIcon color={props.iconColor} >{props.icon}</SvgIcon></Box>
+                    (icon && iconColor)
+                        ? <Box className='nav-icon-box'><SvgIcon color={iconColor} >{icon}</SvgIcon></Box>
                         : null
                 }
                 <Box
@@ -156,13 +202,13 @@ export const NavTreeItem = React.memo(observer((props: {
                     alignItems='center'
                     display='flex'
                 >
-                    {settings.showDiagnosticInfo ? `${entry.name} (${entry.state})` : entry.name}
+                    {entry.name}
                     <Box className='nav-node-text-state'>
                         {iconsFromState(entry)}
                     </Box>
                 </Box>
                 {
-                    props.onMenu
+                    onMenu
                         ? <IconButton
                             sx={{
                                 visibility: focused ? 'normal' : 'hidden',
@@ -172,17 +218,17 @@ export const NavTreeItem = React.memo(observer((props: {
                             onClick={(e) => {
                                 e.preventDefault()
                                 e.stopPropagation()
-                                if (props.onMenu) props.onMenu(e, entry.id, props.type)
+                                if (onMenu) onMenu(e, entry.id, type)
                             }}
                         >
-                            <Box className='nav-icon-context'><MoreVertIcon style={{fontSize: settings.navigationFontSize * 1.5}} /></Box>
+                            <Box className='nav-icon-context'><MoreVertIcon style={{ fontSize: settings.navigationFontSize * 1.5 }} /></Box>
                         </IconButton>
                         : <></>
                 }
             </Box >
         )}>
         {
-            props.children
+            children
         }
     </TreeItem>
 }))

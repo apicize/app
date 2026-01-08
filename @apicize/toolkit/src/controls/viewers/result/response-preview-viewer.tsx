@@ -2,62 +2,42 @@ import { ImageViewer, KNOWN_IMAGE_EXTENSIONS } from "../image-viewer";
 import { IconButton, Stack, Typography } from "@mui/material";
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import beautify from "js-beautify";
-import { useClipboard } from "../../../contexts/clipboard.context";
 import { EditorMode } from "../../../models/editor-mode";
 import { RichViewer } from "../rich-viewer";
 import { ResultEditSessionType } from "../../editors/editor-types";
-import { ApicizeBody } from "@apicize/lib-typescript";
-import { useState } from "react";
 import { useWorkspace } from "../../../contexts/workspace.context";
-import { useFeedback } from "../../../contexts/feedback.context";
-import { Execution } from "../../../models/workspace/execution";
+import { ClipboardPaylodRequest } from "../../../models/clipboard_payload_request";
+import { ExecutionResultDetail } from "@apicize/lib-typescript";
+import { ExecutionResultDetailWithBase64 } from "../../../models/workspace/execution";
 
-export function ResultResponsePreview(props: { execution: Execution }) {
+export function ResultResponsePreview({ detail }: { detail: ExecutionResultDetailWithBase64 | null }) {
 
     const workspace = useWorkspace()
-    const feedback = useFeedback()
-    const clipboard = useClipboard()
 
-    const updateKey = `${props.execution.requestOrGroupId}-${props.execution.resultIndex}-${props.execution.lastExecuted}`
-
-    const [body, setBody] = useState<ApicizeBody | null>(null)
-    const [extension, setExtension] = useState<string | null>(null)
-    const [currentUpdateKey, setCurrentUpdateKey] = useState('')
-
-    if (!body || updateKey !== currentUpdateKey) {
-        workspace.getExecutionResultDetail(props.execution.requestOrGroupId, props.execution.resultIndex, false)
-            .then(details => {
-                setBody((details.entityType === 'request' && details.testContext.response?.body)
-                    ? details.testContext.response.body
-                    : {
-                        type: 'Text',
-                        text: ''
-                    })
-
-                const headers = details.entityType === 'request' && details.testContext.response?.headers
-                    ? new Map(Object.entries(details.testContext.response.headers))
-                    : new Map()
-
-                setCurrentUpdateKey(updateKey)
-
-                for (const [name, value] of headers.entries()) {
-                    if (name.toLowerCase() === 'content-type') {
-                        let i = value.indexOf('/')
-                        if (i !== -1) {
-                            let j = value.indexOf(';')
-                            if (value.indexOf('json') !== -1) {
-                                setExtension('json')
-                            } else if (value.indexOf('xml') !== -1) {
-                                setExtension('xml')
-                            } else {
-                                setExtension(value.substring(i + 1, j == -1 ? undefined : j))
-                            }
-                        }
-                    }
-                }
-
-            }).catch(e => feedback.toastError(e))
+    if (detail?.entityType !== 'request') {
         return
+    }
+
+    const body = detail.testContext.response?.body ?? { type: 'Text', text: '' }
+    const headers = detail.testContext.response?.headers
+        ? new Map(Object.entries(detail.testContext.response.headers))
+        : new Map()
+
+    let extension = ''
+    for (const [name, value] of headers.entries()) {
+        if (name.toLowerCase() === 'content-type') {
+            let i = value.indexOf('/')
+            if (i !== -1) {
+                let j = value.indexOf(';')
+                if (value.indexOf('json') !== -1) {
+                    extension = 'json'
+                } else if (value.indexOf('xml') !== -1) {
+                    extension = 'xml'
+                } else {
+                    extension = value.substring(i + 1, j == -1 ? undefined : j)
+                }
+            }
+        }
     }
 
     let image: Uint8Array = new Uint8Array()
@@ -92,12 +72,12 @@ export function ResultResponsePreview(props: { execution: Execution }) {
             }
     }
 
-    let hasImage = image.length > 0
+    let hasImage = image.length > 0 && detail.resultBodyBase64 && detail.resultBodyBase64.length > 0
     let hasText = text.length > 0
 
     let viewer
     if (hasImage && extension) {
-        viewer = (<ImageViewer data={image} extensionToRender={extension} />)
+        viewer = (<ImageViewer base64Data={detail.resultBodyBase64} extensionToRender={extension} />)
     } else if (hasText) {
         let mode: EditorMode | undefined
         switch (extension) {
@@ -121,15 +101,14 @@ export function ResultResponsePreview(props: { execution: Execution }) {
                 mode = EditorMode.txt
         }
 
+        const model = workspace.getResultEditModel(detail, ResultEditSessionType.Preview, mode)
+
         viewer = <RichViewer
-            id={props.execution.requestOrGroupId}
-            index={props.execution.resultIndex}
-            type={ResultEditSessionType.Preview}
-            mode={mode}
             text={text}
+            model={model}
+            mode={mode}
             beautify={true}
             wrap={true}
-            sx={{ width: '100%', height: '100%' }}
         />
     } else {
         <></>
@@ -139,27 +118,18 @@ export function ResultResponsePreview(props: { execution: Execution }) {
         <Stack sx={{ bottom: 0, overflow: 'hidden', position: 'relative', height: '100%', width: '100%', display: 'flex' }}>
             <Typography variant='h2' sx={{ marginTop: 0, flexGrow: 0 }} component='div' aria-label="response body preview">
                 Response Body (Preview)
-                {hasImage
-                    ? (<IconButton
-                        aria-label="copy image to clipboard"
-                        title="Copy Image to Clipboard"
-                        color='primary'
-                        sx={{ marginLeft: '16px' }}
-                        onClick={_ => clipboard.writeImageToClipboard(image)}>
-                        <ContentCopyIcon />
-                    </IconButton>)
-                    : hasText
-                        ? (<IconButton
-                            aria-label="copy text to clipboard"
-                            title="Copy Text to Clipboard"
-                            color='primary'
-                            sx={{ marginLeft: '16px' }}
-                            onClick={_ => clipboard.writeTextToClipboard(text)}>
-                            <ContentCopyIcon />
-                        </IconButton>)
-                        : (<></>)
-                }
-
+                <IconButton
+                    aria-label="copy to clipboard"
+                    title="Copy to Clipboard"
+                    color='primary'
+                    sx={{ marginLeft: '16px' }}
+                    onClick={_ => workspace.copyToClipboard({
+                        payloadType: 'ResponseBodyPreview',
+                        execCtr: detail.execCtr
+                    }, hasImage ? 'Image' : 'Data')}
+                >
+                    <ContentCopyIcon />
+                </IconButton>
             </Typography>
             {viewer}
         </Stack>

@@ -8,11 +8,11 @@ import { observer } from "mobx-react-lite";
 import { SimpleTreeView } from "@mui/x-tree-view/SimpleTreeView";
 import { useWorkspace } from "../../../contexts/workspace.context";
 
-export const ScenarioList = observer((props: { sx?: SxProps, }) => {
+export const ScenarioList = observer(({ sx }: { sx?: SxProps, }) => {
     const workspace = useWorkspace()
     workspace.nextHelpTopic = 'workspace/scenarios'
 
-    return <Box sx={props.sx} className='editor'>
+    return <Box sx={sx} className='editor'>
         <Stack direction='row' className='editor-panel-header' flexGrow={0}>
             <EditorTitle icon={<SvgIcon color='scenario'><ScenarioIcon /></SvgIcon>} name='Scenarios'>
                 <IconButton color='primary' size='medium' aria-label='Close' title='Close' sx={{ marginLeft: '1rem' }} onClick={() => workspace.returnToNormal()}><CloseIcon fontSize='inherit' /></IconButton>
@@ -22,7 +22,7 @@ export const ScenarioList = observer((props: { sx?: SxProps, }) => {
             <Box sx={{ width: 'fit-content' }}>
                 <SimpleTreeView
                     expandedItems={workspace.expandedItems}
-                    sx={props.sx}
+                    sx={sx}
                     multiSelect={false}
                     onItemExpansionToggle={(_, id, isExpanded) => {
                         workspace.updateExpanded(id, isExpanded)

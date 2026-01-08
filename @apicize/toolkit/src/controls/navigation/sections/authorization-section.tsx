@@ -13,7 +13,7 @@ import { observer } from "mobx-react-lite";
 import { IndexedEntityPosition } from "../../../models/workspace/indexed-entity-position";
 import { useApicizeSettings } from "../../../contexts/apicize-settings.context";
 
-export const AuthorizationSection = observer((props: { includeHeader: boolean }) => {
+export const AuthorizationSection = observer(({ includeHeader }: { includeHeader: boolean }) => {
     const workspace = useWorkspace()
     const feedback = useFeedback()
     const theme = useTheme()
@@ -37,8 +37,7 @@ export const AuthorizationSection = observer((props: { includeHeader: boolean })
     const handleSelectHeader = (headerId: string, helpTopic?: string) => {
         // closeAllMenus()
         if (helpTopic) {
-            workspace.updateExpanded(headerId, true)
-            workspace.showHelp(helpTopic)
+            workspace.showHelp(helpTopic, headerId)
         }
     }
 
@@ -120,7 +119,7 @@ export const AuthorizationSection = observer((props: { includeHeader: boolean })
 
     return <ParameterSection
         title='Authorizations'
-        includeHeader={props.includeHeader}
+        includeHeader={includeHeader}
         icon={<AuthorizationIcon />}
         contextMenu={<AuthorizationMenu />}
         iconColor='authorization'

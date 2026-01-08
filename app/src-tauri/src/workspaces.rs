@@ -1,22 +1,27 @@
 use apicize_lib::{
+    Authorization, Certificate, Executable, ExecutionReportFormat, 
+    ExecutionResultSuccess, ExecutionResultSummary, ExecutionState,
+    ExternalData, Identifiable, IndexedEntities, NameValuePair, Proxy, Request, RequestBody,
+    RequestEntry, RequestGroup, Scenario, SelectedParameters, Selection, Validated,
+    ValidationState, WorkbookDefaultParameters, Workspace,
     editing::indexed_entities::IndexedEntityPosition, identifiable::CloneIdentifiable,
-    indexed_entities::NO_SELECTION_ID, Authorization, Certificate, ExecutionConcurrency,
-    ExecutionReportFormat, ExecutionResultDetail, ExecutionResultSummary, ExternalData,
-    Identifiable, IndexedEntities, NameValuePair, Proxy, Request, RequestBody, RequestEntry,
-    RequestGroup, RequestMethod, Scenario, SelectedParameters, Selection, ValidationErrors,
-    Warnings, WorkbookDefaultParameters, Workspace,
+    indexed_entities::NO_SELECTION_ID,
 };
+use indexmap::IndexMap;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
+use serde_json::ser::PrettyFormatter;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::{
-    collections::{HashSet, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     fmt::Display,
     path::PathBuf,
 };
-use rustc_hash::FxHashMap;
 use uuid::Uuid;
 
-use crate::{error::ApicizeAppError, sessions::SessionStartupState};
+use crate::{
+    error::ApicizeAppError, results::{ExecutionResultBuilder, ExecutionResultDetail}, sessions::{Session, SessionSaveState}, settings::ApicizeSettings
+};
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -24,7 +29,8 @@ pub struct NavigationRequestEntry {
     pub id: String,
     pub name: String,
     pub children: Option<Vec<NavigationRequestEntry>>,
-    pub state: u8,
+    pub validation_state: ValidationState,
+    pub execution_state: ExecutionState,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -32,7 +38,14 @@ pub struct NavigationRequestEntry {
 pub struct NavigationEntry {
     pub id: String,
     pub name: String,
-    pub state: u8,
+    pub validation_state: ValidationState,
+    pub execution_state: ExecutionState,
+}
+
+impl Executable for NavigationEntry {
+    fn get_execution_state(&self) -> &ExecutionState {
+        &self.execution_state
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -48,7 +61,8 @@ pub struct UpdatedNavigationEntry {
     pub id: String,
     pub name: String,
     pub entity_type: EntityType,
-    pub state: u8,
+    pub validation_state: Option<ValidationState>,
+    pub execution_state: Option<ExecutionState>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -63,7 +77,7 @@ pub struct Navigation {
 #[derive(Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", untagged)]
 pub enum RequestEntryInfo {
-    Request { request: RequestInfo },
+    Request { request: Request },
     Group { group: RequestGroup },
 }
 
@@ -86,90 +100,6 @@ pub struct RequestBodyInfo {
     pub body: Option<RequestBody>,
 }
 
-#[derive(Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct RequestInfo {
-    /// Unique identifier (required to keep track of dispatches and test executions)
-    pub id: String,
-    /// Human-readable name describing the Apicize Request
-    pub name: String,
-    /// Optional referential key
-    pub key: Option<String>,
-    /// URL to dispatch the HTTP request to
-    pub url: String,
-    /// HTTP method
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub method: Option<RequestMethod>,
-    /// Timeout, in milliseconds, to wait for a response
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub timeout: Option<u32>,
-    /// Keep HTTP connection alive
-    #[serde(default = "bool::default")]
-    pub keep_alive: bool,
-    /// Allow invalid certificates (default is false)
-    #[serde(default = "bool::default")]
-    pub accept_invalid_certs: bool,
-    /// Number redirects (default = 10)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub number_of_redirects: Option<usize>,
-    /// Number of runs for the request to execute
-    pub runs: usize,
-    /// Execution of multiple runs
-    pub multi_run_execution: ExecutionConcurrency,
-    /// HTTP query string parameters
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub query_string_params: Option<Vec<NameValuePair>>,
-    /// Test to execute after dispatching request and receiving response
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub test: Option<String>,
-    /// Selected scenario, if applicable
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub selected_scenario: Option<Selection>,
-    /// Selected authorization, if applicable
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub selected_authorization: Option<Selection>,
-    /// Selected certificate, if applicable
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub selected_certificate: Option<Selection>,
-    /// Selected proxy, if applicable
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub selected_proxy: Option<Selection>,
-    /// Selected data, if applicable
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub selected_data: Option<Selection>,
-    /// Populated with any warnings regarding how the request is set up
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub warnings: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    /// Validation errors
-    pub validation_errors: Option<std::collections::HashMap<String, String>>,
-}
-
-impl Identifiable for RequestInfo {
-    fn get_id(&self) -> &str {
-        &self.id
-    }
-
-    fn get_name(&self) -> &str {
-        &self.name
-    }
-
-    fn get_title(&self) -> String {
-        let name = self.get_name();
-        if name.is_empty() {
-            "(Unnamed)".to_string()
-        } else {
-            name.to_string()
-        }
-    }
-}
-
-impl Warnings for RequestInfo {
-    fn get_warnings(&self) -> &Option<Vec<String>> {
-        &self.warnings
-    }
-}
-
 pub struct WorkspaceInfo {
     /// True if workspace has been modified since last open/save
     pub dirty: bool,
@@ -183,12 +113,10 @@ pub struct WorkspaceInfo {
     pub workspace: Workspace,
     /// Activation tree
     pub navigation: Navigation,
-    /// Indicator which requests have executions running
-    pub executing_request_ids: HashSet<String>,
-    /// Execution summary results (if any)
-    pub result_summaries: FxHashMap<String, Vec<ExecutionResultSummary>>,
-    /// Execution detail results (if any)
-    pub result_details: FxHashMap<String, Vec<ExecutionResultDetail>>,
+    /// Execution results
+    pub execution_results: ExecutionResultBuilder,
+    /// Execution information
+    pub executions: FxHashMap<String, RequestExecution>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -206,35 +134,8 @@ pub struct WorkspaceSaveStatus {
     pub display_name: String,
 }
 
-impl RequestInfo {
-    fn from_ref(request: &Request) -> Self {
-        RequestInfo {
-            id: request.id.clone(),
-            name: request.name.clone(),
-            key: request.key.clone(),
-            url: request.url.clone(),
-            method: request.method.clone(),
-            timeout: request.timeout,
-            keep_alive: request.keep_alive,
-            accept_invalid_certs: request.accept_invalid_certs,
-            number_of_redirects: None,
-            runs: request.runs,
-            multi_run_execution: request.multi_run_execution.clone(),
-            query_string_params: request.query_string_params.clone(),
-            test: request.test.clone(),
-            selected_scenario: request.selected_scenario.clone(),
-            selected_authorization: request.selected_authorization.clone(),
-            selected_certificate: request.selected_certificate.clone(),
-            selected_proxy: request.selected_proxy.clone(),
-            selected_data: request.selected_data.clone(),
-            warnings: request.warnings.clone(),
-            validation_errors: request.validation_errors.clone(),
-        }
-    }
-}
-
 impl ParamNavigationSection {
-    pub fn new<T: Identifiable + Warnings + ValidationErrors>(
+    pub fn new<T: Identifiable + Validated>(
         parameters: &IndexedEntities<T>,
     ) -> ParamNavigationSection {
         ParamNavigationSection {
@@ -253,34 +154,18 @@ impl ParamNavigationSection {
         }
     }
 
-    fn map_entities<T: Identifiable + Warnings + ValidationErrors>(
+    fn map_entities<T: Identifiable + Validated>(
         entities: &std::collections::HashMap<String, T>,
         ids: &[String],
     ) -> Vec<NavigationEntry> {
         ids.iter()
             .map(|id| {
                 let entity = &entities.get(id).unwrap();
-                let state = if entity
-                    .get_warnings()
-                    .as_ref()
-                    .is_some_and(|w| !w.is_empty())
-                {
-                    NAVIGATION_STATE_WARNING
-                } else {
-                    0
-                } | if entity
-                    .get_validation_errors()
-                    .as_ref()
-                    .is_some_and(|e| !e.is_empty())
-                {
-                    NAVIGATION_STATE_ERROR
-                } else {
-                    0
-                };
                 NavigationEntry {
                     id: id.clone(),
                     name: entity.get_title(),
-                    state,
+                    validation_state: entity.get_validation_state().clone(),
+                    execution_state: ExecutionState::empty(),
                 }
             })
             .collect()
@@ -307,30 +192,11 @@ impl ParamNavigationSection {
 }
 
 impl NavigationRequestEntry {
-    /// Calculate state flags for a request entry
-    fn calculate_state(request: &RequestEntry, executing_request_ids: &HashSet<String>) -> u8 {
-        let mut state = 0;
-        
-        if request.get_warnings().as_ref().is_some_and(|w| !w.is_empty()) {
-            state |= NAVIGATION_STATE_WARNING;
-        }
-        
-        if request.get_validation_errors().as_ref().is_some_and(|e| !e.is_empty()) {
-            state |= NAVIGATION_STATE_ERROR;
-        }
-        
-        if executing_request_ids.contains(request.get_id()) {
-            state |= NAVIGATION_STATE_RUNNING;
-        }
-        
-        state
-    }
-    
     /// Iteratively build navigation tree with pre-allocated capacity
     fn from_requests(
         ids: &[String],
         requests: &IndexedEntities<RequestEntry>,
-        executing_request_ids: &HashSet<String>,
+        executions: &FxHashMap<String, RequestExecution>,
     ) -> Option<Vec<NavigationRequestEntry>> {
         if ids.is_empty() {
             return None;
@@ -338,30 +204,35 @@ impl NavigationRequestEntry {
 
         // Pre-allocate result vector with exact capacity
         let mut results = Vec::with_capacity(ids.len());
-        
+
         // Process each top-level ID
         for id in ids {
             if let Some(entity) = requests.entities.get(id) {
-                let state = Self::calculate_state(entity, executing_request_ids);
-                
                 let children = match entity {
                     RequestEntry::Request(_) => None,
                     RequestEntry::Group(_) => {
                         // For groups, build children iteratively
                         match requests.child_ids.get(id) {
                             Some(child_ids) if !child_ids.is_empty() => {
-                                Self::build_children_iteratively(child_ids, requests, executing_request_ids)
+                                Self::build_children_iteratively(child_ids, requests, executions)
                             }
                             _ => Some(Vec::new()), // Empty group
                         }
                     }
                 };
 
+                let execution_state = if let Some(execution) = executions.get(id) {
+                    execution.execution_state
+                } else {
+                    ExecutionState::empty()
+                };
+
                 results.push(NavigationRequestEntry {
                     id: id.clone(),
                     name: entity.get_title(),
                     children,
-                    state,
+                    validation_state: entity.get_validation_state().clone(),
+                    execution_state,
                 });
             }
         }
@@ -377,56 +248,69 @@ impl NavigationRequestEntry {
     fn build_children_iteratively(
         child_ids: &[String],
         requests: &IndexedEntities<RequestEntry>,
-        executing_request_ids: &HashSet<String>,
+        executions: &FxHashMap<String, RequestExecution>,
     ) -> Option<Vec<NavigationRequestEntry>> {
         if child_ids.is_empty() {
             return Some(Vec::new());
         }
 
         let mut results = Vec::with_capacity(child_ids.len());
-        
+
         for child_id in child_ids {
             if let Some(entity) = requests.entities.get(child_id) {
-                let state = Self::calculate_state(entity, executing_request_ids);
-                
+                let validation_state = entity.get_validation_state();
+
                 let children = match entity {
                     RequestEntry::Request(_) => None,
                     RequestEntry::Group(_) => {
                         match requests.child_ids.get(child_id) {
                             Some(grandchild_ids) if !grandchild_ids.is_empty() => {
                                 // Recursive call but much more controlled - only for group structure
-                                Self::build_children_iteratively(grandchild_ids, requests, executing_request_ids)
+                                Self::build_children_iteratively(
+                                    grandchild_ids,
+                                    requests,
+                                    executions,
+                                )
                             }
                             _ => Some(Vec::new()), // Empty group
                         }
                     }
                 };
-                
+
+                let execution_state = if let Some(execution) = executions.get(child_id) {
+                    execution.execution_state
+                } else {
+                    ExecutionState::empty()
+                };
+
                 results.push(NavigationRequestEntry {
                     id: child_id.clone(),
                     name: entity.get_title(),
                     children,
-                    state,
+                    validation_state: validation_state.clone(),
+                    execution_state,
                 });
             }
         }
-        
+
         Some(results)
     }
 
     pub fn build(
         requests: &IndexedEntities<RequestEntry>,
-        executing_request_ids: &HashSet<String>,
+        executions: &FxHashMap<String, RequestExecution>,
     ) -> Vec<NavigationRequestEntry> {
-        Self::from_requests(&requests.top_level_ids, requests, executing_request_ids)
-            .unwrap_or_default()
+        Self::from_requests(&requests.top_level_ids, requests, executions).unwrap_or_default()
     }
 }
 
 impl Navigation {
-    pub fn new(workspace: &Workspace, executing_request_ids: &HashSet<String>) -> Navigation {
+    pub fn new(
+        workspace: &Workspace,
+        executions: &FxHashMap<String, RequestExecution>,
+    ) -> Navigation {
         Navigation {
-            requests: NavigationRequestEntry::build(&workspace.requests, executing_request_ids),
+            requests: NavigationRequestEntry::build(&workspace.requests, executions),
             scenarios: ParamNavigationSection::new(&workspace.scenarios),
             authorizations: ParamNavigationSection::new(&workspace.authorizations),
             certificates: ParamNavigationSection::new(&workspace.certificates),
@@ -459,7 +343,7 @@ impl Workspaces {
         is_new: bool,
     ) -> OpenWorkspaceResult {
         let workspace_id = Uuid::new_v4().to_string();
-        let navigation = Navigation::new(&workspace, &HashSet::default());
+        let navigation = Navigation::new(&workspace, &FxHashMap::default());
 
         let display_name = if file_name.is_empty() {
             String::default()
@@ -478,50 +362,39 @@ impl Workspaces {
                 warn_on_workspace_creds: true,
                 workspace,
                 navigation,
-                executing_request_ids: HashSet::new(),
-                result_summaries: FxHashMap::default(),
-                result_details: FxHashMap::default(),
+                execution_results: ExecutionResultBuilder::default(),
+                executions: FxHashMap::default(),
                 file_name: file_name.to_string(),
                 display_name: display_name.clone(),
             },
         );
 
         if is_new {
-            let mut request = Request::default();
-            let request_id = request.id.clone();
-            request.name = "New Request".to_string();
+            let request = Request {
+                name: "New Request".to_string(),
+                ..Default::default()
+            };
 
             let info = self.workspaces.get_mut(&workspace_id).unwrap();
+
+            info.navigation.requests.push(NavigationRequestEntry {
+                id: request.id.clone(),
+                name: request.name.clone(),
+                children: None,
+                validation_state: ValidationState::empty(),
+                execution_state: ExecutionState::empty(),
+            });
+
             info.workspace
                 .requests
                 .add_entity(RequestEntry::Request(request), None, None)
                 .unwrap();
+        }
 
-            info.navigation.requests.push(NavigationRequestEntry {
-                id: request_id.clone(),
-                name: "New Request".to_string(),
-                children: None,
-                state: 0,
-            });
-
-            OpenWorkspaceResult {
-                workspace_id,
-                display_name,
-                startup_state: SessionStartupState {
-                    expanded_items: None,
-                    active_type: Some(EntityType::Request),
-                    active_id: Some(request_id),
-                    mode: Some(0),
-                    help_topic: None,
-                    error: None,
-                },
-            }
-        } else {
-            OpenWorkspaceResult {
-                workspace_id,
-                display_name,
-                startup_state: SessionStartupState::default(),
-            }
+        OpenWorkspaceResult {
+            workspace_id,
+            display_name,
+            error: None,
         }
     }
 
@@ -604,38 +477,13 @@ impl Workspaces {
     pub fn get_result_detail(
         &self,
         workspace_id: &str,
-        request_or_group_id: &str,
-        index: usize,
+        exec_ctr: usize,
     ) -> Result<ExecutionResultDetail, ApicizeAppError> {
-        let info = self.get_workspace_info(workspace_id)?;
-        match info.result_details.get(request_or_group_id) {
-            Some(results) => match results.get(index) {
-                Some(details) => Ok(details.clone()),
-                None => Err(ApicizeAppError::InvalidResult(
-                    request_or_group_id.to_string(),
-                    index,
-                )),
-            },
-            None => Err(ApicizeAppError::InvalidRequest(
-                request_or_group_id.to_string(),
-            )),
-        }
-    }
-
-    pub fn generate_report(
-        &self,
-        workspace_id: &str,
-        request_or_group_id: &str,
-        index: usize,
-        format: ExecutionReportFormat,
-    ) -> Result<String, ApicizeAppError> {
-        let info = self.get_workspace_info(workspace_id)?;
-        match info.result_summaries.get(request_or_group_id) {
-            Some(results) => Ok(Workspace::geneate_report(index, results, format)?),
-            None => Err(ApicizeAppError::InvalidRequest(
-                request_or_group_id.to_string(),
-            )),
-        }
+        self.get_workspace_info(workspace_id)?
+            .execution_results
+            .get_detail(&exec_ctr)
+            .cloned()
+            .map_err(ApicizeAppError::ApicizeError)
     }
 
     pub fn get_request_entry(
@@ -646,15 +494,43 @@ impl Workspaces {
         let workspace = self.get_workspace(workspace_id)?;
         match workspace.requests.entities.get(request_id) {
             Some(entry) => match entry {
-                RequestEntry::Request(request) => Ok(RequestEntryInfo::Request {
-                    request: RequestInfo::from_ref(request),
-                }),
+                RequestEntry::Request(request) => {
+                    // Remove the headers and body, they will be returned separately
+                    // to keep the request size smaller for everything else
+                    let mut request = request.clone();
+                    request.body = None;
+                    Ok(RequestEntryInfo::Request { request })
+                }
                 RequestEntry::Group(group) => Ok(RequestEntryInfo::Group {
                     group: group.clone(),
                 }),
             },
             None => Err(ApicizeAppError::InvalidRequest(request_id.into())),
         }
+    }
+
+    pub fn get_request_body(
+        &self,
+        workspace_id: &str,
+        request_id: &str,
+    ) -> Result<RequestBodyInfo, ApicizeAppError> {
+        let workspace = self.get_workspace(workspace_id)?;
+        match workspace.requests.entities.get(request_id) {
+            Some(RequestEntry::Request(request)) => Ok(RequestBodyInfo {
+                id: request_id.to_string(),
+                body: request.body.clone(),
+            }),
+            _ => Err(ApicizeAppError::InvalidRequest(request_id.into())),
+        }
+    }
+
+    pub fn get_execution(
+        &mut self,
+        workspace_id: &str,
+        request_or_group_id: &str,
+    ) -> Result<RequestExecution, ApicizeAppError> {
+        let info = self.get_workspace_info_mut(workspace_id)?;
+        Ok(info.get_execution_mut(request_or_group_id).clone())
     }
 
     pub fn add_request(
@@ -714,13 +590,19 @@ impl Workspaces {
         if let Some(other_id) = clone_from_id {
             // Pre-calculate approximate size by counting descendant nodes
             let estimated_size = Self::count_descendant_nodes(&info.workspace.requests, other_id);
-            
+
             // Pre-allocate collections with estimated capacity
-            let mut cloned_group_ids = FxHashMap::<String, String>::with_capacity_and_hasher(estimated_size / 2, Default::default());
+            let mut cloned_group_ids = FxHashMap::<String, String>::with_capacity_and_hasher(
+                estimated_size / 2,
+                Default::default(),
+            );
             cloned_group_ids.insert(other_id.to_string(), id.to_string());
 
             let mut new_entries = Vec::<RequestEntry>::with_capacity(estimated_size);
-            let mut new_child_mappings = FxHashMap::<String, Vec<String>>::with_capacity_and_hasher(estimated_size / 2, Default::default());
+            let mut new_child_mappings = FxHashMap::<String, Vec<String>>::with_capacity_and_hasher(
+                estimated_size / 2,
+                Default::default(),
+            );
 
             // Use a single pass to collect all entries that need cloning
             let mut to_process = VecDeque::with_capacity(estimated_size);
@@ -738,7 +620,7 @@ impl Workspaces {
                         .get(&parent_id)
                         .expect("Parent group ID should exist in cloned_group_ids")
                         .clone();
-                    
+
                     // Pre-allocate child vector with known size
                     let mut new_group_child_ids = Vec::with_capacity(child_ids.len());
 
@@ -765,11 +647,17 @@ impl Workspaces {
             // Batch insert new entries - more efficient than individual inserts
             info.workspace.requests.entities.reserve(new_entries.len());
             for entry in new_entries {
-                info.workspace.requests.entities.insert(entry.get_id().to_string(), entry);
+                info.workspace
+                    .requests
+                    .entities
+                    .insert(entry.get_id().to_string(), entry);
             }
 
             // Batch insert child mappings
-            info.workspace.requests.child_ids.reserve(new_child_mappings.len());
+            info.workspace
+                .requests
+                .child_ids
+                .reserve(new_child_mappings.len());
             info.workspace.requests.child_ids.extend(new_child_mappings);
         }
         Ok(id)
@@ -783,6 +671,7 @@ impl Workspaces {
         let info = self.get_workspace_info_mut(workspace_id)?;
         info.dirty = true;
         info.workspace.requests.remove_entity(request_or_group_id)?;
+        info.executions.remove(request_or_group_id);
         info.workspace.validate_selections();
         Ok(())
     }
@@ -803,12 +692,12 @@ impl Workspaces {
     pub fn update_request(
         &mut self,
         workspace_id: &str,
-        request: RequestInfo,
+        request: Request,
     ) -> Result<Option<UpdatedNavigationEntry>, ApicizeAppError> {
         let info = self.get_workspace_info_mut(workspace_id)?;
         info.dirty = true;
 
-        let (name, state) = match info.workspace.requests.entities.get_mut(&request.id) {
+        let (name, validation_state) = match info.workspace.requests.entities.get_mut(&request.id) {
             Some(RequestEntry::Request(existing_request)) => {
                 existing_request.name = request.name;
                 existing_request.key = request.key;
@@ -826,33 +715,13 @@ impl Workspaces {
                 existing_request.selected_certificate = request.selected_certificate;
                 existing_request.selected_proxy = request.selected_proxy;
                 existing_request.selected_data = request.selected_data;
-                existing_request.warnings = request.warnings;
-                existing_request.validation_errors = request.validation_errors;
+
+                existing_request.set_validation_warnings(request.validation_warnings);
+                existing_request.set_validation_errors(request.validation_errors);
+
                 (
-                    existing_request.get_title().to_string(),
-                    if existing_request
-                        .warnings
-                        .as_ref()
-                        .is_some_and(|w| !w.is_empty())
-                    {
-                        NAVIGATION_STATE_WARNING
-                    } else {
-                        0
-                    } | if existing_request
-                        .validation_errors
-                        .as_ref()
-                        .is_some_and(|w| !w.is_empty())
-                    {
-                        NAVIGATION_STATE_ERROR
-                    } else {
-                        0
-                    } | {
-                        if info.executing_request_ids.contains(&request.id) {
-                            NAVIGATION_STATE_RUNNING
-                        } else {
-                            0
-                        }
-                    },
+                    existing_request.get_name().to_string(),
+                    existing_request.get_validation_state().clone(),
                 )
             }
             _ => {
@@ -862,7 +731,7 @@ impl Workspaces {
             }
         };
 
-        info.check_request_navigation_update(&request.id, &name, state)
+        info.check_request_navigation_update(&request.id, &name, Some(&validation_state), None)
     }
 
     pub fn update_group(
@@ -877,23 +746,8 @@ impl Workspaces {
                 let result = info.check_request_navigation_update(
                     &group.id,
                     &group.get_title().to_string(),
-                    if group.warnings.as_ref().is_some_and(|w| !w.is_empty()) {
-                        NAVIGATION_STATE_WARNING
-                    } else {
-                        0
-                    } | if group
-                        .validation_errors
-                        .as_ref()
-                        .is_some_and(|w| !w.is_empty())
-                    {
-                        NAVIGATION_STATE_ERROR
-                    } else {
-                        0
-                    } | if info.executing_request_ids.contains(&group.id) {
-                        NAVIGATION_STATE_RUNNING
-                    } else {
-                        0
-                    },
+                    Some(group.get_validation_state()),
+                    None,
                 );
                 info.workspace
                     .requests
@@ -914,42 +768,6 @@ impl Workspaces {
         let workspace = self.get_workspace(workspace_id)?;
         match workspace.requests.entities.get(request_id) {
             Some(entry) => Ok(entry.get_title()),
-            None => Err(ApicizeAppError::InvalidRequest(request_id.into())),
-        }
-    }
-
-    pub fn get_request_headers(
-        &self,
-        workspace_id: &str,
-        request_id: &str,
-    ) -> Result<RequestHeaderInfo, ApicizeAppError> {
-        let workspace = self.get_workspace(workspace_id)?;
-        match workspace.requests.entities.get(request_id) {
-            Some(s) => match s {
-                RequestEntry::Request(request) => Ok(RequestHeaderInfo {
-                    id: request.id.clone(),
-                    headers: request.headers.clone(),
-                }),
-                RequestEntry::Group(_) => Err(ApicizeAppError::InvalidRequest(request_id.into())),
-            },
-            None => Err(ApicizeAppError::InvalidRequest(request_id.into())),
-        }
-    }
-
-    pub fn get_request_body(
-        &self,
-        workspace_id: &str,
-        request_id: &str,
-    ) -> Result<RequestBodyInfo, ApicizeAppError> {
-        let workspace = self.get_workspace(workspace_id)?;
-        match workspace.requests.entities.get(request_id) {
-            Some(s) => match s {
-                RequestEntry::Request(request) => Ok(RequestBodyInfo {
-                    id: request.id.clone(),
-                    body: request.body.clone(),
-                }),
-                RequestEntry::Group(_) => Err(ApicizeAppError::InvalidRequest(request_id.into())),
-            },
             None => Err(ApicizeAppError::InvalidRequest(request_id.into())),
         }
     }
@@ -975,7 +793,7 @@ impl Workspaces {
                             result = Some(a.clone());
                         }
                         None => {
-                            return Err(ApicizeAppError::InvalidAuthorization(auth.id.to_owned()))
+                            return Err(ApicizeAppError::InvalidAuthorization(auth.id.to_owned()));
                         }
                     }
                 }
@@ -991,17 +809,17 @@ impl Workspaces {
             }
         }
 
-        if result.is_none() {
-            if let Some(selection) = &workspace.defaults.selected_authorization {
-                match workspace.authorizations.get(selection.id.as_str()) {
-                    Some(auth) => {
-                        result = Some(auth.clone());
-                    }
-                    None => {
-                        return Err(ApicizeAppError::InvalidAuthorization(
-                            selection.id.to_owned(),
-                        ))
-                    }
+        if result.is_none()
+            && let Some(selection) = &workspace.defaults.selected_authorization
+        {
+            match workspace.authorizations.get(selection.id.as_str()) {
+                Some(auth) => {
+                    result = Some(auth.clone());
+                }
+                None => {
+                    return Err(ApicizeAppError::InvalidAuthorization(
+                        selection.id.to_owned(),
+                    ));
                 }
             }
         }
@@ -1030,7 +848,7 @@ impl Workspaces {
                             result = Some(ed.clone());
                         }
                         None => {
-                            return Err(ApicizeAppError::InvalidExternalData(data.id.to_owned()))
+                            return Err(ApicizeAppError::InvalidExternalData(data.id.to_owned()));
                         }
                     }
                 }
@@ -1046,17 +864,17 @@ impl Workspaces {
             }
         }
 
-        if result.is_none() {
-            if let Some(selection) = &workspace.defaults.selected_data {
-                match workspace.data.iter().find(|d| d.id == selection.id) {
-                    Some(ed) => {
-                        result = Some(ed.clone());
-                    }
-                    None => {
-                        return Err(ApicizeAppError::InvalidExternalData(
-                            selection.id.to_owned(),
-                        ))
-                    }
+        if result.is_none()
+            && let Some(selection) = &workspace.defaults.selected_data
+        {
+            match workspace.data.iter().find(|d| d.id == selection.id) {
+                Some(ed) => {
+                    result = Some(ed.clone());
+                }
+                None => {
+                    return Err(ApicizeAppError::InvalidExternalData(
+                        selection.id.to_owned(),
+                    ));
                 }
             }
         }
@@ -1069,7 +887,7 @@ impl Workspaces {
         &mut self,
         workspace_id: &str,
         header_info: RequestHeaderInfo,
-    ) -> Result<RequestInfo, ApicizeAppError> {
+    ) -> Result<(), ApicizeAppError> {
         match self.workspaces.get_mut(workspace_id) {
             Some(info) => {
                 info.dirty = true;
@@ -1078,7 +896,7 @@ impl Workspaces {
                     info.workspace.requests.entities.get_mut(id)
                 {
                     existing_request.headers = header_info.headers;
-                    Ok(RequestInfo::from_ref(existing_request))
+                    Ok(())
                 } else {
                     Err(ApicizeAppError::InvalidRequest(header_info.id))
                 }
@@ -1092,7 +910,7 @@ impl Workspaces {
         &mut self,
         workspace_id: &str,
         body_info: RequestBodyInfo,
-    ) -> Result<RequestInfo, ApicizeAppError> {
+    ) -> Result<(), ApicizeAppError> {
         match self.workspaces.get_mut(workspace_id) {
             Some(info) => {
                 info.dirty = true;
@@ -1102,8 +920,10 @@ impl Workspaces {
                 {
                     if body_info.body.is_some() {
                         existing_request.body = body_info.body;
+                    } else {
+                        existing_request.body = None;
                     }
-                    Ok(RequestInfo::from_ref(existing_request))
+                    Ok(())
                 } else {
                     Err(ApicizeAppError::InvalidRequest(body_info.id))
                 }
@@ -1287,17 +1107,17 @@ impl Workspaces {
                     info.check_parameter_navigation_update(&scenario, EntityType::Scenario);
 
                 for request_entry in info.workspace.requests.entities.values_mut() {
-                    if let Some(s) = request_entry.selected_scenario_as_mut() {
-                        if s.id == id {
-                            s.name = scenario.name.clone();
-                        }
+                    if let Some(s) = request_entry.selected_scenario_as_mut()
+                        && s.id == id
+                    {
+                        s.name = scenario.name.clone();
                     }
                 }
 
-                if let Some(s) = info.workspace.defaults.selected_scenario_as_mut() {
-                    if s.id == id {
-                        s.name = scenario.name.clone();
-                    }
+                if let Some(s) = info.workspace.defaults.selected_scenario_as_mut()
+                    && s.id == id
+                {
+                    s.name = scenario.name.clone();
                 }
 
                 info.workspace
@@ -1402,17 +1222,17 @@ impl Workspaces {
                     .check_parameter_navigation_update(&authorization, EntityType::Authorization);
 
                 for request_entry in info.workspace.requests.entities.values_mut() {
-                    if let Some(s) = request_entry.selected_authorization_as_mut() {
-                        if s.id == id {
-                            s.name = authorization.get_name().to_string();
-                        }
+                    if let Some(s) = request_entry.selected_authorization_as_mut()
+                        && s.id == id
+                    {
+                        s.name = authorization.get_name().to_string();
                     }
                 }
 
-                if let Some(s) = info.workspace.defaults.selected_authorization_as_mut() {
-                    if s.id == id {
-                        s.name = authorization.get_name().to_string();
-                    }
+                if let Some(s) = info.workspace.defaults.selected_authorization_as_mut()
+                    && s.id == id
+                {
+                    s.name = authorization.get_name().to_string();
                 }
 
                 info.workspace
@@ -1534,10 +1354,10 @@ impl Workspaces {
                     info.check_parameter_navigation_update(&certificate, EntityType::Certificate);
 
                 for request_entry in info.workspace.requests.entities.values_mut() {
-                    if let Some(s) = request_entry.selected_certificate_as_mut() {
-                        if s.id == id {
-                            s.name = certificate.get_name().to_string();
-                        }
+                    if let Some(s) = request_entry.selected_certificate_as_mut()
+                        && s.id == id
+                    {
+                        s.name = certificate.get_name().to_string();
                     }
                 }
 
@@ -1546,17 +1366,16 @@ impl Workspaces {
                         selected_certificate: Some(s),
                         ..
                     } = auth
+                        && s.id == id
                     {
-                        if s.id == id {
-                            s.name = certificate.get_name().to_string();
-                        }
+                        s.name = certificate.get_name().to_string();
                     }
                 }
 
-                if let Some(s) = info.workspace.defaults.selected_certificate_as_mut() {
-                    if s.id == id {
-                        s.name = certificate.get_name().to_string();
-                    }
+                if let Some(s) = info.workspace.defaults.selected_certificate_as_mut()
+                    && s.id == id
+                {
+                    s.name = certificate.get_name().to_string();
                 }
 
                 info.workspace
@@ -1650,10 +1469,10 @@ impl Workspaces {
                 let result = info.check_parameter_navigation_update(&proxy, EntityType::Proxy);
 
                 for request_entry in info.workspace.requests.entities.values_mut() {
-                    if let Some(s) = request_entry.selected_proxy_as_mut() {
-                        if s.id == id {
-                            s.name = proxy.name.clone();
-                        }
+                    if let Some(s) = request_entry.selected_proxy_as_mut()
+                        && s.id == id
+                    {
+                        s.name = proxy.name.clone();
                     }
                 }
 
@@ -1662,17 +1481,16 @@ impl Workspaces {
                         selected_proxy: Some(s),
                         ..
                     } = auth
+                        && s.id == id
                     {
-                        if s.id == id {
-                            s.name = proxy.get_name().to_string();
-                        }
+                        s.name = proxy.get_name().to_string();
                     }
                 }
 
-                if let Some(s) = info.workspace.defaults.selected_proxy_as_mut() {
-                    if s.id == id {
-                        s.name = proxy.name.clone();
-                    }
+                if let Some(s) = info.workspace.defaults.selected_proxy_as_mut()
+                    && s.id == id
+                {
+                    s.name = proxy.name.clone();
                 }
 
                 info.workspace
@@ -1743,7 +1561,7 @@ impl Workspaces {
             if !visited.insert(id) {
                 continue;
             }
-            
+
             if let Some(child_ids) = requests.child_ids.get(id) {
                 count += child_ids.len();
                 for child_id in child_ids {
@@ -1751,7 +1569,7 @@ impl Workspaces {
                 }
             }
         }
-        
+
         // Return at least 4 to ensure some pre-allocation benefit
         count.max(4)
     }
@@ -1807,17 +1625,17 @@ impl Workspaces {
                 info.dirty = true;
 
                 for request_entry in info.workspace.requests.entities.values_mut() {
-                    if let Some(s) = request_entry.selected_data_as_mut() {
-                        if s.id == data.id {
-                            s.name = data.name.clone();
-                        }
+                    if let Some(s) = request_entry.selected_data_as_mut()
+                        && s.id == data.id
+                    {
+                        s.name = data.name.clone();
                     }
                 }
 
-                if let Some(s) = info.workspace.defaults.selected_data_as_mut() {
-                    if s.id == data.id {
-                        s.name = data.name.clone();
-                    }
+                if let Some(s) = info.workspace.defaults.selected_data_as_mut()
+                    && s.id == data.id
+                {
+                    s.name = data.name.clone();
                 }
 
                 if let Some(index) = info.workspace.data.iter().position(|d| d.id == data.id) {
@@ -1912,54 +1730,57 @@ impl Workspaces {
             loop {
                 match info.workspace.requests.entities.get(&id) {
                     Some(request) => {
-                        if let Some(e) = request.selected_scenario() {
-                            if default_scenario.is_none() {
-                                default_scenario =
-                                    if let Some(m) = scenarios.iter().find(|s| s.id == e.id) {
-                                        Some(m.clone())
-                                    } else {
-                                        Some(e.clone())
-                                    };
-                            }
-                        }
-                        if let Some(e) = request.selected_authorization() {
-                            if default_authorization.is_none() {
-                                default_authorization =
-                                    if let Some(m) = authorizations.iter().find(|s| s.id == e.id) {
-                                        Some(m.clone())
-                                    } else {
-                                        Some(e.clone())
-                                    };
-                            }
-                        }
-                        if let Some(e) = request.selected_certificate() {
-                            if default_certificate.is_none() {
-                                default_certificate =
-                                    if let Some(m) = certificates.iter().find(|s| s.id == e.id) {
-                                        Some(m.clone())
-                                    } else {
-                                        Some(e.clone())
-                                    };
-                            }
-                        }
-                        if let Some(e) = request.selected_proxy() {
-                            if default_proxy.is_none() {
-                                default_proxy =
-                                    if let Some(m) = proxies.iter().find(|s| s.id == e.id) {
-                                        Some(m.clone())
-                                    } else {
-                                        Some(e.clone())
-                                    };
-                            }
-                        }
-                        if let Some(e) = request.selected_data() {
-                            if default_data.is_none() {
-                                default_data = if let Some(m) = data.iter().find(|s| s.id == e.id) {
+                        if default_scenario.is_none()
+                            && let Some(e) = request.selected_scenario()
+                        {
+                            default_scenario =
+                                if let Some(m) = scenarios.iter().find(|s| s.id == e.id) {
                                     Some(m.clone())
                                 } else {
                                     Some(e.clone())
                                 };
-                            }
+                        }
+
+                        if default_authorization.is_none()
+                            && let Some(e) = request.selected_authorization()
+                        {
+                            default_authorization =
+                                if let Some(m) = authorizations.iter().find(|s| s.id == e.id) {
+                                    Some(m.clone())
+                                } else {
+                                    Some(e.clone())
+                                };
+                        }
+
+                        if default_certificate.is_none()
+                            && let Some(e) = request.selected_certificate()
+                        {
+                            default_certificate =
+                                if let Some(m) = certificates.iter().find(|s| s.id == e.id) {
+                                    Some(m.clone())
+                                } else {
+                                    Some(e.clone())
+                                };
+                        }
+
+                        if default_proxy.is_none()
+                            && let Some(e) = request.selected_proxy()
+                        {
+                            default_proxy = if let Some(m) = proxies.iter().find(|s| s.id == e.id) {
+                                Some(m.clone())
+                            } else {
+                                Some(e.clone())
+                            };
+                        }
+
+                        if default_data.is_none()
+                            && let Some(e) = request.selected_data()
+                        {
+                            default_data = if let Some(m) = data.iter().find(|s| s.id == e.id) {
+                                Some(m.clone())
+                            } else {
+                                Some(e.clone())
+                            };
                         }
                     }
                     None => return Err(ApicizeAppError::InvalidRequest(id.to_string())),
@@ -2075,8 +1896,8 @@ impl Workspaces {
 }
 
 impl WorkspaceInfo {
-    // Check parameter and returns update to navigation if required
-    pub fn check_parameter_navigation_update<T: Identifiable + Warnings + ValidationErrors>(
+    /// Check parameter and returns update to navigation if required
+    pub fn check_parameter_navigation_update<T: Identifiable + Validated>(
         &mut self,
         parameter: &T,
         entity_type: EntityType,
@@ -2093,23 +1914,8 @@ impl WorkspaceInfo {
 
         let id = parameter.get_id();
         let nav_name = parameter.get_title();
-        let nav_state = if parameter
-            .get_warnings()
-            .as_ref()
-            .is_some_and(|w| !w.is_empty())
-        {
-            NAVIGATION_STATE_WARNING
-        } else {
-            0
-        } | if parameter
-            .get_validation_errors()
-            .as_ref()
-            .is_some_and(|w| !w.is_empty())
-        {
-            NAVIGATION_STATE_ERROR
-        } else {
-            0
-        };
+        let validation_state = parameter.get_validation_state();
+        // let execution_state = parameter.get_execution_state();
 
         let mut entry = section.public.iter_mut().find(|e| e.id == id);
         if entry.is_none() {
@@ -2120,18 +1926,16 @@ impl WorkspaceInfo {
         }
 
         if let Some(e) = entry {
-            if e.name.eq(&nav_name) && e.state == nav_state {
-                None
-            } else {
-                e.name = nav_name.to_string();
-                e.state = nav_state;
-                Some(UpdatedNavigationEntry {
-                    id: id.to_string(),
-                    name: nav_name.to_string(),
-                    entity_type,
-                    state: nav_state,
-                })
-            }
+            e.name = nav_name.to_string();
+            e.validation_state = validation_state.clone();
+            // e.execution_state = execution_state.clone();
+            Some(UpdatedNavigationEntry {
+                id: id.to_string(),
+                name: nav_name.to_string(),
+                entity_type,
+                validation_state: Some(validation_state.clone()),
+                execution_state: None, // execution_state.cloned(),
+            })
         } else {
             None
         }
@@ -2141,38 +1945,412 @@ impl WorkspaceInfo {
         &mut self,
         id: &str,
         name: &str,
-        state: u8,
+        validation_state: Option<&ValidationState>,
+        execution_state: Option<&ExecutionState>,
     ) -> Result<Option<UpdatedNavigationEntry>, ApicizeAppError> {
-        Self::check_request_navigation_update_int(id, name, state, &mut self.navigation.requests)
+        Self::check_request_navigation_update_int(
+            id,
+            name,
+            validation_state,
+            execution_state,
+            &mut self.navigation.requests,
+        )
     }
 
     /// Check request navigation name and returns update to navigation if required
     fn check_request_navigation_update_int(
         id: &str,
         name: &str,
-        state: u8,
+        validation_state: Option<&ValidationState>,
+        execution_state: Option<&ExecutionState>,
         entries: &mut Vec<NavigationRequestEntry>,
     ) -> Result<Option<UpdatedNavigationEntry>, ApicizeAppError> {
         for entry in entries {
-            if id == entry.id && (entry.name != name || (entry.state & state == 0)) {
+            let validation_passes: bool = match validation_state {
+                Some(state) => entry.validation_state.eq(state),
+                None => true,
+            };
+
+            let execution_passes: bool = match execution_state {
+                Some(state) => entry.execution_state.eq(state),
+                None => true,
+            };
+
+            if id == entry.id && (entry.name != name || !validation_passes || !execution_passes) {
                 entry.name = name.to_string();
-                entry.state = state;
+                if let Some(state) = validation_state {
+                    entry.validation_state = state.clone();
+                }
+                if let Some(state) = execution_state {
+                    entry.execution_state = *state;
+                }
                 return Ok(Some(UpdatedNavigationEntry {
                     id: id.to_string(),
                     name: name.to_string(),
                     entity_type: EntityType::RequestEntry,
-                    state,
+                    validation_state: validation_state.cloned(),
+                    execution_state: execution_state.cloned(),
                 }));
             }
 
             if let Some(children) = &mut entry.children {
-                let result = Self::check_request_navigation_update_int(id, name, state, children)?;
+                let result = Self::check_request_navigation_update_int(
+                    id,
+                    name,
+                    validation_state,
+                    execution_state,
+                    children,
+                )?;
                 if result.is_some() {
                     return Ok(result);
                 }
             }
         }
         Ok(None)
+    }
+
+    pub fn get_clipboard_payload(
+        &self,
+        payload_request: ClipboardPayloadRequest,
+        indent: usize,
+    ) -> Result<Option<PersistableData>, ApicizeAppError> {
+        let get_request = |request_id: &str| {
+            let request_entry = self
+                .workspace
+                .requests
+                .entities
+                .get(request_id)
+                .ok_or(ApicizeAppError::InvalidRequest(request_id.to_string()))?;
+            if let RequestEntry::Request(request) = request_entry {
+                Ok(request)
+            } else {
+                Err(ApicizeAppError::InvalidRequest(request_id.to_string()))
+            }
+        };
+
+        let get_execution_summaries =
+            |exec_ctr: &usize| self.execution_results.get_result_summaries(exec_ctr);
+        let get_request_execution_detail = |exec_ctr: &usize| {
+            let result = self.execution_results.get_detail(exec_ctr)?;
+            if let ExecutionResultDetail::Request(detail) = result {
+                Ok(detail)
+            } else {
+                Err(ApicizeAppError::InvalidExecution(*exec_ctr))
+            }
+        };
+
+        match payload_request {
+            ClipboardPayloadRequest::RequestBody { request_id } => {
+                if let Some(body) = &get_request(&request_id)?.body {
+                    match body {
+                        RequestBody::Text { data } => {
+                            Ok(Some(PersistableData::Text(data.to_string())))
+                        }
+                        RequestBody::JSON { data } => {
+                            Ok(Some(PersistableData::Text(data.to_string())))
+                        }
+                        RequestBody::XML { data } => {
+                            Ok(Some(PersistableData::Text(data.to_string())))
+                        }
+                        RequestBody::Form { data } => Ok(Some(PersistableData::Text(
+                            serde_urlencoded::to_string(
+                                data.iter()
+                                    .map(|d| (d.name.to_string(), d.value.to_string()))
+                                    .collect::<(String, String)>(),
+                            )
+                            .map_err(|err| ApicizeAppError::ClipboardError(err.to_string()))?
+                            .to_owned(),
+                        ))),
+                        RequestBody::Raw { data } => {
+                            Ok(Some(PersistableData::Binary(data.clone())))
+                        }
+                    }
+                } else {
+                    Ok(None)
+                }
+            }
+            ClipboardPayloadRequest::RequestTest { request_id } => {
+                let request = get_request(&request_id)?;
+                if let Some(test) = &request.test
+                    && !test.is_empty()
+                {
+                    Ok(Some(PersistableData::Text(test.to_string())))
+                } else {
+                    Ok(None)
+                }
+            }
+            ClipboardPayloadRequest::ResponseSummaryJson { exec_ctr } => {
+                match Workspace::geneate_report(
+                    &exec_ctr,
+                    &get_execution_summaries(&exec_ctr),
+                    ExecutionReportFormat::JSON,
+                ) {
+                    Ok(data) => Ok(Some(PersistableData::Text(data))),
+                    Err(err) => Err(ApicizeAppError::ApicizeError(err)),
+                }
+            }
+            ClipboardPayloadRequest::ResponseSummaryCsv { exec_ctr } => {
+                match Workspace::geneate_report(
+                    &exec_ctr,
+                    &get_execution_summaries(&exec_ctr),
+                    ExecutionReportFormat::CSV,
+                ) {
+                    Ok(data) => Ok(Some(PersistableData::Text(data))),
+                    Err(err) => Err(ApicizeAppError::ApicizeError(err)),
+                }
+            }
+            ClipboardPayloadRequest::ResponseBodyRaw { exec_ctr } => {
+                let detail = get_request_execution_detail(&exec_ctr)?;
+                if let Some(response) = &detail.test_context.response
+                    && let Some(body) = &response.body
+                {
+                    match body {
+                        apicize_lib::ApicizeBody::Text { text } => {
+                            Ok(Some(PersistableData::Text(text.to_string())))
+                        }
+                        apicize_lib::ApicizeBody::JSON { text, .. } => {
+                            Ok(Some(PersistableData::Text(text.to_string())))
+                        }
+                        apicize_lib::ApicizeBody::XML { text, .. } => {
+                            Ok(Some(PersistableData::Text(text.to_string())))
+                        }
+                        apicize_lib::ApicizeBody::Form { text, .. } => {
+                            Ok(Some(PersistableData::Text(text.to_string())))
+                        }
+                        apicize_lib::ApicizeBody::Binary { data } => {
+                            Ok(Some(PersistableData::Binary(data.clone())))
+                        }
+                    }
+                } else {
+                    Ok(None)
+                }
+            }
+            ClipboardPayloadRequest::ResponseBodyPreview { exec_ctr } => {
+                let detail = get_request_execution_detail(&exec_ctr)?;
+                if let Some(response) = &detail.test_context.response
+                    && let Some(body) = &response.body
+                {
+                    match body {
+                        apicize_lib::ApicizeBody::Text { text } => {
+                            Ok(Some(PersistableData::Text(text.to_string())))
+                        }
+                        apicize_lib::ApicizeBody::JSON { data, .. } => {
+                            let mut buf = Vec::new();
+                            let spacer = " ".repeat(indent);
+                            let formatter = PrettyFormatter::with_indent(spacer.as_bytes());
+                            let mut serializer =
+                                serde_json::Serializer::with_formatter(&mut buf, formatter);
+                            data.serialize(&mut serializer)?;
+                            Ok(Some(PersistableData::Text(String::from_utf8(buf)?)))
+                        }
+                        apicize_lib::ApicizeBody::XML { data, .. } => {
+                            Ok(Some(PersistableData::Text(serde_xml_rs::to_string(&data)?)))
+                        }
+                        apicize_lib::ApicizeBody::Form { data, .. } => {
+                            Ok(Some(PersistableData::Text(
+                                data.iter()
+                                    .map(|(name, value)| format!("{name} = {value}"))
+                                    .collect::<Vec<String>>()
+                                    .join("\n"),
+                            )))
+                        }
+                        apicize_lib::ApicizeBody::Binary { data } => {
+                            Ok(Some(PersistableData::Binary(data.clone())))
+                        }
+                    }
+                } else {
+                    Ok(None)
+                }
+            }
+            ClipboardPayloadRequest::ResponseDetail { exec_ctr } => {
+                let detail = self.execution_results.get_detail(&exec_ctr)?;
+                Ok(Some(PersistableData::Text(serde_json::to_string_pretty(
+                    detail,
+                )?)))
+            }
+        }
+    }
+
+    pub fn get_execution_mut(&mut self, request_or_group_id: &str) -> &mut RequestExecution {
+        // Use entry API to get or insert and return mutable reference
+        self.executions
+            .entry(request_or_group_id.to_string())
+            .or_insert_with(|| RequestExecution {
+                menu: vec![],
+                execution_state: ExecutionState::empty(),
+                active_summaries: IndexMap::default(),
+            })
+    }
+
+    fn get_navigation_int<'a>(
+        request_or_group_id: &str,
+        entries: &'a Vec<NavigationRequestEntry>,
+    ) -> Option<&'a NavigationRequestEntry> {
+        for entry in entries {
+            if entry.id == request_or_group_id {
+                return Some(entry);
+            }
+            if let Some(children) = &entry.children {
+                return WorkspaceInfo::get_navigation_int(request_or_group_id, children);
+            }
+        }
+        None
+    }
+
+    pub fn get_navigation<'a>(
+        &'a self,
+        request_or_group_id: &str,
+    ) -> Option<&'a NavigationRequestEntry> {
+        WorkspaceInfo::get_navigation_int(request_or_group_id, &self.navigation.requests)
+    }
+
+    fn get_navigation_int_mut<'a>(
+        request_or_group_id: &str,
+        entries: &'a mut Vec<NavigationRequestEntry>,
+    ) -> Option<&'a mut NavigationRequestEntry> {
+        for entry in entries {
+            if entry.id == request_or_group_id {
+                return Some(entry);
+            }
+            if let Some(children) = &mut entry.children {
+                return WorkspaceInfo::get_navigation_int_mut(request_or_group_id, children);
+            }
+        }
+        None
+    }
+
+    pub fn get_navigation_mut<'a>(
+        &'a mut self,
+        request_or_group_id: &str,
+    ) -> Option<&'a mut NavigationRequestEntry> {
+        WorkspaceInfo::get_navigation_int_mut(request_or_group_id, &mut self.navigation.requests)
+    }
+
+    pub fn get_running_request_ids(&self) -> HashSet<String> {
+        self.executions
+            .iter()
+            .filter_map(|(request_or_group_id, exec)| {
+                if exec.execution_state == ExecutionState::RUNNING {
+                    Some(request_or_group_id.to_string())
+                } else {
+                    None
+                }
+            })
+            .collect::<HashSet<String>>()
+    }
+
+    fn gather_execution_states(
+        exec_ctr: usize,
+        parent_state: Option<ExecutionState>,
+        summaries: &Vec<&ExecutionResultSummary>,
+        states: &mut HashMap<usize, ExecutionState>,
+    ) {
+        if let Some(summary) = summaries.iter().find(|s| s.exec_ctr == exec_ctr) {
+            let mut new_execution_state = match &summary.success {
+                ExecutionResultSuccess::Success => ExecutionState::SUCCESS,
+                ExecutionResultSuccess::Failure => ExecutionState::FAILURE,
+                ExecutionResultSuccess::Error => ExecutionState::ERROR,
+            };
+
+            if let Some(state) = parent_state {
+                new_execution_state |= state;
+            }
+
+            if let Some(state) = states.get(&exec_ctr) {
+                new_execution_state |= state.to_owned();
+            }
+
+            states.insert(exec_ctr.to_owned(), new_execution_state);
+
+            if let Some(parent_ctr) = &summary.parent_exec_ctr {
+                WorkspaceInfo::gather_execution_states(
+                    parent_ctr.to_owned(),
+                    Some(new_execution_state),
+                    summaries,
+                    states,
+                );
+            }
+        }
+    }
+
+    /// Build a request's menu items based upon the result
+    pub fn build_result_menu_items(
+        &self,
+        request_or_group_id: &str,
+    ) -> Result<Vec<ExecutionMenuItem>, ApicizeAppError> {
+        // let request = self
+        //     .workspace
+        //     .requests
+        //     .get(request_or_group_id)
+        //     .ok_or_else(|| ApicizeAppError::InvalidRequest(request_or_group_id.to_string()))?;
+
+        // let name = result.get_title();
+        let result_summaries = self
+            .execution_results
+            .get_summaries(request_or_group_id, true);
+
+        let mut results = Vec::<ExecutionMenuItem>::default();
+        let mut prev_exec_ctr: Option<usize> = None;
+        for (executing_request_or_group_id, summaries) in result_summaries {
+            let mut executing_offset: usize = 0;
+            if let Some(first) = summaries.first() {
+                let level_offset = if executing_request_or_group_id == request_or_group_id {
+                    0
+                } else {
+                    first.level
+                };
+
+                let mut execution_states =
+                    HashMap::<usize, ExecutionState>::with_capacity(summaries.len());
+
+                for exec_ctr in summaries.iter().map(|s| s.exec_ctr) {
+                    WorkspaceInfo::gather_execution_states(
+                        exec_ctr,
+                        None,
+                        &summaries,
+                        &mut execution_states,
+                    );
+                }
+
+                for summary in &summaries {
+                    results.push(ExecutionMenuItem {
+                        name: summary.name.clone(),
+                        level: summary.level - level_offset,
+                        executing_name: if executing_request_or_group_id == request_or_group_id {
+                            None
+                        } else {
+                            self.workspace
+                                .requests
+                                .get(&executing_request_or_group_id)
+                                .map(|r| r.get_title())
+                        },
+                        execution_state: execution_states
+                            .get(&summary.exec_ctr)
+                            .unwrap_or(&ExecutionState::ERROR)
+                            .to_owned(),
+                        executing_request_or_group_id: executing_request_or_group_id.clone(),
+                        executing_offset,
+                        exec_ctr: summary.exec_ctr,
+                        next_exec_ctr: None,
+                        prev_exec_ctr,
+                        parent_exec_ctr: summary.parent_exec_ctr,
+                    });
+
+                    executing_offset += 1;
+                    prev_exec_ctr = Some(summary.exec_ctr);
+                }
+            }
+        }
+
+        if results.len() > 1 {
+            for i in 0..results.len() - 2 {
+                if let Some(next_exec_ctr) = results.get(i + 1).map(|r| r.exec_ctr) {
+                    let here = results.get_mut(i).unwrap();
+                    here.next_exec_ctr = Some(next_exec_ctr);
+                }
+            }
+        }
+        Ok(results)
     }
 }
 
@@ -2182,8 +2360,6 @@ pub enum EntityType {
     RequestEntry = 1,
     Request = 2,
     Group = 3,
-    Body = 4,
-    Headers = 5,
     Scenario = 6,
     Authorization = 7,
     Certificate = 8,
@@ -2191,17 +2367,17 @@ pub enum EntityType {
     Data = 10,
     Parameters = 11,
     Defaults = 12,
-    // Warnings = 13,
+    Warnings = 13,
+    DataList = 14,
+    RequestBody = 101,
 }
 
-impl Display for EntityType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let desc = match self {
+impl EntityType {
+    fn as_str(&self) -> &'static str {
+        match self {
             EntityType::RequestEntry => "RequestEntry",
             EntityType::Request => "Request",
             EntityType::Group => "Group",
-            EntityType::Headers => "Headers",
-            EntityType::Body => "Body",
             EntityType::Scenario => "Scenario",
             EntityType::Authorization => "Authorization",
             EntityType::Certificate => "Certificate",
@@ -2209,20 +2385,27 @@ impl Display for EntityType {
             EntityType::Data => "Data",
             EntityType::Parameters => "Parameters",
             EntityType::Defaults => "Defaults",
-            // EntityType::Warnings => "Warnings",
-        };
-        write!(f, "{desc}")
+            EntityType::Warnings => "Warnings",
+            EntityType::DataList => "DataList",
+            EntityType::RequestBody => "RequestBody",
+        }
+    }
+}
+
+impl Display for EntityType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
     }
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Clone)]
-#[serde(tag = "entityType")]
+#[serde(tag = "entityTypeName")]
 pub enum Entity {
     RequestEntry(RequestEntryInfo),
-    Request(RequestInfo),
+    Request(Request),
     Group(RequestGroup),
-    Body(RequestBodyInfo),
-    Headers(RequestHeaderInfo),
+    RequestBody(RequestBodyInfo),
+    RequestHeaders(RequestHeaderInfo),
     Scenario(Scenario),
     Authorization(Authorization),
     Certificate(Certificate),
@@ -2233,10 +2416,10 @@ pub enum Entity {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Clone)]
-#[serde(tag = "entityType")]
+#[serde(tag = "entityTypeName")]
 pub enum Entities {
     Parameters(WorkspaceParameters),
-    Data { data: Vec<ExternalData> },
+    DataList { data: Vec<ExternalData> },
     Defaults(WorkbookDefaultParameters),
 }
 
@@ -2252,12 +2435,121 @@ pub struct WorkspaceParameters {
 pub struct OpenWorkspaceResult {
     pub workspace_id: String,
     pub display_name: String,
-    pub startup_state: SessionStartupState,
+    pub error: Option<String>,
 }
 
-// Note:  These need to match NavigationEntryState values
-// defined in @apicize/lib-typescript
-pub const NAVIGATION_STATE_DIRTY: u8 = 1;
-pub const NAVIGATION_STATE_WARNING: u8 = 2;
-pub const NAVIGATION_STATE_ERROR: u8 = 4;
-pub const NAVIGATION_STATE_RUNNING: u8 = 8;
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(tag = "payloadType")]
+pub enum ClipboardPayloadRequest {
+    #[serde(rename_all = "camelCase")]
+    RequestBody { request_id: String },
+    #[serde(rename_all = "camelCase")]
+    RequestTest { request_id: String },
+    #[serde(rename_all = "camelCase")]
+    ResponseSummaryJson { exec_ctr: usize },
+    #[serde(rename_all = "camelCase")]
+    ResponseSummaryCsv { exec_ctr: usize },
+    #[serde(rename_all = "camelCase")]
+    ResponseBodyRaw { exec_ctr: usize },
+    #[serde(rename_all = "camelCase")]
+    ResponseBodyPreview { exec_ctr: usize },
+    #[serde(rename_all = "camelCase")]
+    ResponseDetail { exec_ctr: usize },
+}
+
+/// Describe data to read and write from clipboard or file
+pub enum PersistableData {
+    Text(String),
+    Binary(Vec<u8>),
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExecutionMenuItem {
+    pub name: String,
+    pub level: usize,
+    pub executing_name: Option<String>,
+    pub execution_state: ExecutionState,
+
+    pub executing_request_or_group_id: String,
+    pub executing_offset: usize,
+    pub exec_ctr: usize,
+    pub next_exec_ctr: Option<usize>,
+    pub prev_exec_ctr: Option<usize>,
+    pub parent_exec_ctr: Option<usize>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RequestExecution {
+    pub menu: Vec<ExecutionMenuItem>,
+    pub execution_state: ExecutionState,
+    pub active_summaries: IndexMap<usize, ExecutionResultSummary>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", tag = "eventType")]
+/// Structure to report execution results to application
+pub enum ExecutionEvent {
+    #[serde(rename_all = "camelCase")]
+    Start { execution_state: ExecutionState },
+    #[serde(rename_all = "camelCase")]
+    Cancel { execution_state: ExecutionState },
+    #[serde(rename_all = "camelCase")]
+    Complete(RequestExecution),
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+/// Structure of information required to launch an Apicize workspace
+pub struct WorkspaceInitialization {
+    /// Workspace session
+    pub session: Session,
+    /// Navigation
+    pub navigation: Navigation,
+    /// State information for saving the workbook
+    pub save_state: SessionSaveState,
+    /// Execution information cached client-side
+    pub executions: FxHashMap<String, ExecutionEvent>,
+    /// Workbook default parameters
+    pub defaults: WorkbookDefaultParameters,
+    /// Application settings
+    pub settings: ApicizeSettings,
+    /// Message to display to user if something wrong happened during startup   
+    pub error: Option<String>,
+}
+
+#[derive(Clone, Copy, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum WorkspaceMode {
+    Normal = 0,
+    Help = 1,
+    Settings = 2,
+    Defaults = 3,
+    // Warnings,
+    Console = 4,
+    RequestList = 5,
+    ScenarioList = 6,
+    AuthorizationList = 7,
+    CertificateList = 8,
+    ProxyList = 9,
+}
+
+impl From<u8> for WorkspaceMode {
+    fn from(val: u8) -> Self {
+        match val {
+            0 => WorkspaceMode::Normal,
+            1 => WorkspaceMode::Help,
+            2 => WorkspaceMode::Settings,
+            3 => WorkspaceMode::Defaults,
+            // Warnings,
+            4 => WorkspaceMode::Console,
+            5 => WorkspaceMode::RequestList,
+            6 => WorkspaceMode::ScenarioList,
+            7 => WorkspaceMode::AuthorizationList,
+            8 => WorkspaceMode::CertificateList,
+            9 => WorkspaceMode::ProxyList,
+            _ => panic!("Invalid status value"),
+        }
+    }
+}

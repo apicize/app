@@ -13,7 +13,9 @@ import { useWorkspace } from "../../contexts/workspace.context"
 import { reaction, runInAction } from "mobx"
 import { useFeedback } from "../../contexts/feedback.context"
 
-export const LogViewer = React.memo(observer((props: {
+export const LogViewer = React.memo(observer(({
+    sx
+}: {
     sx?: SxProps<Theme>
 }) => {
     const log = useLog()

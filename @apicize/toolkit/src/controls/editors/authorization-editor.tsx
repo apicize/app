@@ -18,20 +18,15 @@ import { AuthorizationOAuth2PkceEditor } from './authorization/authorization-oau
 import AuthIcon from '../../icons/auth-icon';
 import { useWorkspace } from '../../contexts/workspace.context';
 import { useApicizeSettings } from '../../contexts/apicize-settings.context';
+import { EditableAuthorization } from '../../models/workspace/editable-authorization'
 
-export const AuthorizationEditor = observer((props: { sx: SxProps }) => {
+export const AuthorizationEditor = observer(({ authorization, sx }: { authorization: EditableAuthorization, sx: SxProps }) => {
     const settings = useApicizeSettings()
     const workspace = useWorkspace()
     workspace.nextHelpTopic = 'workspace/authorizations'
-    const activeSelection = workspace.activeSelection
-
-    if (!activeSelection?.authorization) {
-        return null
-    }
-    const authorization = activeSelection.authorization
 
     return (
-        <Stack className='editor authorization' direction={'column'} sx={props.sx}>
+        <Stack className='editor authorization' direction={'column'} sx={sx}>
             <Box className='editor-panel-header'>
                 <EditorTitle
                     icon={<SvgIcon color='authorization'><AuthIcon /></SvgIcon>}

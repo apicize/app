@@ -6,7 +6,7 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import { SvgIconPropsColorOverrides, SxProps, Theme } from "@mui/material"
 import { ScienceOutlinedIcon, ViewListOutlinedIcon, ArticleOutlinedIcon, PreviewIcon } from '../../icons'
 import { OverridableStringUnion } from '@mui/types';
-import React, { useMemo, useEffect } from "react"
+import React from "react"
 import { ResultResponsePreview } from "./result/response-preview-viewer";
 import { ResultRawPreview } from "./result/response-raw-viewer";
 import { ResultInfoViewer } from "./result/result-info-viewer";
@@ -16,54 +16,34 @@ import { observer } from 'mobx-react-lite';
 import { ResultsPanel, useWorkspace } from "../../contexts/workspace.context";
 // import { MAX_TEXT_RENDER_LENGTH } from "./text-viewer";
 import RequestIcon from "../../icons/request-icon";
-import { ExecutionResultSuccess } from "@apicize/lib-typescript";
-import { EntityType } from '../../models/workspace/entity-type';
+import { ExecutionResultDetail, ExecutionResultSuccess } from "@apicize/lib-typescript";
+import { EditableRequestEntry } from '../../models/workspace/editable-request-entry'
 
 export const MAX_TEXT_RENDER_LENGTH = 64 * 1024 * 1024
 
-export const ResultsViewer = observer((props: {
-    sx?: SxProps<Theme>,
-    className?: string,
-    lastExecuted: number, // here just to force a refresh
-}) => {
-    const workspace = useWorkspace()
-
-    const activeSelection = workspace.activeSelection
-    if (!(activeSelection &&
-        (activeSelection.type === EntityType.Request || activeSelection.type === EntityType.Group)
-    )) {
-        return null
-    }
-
-    const execution = workspace.getExecution(activeSelection.id)
-    if (!execution) {
-        return null
-    }
-
-    const handlePanelChanged = (_: React.SyntheticEvent, newValue: ResultsPanel) => {
-        if (newValue) {
-            workspace.changeResultsPanel(execution.requestOrGroupId, newValue)
+export const ResultsViewer = observer((
+    { sx, className, request, detail }:
+        {
+            sx?: SxProps<Theme>,
+            className?: string,
+            request: EditableRequestEntry,
+            detail: ExecutionResultDetail | null,
         }
+) => {
+    if (!request.selectedResultMenuItem || (detail !== null && detail.execCtr !== request.selectedResultMenuItem.execCtr)) {
+        return null
     }
 
-    const result = execution.results[execution.resultIndex]
+    const selectedSummary = request.getSummary(request.selectedResultMenuItem.execCtr)
 
-    const panelStates = useMemo(() => {
-        const disableHeadersPanel = !result.hasResponseHeaders
-        const disableText = (!result.responseBodyLength) || (result.responseBodyLength === 0)
-        const disablePreview = (!result.responseBodyLength) || (result.responseBodyLength === 0 || result.responseBodyLength > MAX_TEXT_RENDER_LENGTH)
-        
-        return { disableHeadersPanel, disableText, disablePreview }
-    }, [result.hasResponseHeaders, result.responseBodyLength])
+    const disableHeadersPanel = !selectedSummary.hasResponseHeaders
+    const disableText = (!selectedSummary.responseBodyLength) || (selectedSummary.responseBodyLength === 0)
+    const disablePreview = (!selectedSummary.responseBodyLength) || (selectedSummary.responseBodyLength === 0 || selectedSummary.responseBodyLength > MAX_TEXT_RENDER_LENGTH)
 
-    const { disableHeadersPanel, disableText, disablePreview } = panelStates
-
-    let panel = execution.panel
-
-    if ((disableHeadersPanel && panel === 'Headers')
-        || (disableText && panel === 'Text')
-        || (disablePreview && panel === 'Preview')) {
-        panel = 'Info'
+    if ((disableHeadersPanel && request.resultsPanel === 'Headers')
+        || (disableText && request.resultsPanel === 'Text')
+        || (disablePreview && request.resultsPanel === 'Preview')) {
+        request.setResultsPanel('Info')
     }
 
     let infoColor: OverridableStringUnion<
@@ -81,21 +61,25 @@ export const ResultsViewer = observer((props: {
         SvgIconPropsColorOverrides
     > | undefined = undefined
 
-    if (result.success === ExecutionResultSuccess.Success) {
+    if (selectedSummary.success === ExecutionResultSuccess.Success) {
         infoColor = 'success'
-    } else if (result.success === ExecutionResultSuccess.Failure) {
+    } else if (selectedSummary.success === ExecutionResultSuccess.Failure) {
         infoColor = 'warning'
     } else {
         infoColor = 'error'
     }
 
-    return <Stack direction='row' sx={props.sx} className={props.className}>
+    const onUpdateResultsPanel = (panel: ResultsPanel) => {
+        request.setResultsPanel(panel)
+    }
+
+    return <Stack direction='row' sx={sx} className={className}>
         <ToggleButtonGroup
             className='button-column'
             orientation='vertical'
             exclusive
-            onChange={handlePanelChanged}
-            value={panel}
+            onChange={(_: React.SyntheticEvent, newValue: ResultsPanel) => onUpdateResultsPanel(newValue)}
+            value={request.resultsPanel}
             sx={{ marginRight: '12px' }}
             aria-label="text alignment">
             <ToggleButton value="Info" title="Show Result Info" aria-label='show info' size='small'><ScienceOutlinedIcon color={infoColor ?? 'disabled'} /></ToggleButton>
@@ -107,11 +91,11 @@ export const ResultsViewer = observer((props: {
         <Box sx={{ overflow: 'hidden', flexGrow: 1, bottom: '0', position: 'relative' }}>
             <Box position='relative' width='100%' height='100%'>
                 {
-                    panel === 'Info' ? <ResultInfoViewer requestOrGroupId={execution.requestOrGroupId} resultIndex={execution.resultIndex} results={execution.results} />
-                        : panel === 'Headers' ? <ResponseHeadersViewer execution={execution} />
-                            : panel === 'Text' ? <ResultRawPreview execution={execution} />
-                                : panel === 'Preview' ? <ResultResponsePreview execution={execution} />
-                                    : panel === 'Details' ? <ResultDetailsViewer execution={execution} />
+                    request.resultsPanel === 'Info' ? <ResultInfoViewer request={request} />
+                        : request.resultsPanel === 'Headers' ? <ResponseHeadersViewer detail={detail} />
+                            : request.resultsPanel === 'Text' ? <ResultRawPreview detail={detail} />
+                                : request.resultsPanel === 'Preview' ? <ResultResponsePreview detail={detail} />
+                                    : request.resultsPanel === 'Details' ? <ResultDetailsViewer detail={detail} />
                                         : null
                 }
             </Box>

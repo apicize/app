@@ -24,8 +24,8 @@ import CertificateIcon from "../../icons/certificate-icon"
 import RequestIcon from "../../icons/request-icon"
 import ScenarioIcon from "../../icons/scenario-icon"
 import { NavOpsMenu } from "./nav-ops-menu"
-import { NavigationEntry, NavigationEntryState } from "../../models/navigation"
 import { iconsFromState } from "./nav-tree-item"
+import { ValidationState } from "@apicize/lib-typescript"
 
 const PREFERRED_WIDTH = 1200
 
@@ -113,7 +113,7 @@ export const NavigationControl = observer(() => {
                 sx={{ paddingRight: '0.8em', fontSize: settings.navigationFontSize }}
                 expansionTrigger='iconContainer'
                 expandedItems={workspace.expandedItems}
-                selectedItems={workspace.activeSelection ? `${workspace.activeSelection.type}-${workspace.activeSelection.id}` : null}
+                selectedItems={workspace.activeSelection ? `${workspace.activeSelection.entityType}-${workspace.activeSelection.id}` : null}
                 multiSelect={false}
                 onItemExpansionToggle={(_, itemId, isExpanded) => {
                     workspace.updateExpanded(itemId, isExpanded)
@@ -162,9 +162,8 @@ export const NavigationControl = observer(() => {
                                         iconsFromState({
                                             id: 'defaults',
                                             name: '',
-                                            state: workspace.defaults.warnings.hasEntries
-                                                ? NavigationEntryState.Warning
-                                                : NavigationEntryState.None
+                                            validationState: workspace.defaults.warnings.hasEntries ? ValidationState.warning : undefined,
+                                            executionState: undefined,
                                         })
                                     }
                                 </Box>

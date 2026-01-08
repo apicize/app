@@ -1,6 +1,6 @@
-import { action, computed, makeObservable, observable, runInAction } from "mobx"
-import { Execution } from "../models/workspace/execution"
-import { EditableRequest, RequestInfo } from "../models/workspace/editable-request"
+import { action, computed, makeObservable, observable, runInAction, toJS } from "mobx"
+import { ExecutionEvent, ExecutionResultDetailWithBase64, ExecutionResultViewState } from "../models/workspace/execution"
+import { EditableRequest } from "../models/workspace/editable-request"
 import { EditableRequestGroup } from "../models/workspace/editable-request-group"
 import { EditableScenario } from "../models/workspace/editable-scenario"
 import { EditableAuthorization } from "../models/workspace/editable-authorization"
@@ -8,15 +8,13 @@ import { EditableCertificate } from "../models/workspace/editable-certificate"
 import { EditableProxy } from "../models/workspace/editable-proxy"
 import {
     AuthorizationType,
-    BaseRequest,
+    Request,
     RequestGroup,
     Authorization,
     Scenario,
     Proxy,
     ExternalData,
     WorkspaceDefaultParameters,
-    Body,
-    NameValuePair,
     BasicAuthorization,
     OAuth2ClientAuthorization,
     OAuth2PkceAuthorization,
@@ -24,54 +22,60 @@ import {
     Pkcs12Certificate,
     Pkcs8PemCertificate,
     PemCertificate,
-    ExecutionResultSummary,
-    ExecutionStatus,
     ExecutionResultDetail,
-    ExecutionReportFormat,
+    ValidationState,
+    ExecutionState,
+    RequestEntry,
+    Body,
+    BodyType,
+    NameValuePair,
+    TokenResult,
 } from "@apicize/lib-typescript"
 import { EntityType } from "../models/workspace/entity-type"
 import { createContext, useContext } from "react"
 import { EditableDefaults } from "../models/workspace/editable-defaults"
 import { EditableExternalDataEntry } from "../models/workspace/editable-external-data-entry"
 import { EditableRequestEntry } from "../models/workspace/editable-request-entry"
-import { Navigation, NavigationEntryState, NavigationRequestEntry, ParamNavigationSection } from "../models/navigation"
-import { EditableRequestBody } from "../models/workspace/editable-request-body"
+import { Navigation, NavigationRequestEntry, ParamNavigationSection } from "../models/navigation"
 import { WorkspaceParameters } from "../models/workspace/workspace-parameters"
 import { CachedTokenInfo } from "../models/workspace/cached-token-info"
 import { RequestEditSessionType, ResultEditSessionType } from "../controls/editors/editor-types"
 import { FeedbackStore, ToastSeverity } from "./feedback.context"
 import { EditableSettings } from "../models/editable-settings"
 import { IndexedEntityPosition } from "../models/workspace/indexed-entity-position"
-import { EditableRequestHeaders } from "../models/workspace/editable-request-headers"
 import { ReqwestEvent } from "../models/trace"
 import { editor } from "monaco-editor"
 import { EditorMode } from "../models/editor-mode"
 import { base64Encode } from "../services/base64"
-
-export type ResultsPanel = 'Info' | 'Headers' | 'Preview' | 'Text' | 'Details'
+import { ClipboardPaylodRequest } from "../models/clipboard_payload_request"
+import { RequestExecution } from "../models/request-execution"
+import { IRequestEditorTextModel, IResultEditorTextModel } from "../models/editor-text-model"
 
 export enum WorkspaceMode {
-    Normal,
-    Help,
-    Settings,
-    Defaults,
+    Normal = 0,
+    Help = 1,
+    Settings = 2,
+    Defaults = 3,
     // Warnings,
-    Console,
-    RequestList,
-    ScenarioList,
-    AuthorizationList,
-    CertificateList,
-    ProxyList,
+    Console = 4,
+    RequestList = 5,
+    ScenarioList = 6,
+    AuthorizationList = 7,
+    CertificateList = 8,
+    ProxyList = 9,
 }
 
+export type ResultsPanel = 'Info' | 'Headers' | 'Preview' | 'Text' | 'Details'
 export type RequestPanel = 'Info' | 'Headers' | 'Query String' | 'Body' | 'Test' | 'Parameters' | 'Warnings'
 export type GroupPanel = 'Info' | 'Parameters' | 'Warnings'
+
+export type ActiveSelection = EditableRequest | EditableRequestGroup | EditableScenario |
+    EditableAuthorization | EditableCertificate | EditableProxy
 
 export class WorkspaceStore {
     private pkceTokens = new Map<string, CachedTokenInfo>()
     private indexedNavigationNames = new Map<string, string>()
     private indexedDataNames = new Map<string, string>()
-    private cachedExecutionDetail: [string, number, ExecutionResultDetail] | null = null
 
     @observable accessor dirty = false
     @observable accessor editorCount = 0
@@ -86,41 +90,50 @@ export class WorkspaceStore {
     } as Navigation
 
     @observable accessor activeSelection: ActiveSelection | null = null
-
     @observable accessor activeParameters: ListParameters | null = null
 
     @observable accessor defaults = new EditableDefaults({}, this)
     @observable accessor data: EditableExternalDataEntry[] | null = null
 
     @observable accessor warnOnWorkspaceCreds: boolean = true
-    // @observable accessor invalidItems = new Set<string>()
+    // @updateActiveobservable accessor invalidItems = new Set<string>()
 
     @observable accessor requestPanel: RequestPanel = 'Info'
     @observable accessor groupPanel: GroupPanel = 'Info'
 
-    executions = new Map<string, Execution>()
     @observable accessor executingRequestIDs: string[] = []
 
     private pendingPkceRequests = new Map<string, Map<string, boolean>>()
 
-    @observable accessor expandedItems: string[] = ['hdr-r']
+    @observable accessor expandedItems: string[] = []
     @observable accessor mode = WorkspaceMode.Normal;
     @observable accessor helpTopic: string | null = null
+
+    @observable public accessor currentExecutionDetail: ExecutionResultDetailWithBase64 | null = null
+
+    @observable public accessor hideSuccess = false
+    @observable public accessor hideFailure = false
+    @observable public accessor hideError = false
 
     private helpTopicHistory: string[] = []
     public nextHelpTopic: string | null = null
 
     // Request/Group edit sessions, indexed by request/group ID and then by type (body, test, etc.)
-    private requestModels = new Map<string, Map<RequestEditSessionType, editor.ITextModel>>()
+    private requestModels = new Map<string, Map<RequestEditSessionType, IRequestEditorTextModel>>()
     // Result edit sessions, indexed by request/group ID, and then by result index, and then by type
-    private resultModels = new Map<string, Map<number, Map<ResultEditSessionType, editor.ITextModel>>>()
+    private resultModels = new Map<string, Map<number, Map<ResultEditSessionType, IResultEditorTextModel>>>()
 
     constructor(
+        initialization: WorkspaceInitialization,
         private readonly feedback: FeedbackStore,
         private readonly callbacks: {
             close: () => Promise<void>,
             get: (entityType: EntityType, entityId: string) => Promise<Entity>,
+            updateActiveEntity: (entity?: SessionEntity) => Promise<undefined>,
+            updateExpandedItems: (ids?: string[]) => Promise<undefined>,
+            updateMode: (mode: WorkspaceMode) => Promise<undefined>,
             getTitle: (entityType: EntityType, id: string) => Promise<String>,
+            getExecution: (requestOrGroupId: string) => Promise<RequestExecution>,
             getDirty: () => Promise<boolean>,
             list: (entityType: EntityType, requestId?: string) => Promise<ListEntities>,
             add: (entity: EntityType, relativeToId: string | null, relativePosition: IndexedEntityPosition | null, cloneFromId: string | null) => Promise<string>,
@@ -134,17 +147,21 @@ export class WorkspaceStore {
             storeToken: (authorizationId: string, tokenInfo: CachedTokenInfo) => Promise<void>,
             clearToken: (authorizationId: string) => Promise<void>,
             clearAllTokens: () => Promise<void>,
-            executeRequest: (requestId: string, workbookFullName: string, singleRun: boolean) => Promise<ExecutionResultSummary[]>,
+            executeRequest: (requestId: string, workbookFullName: string, singleRun: boolean) => Promise<{ [execuingRequestOrGroupId: string]: undefined }>,
             cancelRequest: (requestId: string) => Promise<void>,
-            getResultDetail: (requestId: string, index: number) => Promise<ExecutionResultDetail>,
-            generateReport: (requestId: string, index: number, format: ExecutionReportFormat) => Promise<string>,
+            getExecutionResultViewState: (requestId: string) => Promise<ExecutionResultViewState>,
+            updateExecutionResultViewState: (requestId: string, executionResultViewState: ExecutionResultViewState) => Promise<undefined>,
+            getResultDetail: (execCtr: number) => Promise<ExecutionResultDetail>,
             getEntityType: (entityId: string) => Promise<EntityType | null>,
             findDescendantGroups: (groupId: string) => Promise<string[]>,
+            getOAuth2ClientToken: (data: { authorizationId: string }) => Promise<TokenResult>,
             initializePkce: (data: { authorizationId: string }) => Promise<void>,
             closePkce: (data: { authorizationId: string }) => Promise<void>,
             refreshToken: (data: { authorizationId: string }) => Promise<void>,
+            copyToClipboard: (payloadRequest: ClipboardPaylodRequest) => Promise<void>,
         }) {
         makeObservable(this)
+        this.initialize(initialization)
     }
 
 
@@ -164,20 +181,18 @@ export class WorkspaceStore {
     }
 
     @action
-    initialize(initialization: SessionInitialization) {
-        this.pkceTokens.clear()
-        this.cachedExecutionDetail = null
+    initialize(initialization: WorkspaceInitialization) {
         this.defaults = new EditableDefaults(initialization.defaults, this)
-        this.fileName = initialization.fileName
-        this.displayName = initialization.displayName
-        this.dirty = initialization.dirty
-        this.editorCount = initialization.editorCount
+        this.fileName = initialization.saveState.fileName
+        this.displayName = initialization.saveState.displayName
+        this.dirty = initialization.saveState.dirty
+        this.editorCount = initialization.saveState.editorCount
         this.navigation = initialization.navigation
-        this.executions.clear()
         this.updateIndexedNames()
         this.warnOnWorkspaceCreds = true
         // this.invalidItems.clear()
         this.executingRequestIDs = []
+        this.processExecutionEvents(initialization.executions)
         this.pendingPkceRequests.clear()
         this.mode = WorkspaceMode.Normal
         this.helpTopic = null
@@ -185,27 +200,23 @@ export class WorkspaceStore {
         this.nextHelpTopic = null
         this.requestModels.clear()
         this.resultModels.clear()
-        this.helpTopic = initialization.helpTopic ?? null
-
-        for (const requestOrGroupId of initialization.executingRequestIds) {
-            const execution = this.getExecution(requestOrGroupId)
-            execution.isRunning = true
+        this.expandedItems = initialization.session.expandedItems ?? []
+        if (initialization.session.activeEntity) {
+            this.performChangeActive(
+                initialization.session.activeEntity.entityType,
+                initialization.session.activeEntity.entityId,
+                undefined)
+        } else {
+            runInAction(() => {
+                this.activeSelection = null
+            })
         }
 
-        for (const [requestOrGroupId, results] of Object.entries(initialization.resultSummaries)) {
-            const execution = this.getExecution(requestOrGroupId)
-            execution.completeExecution(results)
-        }
-
-        this.expandedItems = initialization.expandedItems ?? (this.navigation.requests.length > 0 ? ['hdr-r'] : [])
-        this.mode = initialization.mode ?? WorkspaceMode.Normal
-
-        this.activeSelection = (initialization.activeType && initialization.activeId)
-            ? new ActiveSelection(initialization.activeId, initialization.activeType, this, this.feedback)
-            : null
+        this.helpTopic = initialization.session.helpTopic ?? null
+        this.mode = initialization.session.mode ?? WorkspaceMode.Normal
 
         if (initialization.error) {
-            this.feedback.toast(initialization.error, ToastSeverity.Error)
+            this.feedback.toast(`Initialization error: ${initialization.error}`, ToastSeverity.Error)
         }
     }
 
@@ -224,8 +235,9 @@ export class WorkspaceStore {
 
     @action
     setMode(mode: WorkspaceMode) {
-        this.activeParameters = null
         this.mode = mode
+        this.callbacks.updateMode(mode)
+            .catch(e => this.feedback.toastError(e))
     }
 
     @action
@@ -240,103 +252,177 @@ export class WorkspaceStore {
             }
         }
         this.expandedItems = expanded
+        this.callbacks.updateExpandedItems(expanded.length > 0 ? expanded : undefined)
     }
 
-    // @action
-    // toggleExpanded(itemId: string, isExpanded: boolean) {
-    //     let expanded = new Set(this.expandedItems)
-    //     if (isExpanded) {
-    //         expanded.add(itemId)
-    //     } else {
-    //         expanded.delete(itemId)
-    //     }
-    //     this.expandedItems = [...expanded]
-    // }
-
     @action
-    changeActive(type: EntityType, id: string) {
-        this.setMode(WorkspaceMode.Normal)
-        const performExpand = type === EntityType.Group && this.activeSelection?.id !== id
-        this.activeSelection = new ActiveSelection(id, type, this, this.feedback)
-        if (performExpand) {
-            this.updateExpanded(`${type}-${id}`, true)
+    async changeActive(type: EntityType, id: string) {
+        const expandId = `${type}-${id}`
+        const isExpanded = this.expandedItems.includes(expandId)
+        const isAlreadyActive = this.activeSelection?.entityType === type && this.activeSelection?.id === id
+        const updateExpandedToValue = type === EntityType.Group
+            ? isAlreadyActive
+                ? !isExpanded
+                : true
+            : null
+
+        if (this.activeSelection?.entityType !== type || this.activeSelection?.id !== id) {
+            this.setMode(WorkspaceMode.Normal)
+            this.performChangeActive(type, id, () => runInAction(() => {
+                if (updateExpandedToValue !== null) {
+                    this.updateExpanded(expandId, updateExpandedToValue)
+                }
+            }))
+        } else if (updateExpandedToValue !== null) {
+            this.updateExpanded(expandId, updateExpandedToValue)
         }
+    }
+
+    performChangeActive(type: EntityType, id: string, onChange?: () => void) {
+        (async () => {
+            try {
+                let selection = await this.generateActiveSelection(id, type)
+                runInAction(() => {
+                    this.activeSelection = selection
+
+                    // Trigger request body update when retrieving a request
+                    if (selection.entityType === EntityType.Request) {
+                        this.changeRequestBody(selection.id)
+                    }
+
+                    if (onChange) {
+                        onChange()
+                    }
+                })
+
+                await this.callbacks.updateActiveEntity({
+                    entityType: type,
+                    entityId: id
+                })
+            } catch (e) {
+                this.feedback.toastError(e)
+            }
+        })().catch(e => this.feedback.toastError(e))
+    }
+
+    changeRequestBody(id: string) {
+        this.getRequestBody(id)
+            .then(bodyInfo => {
+                runInAction(() => {
+                    if (this.activeSelection?.entityType === EntityType.Request && this.activeSelection.id === id) {
+                        this.activeSelection.initializeBody(bodyInfo)
+                    }
+                })
+            })
+            .catch(e => runInAction(() => this.feedback.toastError(e)))
     }
 
     @action
     clearActive() {
         this.activeSelection = null
+        this.callbacks.updateActiveEntity()
+            .then(() => { })
+            .catch(e => this.feedback.toastError(e))
     }
 
     @action
-    clearActiveConditionally(type: EntityType, id: string) {
-        if (this.activeSelection && this.activeSelection.type === type && this.activeSelection.id === id) {
+    clearActiveConditionally(entityType: EntityType, id: string) {
+        if (this.activeSelection && this.activeSelection.entityType === entityType && this.activeSelection.id === id) {
             this.activeSelection = null
         }
     }
 
     @action
     refreshFromExternalUpdate(updatedItem: Entity) {
-        let forceRequestRefresh = false
-        switch (updatedItem.entityType) {
-            case 'Request':
-            case 'Group':
-            case 'Body':
-            case 'Headers':
-            case 'Scenario':
-            case 'Authorization':
-            case 'Certificate':
-            case 'Proxy':
-                this.activeSelection?.refreshFromExternalUpdate(updatedItem)
+        let activeSelection = this.activeSelection
+        switch (updatedItem.entityTypeName) {
+            case EntityTypeName.Request:
+                if (activeSelection && activeSelection?.entityType === EntityType.Request && activeSelection.id === updatedItem.id) {
+                    activeSelection.refreshFromExternalUpdate(updatedItem)
+                }
                 break
-            case 'Defaults':
+            case EntityTypeName.Group:
+                if (activeSelection && activeSelection?.entityType === EntityType.Group && activeSelection.id === updatedItem.id) {
+                    activeSelection.refreshFromExternalUpdate(updatedItem)
+                }
+                break
+            case EntityTypeName.Scenario:
+                if (activeSelection && activeSelection?.entityType === EntityType.Scenario && activeSelection.id === updatedItem.id) {
+                    activeSelection.refreshFromExternalUpdate(updatedItem)
+                }
+                break
+            case EntityTypeName.Authorization:
+                if (activeSelection && activeSelection?.entityType === EntityType.Authorization && activeSelection.id === updatedItem.id) {
+                    activeSelection.refreshFromExternalUpdate(updatedItem)
+                }
+                break
+            case EntityTypeName.Certificate:
+                if (activeSelection && activeSelection?.entityType === EntityType.Certificate && activeSelection.id === updatedItem.id) {
+                    activeSelection.refreshFromExternalUpdate(updatedItem)
+                }
+                break
+            case EntityTypeName.Proxy:
+                if (activeSelection && activeSelection?.entityType === EntityType.Proxy && activeSelection.id === updatedItem.id) {
+                    activeSelection.refreshFromExternalUpdate(updatedItem)
+                }
+                break
+            case EntityTypeName.Defaults:
                 this.defaults.refreshFromExternalUpdate(updatedItem)
-                forceRequestRefresh = true
                 break
-            case 'DataList':
+            case EntityTypeName.DataList:
                 this.setDataList(updatedItem.list)
-                forceRequestRefresh = true
                 break
-            case 'Data':
+            case EntityTypeName.Data:
                 this.setData(updatedItem)
-                forceRequestRefresh = true
                 break
         }
 
-        if (forceRequestRefresh) {
-            if (this.mode === WorkspaceMode.Normal) {
-                // If we are looking at a request and have externally updated data, refresh the request
-                // in case the data referred to is now invalid 
-                switch (this.activeSelection?.type) {
-                    case EntityType.Request:
-                    case EntityType.Group:
-                    case EntityType.RequestEntry:
-                        this.changeActive(this.activeSelection.type, this.activeSelection.id)
-                        break
-                }
+        if (this.mode === WorkspaceMode.Normal) {
+            // If we are looking at a request and have externally updated data, refresh the request
+            // in case the data referred to is now invalid 
+            if (activeSelection?.entityType === EntityType.Request || activeSelection?.entityType === EntityType.Group) {
+                activeSelection.parameters = undefined
             }
         }
     }
 
+    /**
+     * Display help, optionally triggering an expansion/collapse of a parameter header
+     */
     @action
-    public showHelp(newHelpTopic: string, updateHistory = true) {
-        try {
-            if (newHelpTopic != this.helpTopic) {
-                if (updateHistory && this.helpTopic) {
-                    const newHistory = [...this.helpTopicHistory]
-                    if (newHistory.length > 10) {
-                        newHistory.pop()
-                    }
-                    newHistory.push(this.helpTopic)
-                    this.helpTopicHistory = newHistory
-                }
-                this.nextHelpTopic = null
-                this.helpTopic = newHelpTopic
+    public showHelp(newHelpTopic: string, expandHeaderId: string | null = null, updateHistory = true) {
+        if (expandHeaderId) {
+            const isExpanded = this.expandedItems.includes(expandHeaderId)
+            const updateExpandedToValue = (this.mode === WorkspaceMode.Help && this.helpTopic === newHelpTopic)
+                ? !isExpanded
+                : true
+            if (updateExpandedToValue !== null) {
+                this.updateExpanded(expandHeaderId, updateExpandedToValue)
             }
-            this.mode = WorkspaceMode.Help
-        } catch (e) {
-            this.feedback.toastError(e)
         }
+
+        if (newHelpTopic != this.helpTopic) {
+            if (updateHistory && this.helpTopic) {
+                const newHistory = [...this.helpTopicHistory]
+                if (newHistory.length > 10) {
+                    newHistory.pop()
+                }
+                newHistory.push(this.helpTopic)
+                this.helpTopicHistory = newHistory
+            }
+            this.nextHelpTopic = null
+        }
+
+        setTimeout(() => {
+            runInAction(() => {
+                try {
+                    this.helpTopic = newHelpTopic
+                    this.mode = WorkspaceMode.Help
+                } catch (e) {
+                    this.feedback.toastError(e)
+                }
+            })
+        }, 100)
     }
 
     @action showNextHelpTopic() {
@@ -359,7 +445,7 @@ export class WorkspaceStore {
     public helpBack() {
         const lastTopic = this.helpTopicHistory.pop()
         if (lastTopic) {
-            this.showHelp(lastTopic, false)
+            this.showHelp(lastTopic, null, false)
         }
     }
 
@@ -426,10 +512,10 @@ export class WorkspaceStore {
 
         // Ensure the currently active entry still exists
         if (this.activeSelection) {
-            const type = this.activeSelection.type
+            const entityType = this.activeSelection.entityType
             const id = this.activeSelection.id
             this.callbacks.getEntityType(id)
-                .then(entity => { if (!entity) this.clearActiveConditionally(type, id) })
+                .then(entity => { if (!entity) this.clearActiveConditionally(entityType, id) })
                 .catch(e => this.feedback.toastError(e))
         }
     }
@@ -457,9 +543,9 @@ export class WorkspaceStore {
         }
 
         switch (entityType) {
+            case EntityType.RequestEntry:
             case EntityType.Request:
             case EntityType.Group:
-            case EntityType.RequestEntry:
                 return findMatchingRequest(this.navigation.requests)
             case EntityType.Scenario:
                 return findMatchingParameter(this.navigation.scenarios)
@@ -473,11 +559,12 @@ export class WorkspaceStore {
     }
 
     @action
-    async updateNavigationEntry(entry: UpdatedNavigationEntry) {
+    async updateNavigationState(entry: UpdatedNavigationEntry) {
         const match = this.findNavigationEntry(entry.id, entry.entityType)
         if (match) {
             match.name = entry.name
-            match.state = entry.state
+            match.validationState = entry.validationState
+            match.executionState = entry.executionState
         }
     }
 
@@ -486,56 +573,76 @@ export class WorkspaceStore {
         this.expandedItems = expandedItems
     }
 
+    async generateActiveSelection(
+        id: string,
+        type: EntityType,
+    ) {
+        switch (type) {
+            case EntityType.RequestEntry:
+            case EntityType.Request:
+            case EntityType.Group:
+                return await this.getRequestEntry(id)
+            case EntityType.Scenario:
+                return await this.getScenario(id)
+            case EntityType.Authorization:
+                return await this.getAuthorization(id)
+            case EntityType.Certificate:
+                return await this.getCertificate(id)
+            case EntityType.Proxy:
+                return await this.getProxy(id)
+            default:
+                throw new Error('Invalid entity type')
+        }
+    }
+
     async getRequestEntry(id: string) {
-        const result = await this.callbacks.get(EntityType.RequestEntry, id)
-        if (result.entityType == 'RequestEntry') {
-            if (result.request) {
-                return new EditableRequest(result.request, this)
-            } else if (result.group) {
-                return new EditableRequestGroup(result.group, this)
-            }
+        switch (this.activeSelection?.entityType) {
+            case EntityType.Request:
+            case EntityType.Group:
+                if (this.activeSelection.id === id) {
+                    return this.activeSelection
+                }
+                break
         }
-        throw new Error(`getRequestEntry - Invalid request ${id} ${result.entityType}`)
-    }
 
-    async getRequest(id: string) {
         const result = await this.callbacks.get(EntityType.RequestEntry, id)
-        if (result.entityType == 'RequestEntry') {
-            if (result.request) {
-                return new EditableRequest(result.request, this)
-            }
+
+        if (!result) {
+            throw new Error(`Request Entry ID "${id}" is not valid`)
         }
-        throw new Error(`Entity is not a request ${id} (${result.entityType})`)
-    }
 
-    async getRequestGroup(id: string) {
-        const result = await this.callbacks.get(EntityType.RequestEntry, id)
-        if (result.entityType == 'RequestEntry') {
+        if (result.entityTypeName === 'RequestEntry') {
+            const execution = await this.callbacks.getExecution(id)
+            const executionResultViewState = await this.callbacks.getExecutionResultViewState(id)
+            if (result.request) {
+                return new EditableRequest(result.request, this, executionResultViewState, execution)
+            }
             if (result.group) {
-                return new EditableRequestGroup(result.group, this)
+                return new EditableRequestGroup(result.group, this, executionResultViewState, execution)
             }
         }
-        throw new Error(`Invalid group ${id}`)
+
+        throw new Error(`Entity is not a request or group ${id} (${result.entityTypeName})`)
+    }
+
+    private async getRequestBody(id: string) {
+        if (this.activeSelection?.entityType === EntityType.Request && this.activeSelection.id === id &&
+            this.activeSelection.isBodyInitialized) {
+            return this.activeSelection.body
+        }
+
+        const result = await this.callbacks.get(EntityType.RequestBody, id)
+        if (!result) {
+            throw new Error(`Request ID "${id}" is not valid`)
+        }
+        if (result.entityTypeName == EntityTypeName.RequestBody) {
+            return result.body
+        }
+        throw new Error(`Invalid request ${id}`)
     }
 
     getResponseTitle(id: string) {
-        return this.callbacks.getTitle(EntityType.RequestEntry, id)
-    }
-
-    async getRequestHeaders(id: string) {
-        const result = await this.callbacks.get(EntityType.Headers, id)
-        if (result.entityType == 'Headers') {
-            return new EditableRequestHeaders(result, this)
-        }
-        throw new Error(`Entity is not a request body ${id} (${result.entityType})`)
-    }
-
-    async getRequestBody(id: string) {
-        const result = await this.callbacks.get(EntityType.Body, id)
-        if (result.entityType == 'Body') {
-            return new EditableRequestBody(result, this)
-        }
-        throw new Error(`Entity is not a request body ${id} (${result.entityType})`)
+        return this.callbacks.getTitle(EntityType.Request, id)
     }
 
     updateRequest(request: EntityRequest) {
@@ -544,37 +651,20 @@ export class WorkspaceStore {
         })
     }
 
+    updateRequestBody(bodyInfo: EntityRequestBody) {
+        this.callbacks.update(bodyInfo).catch((e) => {
+            this.feedback.toastError(e)
+        })
+    }
+
+    updateRequestHeaders(headerInfo: EntityRequestHeaders) {
+        this.callbacks.update(headerInfo).catch((e) => {
+            this.feedback.toastError(e)
+        })
+    }
+
     updateGroup(group: EntityGroup) {
         this.callbacks.update(group).catch((e) => {
-            this.feedback.toastError(e)
-        })
-    }
-
-    updateHeaders(headers: EntityHeaders) {
-        this.callbacks.update(headers).catch((e) => {
-            this.feedback.toastError(e)
-        }).finally(() => {
-            runInAction(() => {
-                if (this.activeSelection && this.activeSelection.type === EntityType.Request && this.activeSelection.id === headers.id) {
-                    // todo:  trigger check of body headers
-                    // const requestHeaders = this.activeSelection.request?.headers?.sort((a, b) => a.name.localeCompare(b.name)) ?? []
-                    // const bodyHeaders = this.activeSelection.requestBody?.headers?.sort((a, b) => a.name.localeCompare(b.name)) ?? []
-
-                    // let sameHeaders = requestHeaders.length === bodyHeaders.length &&
-                    //     requestHeaders.every((hdr, idx) => {
-                    //         const other = bodyHeaders[idx]
-                    //         return hdr.name === other.name && hdr.value === other.value
-                    //     })
-                    // if (!sameHeaders) {
-                    //     this.changeActive(EntityType.Request, body.id)
-                    // }
-                }
-            })
-        })
-    }
-
-    updateBody(body: EntityBody) {
-        this.callbacks.update(body).catch((e) => {
             this.feedback.toastError(e)
         })
     }
@@ -594,7 +684,9 @@ export class WorkspaceStore {
     @action
     deleteRequest(id: string) {
         this.callbacks.delete(EntityType.Request, id)
-            .then(() => this.clearActiveConditionally(EntityType.Request, id))
+            .then(() => {
+                this.clearActiveConditionally(EntityType.Request, id)
+            })
             .catch(e => this.feedback.toastError(e))
     }
 
@@ -614,10 +706,11 @@ export class WorkspaceStore {
     getRequestActiveData(request: EditableRequestEntry) {
         return this.callbacks.getRequestActiveData(request.id)
     }
+
     async getRequestParameterList(requestOrGroupId: string): Promise<WorkspaceParameters> {
         const results = await this.callbacks.list(EntityType.Parameters, requestOrGroupId)
-        if (results.entityType !== 'Parameters') {
-            throw new Error('Parameters not available')
+        if (results.entityTypeName !== EntityTypeName.Parameters) {
+            throw new Error('Request parameters not available')
         }
         return results
     }
@@ -650,7 +743,7 @@ export class WorkspaceStore {
 
     async getScenario(id: string) {
         const result = await this.callbacks.get(EntityType.Scenario, id)
-        if (result.entityType === 'Scenario') {
+        if (result.entityTypeName === EntityTypeName.Scenario) {
             return new EditableScenario(result, this)
         }
         throw new Error(`Invalid scenario ${id}`)
@@ -695,7 +788,7 @@ export class WorkspaceStore {
 
     async getAuthorization(id: string) {
         const result = await this.callbacks.get(EntityType.Authorization, id)
-        if (result.entityType === 'Authorization') {
+        if (result.entityTypeName === EntityTypeName.Authorization) {
             return new EditableAuthorization(result, this)
         }
         throw new Error(`Invalid authorization ${id}`)
@@ -740,7 +833,7 @@ export class WorkspaceStore {
 
     async getCertificate(id: string) {
         const result = await this.callbacks.get(EntityType.Certificate, id)
-        if (result.entityType === 'Certificate') {
+        if (result.entityTypeName === EntityTypeName.Certificate) {
             return new EditableCertificate(result, this)
         }
         throw new Error(`Invalid certificate ${id}`)
@@ -786,7 +879,7 @@ export class WorkspaceStore {
 
     async getProxy(id: string) {
         const result = await this.callbacks.get(EntityType.Proxy, id)
-        if (result.entityType === 'Proxy') {
+        if (result.entityTypeName === EntityTypeName.Proxy) {
             return new EditableProxy(result, this)
         }
         throw new Error(`Invalid proxy ${id}`)
@@ -832,17 +925,16 @@ export class WorkspaceStore {
     @action
     updateDefaults(defaults: WorkspaceDefaultParameters) {
         this.defaults = new EditableDefaults(defaults, this)
-        this.callbacks.update({ entityType: 'Defaults', ...defaults }).catch((e) => {
+        this.callbacks.update({ entityTypeName: EntityTypeName.Defaults, ...defaults }).catch((e) => {
             this.feedback.toastError(e)
         }).finally(() => {
             runInAction(() => {
-                switch (this.activeSelection?.type) {
-                    case EntityType.Request:
-                    case EntityType.Group:
-                    case EntityType.RequestEntry:
-                        this.activeSelection.parameters = null
-                        break
-                }
+                // switch (this.activeSelection?.entityType) {
+                //     case EntityType.Request:
+                //     case EntityType.Group:
+                //         this.activeSelection.parameters = null
+                //         break
+                // }
             })
         })
     }
@@ -868,7 +960,7 @@ export class WorkspaceStore {
 
     async getData(id: string) {
         const result = await this.callbacks.get(EntityType.Data, id)
-        if (result.entityType === 'Data') {
+        if (result.entityTypeName === EntityTypeName.Data) {
             return new EditableExternalDataEntry(result, this)
         }
         throw new Error(`Invalid data item ${id}`)
@@ -906,10 +998,10 @@ export class WorkspaceStore {
      * @returns 
      */
     initializeDataList() {
-        this.callbacks.list(EntityType.Data)
+        this.callbacks.list(EntityType.DataList)
             .then(result => {
-                if (result.entityType !== 'Data') {
-                    throw new Error('Data not available')
+                if (result.entityTypeName !== EntityTypeName.DataList) {
+                    throw new Error(`Data not available (${result.entityTypeName})`)
                 }
                 runInAction(() => {
                     this.data = result.data.map(d => new EditableExternalDataEntry(d, this))
@@ -925,8 +1017,8 @@ export class WorkspaceStore {
     initializeParameterList() {
         this.callbacks.list(EntityType.Parameters)
             .then(results => runInAction(() => {
-                if (results.entityType !== 'Parameters') {
-                    this.feedback.toast('Parameters not available', ToastSeverity.Error)
+                if (results.entityTypeName !== EntityTypeName.Parameters) {
+                    this.feedback.toast('Parameters not available ofr initialization', ToastSeverity.Error)
                 } else {
                     this.activeParameters = results
                 }
@@ -934,106 +1026,85 @@ export class WorkspaceStore {
             .catch(e => this.feedback.toastError(e))
     }
 
-    @action
-    getExecution(requestOrGroupId: string) {
-        let execution = this.executions.get(requestOrGroupId)
-        if (!execution) {
-            execution = new Execution(requestOrGroupId)
-            this.executions.set(requestOrGroupId, execution)
-        }
-        return execution
-    }
-
-    @action
-    deleteExecution(requestOrGroupId: string) {
-        this.executions.delete(requestOrGroupId)
-    }
-
-    /***
-     * Return execution detail, keeping the most recent one cached in memory
+    /**
+     * Retrieve execution result view state
+     * @param requestOrGroupId
      */
-    async getExecutionResultDetail(requestOrGroupId: string, index: number, forOutput: boolean): Promise<ExecutionResultDetail> {
+    @action
+    async getExecutionResultViewState(requestOrGroupId: string) {
+        try {
+            return await this.callbacks.getExecutionResultViewState(requestOrGroupId)
+        } catch (e) {
+            this.feedback.toastError(e)
+        }
+    }
 
-        const formatForOutput = (detail: ExecutionResultDetail) => {
-            const d1 = structuredClone(detail)
-            if (d1.entityType === 'request') {
-                if (d1.testContext.request?.body?.type === 'Binary') {
-                    //@ts-expect-error
-                    d1.testContext.request.body.data = base64Encode(d1.testContext.request.body.data)
+    /**
+     * Retrieve execution result view state
+     * @param execCtr 
+     */
+    @action
+    updateExecutionResultViewState(requestOrGroupId: string, executionResultViewState: ExecutionResultViewState) {
+        this.callbacks.updateExecutionResultViewState(requestOrGroupId, executionResultViewState)
+            .catch(e => this.feedback.toastError(e))
+    }
+
+    /**
+     * Updates execution detail
+     * @param execCtr 
+     */
+    @action
+    updateExecutionDetail(execCtr: number) {
+        this.currentExecutionDetail = null
+        this.callbacks.getResultDetail(execCtr)
+            .then((d: ExecutionResultDetailWithBase64) => runInAction(() => {
+                if (d.entityType === 'request') {
+                    if (d.testContext.request?.body?.type === 'Binary') {
+                        d.requestBodyBase64 = base64Encode(d.testContext.request.body.data)
+                    }
+                    if (d.testContext.response?.body?.type === 'Binary') {
+                        d.resultBodyBase64 = base64Encode(d.testContext.response.body.data)
+                    }
                 }
-                if (d1.testContext.response?.body?.type === 'Binary') {
-                    //@ts-expect-error
-                    d1.testContext.response.body.data = base64Encode(d1.testContext.response.body.data)
-                }
-            }
-            delete (d1 as any)['entityType']
-            return d1
-        }
-
-
-        if (this.cachedExecutionDetail !== null) {
-            const [cachedId, cachedIndex, cachedDetail] = this.cachedExecutionDetail
-            if (cachedId === requestOrGroupId && cachedIndex === index) {
-                return forOutput ? formatForOutput(cachedDetail) : cachedDetail
-            }
-        }
-
-        const detail = await this.callbacks.getResultDetail(requestOrGroupId, index)
-        this.cachedExecutionDetail = [requestOrGroupId, index, detail]
-        return forOutput ? formatForOutput(detail) : detail
+                this.currentExecutionDetail = d
+            }))
+            .catch(e => this.feedback.toastError(e))
     }
 
     @action
-    async generateReport(requestId: string, index: number, format: ExecutionReportFormat): Promise<string> {
-        return await this.callbacks.generateReport(requestId, index, format)
-    }
-
-    @action
-    updateExecutionStatus(status: ExecutionStatus) {
-        const execution = this.getExecution(status.requestOrGroupId)
-        if (!execution) {
-            this.feedback.toast(`Invalid execution request ${status.requestOrGroupId}`, ToastSeverity.Error)
-        }
-
-        const navigation = this.findNavigationEntry(status.requestOrGroupId, EntityType.RequestEntry)
-
-        if (status.running) {
-            if (!execution.isRunning) {
-                execution.startExecution()
-            }
+    processExecutionEvents(events: { [requestOrGroupId: string]: ExecutionEvent }) {
+        for (const [requestOrGroupId, event] of Object.entries(events)) {
+            this.getRequestEntry(requestOrGroupId)
+                .then(r => runInAction(() => {
+                    r.processExecutionEvent(event)
+                    if (this.activeSelection?.id === r.id && r.selectedResultMenuItem !== null) {
+                        this.updateExecutionDetail(r.selectedResultMenuItem.execCtr)
+                    }
+                }))
+                .catch(e => this.feedback.toastError(e))
+            const navigation = this.findNavigationEntry(requestOrGroupId, EntityType.Request)
             if (navigation) {
-                navigation.state |= NavigationEntryState.Running
-            }
-        } else {
-            this.cachedExecutionDetail = null
-            if (status.results) {
-                execution.completeExecution(status.results)
-            } else {
-                execution.stopExecution()
-            }
-            if (navigation) {
-                navigation.state &= ~NavigationEntryState.Running
+                navigation.executionState = event.executionState
             }
         }
     }
 
     @action
-    launchExecution(requestOrGroupId: string, singleRun: boolean = false) {
-        let execution: Execution | undefined
-        (async () => {
-            const requestOrGroup = await this.getRequestEntry(requestOrGroupId)
-            if (!requestOrGroup) throw new Error(`Invalid ID ${requestOrGroupId}`)
-
-            execution = this.executions.get(requestOrGroupId)
-            if (!execution) {
-                execution = new Execution(requestOrGroupId)
-                this.executions.set(requestOrGroupId, execution)
+    async launchExecution(requestOrGroupId: string, singleRun: boolean = false) {
+        let requestEntry: EditableRequestEntry | null = null
+        try {
+            try {
+                requestEntry = await this.getRequestEntry(requestOrGroupId)
+            } catch (e) {
+                this.feedback.toastError(e)
+                return
             }
+            if (!requestEntry) throw new Error(`Invalid ID ${requestOrGroupId}`)
 
-            execution.startExecution()
+            requestEntry.startExecution()
 
             // Check if PKCE and initialize PKCE flow, queuing request upon completion
-            const auth = await this.getRequestActiveAuthorization(requestOrGroup)
+            const auth = await this.getRequestActiveAuthorization(requestEntry)
             if (auth?.type === AuthorizationType.OAuth2Pkce) {
                 const tokenInfo = this.pkceTokens.get(auth.id)
                 if (tokenInfo === undefined) {
@@ -1054,55 +1125,34 @@ export class WorkspaceStore {
                 }
             }
 
-            let idx = this.executingRequestIDs.indexOf(execution.requestOrGroupId)
+            let idx = this.executingRequestIDs.indexOf(requestOrGroupId)
             if (idx === -1) {
                 this.executingRequestIDs.push(requestOrGroupId)
             }
-
-            try {
-                let executionResults = await this.callbacks.executeRequest(
-                    requestOrGroupId,
-                    this.fileName,
-                    singleRun)
-
-                this.resultModels.delete(requestOrGroupId)
-                this.cachedExecutionDetail = null
-                execution.completeExecution(executionResults)
-            } finally {
-                if (execution.isRunning) {
-                    execution.stopExecution()
-                }
-                let idx = this.executingRequestIDs.indexOf(execution.requestOrGroupId)
-                if (idx !== -1) {
-                    this.executingRequestIDs.splice(idx, 1)
-                }
+            await this.callbacks.executeRequest(
+                requestOrGroupId,
+                this.fileName,
+                singleRun)
+            this.resultModels.delete(requestOrGroupId)
+        } catch (error) {
+            const msg = `${error}`
+            const asWarning = msg == 'cancelled' || msg == 'No results returned'
+            this.feedback.toast(msg, asWarning ? ToastSeverity.Warning : ToastSeverity.Error)
+        } finally {
+            if (requestEntry && requestEntry.isRunning) {
+                requestEntry.stopExecution()
             }
-        })()
-            .catch((error) => {
-                if (execution) {
-                    if (execution.isRunning) {
-                        execution.stopExecution()
-                    }
-                    runInAction(() => {
-                        this.updateExecutionStatus({
-                            requestOrGroupId: requestOrGroupId,
-                            running: false
-                        })
-                    })
-                }
-                const msg = `${error}`
-                const asWarning = msg == 'cancelled' || msg == 'No results returned'
-                this.feedback.toast(msg, asWarning ? ToastSeverity.Warning : ToastSeverity.Error)
-
-            })
+            let idx = this.executingRequestIDs.indexOf(requestOrGroupId)
+            if (idx !== -1) {
+                this.executingRequestIDs.splice(idx, 1)
+            }
+        }
     }
 
     @action
-    cancelRequest(requestOrGroupId: string) {
-        const match = this.executions.get(requestOrGroupId)
-        if (match) {
-            match.isRunning = false
-        }
+    async cancelRequest(requestOrGroupId: string) {
+        const request = await this.getRequestEntry(requestOrGroupId)
+        request.isRunning = false
 
         let idx = this.executingRequestIDs.indexOf(requestOrGroupId)
         if (idx !== -1) {
@@ -1117,10 +1167,8 @@ export class WorkspaceStore {
         this.pkceTokens.delete(authorizationId)
     }
 
-    @action
-    async clearTokens() {
-        await this.callbacks.clearAllTokens()
-        this.pkceTokens.clear()
+    @action getOAuth2ClientToken(authorizationId: string): Promise<TokenResult> {
+        return this.callbacks.getOAuth2ClientToken({ authorizationId })
     }
 
     @action
@@ -1131,14 +1179,6 @@ export class WorkspaceStore {
     @action
     changeGroupPanel(panel: GroupPanel) {
         this.groupPanel = panel
-    }
-
-    @action
-    changeResultsPanel(requestOrGroupId: string, panel: ResultsPanel) {
-        const match = this.executions.get(requestOrGroupId)
-        if (match) {
-            match.panel = panel
-        }
     }
 
     @action
@@ -1201,10 +1241,8 @@ export class WorkspaceStore {
         const pending = this.pendingPkceRequests.get(authorizationId)
         if (pending) {
             for (const requestOrGroupId of pending.keys()) {
-                const match = this.executions.get(requestOrGroupId)
-                if (match) {
-                    this.cancelRequest(requestOrGroupId)
-                }
+                this.cancelRequest(requestOrGroupId)
+                    .catch((e) => this.feedback.toastError(e))
             }
         }
         this.pendingPkceRequests.set(authorizationId, new Map())
@@ -1212,12 +1250,15 @@ export class WorkspaceStore {
 
     /**
      * Returns edit model if exists for the specified request/group
-     * @param requestOrGroupId
+     * Note:  request.body should already be initialized when this is called
+     * @param requestId
      * @param type 
      * @returns 
      */
-    async getRequestEditModel(requestOrGroupId: string, type: RequestEditSessionType, mode: EditorMode): Promise<editor.ITextModel> {
-        const models = this.requestModels.get(requestOrGroupId)
+    async getRequestEditModel(request: EditableRequest, type: RequestEditSessionType, mode: EditorMode): Promise<IRequestEditorTextModel> {
+        const requestId = request.id
+
+        const models = this.requestModels.get(requestId)
         if (models) {
             let model = models.get(type)
             if (model) {
@@ -1227,73 +1268,85 @@ export class WorkspaceStore {
             }
         }
 
+        if (!request.isBodyInitialized) {
+            throw new Error('Body is not yet initialized')
+        }
+
         let text: string
         switch (type) {
             case RequestEditSessionType.Test:
-                let request = await this.getRequest(requestOrGroupId)
                 text = request.test
                 break
             case RequestEditSessionType.Body:
-                let body = await this.getRequestBody(requestOrGroupId)
-                if (typeof body.data === 'string') {
-                    text = body.data
+                if (request.body && typeof request.body.data === 'string') {
+                    text = request.body.data
                 } else {
                     text = ''
                 }
                 break
             default:
                 throw new Error(`Invalid edit model type "${type}"`)
-
         }
 
-        let model = editor.createModel(text, mode)
+        const model = editor.createModel(text, mode) as IRequestEditorTextModel
+        model.requestId = requestId
+        model.type = type
         if (models) {
             models.set(type, model)
         } else {
-            this.requestModels.set(requestOrGroupId, new Map([[type, model]]))
+            this.requestModels.set(requestId, new Map([[type, model]]))
         }
         return model
     }
 
     /**
-     * Returns edit model if exists for the specified result
-     * @param requestOrGroupId
-     * @param index
-     * @param type 
-     * @returns 
-     */
-    async getResultEditModel(requestOrGroupId: string, index: number, type: ResultEditSessionType, mode: EditorMode): Promise<editor.ITextModel> {
-        const existingModel = this.resultModels.get(requestOrGroupId)?.get(index)?.get(type)
-        if (existingModel) {
-            return existingModel
-        }
-
+    * Returns edit model if exists for the specified result
+    * @param requestOrGroupId
+    * @param execCtr
+    * @param type 
+    * @returns 
+    */
+    getResultEditModel(detail: ExecutionResultDetail, type: ResultEditSessionType, mode: EditorMode): editor.ITextModel {
+        let id: string
         let text: string
-        switch (type) {
-            case ResultEditSessionType.Base64:
-                const detail = await this.getExecutionResultDetail(requestOrGroupId, index, false)
-                text = (detail.entityType === 'request' && detail.testContext.response?.body?.type === 'Binary')
-                    ? base64Encode(detail.testContext.response.body.data)
-                    : ''
+
+        switch (detail.entityType) {
+            case 'request':
+                switch (type) {
+                    case ResultEditSessionType.Base64:
+                        text = (detail.testContext.response?.body?.type === 'Binary')
+                            ? base64Encode(detail.testContext.response.body.data)
+                            : ''
+                        break
+                    default:
+                        text = (detail.testContext.response?.body?.type !== 'Binary')
+                            ? detail.testContext.response?.body?.text ?? ''
+                            : ''
+                        break
+                }
+                break
+            case 'grouped':
+                text = JSON.stringify(detail)
                 break
             default:
-                const detail1 = await this.getExecutionResultDetail(requestOrGroupId, index, false)
-                text = (detail1.entityType === 'request' && detail1.testContext.response?.body?.type !== 'Binary')
-                    ? detail1.testContext.response?.body?.text ?? ''
-                    : ''
+                text = ''
                 break
         }
 
-        let model = editor.createModel(text, mode)
-        let requestModels = this.resultModels.get(requestOrGroupId)
+        const model = editor.createModel(text, mode) as IResultEditorTextModel
+        model.resultId = detail.id
+        model.execCtr = detail.execCtr
+        model.type = type
+
+        let requestModels = this.resultModels.get(detail.id)
         if (!requestModels) {
             requestModels = new Map()
-            this.resultModels.set(requestOrGroupId, requestModels)
+            this.resultModels.set(detail.id, requestModels)
         }
-        let entries = requestModels.get(index)
+        let entries = requestModels.get(detail.execCtr)
         if (!entries) {
             entries = new Map()
-            requestModels.set(index, entries)
+            requestModels.set(detail.execCtr, entries)
         }
         entries.set(type, model)
         return model
@@ -1301,13 +1354,6 @@ export class WorkspaceStore {
 
     @action
     clearAllEditSessions() {
-        // Dispose all models before clearing
-        for (const [, models] of this.requestModels) {
-            for (const [, model] of models) {
-                model.dispose()
-            }
-        }
-
         for (const [, resultMap] of this.resultModels) {
             for (const [, typeMap] of resultMap) {
                 for (const [, model] of typeMap) {
@@ -1315,8 +1361,6 @@ export class WorkspaceStore {
                 }
             }
         }
-
-        this.requestModels.clear()
         this.resultModels.clear()
     }
 
@@ -1337,6 +1381,11 @@ export class WorkspaceStore {
         return this.callbacks.clearLogs()
     }
 
+    public copyToClipboard(payloadRequest: ClipboardPaylodRequest, description: string) {
+        this.callbacks.copyToClipboard(payloadRequest)
+            .then(() => this.feedback.toast(`${description} copied to clipboard`, ToastSeverity.Info))
+            .catch((err) => this.feedback.toastError(err))
+    }
 }
 
 export const WorkspaceContext = createContext<WorkspaceStore | null>(null)
@@ -1349,243 +1398,99 @@ export function useWorkspace() {
     return context;
 }
 
-/**
- * Tracks the currently active selection, initializes updates editable entities
- */
-export class ActiveSelection {
-    @observable public accessor request: EditableRequest | null = null
-    @observable public accessor group: EditableRequestGroup | null = null
-    @observable public accessor requestBody: EditableRequestBody | null = null
-    @observable public accessor requestHeaders: EditableRequestHeaders | null = null
-    @observable public accessor scenario: EditableScenario | null = null
-    @observable public accessor authorization: EditableAuthorization | null = null
-    @observable public accessor certificate: EditableCertificate | null = null
-    @observable public accessor proxy: EditableProxy | null = null
 
-    @observable accessor parameters: WorkspaceParameters | null = null
-
-    public constructor(
-        public readonly id: string,
-        public readonly type: EntityType,
-        private readonly workspace: WorkspaceStore,
-        private readonly feedback: FeedbackStore,
-    ) {
-        makeObservable(this)
-        switch (type) {
-            case EntityType.Request:
-                workspace.getRequest(id)
-                    .then((request) => {
-                        runInAction(() => {
-                            this.request = request
-                        })
-                    })
-                    .catch(e => feedback.toastError(e))
-                break
-            case EntityType.Group:
-                workspace.getRequestGroup(id)
-                    .then((group) => {
-                        runInAction(() => {
-                            this.group = group
-                        })
-                    })
-                    .catch(e => feedback.toastError(e))
-                break
-            case EntityType.Scenario:
-                workspace.getScenario(id)
-                    .then(result => runInAction(() => {
-                        this.scenario = result
-                    }))
-                    .catch(e => feedback.toastError(e))
-                break
-            case EntityType.Authorization:
-                workspace.getAuthorization(id)
-                    .then(result => runInAction(() => {
-                        this.authorization = result
-                    }))
-                    .catch(e => feedback.toastError(e))
-                break
-            case EntityType.Certificate:
-                workspace.getCertificate(id)
-                    .then(result => runInAction(() => {
-                        this.certificate = result
-                    }))
-                    .catch(e => feedback.toastError(e))
-                break
-            case EntityType.Proxy:
-                workspace.getProxy(id)
-                    .then(result => runInAction(() => {
-                        this.proxy = result
-                    }))
-                    .catch(e => feedback.toastError(e))
-                break
-        }
-    }
-
-    refreshFromExternalUpdate(updatedItem: Entity) {
-        switch (updatedItem.entityType) {
-            case "Request":
-                if (this.request && this.request.id == updatedItem.id) {
-                    this.request.refreshFromExternalUpdate(updatedItem)
-                }
-                break
-            case "Group":
-                if (this.group && this.group.id == updatedItem.id) {
-                    this.group.refreshFromExternalUpdate(updatedItem)
-                }
-                break
-            case "Headers":
-                if (this.request && this.request.id == updatedItem.id && this.requestHeaders) {
-                    this.requestHeaders.refreshFromExternalUpdate(updatedItem)
-                }
-                break
-            case "Body":
-                if (this.request && this.request.id == updatedItem.id && this.requestBody) {
-                    this.requestBody.refreshFromExternalUpdate(updatedItem)
-                }
-                break
-            case "Scenario":
-                if (this.scenario && this.scenario.id == updatedItem.id) {
-                    this.scenario.refreshFromExternalUpdate(updatedItem)
-                }
-                break
-            case "Authorization":
-                if (this.authorization && this.authorization.id == updatedItem.id) {
-                    this.authorization.refreshFromExternalUpdate(updatedItem)
-                }
-                break
-            case "Certificate":
-                if (this.certificate && this.certificate.id == updatedItem.id) {
-                    this.certificate.refreshFromExternalUpdate(updatedItem)
-                }
-                break
-            case "Proxy":
-                if (this.proxy && this.proxy.id == updatedItem.id) {
-                    this.proxy.refreshFromExternalUpdate(updatedItem)
-                }
-                break
-        }
-    }
-
-    @action
-    public initializeBody() {
-        if (this.type === EntityType.Request) {
-            this.workspace.getRequestBody(this.id)
-                .then(result => runInAction(() => {
-                    this.requestBody = result
-                }))
-                .catch(e => this.feedback.toastError(e))
-        }
-    }
-
-    @action
-    public initializeHeaders() {
-        if (this.type === EntityType.Request) {
-            this.workspace.getRequestHeaders(this.id)
-                .then(result => runInAction(() => {
-                    this.requestHeaders = result
-                }))
-                .catch(e => this.feedback.toastError(e))
-        }
-    }
-
-    @action
-    public initializeParameters() {
-        switch (this.type) {
-            case EntityType.Request:
-            case EntityType.Group:
-            case EntityType.RequestEntry:
-                this.workspace.getRequestParameterList(this.id)
-                    .then(result => runInAction(() => {
-                        this.parameters = result
-                    }))
-                    .catch(e => this.feedback.toastError(e))
-                break
-        }
-    }
-}
-
-export type Entity = EntityRequestEntry | EntityRequest | EntityGroup | EntityHeaders |
-    EntityBody | EntityScenario | EntityAuthorization | EntityCertificate | EntityProxy |
+export type Entity = EntityRequestEntry | EntityRequest | EntityGroup | EntityRequestHeaders | EntityRequestBody |
+    EntityScenario | EntityAuthorization | EntityCertificate | EntityProxy |
     EntityData | EntityDataList | EntityDefaults
 
-export interface EntityRequestEntry {
-    entityType: 'RequestEntry'
-    request?: BaseRequest
-    group: RequestGroup
+export enum EntityTypeName {
+    RequestEntry = 'RequestEntry',
+    Request = 'Request',
+    ReqeustHeaders = 'RequestHeaders',
+    RequestBody = 'RequestBody',
+    Group = 'Group',
+    Scenario = 'Scenario',
+    Authorization = 'Authorization',
+    Certificate = 'Certificate',
+    Proxy = 'Proxy',
+    Data = 'Data',
+    DataList = 'DataList',
+    Defaults = 'Defaults',
+    Parameters = 'Parameters',
 }
 
-export interface EntityRequest extends RequestInfo {
-    entityType: 'Request'
+export interface EntityRequestEntry extends RequestEntryInfo {
+    entityTypeName: EntityTypeName.RequestEntry
+}
+
+export interface EntityRequest extends Request {
+    entityTypeName: EntityTypeName.Request
+}
+
+export interface EntityRequestHeaders extends RequestHeaderInfo {
+    entityTypeName: EntityTypeName.ReqeustHeaders
+}
+
+export interface EntityRequestBody extends RequestBodyInfo {
+    entityTypeName: EntityTypeName.RequestBody
 }
 
 export interface EntityGroup extends RequestGroup {
-    entityType: 'Group'
-}
-
-export interface EntityHeaders {
-    entityType: 'Headers'
-    id: string
-    headers?: NameValuePair[]
-}
-
-export interface EntityBody {
-    entityType: 'Body'
-    id: string
-    body?: Body
+    entityTypeName: EntityTypeName.Group
 }
 
 export interface EntityScenario extends Scenario {
-    entityType: 'Scenario'
+    entityTypeName: EntityTypeName.Scenario
 }
 
 export interface EntityBasicAuthorization extends BasicAuthorization {
-    entityType: 'Authorization'
+    entityTypeName: EntityTypeName.Authorization
 }
 
 export interface EntityOAuth2ClientAuthorization extends OAuth2ClientAuthorization {
-    entityType: 'Authorization'
+    entityTypeName: EntityTypeName.Authorization
 }
 
 export interface EntityOAuth2PkceAuthorization extends OAuth2PkceAuthorization {
-    entityType: 'Authorization'
+    entityTypeName: EntityTypeName.Authorization
 }
 
 export interface EntityApiKeyAuthorization extends ApiKeyAuthorization {
-    entityType: 'Authorization'
+    entityTypeName: EntityTypeName.Authorization
 }
 
 export type EntityAuthorization = EntityBasicAuthorization | EntityOAuth2ClientAuthorization |
     EntityOAuth2PkceAuthorization | EntityApiKeyAuthorization
 
 export interface EntityPkcs12Certificate extends Pkcs12Certificate {
-    entityType: 'Certificate'
+    entityTypeName: EntityTypeName.Certificate
 }
 
 export interface EntityPkcs8PemCertificate extends Pkcs8PemCertificate {
-    entityType: 'Certificate'
+    entityTypeName: EntityTypeName.Certificate
 }
 
 export interface EntityPemCertificate extends PemCertificate {
-    entityType: 'Certificate'
+    entityTypeName: EntityTypeName.Certificate
 }
 
 export type EntityCertificate = EntityPkcs12Certificate | EntityPkcs8PemCertificate | EntityPemCertificate
 
 export interface EntityProxy extends Proxy {
-    entityType: 'Proxy'
+    entityTypeName: EntityTypeName.Proxy
 }
 
 export interface EntityData extends ExternalData {
-    entityType: 'Data'
+    entityTypeName: EntityTypeName.Data
 }
 
 export interface EntityDataList {
-    entityType: 'DataList'
+    entityTypeName: EntityTypeName.DataList
     list: ExternalData[]
 }
 
 export interface EntityDefaults extends WorkspaceDefaultParameters {
-    entityType: 'Defaults'
+    entityTypeName: EntityTypeName.Defaults
 }
 
 export enum ListEntityType {
@@ -1595,11 +1500,11 @@ export enum ListEntityType {
 }
 
 export interface ListParameters extends WorkspaceParameters {
-    entityType: 'Parameters'
+    entityTypeName: EntityTypeName.Parameters
 }
 
 export interface ListData {
-    entityType: 'Data'
+    entityTypeName: EntityTypeName.DataList
     data: ExternalData[]
 }
 
@@ -1610,28 +1515,44 @@ export interface UpdatedNavigationEntry {
     id: string
     name: string
     entityType: EntityType
-    state: number
+    validationState?: ValidationState
+    executionState?: ExecutionState
 }
 
-export interface SessionInitialization {
-    settings: EditableSettings
-    workspaceId: string
-    navigation: Navigation
-    executingRequestIds: string[],
-    resultSummaries: { [resultOrGroupId: string]: ExecutionResultSummary[] },
-    dirty: boolean
-    editorCount: number
-    defaults: WorkspaceDefaultParameters
-    data: ExternalData[]
-    fileName: string
-    displayName: string
-
+export interface Session {
+    /**
+     * Session ID associated with the session
+     */
+    workspaceId: String
+    /**
+     * Track which request is active in the session, if any
+     */
+    activeEntity?: SessionEntity
+    /**
+     * Expanded item IDs
+     */
     expandedItems?: string[]
-    mode?: WorkspaceMode
-    activeType?: EntityType
-    activeId?: string
+    /**
+     * Track which exec ctr is selected for each request or group
+     */
+    requestExecCtrs: { [requestOrGroupId: string]: number },
+    /**
+     * Current session mode (what is being displayed)
+     */
+    mode?: number,
+    /**
+     * Most recent help topic
+     */
     helpTopic?: string
+}
 
+export interface WorkspaceInitialization {
+    session: Session
+    navigation: Navigation
+    saveState: SessionSaveState
+    executions: { [requestOrGroupId: string]: ExecutionEvent }
+    defaults: WorkspaceDefaultParameters
+    settings: EditableSettings
     error: string | undefined
 }
 
@@ -1642,9 +1563,22 @@ export interface SessionSaveState {
     editorCount: number
 }
 
+export interface RequestEntryInfo {
+    request?: Request
+    group?: RequestGroup
+}
 
-export interface WorkspaceCloneState {
-    expandedItems?: string[]
-    activeType?: EntityType
-    activeId?: string
+export interface RequestHeaderInfo {
+    id: string
+    headers?: NameValuePair[]
+}
+
+export interface RequestBodyInfo {
+    id: string
+    body?: Body
+}
+
+export interface SessionEntity {
+    entityType: EntityType,
+    entityId: string
 }

@@ -134,7 +134,7 @@ export function FileOperationsProvider({ activeSessionId, workspaceStore, childr
      */
     const openWorkspace = async (openInNewWindow: boolean, defaultFileName?: string) => {
         try {
-            if (!openInNewWindow && workspaceStore.dirty) {
+            if (!openInNewWindow && workspaceStore.dirty && workspaceStore.editorCount < 2) {
                 if (! await feedback.confirm({
                     title: 'Open Workbook',
                     message: 'Are you sure you want to open a workbook without saving changes?',
@@ -250,19 +250,8 @@ export function FileOperationsProvider({ activeSessionId, workspaceStore, childr
 
     const cloneWorkspace = async () => {
         try {
-            workspaceStore.expandedItems
-            workspaceStore.activeSelection?.id
-            workspaceStore.activeSelection?.type
-
             await core.invoke('clone_workspace', {
                 sessionId: activeSessionId,
-                startupState: {
-                    expandedItems: workspaceStore.expandedItems,
-                    mode: workspaceStore.mode,
-                    activeId: workspaceStore.activeSelection?.id,
-                    activeType: workspaceStore.activeSelection?.type,
-                    helpTopic: workspaceStore.helpTopic,
-                }
             })
         } catch (e) {
             feedback.toastError(e)

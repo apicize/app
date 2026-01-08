@@ -1,4 +1,4 @@
-import { action, makeObservable, observable } from "mobx";
+import { action, makeObservable, observable, runInAction } from "mobx";
 import { createContext, useContext } from "react";
 
 /**
@@ -42,6 +42,16 @@ export class FeedbackStore {
 
     @action
     confirm(options: ConfirmationOptions): Promise<boolean> {
+        // Trigger a click event on the document body to close any open select
+        console.log('Closing selects')
+        // Find all MUI popover backdrops and click them
+        const backdrops = document.querySelectorAll('.MuiBackdrop-root');
+        backdrops.forEach(backdrop => {
+            if (backdrop instanceof HTMLElement) {
+                backdrop.click();
+            }
+        });
+
         return new Promise((resolve) => {
             this.confirmResolve = resolve
             this.confirmOptions = options

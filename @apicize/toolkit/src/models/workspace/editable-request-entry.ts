@@ -1,13 +1,20 @@
-import { Selection, GroupExecution, Request, RequestGroup, GetTitle } from "@apicize/lib-typescript"
+import { Selection, MultiRunExecution, Request, RequestGroup, ExecutionResultSummary } from "@apicize/lib-typescript"
 import { Editable } from "../editable"
-import { action, computed, observable, reaction, runInAction } from "mobx"
+import { action, computed, observable, reaction, runInAction, toJS } from "mobx"
 import { DEFAULT_SELECTION_ID, NO_SELECTION_ID, NO_SELECTION } from "../store"
-import { toJS } from "mobx"
 import { WorkspaceParameters } from "./workspace-parameters"
-import { WorkspaceStore } from "../../contexts/workspace.context"
+import { ResultsPanel, WorkspaceStore } from "../../contexts/workspace.context"
+import { ExecutionEvent, ExecutionMenuItem, ExecutionResultViewState } from "./execution"
+import { RequestExecution } from "../request-execution"
+
 export abstract class EditableRequestEntry extends Editable<Request | RequestGroup> {
     @observable accessor runs = 0
-    @observable public accessor multiRunExecution = GroupExecution.Sequential
+    @observable public accessor multiRunExecution = MultiRunExecution.Sequential
+
+    @observable public accessor resultMenuItems: ExecutionMenuItem[] = []
+    @observable public accessor selectedResultMenuItem: ExecutionMenuItem | null = null
+    @observable public accessor isRunning: boolean = false
+    @observable public accessor resultsPanel: ResultsPanel = 'Info'
 
     @observable accessor selectedScenario: Selection | undefined = undefined
     @observable accessor selectedAuthorization: Selection | undefined = undefined
@@ -17,8 +24,22 @@ export abstract class EditableRequestEntry extends Editable<Request | RequestGro
 
     @observable public accessor parameters: WorkspaceParameters | undefined = undefined
 
-    constructor(workspace: WorkspaceStore) {
+    @observable public accessor hideSuccess = false
+    @observable public accessor hideFailure = false
+    @observable public accessor hideError = false
+
+    private summaries = new Map<number, ExecutionResultSummary>
+
+    constructor(
+        workspace: WorkspaceStore,
+        executionResultViewState: ExecutionResultViewState,
+        requestExecution: RequestExecution
+    ) {
         super(workspace)
+
+        this.hideSuccess = executionResultViewState.hideSuccess
+        this.hideFailure = executionResultViewState.hideFailure
+        this.hideError = executionResultViewState.hideError
 
         reaction(
             () => workspace.data,
@@ -26,8 +47,28 @@ export abstract class EditableRequestEntry extends Editable<Request | RequestGro
                 this.parameters = undefined
             })
         )
+
+        this.applyExecution(requestExecution)
+
+        if (executionResultViewState.execCtr !== undefined) {
+            const m = requestExecution.menu.find(m => m.execCtr === executionResultViewState.execCtr)
+            if (m) {
+                this.selectedResultMenuItem = m
+            }
+        }
     }
 
+    @action
+    public changeExecCtr(execCtr: number) {
+        const match = this.resultMenuItems.find(m => m.execCtr === execCtr)
+        if (!match) {
+            throw new Error(`Invalid execCtr: ${execCtr}`)
+        }
+
+        this.workspace.updateExecutionDetail(execCtr)
+        this.selectedResultMenuItem = match
+        this.updateExecutionResulltViewState()
+    }
 
     @action
     setRuns(value: number) {
@@ -36,7 +77,7 @@ export abstract class EditableRequestEntry extends Editable<Request | RequestGro
     }
 
     @action
-    setMultiRunExecution(value: GroupExecution) {
+    setMultiRunExecution(value: MultiRunExecution) {
         this.multiRunExecution = value
         this.onUpdate()
     }
@@ -92,6 +133,104 @@ export abstract class EditableRequestEntry extends Editable<Request | RequestGro
     @action
     setParameters(parameters: WorkspaceParameters) {
         this.parameters = parameters
+    }
+
+    @action
+    public startExecution() {
+        this.isRunning = true
+    }
+
+    @action
+    public setResultsPanel(value: ResultsPanel) {
+        this.resultsPanel = value
+    }
+
+    applyExecution(execution: RequestExecution) {
+        if (execution.menu.length < 1) {
+            this.selectedResultMenuItem = null
+            this.summaries = new Map()
+            return
+        }
+
+        let newSelected: ExecutionMenuItem | undefined
+        if (this.selectedResultMenuItem) {
+            const current = this.selectedResultMenuItem
+            if (this.resultMenuItems.length === execution.menu.length) {
+                newSelected = execution.menu.find(m =>
+                    m.executingRequestOrGroupId === current.executingRequestOrGroupId
+                    && m.executingOffset === current.executingOffset
+                )
+            }
+        }
+        if (!newSelected) {
+            newSelected = execution.menu[0]
+        }
+
+        this.resultMenuItems = execution.menu
+        this.summaries = new Map(Object.entries(execution.activeSummaries).map(
+            ([id, s]) => [parseInt(id), s]
+        ))
+        this.selectedResultMenuItem = newSelected
+    }
+
+    @action
+    public processExecutionEvent(event: ExecutionEvent) {
+        switch (event.eventType) {
+            case 'start':
+                this.isRunning = true
+                break
+            case 'cancel':
+                this.isRunning = false
+                break
+            case 'complete':
+                this.applyExecution(event)
+                this.isRunning = false
+                break
+        }
+    }
+
+    @action
+    public stopExecution() {
+        this.isRunning = false
+    }
+
+    public getSummary(execCtr: number): ExecutionResultSummary {
+        const summary = this.summaries.get(execCtr)
+        if (!summary) {
+            throw new Error(`Invalid retrieving summary result counter: ${execCtr}`)
+        }
+        return summary
+    }
+
+    public getSelectedSummaries(): Map<number, ExecutionResultSummary> {
+        if (!this.selectedResultMenuItem) {
+            throw new Error('No selected execution summary')
+        }
+        return this.summaries
+    }
+
+    private updateExecutionResulltViewState() {
+        this.workspace.updateExecutionResultViewState(this.id, {
+            hideSuccess: this.hideSuccess,
+            hideFailure: this.hideFailure,
+            hideError: this.hideError,
+            execCtr: this.selectedResultMenuItem?.execCtr,
+        })
+    }
+
+    @action toggleSuccess() {
+        this.hideSuccess = !this.hideSuccess
+        this.updateExecutionResulltViewState()
+    }
+
+    @action toggleFailure() {
+        this.hideFailure = !this.hideFailure
+        this.updateExecutionResulltViewState()
+    }
+
+    @action toggleError() {
+        this.hideError = !this.hideError
+        this.updateExecutionResulltViewState()
     }
 
     @computed get nameInvalid() {

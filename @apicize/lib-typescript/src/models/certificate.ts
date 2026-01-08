@@ -1,6 +1,5 @@
 import { Identifiable } from "./identifiable"
 import { Named } from "./named"
-import { ValidationErrors } from "./validation-errors"
 
 /**
  * Specifies the type of certificate used for a request
@@ -16,7 +15,7 @@ export type Certificate = Pkcs12Certificate | Pkcs8PemCertificate | PemCertifica
 /**
  * Information required for PFX certificate
  */
-export interface Pkcs12Certificate extends Identifiable, Named, ValidationErrors {
+export interface Pkcs12Certificate extends Identifiable, Named {
     type: CertificateType.PKCS12
     /**
      * Base 64 representation of PFX
@@ -28,7 +27,7 @@ export interface Pkcs12Certificate extends Identifiable, Named, ValidationErrors
 /**
  * Information required for PEM certificate / key
  */
-export interface Pkcs8PemCertificate extends Identifiable, Named, ValidationErrors {
+export interface Pkcs8PemCertificate extends Identifiable, Named {
     type: CertificateType.PKCS8_PEM
     /**
      * Base 64 representation of PEM
@@ -43,7 +42,7 @@ export interface Pkcs8PemCertificate extends Identifiable, Named, ValidationErro
 /**
  * Information required for PEM certificate / key
  */
-export interface PemCertificate extends Identifiable, Named, ValidationErrors {
+export interface PemCertificate extends Identifiable, Named {
     type: CertificateType.PEM
     /**
      * Base 64 representation of PEM

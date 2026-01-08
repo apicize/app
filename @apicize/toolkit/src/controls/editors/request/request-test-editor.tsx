@@ -1,14 +1,12 @@
 import { EditableRequest } from "../../../models/workspace/editable-request";
 import { observer } from "mobx-react-lite";
 import { createRef, useEffect, useRef, useState } from "react";
-import { EditorMode } from "../../../models/editor-mode";
 import { useWorkspace } from "../../../contexts/workspace.context";
 import { Box, Button, IconButton, Stack } from "@mui/material";
 import { DroppedFile, useFileDragDrop } from "../../../contexts/file-dragdrop.context";
-import { RequestEditSessionType } from "../editor-types";
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { useClipboard } from "../../../contexts/clipboard.context";
-import { ToastSeverity, useFeedback } from "../../../contexts/feedback.context";
+import { useFeedback } from "../../../contexts/feedback.context";
 import MonacoEditor, { monaco } from 'react-monaco-editor';
 
 import DEFS_RAW from '../../../test-editor.d.ts?raw'
@@ -24,24 +22,23 @@ import ES2017_DATE_RAW from '../../../../../../node_modules/typescript/lib/lib.e
 import { editor } from "monaco-editor";
 import { useApicizeSettings } from "../../../contexts/apicize-settings.context";
 import { runInAction } from "mobx";
-import useWindowSize from "../../../window-size";
+import { RequestEditSessionType } from "../editor-types";
+import { EditorMode } from "../../../models/editor-mode";
+import { IRequestEditorTextModel } from "../../../models/editor-text-model";
 
-export const RequestTestEditor = observer((props: { request: EditableRequest }) => {
+export const RequestTestEditor = observer(({ request }: { request: EditableRequest }) => {
     const workspace = useWorkspace()
-    const clipboard = useClipboard()
     const settings = useApicizeSettings()
     const feedback = useFeedback()
     const fileDragDrop = useFileDragDrop()
-    const windowSize = useWindowSize()
 
     const refContainer = createRef<HTMLElement>()
     const [isDragging, setIsDragging] = useState(false)
     const [isDragingValid, setIsDraggingValid] = useState(false)
 
     const initalialized = useRef(false)
+    const [model, setModel] = useState<IRequestEditorTextModel | null>(null)
     const editor = useRef<editor.IStandaloneCodeEditor | null>(null)
-
-    const [model, setModel] = useState<editor.ITextModel | null>(null)
 
     workspace.nextHelpTopic = 'requests/test'
 
@@ -66,7 +63,7 @@ export const RequestTestEditor = observer((props: { request: EditableRequest }) 
                     switch (file.type) {
                         case 'text':
                             runInAction(() => {
-                                props.request.test = file.data.toString()
+                                request.setTest(file.data.toString())
                             })
                             break
                     }
@@ -77,12 +74,6 @@ export const RequestTestEditor = observer((props: { request: EditableRequest }) 
             })
         }
     }, [refContainer])
-
-    const copyToClipboard = () => {
-        clipboard.writeTextToClipboard(props.request.test)
-            .then(() => feedback.toast('Tests copied to clipboard', ToastSeverity.Info))
-            .catch(e => feedback.toastError(e))
-    }
 
     function performBeautify() {
         if (editor.current) {
@@ -96,10 +87,14 @@ export const RequestTestEditor = observer((props: { request: EditableRequest }) 
         }
     }
 
+    if (!request.isBodyInitialized) {
+        return null
+    }
 
-    if (!model) {
-        workspace.getRequestEditModel(props.request.id, RequestEditSessionType.Test, EditorMode.js)
-            .then(m => setModel(m))
+    // Make sure we have the editor test model
+    if (!model || model.requestId !== request.id || model.type !== RequestEditSessionType.Test) {
+        workspace.getRequestEditModel(request, RequestEditSessionType.Test, EditorMode.js)
+            .then(setModel)
             .catch(e => feedback.toastError(e))
         return null
     }
@@ -112,7 +107,10 @@ export const RequestTestEditor = observer((props: { request: EditableRequest }) 
                     title="Copy Tests to Clipboard"
                     color='primary'
                     sx={{ marginLeft: '16px' }}
-                    onClick={_ => copyToClipboard()}>
+                    onClick={_ => workspace.copyToClipboard({
+                        payloadType: 'RequestTest',
+                        requestId: request.id,
+                    }, 'Body')}>
                     <ContentCopyIcon />
                 </IconButton>
                 <Box flexGrow={1} minWidth={0} />
@@ -131,9 +129,9 @@ export const RequestTestEditor = observer((props: { request: EditableRequest }) 
                 <MonacoEditor
                     language='javascript'
                     theme={settings.colorScheme === "dark" ? 'vs-dark' : 'vs-light'}
-                    value={props.request.test}
+                    value={request.test}
                     onChange={(text: string) => {
-                        props.request.setTest(text)
+                        request.setTest(text)
                     }}
                     options={{
                         automaticLayout: true,

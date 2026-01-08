@@ -11,7 +11,7 @@ import { GenerateIdentifier } from "../../services/random-identifier-generator";
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 
-export const NameValueEditor = React.memo((props: {
+export const NameValueEditor = React.memo(({ values, title, nameHeader, valueHeader, onUpdate }: {
     values: EditableNameValuePair[] | undefined,
     title: string,
     nameHeader: string,
@@ -19,50 +19,50 @@ export const NameValueEditor = React.memo((props: {
     onUpdate: (pair: EditableNameValuePair[] | undefined) => void
 }) => {
     const onAdd = () => {
-        const values = toJS(props.values ?? [])
-        values.push({
+        const vals = toJS(values ?? [])
+        vals.push({
             id: GenerateIdentifier(),
             name: '',
             value: ''
         })
-        props.onUpdate(values)
+        onUpdate(vals)
     }
 
     const onDelete = (id: string) => {
-        const values = toJS(props.values ?? []).filter(v => v.id !== id)
-        props.onUpdate(values)
+        const vals = toJS(values ?? []).filter(v => v.id !== id)
+        onUpdate(vals)
     }
 
     const updateName = (id: string, value: string) => {
-        if (!props.values) return
-        const values = toJS(props.values)
-        const match = values.find(v => v.id === id)
+        if (!values) return
+        const vals = toJS(values)
+        const match = vals.find(v => v.id === id)
         if (match) {
             match.name = value
-            props.onUpdate(values)
+            onUpdate(vals)
         }
     }
 
     const updateValue = (id: string, value: string) => {
-        if (!props.values) return
-        const values = toJS(props.values)
-        const match = values.find(v => v.id === id)
+        if (!values) return
+        const vals = toJS(values)
+        const match = vals.find(v => v.id === id)
         if (match) {
             match.value = value
-            props.onUpdate(values)
+            onUpdate(vals)
         }
     }
 
     let ctr = 0
     return <Stack direction='column' position='relative' spacing={4} width='100%'>
         {
-            (props.values ?? []).map(value => [
+            (values ?? []).map(value => [
                 <Grid container key={`nv-${ctr++}`} rowSpacing={2} spacing={1} size={12} columns={12}>
                     <Grid size={4}>
                         <TextField
                             id={`${value.id}-name`}
-                            label={props.nameHeader}
-                            aria-label={props.nameHeader}
+                            label={nameHeader}
+                            aria-label={nameHeader}
                             size="small"
                             value={value.name}
                             onChange={(e) => updateName(value.id, e.target.value)}
@@ -72,8 +72,8 @@ export const NameValueEditor = React.memo((props: {
                     <Grid size={7}>
                         <TextField
                             id={`${value.id}-value`}
-                            label={props.valueHeader}
-                            aria-label={props.valueHeader}
+                            label={valueHeader}
+                            aria-label={valueHeader}
                             size="small"
                             value={value.value}
                             onChange={(e) => updateValue(value.id, e.target.value)}
@@ -89,7 +89,7 @@ export const NameValueEditor = React.memo((props: {
             ])
         }
         <Box>
-            <Button variant="outlined" aria-label="add" startIcon={<AddIcon />} size='small' onClick={() => onAdd()}>Add {props.title}</Button>
+            <Button variant="outlined" aria-label="add" startIcon={<AddIcon />} size='small' onClick={() => onAdd()}>Add {title}</Button>
         </Box>
     </Stack>
 })

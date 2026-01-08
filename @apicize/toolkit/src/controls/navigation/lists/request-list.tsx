@@ -8,13 +8,15 @@ import { observer } from "mobx-react-lite"
 import { SimpleTreeView } from "@mui/x-tree-view/SimpleTreeView"
 import { useWorkspace } from "../../../contexts/workspace.context";
 
-export const RequestList = observer((props: {
+export const RequestList = observer(({
+    sx,
+}: {
     sx?: SxProps,
 }) => {
     const workspace = useWorkspace()
     workspace.nextHelpTopic = 'workspace/requests'
 
-    return <Box sx={props.sx} className='editor'>
+    return <Box sx={sx} className='editor'>
         <Stack direction='row' className='editor-panel-header' flexGrow={0}>
             <EditorTitle icon={<SvgIcon color='request'><RequestIcon /></SvgIcon>} name='Requests'>
                 <IconButton color='primary' size='medium' aria-label='Close' title='Close' sx={{ marginLeft: '1rem' }} onClick={() => workspace.returnToNormal()}><CloseIcon fontSize='inherit' /></IconButton>

@@ -1,13 +1,13 @@
 [package]
 name = "apicize"
-version = "0.28.6"
+version = "0.29.0"
 description = "Apicize HTTP call testing application"
 authors = ["Jason Terando"]
 license = "MIT"
 repository = ""
 default-run = "apicize"
-edition = "2021"
-rust-version = "1.82"
+edition = "2024"
+rust-version = "1.91"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -17,18 +17,18 @@ tauri-build = { version = "2.0.0", features = [] }
 [dependencies]
 serde_json = "^1.0"
 serde = { version = "^1.0", features = ["derive"] }
-apicize_lib = { version = "^0.28.1", features = ["editing"] }
+apicize_lib = { version = "~0.30.1", features = ["editing"] }
 # apicize_lib = { path = "../../../lib-rust", features = ["editing"] }
-tauri = { version = "^2.2.0", features = ["image-png", "unstable"] }
+tauri = { version = "^2", features = ["image-png", "unstable"] }
 tokio-util = "^0.7.11"
-tauri-plugin-fs = "^2.2.0"
+tauri-plugin-fs = "^2"
 # tauri-plugin-clipboard-manager = "^2.1.0"
-tauri-plugin-dialog = "^2.2.0"
-tauri-plugin-window-state = "^2.2.0"
+tauri-plugin-dialog = "^2"
+tauri-plugin-window-state = "^2"
 tauri-plugin-clipboard = { git = "https://github.com/jasonterando/tauri-plugin-clipboard/", branch = "v2-yarn-friendly" }
 env_logger = "^0.10.2"
-tauri-plugin-log = "^2.0.0"
-tauri-plugin-single-instance = "^2.2.0"
+tauri-plugin-log = "^2"
+tauri-plugin-single-instance = "^2"
 actix-web = "^4.9.0"
 parking_lot = "^0.12.3"
 dirs = "^6.0.0"
@@ -36,13 +36,17 @@ async-trait = "^0.1.86"
 regex = "^1.11.1"
 log = "^0.4.25"
 chrono = "^0.4.39"
-tauri-plugin-os = "^2.2.0"
+tauri-plugin-os = "^2"
 rustc-hash = "^2.0.0"
 thiserror = "^2.0.12"
 uuid = "^1.16.0"
 tokio = "^1.44.2"
 serde_repr = "^0.1.20"
-tauri-plugin-opener = "^2.2.7"
+tauri-plugin-opener = "^2"
+serde-xml-rs = "^0.8.1"
+serde_xml = "^0.9.1"
+indexmap = {version = "^2.11.4", features = ["serde"] }
+serde_urlencoded = "0.7.1"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.
@@ -55,7 +59,7 @@ panic = "abort" # Strip expensive panic clean-up logic
 codegen-units = 1 # Compile crates one after another so the compiler can optimize better
 lto = true # Enables link to optimizations
 opt-level = "s" # Optimize for binary size
-strip = true # Remove debug symbols
+strip = "debuginfo" # Remove debug symbols
 incremental = false
 overflow-checks = false
 

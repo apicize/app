@@ -4,15 +4,15 @@
 use std::thread::JoinHandle;
 
 use actix_web::{
+    App, HttpRequest, HttpResponse, HttpServer, Result,
     dev::ServerHandle,
     get,
     http::StatusCode,
     web::{self, Data, Query},
-    App, HttpRequest, HttpResponse, HttpServer, Result,
 };
 use apicize_lib::{
-    oauth2_pkce::{generate_authorization, refresh_token, retrieve_access_token},
     PkceTokenResult,
+    oauth2_pkce::{generate_authorization, refresh_token, retrieve_access_token},
 };
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager, Url};
@@ -23,18 +23,18 @@ pub struct PkceAuthParams {
     state: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
-/// Anticipated response from PKCE redirect
-struct OAuth2PkceResponse {
-    /// ID token (Not really used)
-    id_token: Option<String>,
-    /// Access Token
-    access_token: String,
-    /// Expiration (if any)
-    expires_in: Option<u32>,
-    /// Token type
-    token_type: Option<String>,
-}
+// #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+// /// Anticipated response from PKCE redirect
+// struct OAuth2PkceResponse {
+//     /// ID token (Not really used)
+//     id_token: Option<String>,
+//     /// Access Token
+//     access_token: String,
+//     /// Expiration (if any)
+//     expires_in: Option<u32>,
+//     /// Token type
+//     token_type: Option<String>,
+// }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -103,10 +103,12 @@ impl OAuth2PkceService {
             h.stop(false);
         }
 
-        if let Some(s) = server {
-            if let Err(err) = s.join() {
-                self.tauri.emit("pkc-error", format!("{err:?}")).unwrap();
-            }
+        if let Some(s) = server
+            && let Err(err) = s.join()
+        {
+            self.tauri
+                .emit("oauth2-pkce-error", format!("{err:?}"))
+                .unwrap();
         }
 
         let app_handle = self.tauri.clone();
@@ -193,7 +195,7 @@ async fn init_pkce_server(
                     format!("Server started at http://127.0.0.1:{port}").to_string(),
                 )
                 .unwrap();
-            println!("*** Started PKCE listener at 127.0.0.1:{port} ***");
+            println!("*** Started PKCE listener at 127.0.0.1:{port}");
             let running_server = server.run();
             stop_handle.register(running_server.handle());
             running_server.await

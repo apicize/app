@@ -7,7 +7,7 @@ import { ToastSeverity, useFeedback } from "../../../contexts/feedback.context"
 import { Selection } from "@apicize/lib-typescript"
 import { WorkspaceParameters } from "../../../models/workspace/workspace-parameters"
 
-export const AuthorizationOAuth2ClientEditor = observer((props: { authorization: EditableAuthorization, parameters: WorkspaceParameters | null }) => {
+export const AuthorizationOAuth2ClientEditor = observer(({ authorization, parameters: parametersProps }: { authorization: EditableAuthorization, parameters: WorkspaceParameters | null }) => {
     const workspace = useWorkspace()
     const feedback = useFeedback()
 
@@ -18,16 +18,25 @@ export const AuthorizationOAuth2ClientEditor = observer((props: { authorization:
         ))
     }
 
-    const clearTokens = async () => {
+    const retrieveClientToken = async () => {
         try {
-            await workspace.clearTokens()
-            feedback.toast('OAuth tokens cleared', ToastSeverity.Info)
+            await workspace.getOAuth2ClientToken(authorization.id)
+            feedback.toast('OAuth2 client token retrieved successfully', ToastSeverity.Success)
+        } catch (e) {
+            feedback.toastError(e)
+        }
+    }
+
+    const clearToken = async () => {
+        try {
+            await workspace.clearToken(authorization.id)
+            feedback.toast('OAuth token cleared from cache', ToastSeverity.Info)
         } catch (e) {
             feedback.toast(`${e}`, ToastSeverity.Error)
         }
     }
 
-    const parameters = props.parameters
+    const parameters = parametersProps
     if (!parameters) {
         workspace.initializeParameterList()
         return null
@@ -39,10 +48,10 @@ export const AuthorizationOAuth2ClientEditor = observer((props: { authorization:
                 id='auth-oauth2-access-token-url'
                 label='Access Token URL'
                 aria-label='oauth access token url'
-                value={props.authorization.accessTokenUrl}
-                error={props.authorization.accessTokenUrlInvalid}
-                helperText={props.authorization.accessTokenUrlInvalid ? 'Access Token URL is required' : ''}
-                onChange={e => props.authorization.setAccessTokenUrl(e.target.value)}
+                value={authorization.accessTokenUrl}
+                error={authorization.accessTokenUrlInvalid}
+                helperText={authorization.accessTokenUrlInvalid ? 'Access Token URL is required' : ''}
+                onChange={e => authorization.setAccessTokenUrl(e.target.value)}
                 size='small'
                 fullWidth
             />
@@ -52,10 +61,10 @@ export const AuthorizationOAuth2ClientEditor = observer((props: { authorization:
                 id='auth-oauth2-client-id'
                 label='Client ID'
                 aria-label='oauth client id'
-                value={props.authorization.clientId}
-                error={props.authorization.clientIdInvalid}
-                helperText={props.authorization.clientIdInvalid ? 'Client ID is required' : ''}
-                onChange={e => props.authorization.setClientId(e.target.value)}
+                value={authorization.clientId}
+                error={authorization.clientIdInvalid}
+                helperText={authorization.clientIdInvalid ? 'Client ID is required' : ''}
+                onChange={e => authorization.setClientId(e.target.value)}
                 size='small'
                 fullWidth
             />
@@ -65,8 +74,8 @@ export const AuthorizationOAuth2ClientEditor = observer((props: { authorization:
                 id='auth-oauth2-client-secret'
                 label='Client Secret'
                 aria-label='oauth client secret'
-                value={props.authorization.clientSecret}
-                onChange={e => props.authorization.setClientSecret(e.target.value)}
+                value={authorization.clientSecret}
+                onChange={e => authorization.setClientSecret(e.target.value)}
                 size='small'
                 fullWidth
             />
@@ -74,8 +83,8 @@ export const AuthorizationOAuth2ClientEditor = observer((props: { authorization:
         <Grid>
             <FormControl>
                 <FormLabel id='lbl-auth-send-creds'>Send Crendentials In</FormLabel>
-                <RadioGroup defaultValue='false' name='auth-send-creds' aria-labelledby="auth-send-creds" row value={props.authorization.sendCredentialsInBody} onChange={
-                    e => props.authorization.setCredentialsInBody(e.target.value === 'true')
+                <RadioGroup defaultValue='false' name='auth-send-creds' aria-labelledby="auth-send-creds" row value={authorization.sendCredentialsInBody} onChange={
+                    e => authorization.setCredentialsInBody(e.target.value === 'true')
                 }>
                     <FormControlLabel value={false} control={<Radio />} label='Basic Authorization' />
                     <FormControlLabel value={true} control={<Radio />} label='Body' />
@@ -87,8 +96,8 @@ export const AuthorizationOAuth2ClientEditor = observer((props: { authorization:
                 id='auth-oauth2-scope'
                 label='Scope'
                 aria-label='oauth scope'
-                value={props.authorization.scope}
-                onChange={e => props.authorization.setScope(e.target.value)}
+                value={authorization.scope}
+                onChange={e => authorization.setScope(e.target.value)}
                 size='small'
                 fullWidth
             />
@@ -98,8 +107,8 @@ export const AuthorizationOAuth2ClientEditor = observer((props: { authorization:
                 id='auth-oauth2-aud'
                 label='Audience'
                 aria-label='oauth audience'
-                value={props.authorization.audience}
-                onChange={e => props.authorization.setAudience(e.target.value)}
+                value={authorization.audience}
+                onChange={e => authorization.setAudience(e.target.value)}
                 size='small'
                 fullWidth
             />
@@ -112,11 +121,11 @@ export const AuthorizationOAuth2ClientEditor = observer((props: { authorization:
                     aria-label='client certificate to use on oauth token requests'
                     id='cred-cert'
                     label='Certificate'
-                    value={props.authorization.selectedCertificate?.id ?? NO_SELECTION_ID}
+                    value={authorization.selectedCertificate?.id ?? NO_SELECTION_ID}
                     sx={{ minWidth: '8em' }}
                     onChange={(e) => {
                         const selectionId = e.target.value
-                        props.authorization.setSelectedCertificate(
+                        authorization.setSelectedCertificate(
                             selectionId === DEFAULT_SELECTION_ID
                                 ? undefined
                                 : selectionId == NO_SELECTION_ID
@@ -137,11 +146,11 @@ export const AuthorizationOAuth2ClientEditor = observer((props: { authorization:
                     aria-label='proxy to use on oauth token requests'
                     id='cred-proxy'
                     label='Proxy'
-                    value={props.authorization.selectedProxy?.id ?? NO_SELECTION_ID}
+                    value={authorization.selectedProxy?.id ?? NO_SELECTION_ID}
                     sx={{ minWidth: '8em' }}
                     onChange={(e) => {
                         const selectionId = e.target.value
-                        props.authorization.setSelectedProxy(
+                        authorization.setSelectedProxy(
                             selectionId === DEFAULT_SELECTION_ID
                                 ? undefined
                                 : selectionId === NO_SELECTION_ID
@@ -158,11 +167,20 @@ export const AuthorizationOAuth2ClientEditor = observer((props: { authorization:
         </Grid>
         <Grid>
             <Button
+                color='info'
+                aria-label='Retrieve client token'
+                variant='outlined'
+                // startIcon={<ClearIcon />}
+                onClick={retrieveClientToken}>
+                Retrieve Client Token
+            </Button>
+            <Button
                 color='warning'
                 aria-label='Clear cached oauth tokens'
                 variant='outlined'
+                sx={{ marginLeft: '1rem' }}
                 // startIcon={<ClearIcon />}
-                onClick={clearTokens}>
+                onClick={clearToken}>
                 Clear Any Cached Token
             </Button>
         </Grid>

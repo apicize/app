@@ -9,6 +9,9 @@ export interface ExecutionResultDetailRequest {
     /// Request ID
     id: string,
 
+    /// Execution counter
+    execCtr: number
+
     /// Request name
     name: string,
 
@@ -64,6 +67,9 @@ export interface ExecutionResultDetailGroup {
 
     /// Request ID
     id: string,
+
+    /// Execution counter
+    execCtr: number
 
     /// Request name
     name: string,

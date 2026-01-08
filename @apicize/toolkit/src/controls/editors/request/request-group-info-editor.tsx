@@ -1,25 +1,21 @@
 import { TextField, SxProps, Grid, FormControl, InputLabel, MenuItem, Select, ToggleButton } from '@mui/material'
-import { GroupExecution } from '@apicize/lib-typescript';
+import { MultiRunExecution } from '@apicize/lib-typescript';
 import { EditableRequestGroup } from '../../../models/workspace/editable-request-group';
 import { observer } from 'mobx-react-lite';
 import { useWorkspace } from '../../../contexts/workspace.context';
-import { ToastSeverity, useFeedback } from '../../../contexts/feedback.context'
 import PlayCircleFilledIcon from '@mui/icons-material/PlayCircleFilled'
 import { NO_SELECTION_ID } from '../../../models/store';
 
-export const RequestGroupInfoEditor = observer((props: {
+export const RequestGroupInfoEditor = observer(({ sx, group }: {
     sx?: SxProps,
     group: EditableRequestGroup | null
 }) => {
     const workspace = useWorkspace()
-
-    const group = props.group
     if (!group) {
         return null
     }
 
-    const execution = workspace.executions.get(group.id)
-    const running = execution?.isRunning ?? false
+    const running = group.isRunning ?? false
     const zeroRuns = group.runs < 1
 
     workspace.nextHelpTopic = 'workspace/groups'
@@ -33,7 +29,7 @@ export const RequestGroupInfoEditor = observer((props: {
     let times = group.runs == 1 ? 'one time' : `${group.runs} times`
 
     return (
-        <Grid container direction='column' spacing={3} sx={props.sx}>
+        <Grid container direction='column' spacing={3} sx={sx}>
             <Grid container direction='row' spacing={3}>
                 <Grid flexGrow={1}>
                     <TextField
@@ -84,7 +80,7 @@ export const RequestGroupInfoEditor = observer((props: {
                         value={group.runs}
                         onChange={e => group.setRuns(parseInt(e.target.value))}
                     />
-                    <ToggleButton value='Run' title={`Run selected group ${times}`} disabled={running || zeroRuns} onClick={handleRunClick()} size='small'>
+                    <ToggleButton value='Run' title={`Run selected group ${times} with defined timeout`} disabled={running || zeroRuns} onClick={handleRunClick()} size='small'>
                         <PlayCircleFilledIcon color={running || zeroRuns ? 'disabled' : 'success'} />
                     </ToggleButton>
                 </Grid>
@@ -100,11 +96,11 @@ export const RequestGroupInfoEditor = observer((props: {
                             sx={{ minWidth: '10em' }}
                             label='Group Execution'
                             size='small'
-                            onChange={e => group.setMultiRunExecution(e.target.value as GroupExecution)}
+                            onChange={e => group.setMultiRunExecution(e.target.value as MultiRunExecution)}
                             title='Whether to execute mutiple group runs sequentially (one at a time) or concurrently'
                         >
-                            <MenuItem value={GroupExecution.Sequential}>Sequential</MenuItem>
-                            <MenuItem value={GroupExecution.Concurrent}>Concurrent</MenuItem>
+                            <MenuItem value={MultiRunExecution.Sequential}>Sequential</MenuItem>
+                            <MenuItem value={MultiRunExecution.Concurrent}>Concurrent</MenuItem>
                         </Select>
                     </FormControl>
                 </Grid>
@@ -121,10 +117,10 @@ export const RequestGroupInfoEditor = observer((props: {
                             size='small'
                             label='Group Item Execution'
                             title='Whether to execute each request in the group sequentially (one at a time) or concurrently'
-                            onChange={e => group.setGroupExecution(e.target.value as GroupExecution)}
+                            onChange={e => group.setGroupConcurrency(e.target.value as MultiRunExecution)}
                         >
-                            <MenuItem value={GroupExecution.Sequential}>Sequential</MenuItem>
-                            <MenuItem value={GroupExecution.Concurrent}>Concurrent</MenuItem>
+                            <MenuItem value={MultiRunExecution.Sequential}>Sequential</MenuItem>
+                            <MenuItem value={MultiRunExecution.Concurrent}>Concurrent</MenuItem>
                         </Select>
                     </FormControl>
                 </Grid>

@@ -20,7 +20,18 @@ import { IndexedEntityPosition } from "../../../models/workspace/indexed-entity-
 import { useDragDrop } from "../../../contexts/dragdrop.context"
 import { SettingsEditor } from "../../editors/settings-editor"
 
-const ParameterSubsection = observer((props: {
+const ParameterSubsection = observer(({
+    type,
+    entries,
+    persistence,
+    icon,
+    label,
+    onSelect,
+    onAdd,
+    onMove,
+    onItemMenu,
+    onSelectHeader
+}: {
     type: EntityType,
     entries: NavigationEntry[],
     persistence: Persistence,
@@ -37,17 +48,17 @@ const ParameterSubsection = observer((props: {
     const dragDrop = useDragDrop()
 
     const { isOver, setNodeRef: setDropRef } = useDroppable({
-        id: `hdr-${props.type}-${props.persistence}`,
+        id: `hdr-${type}-${persistence}`,
         data: {
             acceptAppend: true,
-            acceptsTypes: [props.type],
+            acceptsTypes: [type],
             depth: 0,
             isHeader: true,
-            persistence: props.persistence,
+            persistence: persistence,
         } as DroppableData
     })
 
-    const headerId = `hdr-${props.type}-${props.persistence}`
+    const headerId = `hdr-${type}-${persistence}`
     return <TreeItem
         itemId={headerId}
         key={headerId}
@@ -63,19 +74,18 @@ const ParameterSubsection = observer((props: {
                     // Prevent label from expanding/collapsing
                     e.preventDefault()
                     e.stopPropagation()
-                    props.onSelectHeader(headerId, 'parameter-storage')
-                    workspace.updateExpanded(headerId, true)
+                    onSelectHeader(headerId, 'parameter-storage')
                 }}
             >
-                {props.icon}
+                {icon}
                 <Box className='nav-node-text' typography='navigation' sx={{ flexGrow: 1, minHeight: '1em' }}>
-                    {props.label}
+                    {label}
                 </Box>
                 <IconButton sx={{ flexGrow: 0, minHeight: '1em', padding: 0, margin: 0 }}
                     onClick={(e) => {
                         e.preventDefault()
                         e.stopPropagation()
-                        props.onAdd()
+                        onAdd()
                         workspace.updateExpanded(headerId, true)
                     }}>
                     <Box className='nav-icon-context'>
@@ -86,17 +96,17 @@ const ParameterSubsection = observer((props: {
         )}
     >
         {
-            props.entries.map((e) =>
+            entries.map((e) =>
                 <NavTreeItem
-                    type={props.type}
+                    type={type}
                     entry={e}
                     key={e.id}
                     depth={2}
-                    onSelect={props.onSelect}
+                    onSelect={onSelect}
                     isDraggable={true}
-                    acceptDropTypes={[props.type]}
-                    onMenu={props.onItemMenu}
-                    onMove={props.onMove}
+                    acceptDropTypes={[type]}
+                    onMenu={onItemMenu}
+                    onMove={onMove}
                 />
             )
         }
@@ -104,7 +114,21 @@ const ParameterSubsection = observer((props: {
 })
 
 
-export const ParameterSection = observer(<T extends EditableEntity>(props: {
+export const ParameterSection = observer(<T extends EditableEntity>({
+    type,
+    parameters,
+    title,
+    helpTopic,
+    icon,
+    includeHeader,
+    contextMenu,
+    iconColor,
+    onAdd,
+    onSelect,
+    onMove,
+    onItemMenu,
+    onSelectHeader
+}: {
     type: EntityType,
     parameters: ParamNavigationSection,
     title: string,
@@ -132,52 +156,52 @@ export const ParameterSection = observer(<T extends EditableEntity>(props: {
     const settings = useApicizeSettings()
     const Contents = () => {
         return <>
-            {props.contextMenu}
+            {contextMenu}
             <ParameterSubsection
-                type={props.type}
+                type={type}
                 persistence={Persistence.Workbook}
-                entries={props.parameters.public}
+                entries={parameters.public}
                 icon={<Box className='nav-icon-box' typography='navigation'><SvgIcon className='nav-folder' color='public'><PublicIcon /></SvgIcon></Box>}
                 label="Public"
-                onSelect={props.onSelect}
-                onAdd={() => props.onAdd(Persistence.Workbook, IndexedEntityPosition.Under, null)}
-                onMove={props.onMove}
-                onItemMenu={(e, id) => props.onItemMenu(e, Persistence.Workbook, id)}
-                onSelectHeader={props.onSelectHeader} />
+                onSelect={onSelect}
+                onAdd={() => onAdd(Persistence.Workbook, IndexedEntityPosition.Under, null)}
+                onMove={onMove}
+                onItemMenu={(e, id) => onItemMenu(e, Persistence.Workbook, id)}
+                onSelectHeader={onSelectHeader} />
             <ParameterSubsection
-                type={props.type}
+                type={type}
                 persistence={Persistence.Private}
-                entries={props.parameters.private}
+                entries={parameters.private}
                 icon={<Box className='nav-icon-box' typography='navigation'><SvgIcon className='nav-folder' color='private'><PrivateIcon /></SvgIcon></Box>}
                 label="Private"
-                onSelect={props.onSelect}
-                onAdd={() => props.onAdd(Persistence.Private, IndexedEntityPosition.Under, null)}
-                onMove={props.onMove}
-                onItemMenu={(e, id) => props.onItemMenu(e, Persistence.Private, id)}
-                onSelectHeader={props.onSelectHeader} />
+                onSelect={onSelect}
+                onAdd={() => onAdd(Persistence.Private, IndexedEntityPosition.Under, null)}
+                onMove={onMove}
+                onItemMenu={(e, id) => onItemMenu(e, Persistence.Private, id)}
+                onSelectHeader={onSelectHeader} />
             <ParameterSubsection
-                type={props.type}
+                type={type}
                 persistence={Persistence.Vault}
-                entries={props.parameters.vault}
+                entries={parameters.vault}
                 icon={<Box className='nav-icon-box' typography='navigation'><SvgIcon className='nav-folder' color='vault'><VaultIcon /></SvgIcon></Box>}
                 label="Vault"
-                onSelect={props.onSelect}
-                onAdd={() => props.onAdd(Persistence.Vault, IndexedEntityPosition.Under, null)}
-                onMove={props.onMove}
-                onItemMenu={(e, id) => props.onItemMenu(e, Persistence.Vault, id)}
-                onSelectHeader={props.onSelectHeader} />
+                onSelect={onSelect}
+                onAdd={() => onAdd(Persistence.Vault, IndexedEntityPosition.Under, null)}
+                onMove={onMove}
+                onItemMenu={(e, id) => onItemMenu(e, Persistence.Vault, id)}
+                onSelectHeader={onSelectHeader} />
         </>
     }
 
-    return props.includeHeader
+    return includeHeader
         ? <TreeItem
-            itemId={`hdr-${props.type}`}
-            key={`hdr-${props.type}`}
-            id={`hdr-${props.type}`}
+            itemId={`hdr-${type}`}
+            key={`hdr-${type}`}
+            id={`hdr-${type}`}
             onClick={e => {
                 e.stopPropagation()
                 e.preventDefault()
-                // props.onSelectHeader(`hdr-${props.type}`, props.helpTopic)
+                // onSelectHeader(`hdr-${type}`, helpTopic)
             }}
             onFocusCapture={e => {
                 e.stopPropagation()
@@ -192,12 +216,12 @@ export const ParameterSection = observer(<T extends EditableEntity>(props: {
                         // Prevent label from expanding/collapsing
                         e.preventDefault()
                         e.stopPropagation()
-                        props.onSelectHeader(`hdr-${props.type}`, props.helpTopic)
+                        onSelectHeader(`hdr-${type}`, helpTopic)
                     }}
                 >
-                    <Box className='nav-icon-box' typography='navigation'><SvgIcon color={props.iconColor} fontSize='inherit'>{props.icon}</SvgIcon></Box>
+                    <Box className='nav-icon-box' typography='navigation'><SvgIcon color={iconColor} fontSize='inherit'>{icon}</SvgIcon></Box>
                     <Box className='nav-node-text' typography='navigation' sx={{ flexGrow: 1 }}>
-                        {props.title}
+                        {title}
                     </Box>
                 </Box>
             )}>

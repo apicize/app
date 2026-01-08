@@ -33,7 +33,6 @@ export const MainPanel = observer(() => {
     const mode = workspace.mode
     const activeSelection = workspace.activeSelection
 
-
     when(
         () => settings.readyToSave === true,
         () => {
@@ -66,19 +65,19 @@ export const MainPanel = observer(() => {
                 return <ProxyList sx={{ display: 'block', flexGrow: 1 }} />
             default:
                 if (activeSelection) {
-                    switch (activeSelection.type) {
+                    switch (activeSelection.entityType) {
                         case EntityType.Request:
-                            return <RequestEditor sx={{ display: 'block', flexGrow: 1 }} />
+                            return <RequestEditor request={activeSelection} sx={{ display: 'block', flexGrow: 1 }} />
                         case EntityType.Group:
-                            return <RequestGroupEditor sx={{ display: 'block', flexGrow: 1 }} />
+                            return <RequestGroupEditor group={activeSelection} sx={{ display: 'block', flexGrow: 1 }} />
                         case EntityType.Scenario:
-                            return <ScenarioEditor sx={{ display: 'block', flexGrow: 1 }} />
+                            return <ScenarioEditor scenario={activeSelection} sx={{ display: 'block', flexGrow: 1 }} />
                         case EntityType.Authorization:
-                            return <AuthorizationEditor sx={{ display: 'block', flexGrow: 1 }} />
+                            return <AuthorizationEditor authorization={activeSelection}  sx={{ display: 'block', flexGrow: 1 }} />
                         case EntityType.Certificate:
-                            return <CertificateEditor sx={{ display: 'block', flexGrow: 1 }} />
+                            return <CertificateEditor certificate={activeSelection} sx={{ display: 'block', flexGrow: 1 }} />
                         case EntityType.Proxy:
-                            return <ProxyEditor sx={{ display: 'block', flexGrow: 1 }} />
+                            return <ProxyEditor proxy={activeSelection}  sx={{ display: 'block', flexGrow: 1 }} />
                         default:
                             return <></>
                     }

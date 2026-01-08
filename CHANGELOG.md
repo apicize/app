@@ -1,5 +1,10 @@
 # Change Log
 
+# 0.29.0
+
+* Store and display execution results per-executing request
+* Add execution result success/failure filters
+
 # 0.28.6
 
 * Restore header/query string functionality that was broken by AI

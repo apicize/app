@@ -2,7 +2,7 @@ import { ExternalData, ExternalDataSourceType } from "@apicize/lib-typescript"
 import { Editable } from "../editable"
 import { action, computed, observable, toJS } from "mobx"
 import { EntityType } from "./entity-type"
-import { WorkspaceStore } from "../../contexts/workspace.context"
+import { EntityTypeName, WorkspaceStore } from "../../contexts/workspace.context"
 
 export class EditableExternalDataEntry extends Editable<ExternalData> {
     public readonly entityType = EntityType.Data
@@ -21,7 +21,7 @@ export class EditableExternalDataEntry extends Editable<ExternalData> {
     protected onUpdate() {
         this.markAsDirty()
         this.workspace.updateData({
-            entityType: 'Data',
+            entityTypeName: EntityTypeName.Data,
             id: this.id,
             name: this.name,
             type: this.type,

@@ -22,7 +22,7 @@ export class EditableDefaults {
         this.selectedCertificate = defaults.selectedCertificate ?? NO_SELECTION
         this.selectedProxy = defaults.selectedProxy ?? NO_SELECTION
         this.selectedData = defaults.selectedData ?? NO_SELECTION
-        this.warnings.set(defaults.warnings)
+        this.warnings.set(defaults.validationWarnings)
         makeObservable(this)
     }
 
@@ -34,7 +34,7 @@ export class EditableDefaults {
             selectedCertificate: this.selectedCertificate.id === NO_SELECTION_ID ? undefined : toJS(this.selectedCertificate),
             selectedProxy: this.selectedProxy.id === NO_SELECTION_ID ? undefined : toJS(this.selectedProxy),
             selectedData: this.selectedData.id === NO_SELECTION_ID ? undefined : toJS(this.selectedData),
-            warnings: this.warnings.hasEntries ? [...this.warnings.entries.values()] : undefined,
+            validationWarnings: this.warnings.hasEntries ? [...this.warnings.entries.values()] : undefined,
         })
     }
 
@@ -91,6 +91,6 @@ export class EditableDefaults {
         this.selectedCertificate = updatedDefaults.selectedCertificate ?? NO_SELECTION
         this.selectedProxy = updatedDefaults.selectedProxy ?? NO_SELECTION
         this.selectedData = updatedDefaults.selectedData ?? NO_SELECTION
-        this.warnings.set(updatedDefaults.warnings)
+        this.warnings.set(updatedDefaults.validationWarnings)
     }
 }

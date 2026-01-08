@@ -13,7 +13,9 @@ import { observer } from "mobx-react-lite"
 import { IndexedEntityPosition } from "../../../models/workspace/indexed-entity-position"
 import { useApicizeSettings } from "../../../contexts/apicize-settings.context"
 
-export const ProxySection = observer((props: {
+export const ProxySection = observer(({
+    includeHeader,
+}: {
     includeHeader: boolean,
 }) => {
     const workspace = useWorkspace()
@@ -39,8 +41,7 @@ export const ProxySection = observer((props: {
     const handleSelectHeader = (headerId: string, helpTopic?: string) => {
         // closeAllMenus()
         if (helpTopic) {
-            workspace.updateExpanded(headerId, true)
-            workspace.showHelp(helpTopic)
+            workspace.showHelp(helpTopic, headerId)
         }
     }
 
@@ -122,7 +123,7 @@ export const ProxySection = observer((props: {
 
     return <ParameterSection
         title='Proxys'
-        includeHeader={props.includeHeader}
+        includeHeader={includeHeader}
         icon={<ProxyIcon />}
         contextMenu={<ProxyMenu />}
         iconColor='proxy'

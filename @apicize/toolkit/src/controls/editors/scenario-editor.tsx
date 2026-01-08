@@ -1,7 +1,7 @@
 import { Stack, TextField, SxProps, Grid, Box, SvgIcon, IconButton, Button, FormControl, MenuItem, Select, InputLabel } from '@mui/material'
 import { EditorTitle } from '../editor-title';
 import { observer } from 'mobx-react-lite';
-import { EditableVariable } from '../../models/workspace/editable-scenario';
+import { EditableScenario, EditableVariable } from '../../models/workspace/editable-scenario';
 import ScenarioIcon from '../../icons/scenario-icon';
 import { GenerateIdentifier } from '../../services/random-identifier-generator';
 import AddIcon from '@mui/icons-material/Add';
@@ -10,18 +10,12 @@ import { VariableSourceType } from '@apicize/lib-typescript';
 import { useWorkspace } from '../../contexts/workspace.context';
 import { useApicizeSettings } from '../../contexts/apicize-settings.context';
 
-export const ScenarioEditor = observer((props: { sx?: SxProps }) => {
+export const ScenarioEditor = observer(({ scenario, sx } : { scenario: EditableScenario, sx?: SxProps }) => {
 
     const settings = useApicizeSettings()
     const workspace = useWorkspace()
-    const activeSelection = workspace.activeSelection
-
-    if (!activeSelection?.scenario) {
-        return null
-    }
 
     workspace.nextHelpTopic = 'workspace/scenarios'
-    const scenario = activeSelection.scenario
 
     const onAddVariable = () => {
         scenario.variables.push(new EditableVariable(
@@ -39,7 +33,7 @@ export const ScenarioEditor = observer((props: { sx?: SxProps }) => {
     }
 
     return (
-        <Stack direction='column' className='editor scenario' sx={props.sx}>
+        <Stack direction='column' className='editor scenario' sx={sx}>
             <Box className='editor-panel-header'>
                 <EditorTitle
                     icon={<SvgIcon color='scenario'><ScenarioIcon /></SvgIcon>}

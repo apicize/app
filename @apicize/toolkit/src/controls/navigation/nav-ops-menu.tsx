@@ -7,10 +7,10 @@ import HelpIcon from '@mui/icons-material/Help'
 import SettingsIcon from '@mui/icons-material/Settings'
 import LogIcon from "../../icons/log-icon";
 
-export const NavOpsMenu = observer((props: { sx?: SxProps, orientation: 'horizontal' | 'vertical' }) => {
+export const NavOpsMenu = observer(({ sx, orientation }: { sx?: SxProps, orientation: 'horizontal' | 'vertical' }) => {
     const workspace = useWorkspace()
 
-    return <ToggleButtonGroup orientation={props.orientation} value={workspace.mode} sx={props.sx}>
+    return <ToggleButtonGroup orientation={orientation} value={workspace.mode} sx={sx}>
         <ToggleButton size='large' title='Settings' value={WorkspaceMode.Settings} sx={{ border: 'none', padding: '8px' }} onClick={() => workspace.setMode(WorkspaceMode.Settings)}>
             <SettingsIcon />
         </ToggleButton>

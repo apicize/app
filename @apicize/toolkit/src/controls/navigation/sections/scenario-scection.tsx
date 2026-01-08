@@ -3,7 +3,7 @@ import { ListItemIcon, ListItemText, Menu, MenuItem, SvgIcon, useTheme } from "@
 import ScenarioIcon from "../../../icons/scenario-icon"
 import DeleteIcon from '@mui/icons-material/DeleteOutlined'
 import { EntityType } from "../../../models/workspace/entity-type"
-import { useWorkspace } from "../../../contexts/workspace.context"
+import { useWorkspace, WorkspaceMode } from "../../../contexts/workspace.context"
 import { useState } from "react"
 import { ParameterSection } from "./parameter-section"
 import { MenuPosition } from "../../../models/menu-position"
@@ -12,8 +12,9 @@ import { useFeedback } from "../../../contexts/feedback.context"
 import { observer } from "mobx-react-lite"
 import { IndexedEntityPosition } from "../../../models/workspace/indexed-entity-position"
 import { useApicizeSettings } from "../../../contexts/apicize-settings.context"
+import { runInAction } from "mobx"
 
-export const ScenarioSection = observer((props: { includeHeader: boolean }) => {
+export const ScenarioSection = observer(({ includeHeader }: { includeHeader: boolean }) => {
     const workspace = useWorkspace()
     const feedback = useFeedback()
     const theme = useTheme()
@@ -37,8 +38,7 @@ export const ScenarioSection = observer((props: { includeHeader: boolean }) => {
     const handleSelectHeader = (headerId: string, helpTopic?: string) => {
         // closeAllMenus()
         if (helpTopic) {
-            workspace.updateExpanded(headerId, true)
-            workspace.showHelp(helpTopic)
+            workspace.showHelp(helpTopic, headerId)
         }
     }
 
@@ -120,7 +120,7 @@ export const ScenarioSection = observer((props: { includeHeader: boolean }) => {
 
     return <ParameterSection
         title='Scenarios'
-        includeHeader={props.includeHeader}
+        includeHeader={includeHeader}
         icon={<ScenarioIcon />}
         contextMenu={<ScenarioMenu />}
         iconColor='scenario'

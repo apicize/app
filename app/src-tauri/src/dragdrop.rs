@@ -24,12 +24,12 @@ impl DroppedFile {
             if data.starts_with(&[0xEF, 0xBB, 0xBF]) {
                 parsed = Some(String::from_utf8_lossy(&data).to_string());
             } else if data.starts_with(&[0xFF, 0xFE]) {
-                if len % 2 == 0 {
+                if len.is_multiple_of(2) {
                     let iter = (0..len).map(|i| u16::from_le_bytes([data[2 * i], data[2 * i + 1]]));
                     parsed = Some(String::from_utf16_lossy(&iter.collect::<Vec<u16>>()));
                 }
             } else if data.starts_with(&[0xFE, 0xFF]) {
-                if len % 2 == 0 {
+                if len.is_multiple_of(2) {
                     let iter = (0..len).map(|i| u16::from_be_bytes([data[2 * i], data[2 * i + 1]]));
                     parsed = Some(String::from_utf16_lossy(&iter.collect::<Vec<u16>>()));
                 }

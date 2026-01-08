@@ -1,18 +1,15 @@
 import { TextField, Select, MenuItem, FormControl, InputLabel, Grid, ToggleButton, Checkbox, FormControlLabel } from '@mui/material'
-import { GroupExecution, Method, Methods } from '@apicize/lib-typescript'
+import { MultiRunExecution, Method, Methods } from '@apicize/lib-typescript'
 import { EditableRequest } from '../../../models/workspace/editable-request'
 import { observer } from 'mobx-react-lite'
 import { useWorkspace } from '../../../contexts/workspace.context'
 import { ToastSeverity, useFeedback } from '../../../contexts/feedback.context'
 import PlayCircleFilledIcon from '@mui/icons-material/PlayCircleFilled'
 
-export const RequestInfoEditor = observer((props: { request: EditableRequest }) => {
-    const request = props.request
+export const RequestInfoEditor = observer(({ request }: { request: EditableRequest }) => {
     const workspace = useWorkspace()
 
     workspace.nextHelpTopic = 'requests/info'
-    const execution = workspace.executions.get(request.id)
-    const running = execution?.isRunning ?? false
     const zeroRuns = request.runs < 1
 
     const methodMenuItems = () => {
@@ -100,7 +97,7 @@ export const RequestInfoEditor = observer((props: { request: EditableRequest }) 
                         aria-label='Nubmer of Runs'
                         placeholder='Attempts'
                         label='# of Runs'
-                        disabled={running}
+                        disabled={request.isRunning}
                         title='Number of times to run the request'
                         size='small'
                         sx={{ width: '8em', flexGrow: 0 }}
@@ -114,8 +111,8 @@ export const RequestInfoEditor = observer((props: { request: EditableRequest }) 
                         value={request.runs}
                         onChange={e => request.setRuns(parseInt(e.target.value))}
                     />
-                    <ToggleButton value='Run' title={`Run selected request ${times}`} disabled={running || zeroRuns} size='small' onClick={handleRunClick()}>
-                        <PlayCircleFilledIcon color={running || zeroRuns ? 'disabled' : 'success'} />
+                    <ToggleButton value='Run' title={`Run selected request ${times} with defined timeout`} disabled={request.isRunning || zeroRuns} size='small' onClick={handleRunClick()}>
+                        <PlayCircleFilledIcon color={request.isRunning || zeroRuns ? 'disabled' : 'success'} />
                     </ToggleButton>
                 </Grid>
                 <Grid>
@@ -131,10 +128,10 @@ export const RequestInfoEditor = observer((props: { request: EditableRequest }) 
                             sx={{ minWidth: '10em' }}
                             label='Multi-Run Execution'
                             title='Whether to execute multiple request runs sequentially (one at a time) or concurrently'
-                            onChange={e => request.setMultiRunExecution(e.target.value as GroupExecution)}
+                            onChange={e => request.setMultiRunExecution(e.target.value as MultiRunExecution)}
                         >
-                            <MenuItem value={GroupExecution.Sequential}>Sequential</MenuItem>
-                            <MenuItem value={GroupExecution.Concurrent}>Concurrent</MenuItem>
+                            <MenuItem value={MultiRunExecution.Sequential}>Sequential</MenuItem>
+                            <MenuItem value={MultiRunExecution.Concurrent}>Concurrent</MenuItem>
                         </Select>
                     </FormControl>
                 </Grid>
@@ -148,9 +145,15 @@ export const RequestInfoEditor = observer((props: { request: EditableRequest }) 
                             label='Timeout (ms)'
                             size='small'
                             sx={{ width: '8em' }}
-                            title="Number of milliseconds to wait for a response"
+                            title="Number of milliseconds to wait for a response (max = 600000)"
                             type='number'
                             value={request.timeout}
+                            slotProps={{
+                                htmlInput: {
+                                    min: 0,
+                                    max: 600000
+                                }
+                            }}
                             onChange={e => request.setTimeout(parseInt(e.target.value))}
                         />
                     </FormControl>

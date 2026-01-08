@@ -6,11 +6,10 @@ import {
     RequestMode,
     RequestRedirect
 } from 'undici-types'
-import { Executable } from './executable';
+import { Executable, MultiRunExecution } from './executable';
 import { NameValuePair } from './name-value-pair';
 import { SelectedParameters } from './selected-parameters';
-import { ValidationErrors } from './validation-errors';
-import { Warnings } from './warnings';
+import { ValidationWarnings, ValidationErrors, ValidationState } from './validation';
 
 export enum Method {
     Get = 'GET',
@@ -40,8 +39,6 @@ export enum BodyType {
     Form = 'Form',
     Raw = 'Raw',
 }
-
-export type BodyData = string | NameValuePair[]
 
 export const BodyTypes = [BodyType.None, BodyType.Text, BodyType.JSON,
 BodyType.XML, BodyType.Form, BodyType.Raw]
@@ -78,13 +75,15 @@ export interface BodyRaw {
     data: Uint8Array
 }
 
-export type RequestEntry = Request | RequestGroup
-
-export interface BaseRequest extends Identifiable, Named, SelectedParameters, Executable, ValidationErrors, Warnings {
+export interface RequestEntry extends Identifiable, Named, SelectedParameters, Executable, ValidationErrors, ValidationWarnings {
     key?: string
+    validationState?: ValidationState
+}
+
+export interface Request extends RequestEntry {
     url: string
-    method?: Method
-    timeout?: number
+    method: Method
+    timeout: number
     keepAlive: boolean
     acceptInvalidCerts: boolean
     numberOfRedirects?: number
@@ -97,18 +96,12 @@ export interface BaseRequest extends Identifiable, Named, SelectedParameters, Ex
     referrerPolicy?: ReferrerPolicy
     duplex?: RequestDuplex
     test?: string,
-}
-
-export interface Request extends BaseRequest {
     body?: Body
 }
 
-export enum GroupExecution {
-    Sequential = "SEQUENTIAL",
-    Concurrent = "CONCURRENT",
-}
-
-export interface RequestGroup extends Identifiable, Named, SelectedParameters, Executable, ValidationErrors, Warnings {
-    key?: string
-    execution: GroupExecution
+export interface RequestGroup extends RequestEntry {
+    /**
+     * Group-level concurrency
+     */
+    execution: MultiRunExecution
 }

@@ -22,18 +22,13 @@ import CertificateIcon from '../../icons/certificate-icon';
 import { useWorkspace } from '../../contexts/workspace.context';
 import { SshFileType } from '../../models/workspace/ssh-file-type';
 import { useApicizeSettings } from '../../contexts/apicize-settings.context';
+import { EditableCertificate } from '../../models/workspace/editable-certificate'
 
-export const CertificateEditor = observer((props: { sx: SxProps }) => {
+export const CertificateEditor = observer(({ certificate, sx }: { certificate: EditableCertificate, sx: SxProps }) => {
     const settings = useApicizeSettings()
     const workspace = useWorkspace()
-    const activeSelection = workspace.activeSelection
-
-    if (!activeSelection?.certificate) {
-        return null
-    }
 
     workspace.nextHelpTopic = 'workspace/certificates'
-    const certificate = activeSelection.certificate
     const feedback = useFeedback()
     const clipboard = useClipboard()
     const fileOps = useFileOperations()
@@ -99,7 +94,7 @@ export const CertificateEditor = observer((props: { sx: SxProps }) => {
     }
 
     return (
-        <Stack className='editor certificate' direction='column' sx={props.sx}>
+        <Stack className='editor certificate' direction='column' sx={sx}>
             <Box className='editor-panel-header'>
                 <EditorTitle
                     icon={<SvgIcon color='certificate'><CertificateIcon /></SvgIcon>}

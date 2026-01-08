@@ -1,40 +1,42 @@
-import { RequestGroup, GroupExecution } from "@apicize/lib-typescript"
+import { RequestGroup, MultiRunExecution, ExecutionResultDetail } from "@apicize/lib-typescript"
 import { observable, action, computed } from "mobx"
 import { EntityType } from "./entity-type"
-import { EntityGroup, WorkspaceStore } from "../../contexts/workspace.context"
+import { EntityGroup, EntityTypeName, WorkspaceStore } from "../../contexts/workspace.context"
 import { EditableRequestEntry } from "./editable-request-entry"
 import { EditableWarnings } from "./editable-warnings"
+import { RequestExecution } from "../request-execution"
+import { ExecutionResultViewState } from "./execution"
 
 export class EditableRequestGroup extends EditableRequestEntry {
     public readonly entityType = EntityType.Group
 
     @observable public accessor key = ''
-    @observable public accessor execution = GroupExecution.Sequential
     @observable accessor timeout = 0
     @observable accessor warnings = new EditableWarnings()
+    @observable accessor execution: MultiRunExecution = MultiRunExecution.Sequential
 
-    public constructor(entry: RequestGroup, workspace: WorkspaceStore) {
-        super(workspace)
+    public constructor(entry: RequestGroup, workspace: WorkspaceStore, executionResultViewState: ExecutionResultViewState, requestExecution: RequestExecution) {
+        super(workspace, executionResultViewState, requestExecution)
+
         this.id = entry.id
         this.name = entry.name ?? ''
         this.key = entry.key ?? ''
-
-        this.execution = entry.execution
-        this.multiRunExecution = entry.multiRunExecution
-
         this.runs = entry.runs
+        this.multiRunExecution = entry.multiRunExecution
+        this.execution = entry.execution
+
         this.selectedScenario = entry.selectedScenario ?? undefined
         this.selectedAuthorization = entry.selectedAuthorization ?? undefined
         this.selectedCertificate = entry.selectedCertificate ?? undefined
         this.selectedProxy = entry.selectedProxy ?? undefined
         this.selectedData = entry.selectedData ?? undefined
-        this.warnings.set(entry.warnings)
+        this.warnings.set(entry.validationWarnings)
     }
 
     protected onUpdate() {
         this.markAsDirty()
         this.workspace.updateGroup({
-            entityType: 'Group',
+            entityTypeName: EntityTypeName.Group,
             id: this.id,
             name: this.name,
             key: this.key.length > 0 ? this.key : undefined,
@@ -46,7 +48,7 @@ export class EditableRequestGroup extends EditableRequestEntry {
             selectedCertificate: this.selectedCertificate ?? undefined,
             selectedProxy: this.selectedProxy ?? undefined,
             selectedData: this.selectedData ?? undefined,
-            warnings: this.warnings.hasEntries ? [...this.warnings.entries.values()] : undefined,
+            validationWarnings: this.warnings.hasEntries ? [...this.warnings.entries.values()] : undefined,
             validationErrors: this.validationErrors
         })
     }
@@ -58,7 +60,7 @@ export class EditableRequestGroup extends EditableRequestEntry {
     }
 
     @action
-    setGroupExecution(value: GroupExecution) {
+    setGroupConcurrency(value: MultiRunExecution) {
         this.execution = value
         this.onUpdate()
     }
@@ -75,7 +77,7 @@ export class EditableRequestGroup extends EditableRequestEntry {
         this.selectedCertificate = entity.selectedCertificate
         this.selectedProxy = entity.selectedProxy
         this.selectedData = entity.selectedData
-        this.warnings.set(entity.warnings)
+        this.warnings.set(entity.validationWarnings)
     }
 
     @action

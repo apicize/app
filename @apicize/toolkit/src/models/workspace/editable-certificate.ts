@@ -2,7 +2,7 @@ import { CertificateType, Certificate } from "@apicize/lib-typescript"
 import { Editable } from "../editable"
 import { action, computed, observable } from "mobx"
 import { EntityType } from "./entity-type"
-import { EntityCertificate, WorkspaceStore } from "../../contexts/workspace.context"
+import { EntityCertificate, EntityTypeName, WorkspaceStore } from "../../contexts/workspace.context"
 
 export class EditableCertificate extends Editable<Certificate> {
     public readonly entityType = EntityType.Certificate
@@ -43,34 +43,31 @@ export class EditableCertificate extends Editable<Certificate> {
         switch (this.type) {
             case CertificateType.PKCS8_PEM:
                 result = {
-                    entityType: 'Certificate',
+                    entityTypeName: EntityTypeName.Certificate,
                     type: this.type,
                     id: this.id,
                     name: this.name,
                     pem: this.pem,
                     key: this.key,
-                    validationErrors: this.validationErrors,
                 }
                 break
             case CertificateType.PEM:
                 result = {
-                    entityType: 'Certificate',
+                    entityTypeName: EntityTypeName.Certificate,
                     type: this.type,
                     id: this.id,
                     name: this.name,
                     pem: this.pem,
-                    validationErrors: this.validationErrors,
                 }
                 break
             case CertificateType.PKCS12:
                 result = {
-                    entityType: 'Certificate',
+                    entityTypeName: EntityTypeName.Certificate,
                     type: this.type,
                     id: this.id,
                     name: this.name,
                     pfx: this.pfx,
                     password: this.password,
-                    validationErrors: this.validationErrors,
                 }
                 break
         }

@@ -18,13 +18,14 @@ export * from './services/base64'
 export * from './models/workspace/indexed-entity-position'
 export * from './models/workspace/cached-token-info'
 export * from './models/workspace/entity-type'
+export * from './models/workspace/execution'
 export * from './models/workspace/ssh-file-type'
 export * from './models/navigation'
 export * from './contexts/workspace.context'
 export * from './contexts/feedback.context'
 export * from './contexts/clipboard.context'
 export * from './contexts/file-operations.context'
-export * from './contexts/pkce.context'
+export * from './contexts/oauth2.context'
 export * from './contexts/workspace.context'
 export * from './contexts/apicize-settings.context'
 export * from './contexts/log.context'
@@ -32,6 +33,7 @@ export * from './models/trace';
 export * from './contexts/dragdrop.context'
 export * from './contexts/file-dragdrop.context'
 export * from './models/editable-settings'
+export * from './models/clipboard_payload_request'
 
 import { monaco } from 'react-monaco-editor'
 import "./toolkit.css"
@@ -65,8 +67,9 @@ monaco.editor.addKeybindingRules([
 
 // This needs to be here because Monaco is prone to throwing cancellation errors when it goes out of context
 window.addEventListener('unhandledrejection', (evt) => {
-    console.warn(`Unhandled Exception - ${evt?.reason ? evt.reason : 'Unknown Reason'}`, evt?.reason?.stack)
     if (evt?.reason?.stack?.includes?.('CancellationError@')) {
         evt.stopImmediatePropagation()
+        evt.stopPropagation()
+        evt.preventDefault()
     }
 })

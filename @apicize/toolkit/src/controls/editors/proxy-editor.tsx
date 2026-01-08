@@ -8,21 +8,16 @@ import { EditorTitle } from '../editor-title';
 import { observer } from 'mobx-react-lite';
 import { useWorkspace } from '../../contexts/workspace.context';
 import { useApicizeSettings } from '../../contexts/apicize-settings.context';
+import { EditableProxy } from '../../models/workspace/editable-proxy'
 
-export const ProxyEditor = observer((props: { sx?: SxProps }) => {
+export const ProxyEditor = observer(({proxy, sx}: { proxy: EditableProxy, sx?: SxProps }) => {
     const settings = useApicizeSettings()
     const workspace = useWorkspace()
-    const activeSelection = workspace.activeSelection
-
-    if (!activeSelection?.proxy) {
-        return null
-    }
 
     workspace.nextHelpTopic = 'proxies'
-    const proxy = activeSelection.proxy
 
     return (
-        <Stack direction='column' className='editor proxy' sx={props.sx}>
+        <Stack direction='column' className='editor proxy' sx={sx}>
             <Box className='editor-panel-header'>
                 <EditorTitle
                     icon={<AirlineStopsIcon color='proxy' />}

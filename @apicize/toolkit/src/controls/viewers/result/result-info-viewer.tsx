@@ -1,17 +1,19 @@
-import { Box, Grid, IconButton, Link, Menu, MenuItem, Stack, SvgIcon, useTheme } from "@mui/material"
+import { Box, Button, Grid, IconButton, Link, Menu, MenuItem, Stack, SvgIcon, useTheme } from "@mui/material"
 import { Typography } from "@mui/material"
 import CheckIcon from '@mui/icons-material/Check'
 import BlockIcon from '@mui/icons-material/Block'
 import { observer } from "mobx-react-lite"
-import { useClipboard } from "../../../contexts/clipboard.context"
 import { useWorkspace } from "../../../contexts/workspace.context"
-import { ApicizeError, ApicizeTestBehavior, ExecutionReportFormat, ExecutionResultSuccess, ExecutionResultSummary } from "@apicize/lib-typescript"
+import { ApicizeError, ApicizeTestBehavior, ExecutionReportFormat, ExecutionResultSuccess, ExecutionResultSummary, RequestEntry } from "@apicize/lib-typescript"
 import React, { useRef, useState } from "react"
 import ViewIcon from "../../../icons/view-icon"
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
-import { ToastSeverity, useFeedback } from "../../../contexts/feedback.context"
 import { useApicizeSettings } from "../../../contexts/apicize-settings.context"
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
+import ErrorIcon from '@mui/icons-material/Error';
+import { EditableRequestEntry } from "../../../models/workspace/editable-request-entry"
+import { ResultErrorIcon, ResultFailureIcon, ResultSuccessIcon } from "../../../icons"
+import { useFeedback } from "../../../contexts/feedback.context"
 
 const ApicizeErrorToString = (error?: ApicizeError): string => {
     const desc = error?.description ? ` ${error.description}` : ''
@@ -19,31 +21,75 @@ const ApicizeErrorToString = (error?: ApicizeError): string => {
     return error ? `[${error.type}]${desc}${sub}` : ''
 }
 
-export const ResultInfoViewer = observer((props: { requestOrGroupId: string, resultIndex: number, results: ExecutionResultSummary[] }) => {
+export const ResultInfoViewer = observer(({
+    request,
+}: {
+    request: EditableRequestEntry,
+}) => {
 
-    const settings = useApicizeSettings()
     const workspace = useWorkspace()
     const theme = useTheme()
-    const clipboardCtx = useClipboard()
+    const settings = useApicizeSettings()
     const feedback = useFeedback()
 
-    const requestOrGroupId = props.requestOrGroupId
-    const mainResultIndex = props.resultIndex
-    const mainResult = props.results[mainResultIndex]
+    const [selectedSummary, setSelectedSummary] = useState<ExecutionResultSummary | null>(null)
+
+    const [formatMenu, setFormatMenu] = useState<{
+        open: boolean
+        anchorEl: null | HTMLElement
+    }>({
+        open: false,
+        anchorEl: null
+    })
+
+    if (!request.selectedResultMenuItem) {
+        return null
+    }
+
+    if (selectedSummary?.execCtr !== request.selectedResultMenuItem?.execCtr) {
+        try {
+            setSelectedSummary(request.getSummary(request.selectedResultMenuItem.execCtr))
+        } catch (e) {
+            feedback.toastError(e)
+        }
+        return null
+    }
+
+    const total = selectedSummary.requestSuccessCount + selectedSummary.requestFailureCount + selectedSummary.requestErrorCount
+
+    if (total === 0) {
+        return null
+    }
+
+    let hideSuccess = request.hideSuccess
+    let hideFailure = request.hideFailure
+    let hideError = request.hideError
+
+    let hasSuccess = selectedSummary.requestSuccessCount > 0
+    let hasFailure = selectedSummary.requestFailureCount > 0
+    let hasError = selectedSummary.requestErrorCount > 0
+
+    let enableSuccessFilter = hasSuccess
+    let enableFailureFilter = hasFailure
+    let enableErrorFilter = hasError
+
+    if (selectedSummary.requestSuccessCount === total) {
+        hideSuccess = false
+        enableSuccessFilter = false
+    } else if (selectedSummary.requestFailureCount === total) {
+        hideFailure = false
+        enableFailureFilter = false
+    } else if (selectedSummary.requestErrorCount === total) {
+        hideError = false
+        enableErrorFilter = false
+    }
+
+
+
 
     let idx = 0
-    let summaries: Map<number, ExecutionResultSummary>
 
-    if (!mainResult) {
-        return null
-    }
-
-    try {
-        summaries = retrieveSummariesForIndex(props.results, mainResultIndex)
-    } catch (e) {
-        feedback.toastError(e)
-        return null
-    }
+    const executingTitle = request.selectedResultMenuItem.executingName
 
     const fmtMinSec = (value: number, subZero: string | null = null) => {
         if (value === 0 && subZero) {
@@ -56,15 +102,7 @@ export const ResultInfoViewer = observer((props: { requestOrGroupId: string, res
         return `${m.toLocaleString().padStart(2, '0')}:${s.toString().padStart(2, '0')}${(0.1).toLocaleString()[1]}${value.toString().padEnd(3, '0')}`
     }
 
-    const CopyDataButton = ({ parentKey: key, requestOrGroupId, index }: { parentKey: string, requestOrGroupId: string, index: number }) => {
-        const [formatMenu, setFormatMenu] = useState<{
-            open: boolean
-            anchorEl: null | HTMLElement
-        }>({
-            open: false,
-            anchorEl: null
-        })
-
+    const CopyDataButton = ({ execCtr }: { execCtr: number }) => {
         const handleFormatMenuClick = ({ currentTarget }: { currentTarget: HTMLElement }) => {
             setFormatMenu({ open: true, anchorEl: currentTarget });
         }
@@ -77,12 +115,12 @@ export const ResultInfoViewer = observer((props: { requestOrGroupId: string, res
             <IconButton
                 title={`Copy Data to Clipboard (${settings.reportFormat})`}
                 color='primary'
-                onClick={e => copyToClipboard(e, requestOrGroupId, index)}>
+                onClick={e => copyToClipboard(e, execCtr)}>
                 <ContentCopyIcon />
             </IconButton>
 
             <IconButton
-                id={`${key}-copy`}
+                id={`copy-${execCtr}`}
                 title={`Copy Data to Clipboard (Select Format)`}
                 size="large"
                 sx={{ padding: '0 0.75em 0 0.75em', minWidth: '1em', width: '1em', marginLeft: '-0.3em', alignSelf: 'begin', alignItems: 'end' }}
@@ -98,7 +136,7 @@ export const ResultInfoViewer = observer((props: { requestOrGroupId: string, res
                 onClose={handleFormatMenuClose}
             >
                 <MenuItem autoFocus={settings.reportFormat == ExecutionReportFormat.JSON} key='report-format-json' disableRipple onClick={e => {
-                    copyToClipboard(e, requestOrGroupId, index, ExecutionReportFormat.JSON)
+                    copyToClipboard(e, execCtr, ExecutionReportFormat.JSON)
                     settings.setReportFormat(ExecutionReportFormat.JSON)
                     handleFormatMenuClose()
                 }}>
@@ -112,7 +150,7 @@ export const ResultInfoViewer = observer((props: { requestOrGroupId: string, res
                     </Box>
                 </MenuItem>
                 <MenuItem autoFocus={settings.reportFormat == ExecutionReportFormat.CSV} key='report-format-csv' disableRipple onClick={e => {
-                    copyToClipboard(e, requestOrGroupId, index, ExecutionReportFormat.CSV)
+                    copyToClipboard(e, execCtr, ExecutionReportFormat.CSV)
                     settings.setReportFormat(ExecutionReportFormat.CSV)
                     handleFormatMenuClose()
                 }}>
@@ -129,12 +167,24 @@ export const ResultInfoViewer = observer((props: { requestOrGroupId: string, res
         </>
     }
 
-    const RenderExecution = ({ childResult, depth }: { childResult: ExecutionResultSummary, depth: number }) => {
+    const RenderExecution = ({ result: result, depth }: { result: ExecutionResultSummary, depth: number }) => {
         // const rowSuffix = props.result.info.rowNumber && props.result.info.rowCount ? ` Row ${props.result.info.rowNumber} of ${props.result.info.rowCount}` : ''
         let subtitle: string
         let color: string
 
-        switch (childResult.success) {
+        const totalToShow = (
+            hideSuccess ? 0 : result.requestSuccessCount
+        ) + (
+                hideFailure ? 0 : result.requestFailureCount
+            ) + (
+                hideError ? 0 : result.requestErrorCount
+            )
+
+        if (totalToShow === 0) {
+            return null
+        }
+
+        switch (result.success) {
             case ExecutionResultSuccess.Error:
                 subtitle = 'Error'
                 color = theme.palette.error.main
@@ -150,67 +200,79 @@ export const ResultInfoViewer = observer((props: { requestOrGroupId: string, res
         }
 
         const isFirst = depth === 0
-        const key = isFirst ? 'first-result' : `result-${idx++}`
+        const key = isFirst ? 'first-result' : `result-${request.id}-${idx++}`
 
         return <Box key={key} className='results-test-section'>
-            {
-                <Grid container direction='row' display='flex' alignItems='center' >
-                    <Grid display='flex' flexDirection='column' alignItems='start' alignContent='center' flexGrow='content'>
-                        <Box display='flex'>
-                            <Box sx={{ whiteSpace: 'nowrap' }} className='results-test-name'>
-                                {childResult.name}{childResult.key ? <Typography className='tag'> [{childResult.key}]</Typography> : null}
-                                <Box component='span' marginLeft='1rem' marginRight='0.5rem' sx={{ color }}> ({subtitle}) </Box>
-                            </Box>
-                        </Box>
-                        <Box display='block' alignContent='start' marginLeft='1.5rem' className='results-test-timing'>
-                            <Box>
-                                {childResult.executedAt > 0 ? `@${fmtMinSec(childResult.executedAt)}` : '@Start'}{childResult.duration > 0 ? ` for ${childResult.duration.toLocaleString()} ms` : ''}
-                            </Box>
-                            {
-                                childResult.url
-                                    ? (<Box>{`${childResult.method ? `[${childResult.method}] ` : ''}${childResult.url}`}</Box>)
-                                    : (null)
-                            }
-                            {
-                                childResult.status
-                                    ? (<Box>{`Status: ${childResult.status} ${childResult.statusText}`}</Box>)
-                                    : (null)
-                            }
-                        </Box>
-                    </Grid>
-                    <Grid display='flex' flexBasis='content' alignItems='center' alignContent='start' marginLeft='1.0rem'>
-                        <CopyDataButton parentKey={key} requestOrGroupId={requestOrGroupId} index={childResult.index} />
-                        {
-                            isFirst
-                                ? <></>
-                                : <Link title='View Details' underline='hover' display='inline-flex' marginLeft='0.5rem' alignItems='center' onClick={e => changeResult(e, childResult.index)}><SvgIcon><ViewIcon /></SvgIcon></Link>
-                        }
-                    </Grid>
-                </Grid >
-            }
-            <Box margin='0.5rem 0 0.5rem 1.5rem'>
+            <>
                 {
-                    childResult.error
-                        ? (<TestInfo isError={true} text={`${ApicizeErrorToString(childResult.error)}`} />)
+                    depth === 0 && executingTitle
+                        ? <Typography variant="h3" sx={{ marginTop: 0, paddingTop: 0, fontStyle: 'italic' }}>Executed from {executingTitle}</Typography>
+                        : null
+                }
+                {
+                    <Grid container direction='row' display='flex' alignItems='center' >
+                        <Grid display='flex' flexDirection='column' alignItems='start' alignContent='center' flexGrow='content'>
+                            <Box display='flex'>
+                                <Box sx={{ whiteSpace: 'nowrap' }} className='results-test-name'>
+                                    {result.name}{result.key ? <Typography className='tag'> [{result.key}]</Typography> : null}
+                                    <Box component='span' marginLeft='1rem' marginRight='0.5rem' sx={{ color }}> ({subtitle}) </Box>
+                                </Box>
+                            </Box>
+                            <Box display='block' alignContent='start' marginLeft='1.5rem' className='results-test-timing'>
+                                <Box>
+                                    {result.executedAt > 0 ? `@${fmtMinSec(result.executedAt)}` : '@Start'}{result.duration > 0 ? ` for ${result.duration.toLocaleString()} ms` : ''}
+                                </Box>
+                                {
+                                    result.url
+                                        ? (<Box className='results-url'>{`${result.method ? `${result.method} ` : ''}${result.url}`}</Box>)
+                                        : (null)
+                                }
+                                {
+                                    result.status
+                                        ? (<Box>{`Status: ${result.status} ${result.statusText}`}</Box>)
+                                        : (null)
+                                }
+                            </Box>
+                        </Grid>
+                        <Grid display='flex' flexBasis='content' alignItems='center' alignContent='start' marginLeft='1.0rem'>
+                            <CopyDataButton execCtr={result.execCtr} />
+                            {
+                                isFirst
+                                    ? <></>
+                                    : <Link title='View Details' underline='hover' display='inline-flex' marginLeft='0.5rem' alignItems='center' onClick={e => changeResult(e, result.execCtr)}><SvgIcon><ViewIcon /></SvgIcon></Link>
+                            }
+                        </Grid>
+                    </Grid >
+                }
+                <Box margin='0.5rem 0 0.5rem 1.5rem'>
+                    {
+                        result.error
+                            ? (<TestInfo success={result.success} text={`${ApicizeErrorToString(result.error)}`} />)
+                            : (null)
+                    }
+                </Box>
+                {
+                    (result.testResults && result.testResults.length > 0)
+                        ? <Box className='test-details'>
+                            {
+                                result.testResults.map(testResult => <TestBehavior behavior={testResult} key={`result-${request.id}-${idx++}`} />)
+                            }
+                        </Box>
                         : (null)
                 }
-            </Box>
-            {
-                (childResult.testResults && childResult.testResults.length > 0)
-                    ? <Box className='test-details'>
-                        {
-                            childResult.testResults.map(testResult => <TestBehavior behavior={testResult} key={`result-${idx++}`} />)
+                {
+                    (result.childExecCtrs ?? []).map(childExecCtr => {
+                        try {
+                            const child = request.getSummary(childExecCtr)
+                            const childKey = `result-${request.id}-${idx++}`
+                            return child ? <RenderExecution key={childKey} result={child} depth={depth + 1} /> : null
+                        } catch (e) {
+                            feedback.toastError(e)
+                            return null
                         }
-                    </Box>
-                    : (null)
-            }
-            {
-                (childResult.childIndexes ?? []).map(childIndex => {
-                    const child = summaries.get(childIndex)
-                    const childKey = `result-${idx++}`
-                    return child ? <RenderExecution key={childKey} childResult={child} depth={depth + 1} /> : null
-                })
-            }
+                    })
+                }
+            </>
         </Box>
 
         {/* //     
@@ -220,20 +282,23 @@ export const ResultInfoViewer = observer((props: { requestOrGroupId: string, res
 
     }
 
-    const TestInfo = (props: { isError?: boolean, text: string }) => {
-        const key = `result-${idx++}`
-        return <Box key={key}>
-            {
-                props.isError === true
-                    ? (<Box color='#f44336' sx={{ ":first-letter": { textTransform: 'capitalize' }, whiteSpace: 'pre-wrap' }} >{props.text}</Box>)
-                    : (<>{props.text}</>)
-            }
-        </Box>
+    const TestInfo = ({ success, text }: { success: ExecutionResultSuccess, text: string }) => {
+        const key = `result-${request.id}-${idx++}`
+        switch (success) {
+            case ExecutionResultSuccess.Error:
+                return <Stack key={key} direction='row'>
+                    <Box className='test-result-icon'><ErrorIcon color="error" fontSize='medium' /></Box>
+                    <Typography className='test-result-detail' color='error'>{text}</Typography>
+                </Stack>
+            case ExecutionResultSuccess.Failure:
+                return <Box key={key} color='warn' className='test-result-behavior'><Box className='test-result-text'></Box>{text}</Box>
+            default:
+                return <Box key={key} className='test-result-behavior'>{text}</Box>
+        }
     }
 
-    const TestBehavior = (props: { behavior: ApicizeTestBehavior }) => {
-        const key = `result-${idx++}`
-        const behavior = props.behavior
+    const TestBehavior = ({ behavior }: { behavior: ApicizeTestBehavior }) => {
+        const key = `result-${request.id}-${idx++}`
 
         const error = (behavior.error && behavior.error.length > 0) ? behavior.error : null
         const logs = (behavior.logs?.length ?? 0) > 0 ? behavior.logs : null
@@ -242,27 +307,27 @@ export const ResultInfoViewer = observer((props: { requestOrGroupId: string, res
 
         return (error || logs)
             ? <Box key={key} className={className}>
-                <Stack direction='row' key={`result-${idx++}`}>
+                <Stack direction='row' key={`result-${request.id}-${idx++}`}>
                     <Box className='test-result-icon' key={`result-${idx++}`}>
-                        {behavior.success ? (<CheckIcon color='success' />) : (<BlockIcon color='error' />)}
+                        {behavior.success ? (<CheckIcon color='success' />) : (<BlockIcon color='warning' />)}
                     </Box>
-                    <Stack direction='column' key={`result-${idx++}`} className='test-result-detail'>
-                        <Box key={`result-${idx++}`}>
+                    <Stack direction='column' key={`result-${request.id}-${idx++}`} className='test-result-detail'>
+                        <Box key={`result-${request.id}-${idx++}`}>
                             {behavior.name}{behavior.tag ? <Typography className='tag'> [{behavior.tag}]</Typography> : null}
                         </Box>
                         <Box className='test-result-detail-info'>
                             {
                                 error
                                     ?
-                                    <Stack direction='column' key={`result-${idx++}`}>
-                                        <Typography key={`result-${idx++}`} className='test-result-error' color='error'>{behavior.error}</Typography>
+                                    <Stack direction='column' key={`result-${request.id}-${idx++}`}>
+                                        <Typography key={`result-${request.id}-${idx++}`} className='test-result-error' color='warning'>{behavior.error}</Typography>
                                     </Stack>
                                     : null
                             }
                             {
                                 (behavior.logs ?? []).map((log) => (
-                                    <Stack direction='column' key={`result-${idx++}`}>
-                                        <code className='results-log' key={`result-${idx++}`}>{log}</code>
+                                    <Stack direction='column' key={`result-${request.id}-${idx++}`}>
+                                        <code className='results-log' key={`result-${request.id}-${idx++}`}>{log}</code>
                                     </Stack>
                                 ))
                             }
@@ -271,12 +336,12 @@ export const ResultInfoViewer = observer((props: { requestOrGroupId: string, res
                 </Stack>
             </Box >
             : <Box key={key} className={className}>
-                <Stack direction='row' key={`result-${idx++}`} className='test-result-detail'>
-                    <Box className='test-result-icon' key={`result-${idx++}`}>
+                <Stack direction='row' key={`result-${request.id}-${idx++}`} className='test-result-detail'>
+                    <Box className='test-result-icon' key={`result-${request.id}-${idx++}`}>
                         {behavior.success ? (<CheckIcon color='success' />) : (<BlockIcon color='error' />)}
                     </Box>
-                    <Box key={`result-${idx++}`}>
-                        <Typography sx={{ marginTop: 0, marginBottom: 0, paddingTop: 0 }} component='div' key={`result-${idx++}`}>
+                    <Box key={`result-${request.id}-${idx++}`}>
+                        <Typography sx={{ marginTop: 0, marginBottom: 0, paddingTop: 0 }} component='div' key={`result-${request.id}-${idx++}`}>
                             {behavior.name} {behavior.tag ? <Typography className='tag'>[{behavior.tag}]</Typography> : null}
                         </Typography>
                     </Box>
@@ -314,34 +379,19 @@ export const ResultInfoViewer = observer((props: { requestOrGroupId: string, res
     //     </Box>
     // }
 
-    const changeResult = (e: React.MouseEvent, index: number) => {
+    const changeResult = (e: React.MouseEvent, execCtr: number) => {
         e.preventDefault()
         e.stopPropagation()
-        workspace.getExecution(requestOrGroupId)?.changeResultIndex(index)
+        request.changeExecCtr(execCtr)
 
     }
 
-    const copyToClipboard = (e: React.MouseEvent, requestOrGroupId: string, index: number, format?: ExecutionReportFormat) => {
-        try {
-            e.preventDefault()
-            e.stopPropagation()
-
-            if (!format) {
-                format = settings.reportFormat
-            }
-
-            workspace.generateReport(requestOrGroupId, index, format)
-                .then(results => {
-                    clipboardCtx.writeTextToClipboard(results)
-                        .then(() =>
-                            feedback.toast(`Data copied to clipboard (${format})`, ToastSeverity.Success)
-                        )
-                        .catch(e => feedback.toastError(e))
-                })
-                .catch(err => feedback.toastError(err))
-        } catch (e) {
-            feedback.toast(`${e}`, ToastSeverity.Error)
-        }
+    const copyToClipboard = (e: React.MouseEvent, execCtr: number, format?: ExecutionReportFormat) => {
+        const payloadType = format === ExecutionReportFormat.CSV ? 'ResponseSummaryCsv' : 'ResponseSummaryJson'
+        workspace.copyToClipboard({
+            payloadType,
+            execCtr: execCtr
+        }, payloadType === "ResponseSummaryCsv" ? 'Summary as CSV' : 'Summary as JSON')
     }
 
     const result = <Stack className="results-info" sx={{
@@ -359,42 +409,43 @@ export const ResultInfoViewer = observer((props: { requestOrGroupId: string, res
             </IconButton>
         </Typography> */}
         <Box sx={{ overflow: 'auto', bottom: 0, paddingRight: '24px', position: 'relative' }}>
+            <Box display='flex' flexDirection='row' alignItems='start' gap='1em' margin='0 1.5em 1.5em 1.5em'>
+                <Button
+                    variant='outlined'
+                    size='small'
+                    disabled={!enableSuccessFilter}
+                    className={hasSuccess ? '' : 'borderless'}
+                    color={hideSuccess ? 'unselected' : 'success'}
+                    onClick={(e) => { if (enableSuccessFilter) { request.toggleSuccess() } else { e.stopPropagation(); e.preventDefault(); } }}
+                    startIcon={<SvgIcon><ResultSuccessIcon /></SvgIcon>}>
+                    <Typography color={request.hideSuccess || !hasSuccess ? 'unselected' : 'success'}>Success: {selectedSummary.requestSuccessCount}</Typography>
+                </Button>
+                <Button
+                    variant='outlined'
+                    size='small'
+                    disabled={!enableFailureFilter}
+                    className={hasFailure ? '' : 'borderless'}
+                    color={hideFailure ? 'unselected' : 'warning'}
+                    onClick={(e) => { if (enableFailureFilter) { request.toggleFailure() } else { e.stopPropagation(); e.preventDefault(); } }}
+                    startIcon={<SvgIcon><ResultFailureIcon /></SvgIcon>}>
+                    <Typography color={request.hideFailure || !hasFailure ? 'unselected' : 'warning'}>Failure: {selectedSummary.requestFailureCount}</Typography>
+                </Button>
+                <Button
+                    variant='outlined'
+                    size='small'
+                    disabled={!enableErrorFilter}
+                    className={hasError ? '' : 'borderless'}
+                    color={hideError ? 'unselected' : 'error'}
+                    onClick={(e) => { if (enableErrorFilter) { request.toggleError() } else { e.stopPropagation(); e.preventDefault(); } }}
+                    startIcon={<SvgIcon><ResultErrorIcon /></SvgIcon>}>
+                    <Typography color={request.hideError || !hasError ? 'unselected' : 'error'}>Error: {selectedSummary.requestErrorCount}</Typography>
+                </Button>
+            </Box>
             <Box>
-                <RenderExecution childResult={mainResult} depth={0} />
+                <RenderExecution result={selectedSummary} depth={0} />
             </Box>
         </Box>
     </Stack>
     return result
 })
 
-function retrieveSummariesForIndex(summaries: ExecutionResultSummary[], index: number) {
-    const results = new Map<number, ExecutionResultSummary>()
-
-    const appendIndex = (indexToAppend: number) => {
-        if (indexToAppend < 0 || indexToAppend >= summaries.length) {
-            throw new Error(`Invalid result index ${indexToAppend}`)
-        }
-        const summary = summaries[indexToAppend]
-        results.set(indexToAppend, summary)
-        return summary
-    }
-
-    const appendChildren = (summary: ExecutionResultSummary) => {
-        if (summary.childIndexes) {
-            for (const childIndex of summary.childIndexes) {
-                if (!results.has(childIndex)) {
-                    const child = appendIndex(childIndex)
-                    appendChildren(child)
-                }
-            }
-        }
-    }
-
-    const main = appendIndex(index)
-    if (main.parentIndex) {
-        appendIndex(main.parentIndex)
-    }
-
-    appendChildren(main)
-    return results
-}

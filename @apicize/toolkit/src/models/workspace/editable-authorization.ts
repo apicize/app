@@ -6,7 +6,7 @@ import { Editable } from "../editable"
 import { action, computed, observable } from "mobx"
 import { NO_SELECTION, NO_SELECTION_ID } from "../store"
 import { EntityType } from "./entity-type"
-import { EntityAuthorization, WorkspaceStore } from "../../contexts/workspace.context"
+import { EntityAuthorization, EntityTypeName, WorkspaceStore } from "../../contexts/workspace.context"
 
 export class EditableAuthorization extends Editable<Authorization> {
     public readonly entityType = EntityType.Authorization
@@ -80,29 +80,27 @@ export class EditableAuthorization extends Editable<Authorization> {
         switch (this.type) {
             case AuthorizationType.ApiKey:
                 result = {
-                    entityType: 'Authorization',
+                    entityTypeName: EntityTypeName.Authorization,
                     type: AuthorizationType.ApiKey,
                     id: this.id,
                     name: this.name ?? '',
                     header: this.header,
                     value: this.value,
-                    validationErrors: this.validationErrors,
                 }
                 break
             case AuthorizationType.Basic:
                 result = {
-                    entityType: 'Authorization',
+                    entityTypeName: EntityTypeName.Authorization,
                     type: AuthorizationType.Basic,
                     id: this.id,
                     name: this.name ?? '',
                     username: this.username,
                     password: this.password,
-                    validationErrors: this.validationErrors,
                 }
                 break
             case AuthorizationType.OAuth2Client:
                 result = {
-                    entityType: 'Authorization',
+                    entityTypeName: EntityTypeName.Authorization,
                     type: AuthorizationType.OAuth2Client,
                     id: this.id,
                     name: this.name ?? '',
@@ -114,12 +112,11 @@ export class EditableAuthorization extends Editable<Authorization> {
                     audience: this.audience,
                     selectedCertificate: this.selectedCertificate && this.selectedCertificate.id !== NO_SELECTION_ID ? this.selectedCertificate : undefined,
                     selectedProxy: this.selectedProxy && this.selectedProxy.id !== NO_SELECTION_ID ? this.selectedProxy : undefined,
-                    validationErrors: this.validationErrors,
                 }
                 break
             case AuthorizationType.OAuth2Pkce:
                 result = {
-                    entityType: 'Authorization',
+                    entityTypeName: EntityTypeName.Authorization,
                     type: AuthorizationType.OAuth2Pkce,
                     id: this.id,
                     name: this.name ?? '',
@@ -129,7 +126,6 @@ export class EditableAuthorization extends Editable<Authorization> {
                     sendCredentialsInBody: this.sendCredentialsInBody,
                     scope: this.scope,
                     audience: this.audience,
-                    validationErrors: this.validationErrors,
                 }
                 break
             default:

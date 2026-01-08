@@ -24,7 +24,7 @@ import { useApicizeSettings } from '../../contexts/apicize-settings.context';
 import { BorderedSection } from '../bordered-section';
 import { toJS } from 'mobx';
 
-export const SettingsEditor = observer((props: { sx?: SxProps }) => {
+export const SettingsEditor = observer(({ sx }: { sx?: SxProps }) => {
     const settings = useApicizeSettings()
     const workspace = useWorkspace()
     const feedback = useFeedback()
@@ -58,7 +58,7 @@ export const SettingsEditor = observer((props: { sx?: SxProps }) => {
             .catch(e => feedback.toastError(e))
     }
 
-    return <Stack direction={'column'} className='editor' sx={props.sx}>
+    return <Stack direction={'column'} className='editor' sx={sx}>
         <Box className='editor-panel-header'>
             <EditorTitle icon={<SvgIcon><SettingsIcon /></SvgIcon>} name='Settings'>
                 <IconButton color='primary' size='medium' aria-label='Close' title='Close' sx={{ marginLeft: '1rem' }} onClick={() => workspace.returnToNormal()}><CloseIcon fontSize='inherit' /></IconButton>
