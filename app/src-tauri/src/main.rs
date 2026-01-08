@@ -467,7 +467,7 @@ fn create_workspace(
             if let Some(existing_workspace_id) = &existing_workspace_id {
                 // If there is a workspace already open for this file, switch to that
                 Ok(OpenWorkspaceResult {
-                    workspace_id: existing_workspace_id.clone(),
+                    workspace_id: existing_workspace_id.to_string(),
                     display_name: workspaces
                         .workspaces
                         .get(existing_workspace_id)
