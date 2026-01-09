@@ -1,5 +1,10 @@
 # Change Log
 
+# 0.29.1
+
+* Fix result navigation buttons
+* Show run/row in navigation individual result menu items
+
 # 0.29.0
 
 * Store and display execution results per-executing request

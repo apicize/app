@@ -1,10 +1,9 @@
 use apicize_lib::{
-    Authorization, Certificate, Executable, ExecutionReportFormat, 
-    ExecutionResultSuccess, ExecutionResultSummary, ExecutionState,
-    ExternalData, Identifiable, IndexedEntities, NameValuePair, Proxy, Request, RequestBody,
-    RequestEntry, RequestGroup, Scenario, SelectedParameters, Selection, Validated,
-    ValidationState, WorkbookDefaultParameters, Workspace,
-    editing::indexed_entities::IndexedEntityPosition, identifiable::CloneIdentifiable,
+    Authorization, Certificate, Executable, ExecutionReportFormat, ExecutionResultSuccess,
+    ExecutionResultSummary, ExecutionState, ExternalData, Identifiable, IndexedEntities,
+    NameValuePair, Proxy, Request, RequestBody, RequestEntry, RequestGroup, Scenario,
+    SelectedParameters, Selection, Validated, ValidationState, WorkbookDefaultParameters,
+    Workspace, editing::indexed_entities::IndexedEntityPosition, identifiable::CloneIdentifiable,
     indexed_entities::NO_SELECTION_ID,
 };
 use indexmap::IndexMap;
@@ -20,7 +19,10 @@ use std::{
 use uuid::Uuid;
 
 use crate::{
-    error::ApicizeAppError, results::{ExecutionResultBuilder, ExecutionResultDetail}, sessions::{Session, SessionSaveState}, settings::ApicizeSettings
+    error::ApicizeAppError,
+    results::{ExecutionResultBuilder, ExecutionResultDetail},
+    sessions::{Session, SessionSaveState},
+    settings::ApicizeSettings,
 };
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -2312,9 +2314,50 @@ impl WorkspaceInfo {
                     );
                 }
 
+                let all_exec_ctrs = summaries
+                    .iter()
+                    .map(|s| s.exec_ctr)
+                    .collect::<HashSet<usize>>();
                 for summary in &summaries {
+                    let (parent_exec_ctr, suffix) = if let Some(pec) = &summary.parent_exec_ctr {
+                        if all_exec_ctrs.contains(pec) {
+                            (Some(*pec), None)
+                        } else {
+                            if let Ok((parent, _)) = self.execution_results.get_result(pec) {
+                                let mut suffixes = Vec::<String>::with_capacity(2);
+                                if let Some(run_number) = parent.run_number
+                                    && let Some(run_count) = parent.run_count
+                                {
+                                    suffixes.push(format!("Run {run_number} of {run_count}"));
+                                }
+                                if let Some(row_number) = parent.row_number
+                                    && let Some(row_count) = parent.row_count
+                                {
+                                    suffixes.push(format!("Row {row_number} of {row_count}"));
+                                }
+
+                                (
+                                    None,
+                                    if suffixes.is_empty() {
+                                        None
+                                    } else {
+                                        Some(suffixes.join(", "))
+                                    },
+                                )
+                            } else {
+                                (None, None)
+                            }
+                        }
+                    } else {
+                        (None, None)
+                    };
+
                     results.push(ExecutionMenuItem {
-                        name: summary.name.clone(),
+                        name: if let Some(suffix) = suffix {
+                            format!("{} ({})", summary.name, suffix)
+                        } else {
+                            summary.name.clone()
+                        },
                         level: summary.level - level_offset,
                         executing_name: if executing_request_or_group_id == request_or_group_id {
                             None
@@ -2333,7 +2376,7 @@ impl WorkspaceInfo {
                         exec_ctr: summary.exec_ctr,
                         next_exec_ctr: None,
                         prev_exec_ctr,
-                        parent_exec_ctr: summary.parent_exec_ctr,
+                        parent_exec_ctr,
                     });
 
                     executing_offset += 1;
@@ -2343,7 +2386,7 @@ impl WorkspaceInfo {
         }
 
         if results.len() > 1 {
-            for i in 0..results.len() - 2 {
+            for i in 0..results.len() - 1 {
                 if let Some(next_exec_ctr) = results.get(i + 1).map(|r| r.exec_ctr) {
                     let here = results.get_mut(i).unwrap();
                     here.next_exec_ctr = Some(next_exec_ctr);
@@ -2468,14 +2511,19 @@ pub enum PersistableData {
 pub struct ExecutionMenuItem {
     pub name: String,
     pub level: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub executing_name: Option<String>,
     pub execution_state: ExecutionState,
 
     pub executing_request_or_group_id: String,
     pub executing_offset: usize,
     pub exec_ctr: usize,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub next_exec_ctr: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub prev_exec_ctr: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub parent_exec_ctr: Option<usize>,
 }
 

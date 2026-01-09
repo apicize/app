@@ -96,7 +96,7 @@ export const RunResultsToolbar = observer((
                                     : result.name
 
                                 if (settings.showDiagnosticInfo) {
-                                    label += ` (${result.execCtr})`
+                                    label += ` (${result.execCtr}, prev: ${result.prevExecCtr}, next: ${result.nextExecCtr}, parent: ${result.parentExecCtr})`
                                 }
 
                                 return (
