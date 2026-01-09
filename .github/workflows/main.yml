@@ -34,7 +34,7 @@ jobs:
           - platform: 'macos-latest' # for Arm based macs (M1 and above).
             args: '--target aarch64-apple-darwin'
             rust_target: aarch64-apple-darwin            
-          - platform: 'macos-15' # for Intel based macs.
+          - platform: 'macos-13' # for Intel based macs.
             args: '--target x86_64-apple-darwin'
             rust_target: x86_64-apple-darwin            
           - platform: 'ubuntu-22.04' # for Tauri v1 you could replace this with ubuntu-20.04.
@@ -173,6 +173,6 @@ jobs:
           releaseBody: 'See the assets to download this version and install (*.msi = Windows, *.deb = Debian/Ubuntu, *.rpm = RedHat/Fedora, *.dmg/*.tar.gz = MacOS).'
           # releaseDraft: true
           prerelease: false
-          args: ${{ matrix.args }}
+          args: --verbose ${{ matrix.args }}
           projectPath: ./app
           tauriScript: cargo tauri
