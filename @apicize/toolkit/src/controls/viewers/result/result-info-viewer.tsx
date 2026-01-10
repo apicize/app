@@ -61,14 +61,15 @@ export const ResultInfoViewer = observer(({
         return null
     }
 
+    // Compute filter state inline - removed useMemo to avoid Rules of Hooks violations
+    // (this code runs after early returns, so useMemo was being called conditionally)
+    const hasSuccess = selectedSummary.requestSuccessCount > 0
+    const hasFailure = selectedSummary.requestFailureCount > 0
+    const hasError = selectedSummary.requestErrorCount > 0
+
     let hideSuccess = request.hideSuccess
     let hideFailure = request.hideFailure
     let hideError = request.hideError
-
-    let hasSuccess = selectedSummary.requestSuccessCount > 0
-    let hasFailure = selectedSummary.requestFailureCount > 0
-    let hasError = selectedSummary.requestErrorCount > 0
-
     let enableSuccessFilter = hasSuccess
     let enableFailureFilter = hasFailure
     let enableErrorFilter = hasError

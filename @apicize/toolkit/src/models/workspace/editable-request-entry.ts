@@ -236,4 +236,49 @@ export abstract class EditableRequestEntry extends Editable<Request | RequestGro
     @computed get nameInvalid() {
         return this.dirty && ((this.name?.length ?? 0) === 0)
     }
+
+    // Computed values for performance optimization
+    @computed get hasResults(): boolean {
+        return this.resultMenuItems.length > 0
+    }
+
+    @computed get visibleResults(): ExecutionMenuItem[] {
+        if (!this.hideSuccess && !this.hideFailure && !this.hideError) {
+            return this.resultMenuItems
+        }
+
+        return this.resultMenuItems.filter(item => {
+            const state = item.executionState
+            // If hideSuccess is true and the item is only success, filter it out
+            if (this.hideSuccess && state === 1 /* ExecutionState.success */) {
+                return false
+            }
+            // If hideFailure is true and the item is only failure, filter it out
+            if (this.hideFailure && state === 2 /* ExecutionState.failure */) {
+                return false
+            }
+            // If hideError is true and the item is only error, filter it out
+            if (this.hideError && state === 4 /* ExecutionState.error */) {
+                return false
+            }
+            return true
+        })
+    }
+
+    @computed get currentResultIndex(): number {
+        if (!this.selectedResultMenuItem) {
+            return -1
+        }
+        return this.resultMenuItems.findIndex(
+            item => item.execCtr === this.selectedResultMenuItem?.execCtr
+        )
+    }
+
+    @computed get hasSelectedResult(): boolean {
+        return this.selectedResultMenuItem !== null
+    }
+
+    @computed get resultCount(): number {
+        return this.resultMenuItems.length
+    }
 }

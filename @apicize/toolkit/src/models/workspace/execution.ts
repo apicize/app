@@ -40,6 +40,7 @@ export interface ExecutionCancelEvent {
 export interface ExecutionMenuItem {
      name: string
      level: number
+     
      executingName?: string
      executionState: ExecutionState
 

@@ -23,9 +23,11 @@ import {
 } from "../../icons"
 import { ExecutionState, ValidationState } from "@apicize/lib-typescript"
 
-
+// Helper function to generate icons from entry state
+// Used inside observer components, so it will react to MobX changes
 export const iconsFromState = (entry: NavigationEntry) => {
-    let icons = []
+    const icons: JSX.Element[] = []
+
     if (entry.executionState) {
         if ((entry.executionState & ExecutionState.running) === ExecutionState.running) {
             icons.push(<PlayArrowIcon color="success" fontSize='medium' key={`play-${entry.id}`} />)
@@ -61,12 +63,9 @@ export const iconsFromState = (entry: NavigationEntry) => {
         }
     }
 
-
     return icons.length > 0
         ? <Box className='nav-state-icon-container' typography='navigation'>{icons}</Box>
-        // ? <Box display='inline-flex' flexDirection='row' marginLeft='0.5em' justifyContent='center' typography='navigation'>{icons}</Box>
         : null
-
 }
 
 export const NavTreeItem = React.memo(observer(({

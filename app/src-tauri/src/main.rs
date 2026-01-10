@@ -985,12 +985,12 @@ fn dispatch_save_state(
         };
 
         for session_id in session_ids {
-            app.emit_to(&session_id, "save_state", &state).unwrap();
+            app.emit_to(session_id, "save_state", &state).unwrap();
             if include_navigation {
-                app.emit_to(&session_id, "navigation", &info.navigation)
+                app.emit_to(session_id, "navigation", &info.navigation)
                     .unwrap();
             }
-            if let Some(w) = app.get_webview_window(&session_id) {
+            if let Some(w) = app.get_webview_window(session_id) {
                 w.set_title(format_window_title(&info.display_name, info.dirty).as_str())
                     .unwrap();
             }
@@ -1186,8 +1186,11 @@ async fn execute_request(
         }
 
         // Get session IDs with read lock (can be done concurrently)
-        let all_session_ids =
-            get_workspace_sessions(&workspace_id, &sessions, None).unwrap_or_default();
+        let all_session_ids = get_workspace_sessions(&workspace_id, &sessions, None)
+            .unwrap_or_default()
+            .iter()
+            .map(|s| s.to_string())
+            .collect::<Vec<String>>();
         (cloned_workspace, all_session_ids, previous_state)
     };
 
@@ -1590,11 +1593,11 @@ fn is_release_mode() -> bool {
 }
 
 /// Retrieve other sessions for the updated workspace
-fn get_workspace_sessions(
+fn get_workspace_sessions<'a>(
     workspace_id: &str,
-    sessions: &Sessions,
+    sessions: &'a Sessions,
     skip_session_id: Option<&str>,
-) -> Option<Vec<String>> {
+) -> Option<Vec<&'a str>> {
     let results = sessions
         .sessions
         .iter()
@@ -1607,10 +1610,10 @@ fn get_workspace_sessions(
             if workspace_id != s.workspace_id {
                 None
             } else {
-                Some(sid.clone())
+                Some(sid.as_str())
             }
         })
-        .collect::<Vec<String>>();
+        .collect::<Vec<&str>>();
     match results.is_empty() {
         true => None,
         false => Some(results),
@@ -1957,7 +1960,7 @@ async fn update(
                 get_workspace_sessions(&session.workspace_id, &sessions, None);
             if let Some(session_ids) = workspace_session_ids {
                 for session_id in session_ids {
-                    if let Ok(session) = sessions.get_session(&session_id)
+                    if let Ok(session) = sessions.get_session(session_id)
                         && let Some(request_id) = match &session.active_entity {
                             Some(entity) => match entity.entity_type {
                                 EntityType::Request => Some(entity.entity_id.clone()),
@@ -1970,14 +1973,14 @@ async fn update(
                         match workspaces.get_request_entry(&session.workspace_id, &request_id) {
                             Ok(RequestEntryInfo::Request { request }) => {
                                 app.emit_to(
-                                    &session_id,
+                                    session_id,
                                     "update",
                                     Entity::Request(request.clone()),
                                 )
                                 .unwrap();
                             }
                             Ok(RequestEntryInfo::Group { group }) => {
-                                app.emit_to(&session_id, "update", Entity::Group(group.clone()))
+                                app.emit_to(session_id, "update", Entity::Group(group.clone()))
                                     .unwrap();
                             }
                             _ => {}
@@ -2003,11 +2006,11 @@ async fn update(
     if let Some(session_ids) = get_workspace_sessions(&session.workspace_id, &sessions, None) {
         for session_id in session_ids {
             if let Some(updated_navigation) = &result {
-                app.emit_to(&session_id, "navigation_entry", updated_navigation)
+                app.emit_to(session_id, "navigation_entry", updated_navigation)
                     .unwrap();
             }
-            app.emit_to(&session_id, "dirty", true).unwrap();
-            if let Some(w) = app.get_webview_window(&session_id) {
+            app.emit_to(session_id, "dirty", true).unwrap();
+            if let Some(w) = app.get_webview_window(session_id) {
                 w.set_title(format_window_title(display_name, true).as_str())
                     .unwrap();
             }
@@ -2020,7 +2023,7 @@ async fn update(
         && let Some(event_to_send) = event
     {
         for other_session_id in other_session_ids {
-            app.emit_to(&other_session_id, "update", &event_to_send)
+            app.emit_to(other_session_id, "update", &event_to_send)
                 .unwrap();
         }
     }
@@ -2084,7 +2087,12 @@ async fn delete(
     let info = workspaces.get_workspace_info_mut(&workspace_id)?;
     info.executions.remove(entity_id);
     if deleted_request {
-        for session_id in sessions.get_workspace_session_ids(&workspace_id) {
+        let session_ids: Vec<String> = sessions
+            .get_workspace_session_ids(&workspace_id)
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+        for session_id in session_ids {
             if let Ok(session) = sessions.get_session_mut(&session_id) {
                 session.remove_request_exec_ctr(entity_id);
                 session.remove_execution_result_view_state(entity_id);

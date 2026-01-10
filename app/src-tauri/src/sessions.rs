@@ -92,11 +92,11 @@ impl Sessions {
         }
     }
 
-    pub fn get_workspace_session_ids(&self, workspace_id: &str) -> Vec<String> {
+    pub fn get_workspace_session_ids(&self, workspace_id: &str) -> Vec<&str> {
         self.sessions
             .iter()
             .filter(|(_, s)| s.workspace_id == workspace_id)
-            .map(|(id, _)| id.clone())
+            .map(|(id, _)| id.as_str())
             .collect()
     }
 
@@ -143,7 +143,7 @@ impl Session {
             Ok(())
         } else {
             Err(ApicizeAppError::InvalidTypeForOperation(
-                entity.as_ref().unwrap().entity_type.clone(),
+                entity.as_ref().unwrap().entity_type,
             ))
         }
     }
@@ -220,16 +220,17 @@ impl Session {
     }
 
     /// Retrieve execution result view state for the specified request, defaultin to all hidden
-    pub fn get_execution_result_view_state(&self, request_id: &str) -> ExecutionResultViewState {
-        match self.execution_result_view_state.get(request_id) {
-            Some(view_state) => view_state.clone(),
-            None => ExecutionResultViewState {
-                hide_success: false,
-                hide_failure: false,
-                hide_error: false,
-                exec_ctr: None,
-            },
-        }
+    pub fn get_execution_result_view_state(&self, request_id: &str) -> &ExecutionResultViewState {
+        static DEFAULT_VIEW_STATE: ExecutionResultViewState = ExecutionResultViewState {
+            hide_success: false,
+            hide_failure: false,
+            hide_error: false,
+            exec_ctr: None,
+        };
+
+        self.execution_result_view_state
+            .get(request_id)
+            .unwrap_or(&DEFAULT_VIEW_STATE)
     }
 
     /// Remove execution result view state for the specified request

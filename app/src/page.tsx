@@ -21,8 +21,8 @@ import { LogProvider } from './providers/log.provider';
 import { CssBaseline } from '@mui/material'
 import { FileDragDropProvider } from './providers/file-dragdrop.provider'
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
-import { toJS } from 'mobx'
 import { TokenResult } from '@apicize/lib-typescript'
+import { openUrl } from '@tauri-apps/plugin-opener';
 
 // This is defined externally via Tauri main or other boostrap application
 const sessionId: string = (window as any).__TAURI_INTERNALS__.metadata.currentWindow.label
@@ -147,6 +147,7 @@ const workspaceStore = new WorkspaceStore(
     copyToClipboard: (payloadRequest: ClipboardPaylodRequest) => core.invoke<void>(
       'copy_to_clipboard', { sessionId, payloadRequest }
     ),
+    openUrl: (url: string) => openUrl(url)
   },
 )
 

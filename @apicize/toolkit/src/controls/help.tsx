@@ -14,7 +14,6 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CloseIcon from '@mui/icons-material/Close';
 import AltRouteIcon from '@mui/icons-material/AltRoute'
 import MenuIcon from '@mui/icons-material/Menu';
-import { openUrl } from '@tauri-apps/plugin-opener';
 import { createElement, Fragment, HTMLAttributes, useRef, useState } from 'react'
 import { jsx, jsxs } from 'react/jsx-runtime'
 import { visit } from 'unist-util-visit';
@@ -103,14 +102,10 @@ export const HelpPanel = observer(({ sx }: { sx?: SxProps }) => {
         setContentsMenu(null);
         workspace.showHelp(topic)
     }
+
     const handleContentsMenuClose = () => {
         setContentsMenu(null);
     };
-
-
-    function browseTo(url: string) {
-        openUrl(url).catch(e => feedback.toastError(e))
-    }
 
     function remarkApicizeDirectives() {
         const handleLogo = (node: LeafDirective) => {
@@ -285,7 +280,7 @@ export const HelpPanel = observer(({ sx }: { sx?: SxProps }) => {
             else if (/^https:\/\//.test(attrs.href)) {
                 const url = attrs.href
                 attrs = { ...attrs, href: '#' }
-                return <Link {...attrs} onClick={() => browseTo(url)} />
+                return <Link {...attrs} onClick={() => workspace.openUrl(url)} />
             }
             else if (attrs.href.startsWith('icon:')) {
                 return <DisplaySettingsIcon />

@@ -2322,31 +2322,29 @@ impl WorkspaceInfo {
                     let (parent_exec_ctr, suffix) = if let Some(pec) = &summary.parent_exec_ctr {
                         if all_exec_ctrs.contains(pec) {
                             (Some(*pec), None)
-                        } else {
-                            if let Ok((parent, _)) = self.execution_results.get_result(pec) {
-                                let mut suffixes = Vec::<String>::with_capacity(2);
-                                if let Some(run_number) = parent.run_number
-                                    && let Some(run_count) = parent.run_count
-                                {
-                                    suffixes.push(format!("Run {run_number} of {run_count}"));
-                                }
-                                if let Some(row_number) = parent.row_number
-                                    && let Some(row_count) = parent.row_count
-                                {
-                                    suffixes.push(format!("Row {row_number} of {row_count}"));
-                                }
-
-                                (
-                                    None,
-                                    if suffixes.is_empty() {
-                                        None
-                                    } else {
-                                        Some(suffixes.join(", "))
-                                    },
-                                )
-                            } else {
-                                (None, None)
+                        } else if let Ok((parent, _)) = self.execution_results.get_result(pec) {
+                            let mut suffixes = Vec::<String>::with_capacity(2);
+                            if let Some(run_number) = parent.run_number
+                                && let Some(run_count) = parent.run_count
+                            {
+                                suffixes.push(format!("Run {run_number} of {run_count}"));
                             }
+                            if let Some(row_number) = parent.row_number
+                                && let Some(row_count) = parent.row_count
+                            {
+                                suffixes.push(format!("Row {row_number} of {row_count}"));
+                            }
+
+                            (
+                                None,
+                                if suffixes.is_empty() {
+                                    None
+                                } else {
+                                    Some(suffixes.join(", "))
+                                },
+                            )
+                        } else {
+                            (None, None)
                         }
                     } else {
                         (None, None)
@@ -2397,7 +2395,7 @@ impl WorkspaceInfo {
     }
 }
 
-#[derive(Serialize_repr, Deserialize_repr, Clone, Debug)]
+#[derive(Serialize_repr, Deserialize_repr, Copy, Clone, Debug)]
 #[repr(u8)]
 pub enum EntityType {
     RequestEntry = 1,
@@ -2511,6 +2509,7 @@ pub enum PersistableData {
 pub struct ExecutionMenuItem {
     pub name: String,
     pub level: usize,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub executing_name: Option<String>,
     pub execution_state: ExecutionState,

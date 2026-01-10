@@ -1,5 +1,9 @@
 # Change Log
 
+# 0.29.2
+
+* Performance improvements
+
 # 0.29.1
 
 * Fix result navigation buttons

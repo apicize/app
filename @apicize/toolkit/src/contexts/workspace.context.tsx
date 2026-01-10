@@ -159,6 +159,7 @@ export class WorkspaceStore {
             closePkce: (data: { authorizationId: string }) => Promise<void>,
             refreshToken: (data: { authorizationId: string }) => Promise<void>,
             copyToClipboard: (payloadRequest: ClipboardPaylodRequest) => Promise<void>,
+            openUrl: (url: string) => Promise<void>,
         }) {
         makeObservable(this)
         this.initialize(initialization)
@@ -462,6 +463,38 @@ export class WorkspaceStore {
     @computed
     public get allowHelpBack() {
         return this.helpTopicHistory.length > 0
+    }
+
+    // Additional computed values for performance optimization
+    @computed
+    public get hasExecutingRequests(): boolean {
+        return this.executingRequestIDs.length > 0
+    }
+
+    @computed
+    public get executingRequestCount(): number {
+        return this.executingRequestIDs.length
+    }
+
+    @computed
+    public get hasActiveSelection(): boolean {
+        return this.activeSelection !== null
+    }
+
+    @computed
+    public get isRequestSelected(): boolean {
+        return this.activeSelection instanceof EditableRequest
+    }
+
+    @computed
+    public get isGroupSelected(): boolean {
+        return this.activeSelection instanceof EditableRequestGroup
+    }
+
+    @computed
+    public get canShowRequestPanel(): boolean {
+        return this.activeSelection instanceof EditableRequest ||
+            this.activeSelection instanceof EditableRequestGroup
     }
 
     getNavigationName(id: string) {
@@ -1384,6 +1417,11 @@ export class WorkspaceStore {
     public copyToClipboard(payloadRequest: ClipboardPaylodRequest, description: string) {
         this.callbacks.copyToClipboard(payloadRequest)
             .then(() => this.feedback.toast(`${description} copied to clipboard`, ToastSeverity.Info))
+            .catch((err) => this.feedback.toastError(err))
+    }
+
+    public openUrl(url: string) {
+        this.callbacks.openUrl(url)
             .catch((err) => this.feedback.toastError(err))
     }
 }
