@@ -21,6 +21,86 @@ const ApicizeErrorToString = (error?: ApicizeError): string => {
     return error ? `[${error.type}]${desc}${sub}` : ''
 }
 
+const CopyDataButton = ({
+    execCtr,
+    settings,
+    copyToClipboard
+}: {
+    execCtr: number
+    settings: ReturnType<typeof useApicizeSettings>
+    copyToClipboard: (e: React.MouseEvent, execCtr: number, format?: ExecutionReportFormat) => void
+}) => {
+    // Each button needs its own menu state since multiple CopyDataButtons can exist
+    const [formatMenu, setFormatMenu] = useState<{
+        open: boolean
+        anchorEl: null | HTMLElement
+    }>({
+        open: false,
+        anchorEl: null
+    })
+
+    const handleFormatMenuClick = ({ currentTarget }: { currentTarget: HTMLElement }) => {
+        setFormatMenu({ open: true, anchorEl: currentTarget });
+    }
+
+    const handleFormatMenuClose = () => {
+        setFormatMenu((prevState) => ({ ...prevState, open: false }));
+    }
+
+    return <>
+        <IconButton
+            title={`Copy Data to Clipboard (${settings.reportFormat})`}
+            color='primary'
+            onClick={e => copyToClipboard(e, execCtr)}>
+            <ContentCopyIcon />
+        </IconButton>
+
+        <IconButton
+            id={`copy-${execCtr}`}
+            title={`Copy Data to Clipboard (Select Format)`}
+            size="large"
+            sx={{ padding: '0 0.75em 0 0.75em', minWidth: '1em', width: '1em', marginLeft: '-0.3em', alignSelf: 'begin', alignItems: 'end' }}
+            onClick={handleFormatMenuClick}
+        ><KeyboardArrowDownIcon />
+        </IconButton>
+        <Menu
+            id="copy-format-options"
+            autoFocus
+            className="drop-down-menu"
+            anchorEl={formatMenu.anchorEl}
+            open={formatMenu.open}
+            onClose={handleFormatMenuClose}
+        >
+            <MenuItem autoFocus={settings.reportFormat == ExecutionReportFormat.JSON} key='report-format-json' disableRipple onClick={e => {
+                copyToClipboard(e, execCtr, ExecutionReportFormat.JSON)
+                handleFormatMenuClose()
+            }}>
+                <Box display='flex' alignContent='center'>
+                    Apicize JSON Format
+                    {
+                        settings.reportFormat === ExecutionReportFormat.JSON
+                            ? <CheckIcon sx={{ marginLeft: '0.5em' }} />
+                            : null
+                    }
+                </Box>
+            </MenuItem>
+            <MenuItem autoFocus={settings.reportFormat == ExecutionReportFormat.CSV} key='report-format-csv' disableRipple onClick={e => {
+                copyToClipboard(e, execCtr, ExecutionReportFormat.CSV)
+                handleFormatMenuClose()
+            }}>
+                <Box display='flex' alignContent='center'>
+                    Apicize CSV Format
+                    {
+                        settings.reportFormat === ExecutionReportFormat.CSV
+                            ? <CheckIcon sx={{ marginLeft: '0.5em' }} />
+                            : null
+                    }
+                </Box>
+            </MenuItem>
+        </Menu>
+    </>
+}
+
 export const ResultInfoViewer = observer(({
     request,
 }: {
@@ -33,14 +113,6 @@ export const ResultInfoViewer = observer(({
     const feedback = useFeedback()
 
     const [selectedSummary, setSelectedSummary] = useState<ExecutionResultSummary | null>(null)
-
-    const [formatMenu, setFormatMenu] = useState<{
-        open: boolean
-        anchorEl: null | HTMLElement
-    }>({
-        open: false,
-        anchorEl: null
-    })
 
     if (!request.selectedResultMenuItem) {
         return null
@@ -103,69 +175,19 @@ export const ResultInfoViewer = observer(({
         return `${m.toLocaleString().padStart(2, '0')}:${s.toString().padStart(2, '0')}${(0.1).toLocaleString()[1]}${value.toString().padEnd(3, '0')}`
     }
 
-    const CopyDataButton = ({ execCtr }: { execCtr: number }) => {
-        const handleFormatMenuClick = ({ currentTarget }: { currentTarget: HTMLElement }) => {
-            setFormatMenu({ open: true, anchorEl: currentTarget });
+    const copyToClipboard = (e: React.MouseEvent, execCtr: number, format?: ExecutionReportFormat) => {
+        if (format === undefined) {
+            format = settings.reportFormat
+        } else {
+            settings.setReportFormat(format)
         }
 
-        const handleFormatMenuClose = () => {
-            setFormatMenu((prevState) => ({ ...prevState, open: false }));
-        }
+        const payloadType = format === ExecutionReportFormat.CSV ? 'ResponseSummaryCsv' : 'ResponseSummaryJson'
 
-        return <>
-            <IconButton
-                title={`Copy Data to Clipboard (${settings.reportFormat})`}
-                color='primary'
-                onClick={e => copyToClipboard(e, execCtr)}>
-                <ContentCopyIcon />
-            </IconButton>
-
-            <IconButton
-                id={`copy-${execCtr}`}
-                title={`Copy Data to Clipboard (Select Format)`}
-                size="large"
-                sx={{ padding: '0 0.75em 0 0.75em', minWidth: '1em', width: '1em', marginLeft: '-0.3em', alignSelf: 'begin', alignItems: 'end' }}
-                onClick={handleFormatMenuClick}
-            ><KeyboardArrowDownIcon />
-            </IconButton>
-            <Menu
-                id="copy-format-options"
-                autoFocus
-                className="drop-down-menu"
-                anchorEl={formatMenu.anchorEl}
-                open={formatMenu.open}
-                onClose={handleFormatMenuClose}
-            >
-                <MenuItem autoFocus={settings.reportFormat == ExecutionReportFormat.JSON} key='report-format-json' disableRipple onClick={e => {
-                    copyToClipboard(e, execCtr, ExecutionReportFormat.JSON)
-                    settings.setReportFormat(ExecutionReportFormat.JSON)
-                    handleFormatMenuClose()
-                }}>
-                    <Box display='flex' alignContent='center'>
-                        Apicize JSON Format
-                        {
-                            settings.reportFormat === ExecutionReportFormat.JSON
-                                ? <CheckIcon sx={{ marginLeft: '0.5em' }} />
-                                : null
-                        }
-                    </Box>
-                </MenuItem>
-                <MenuItem autoFocus={settings.reportFormat == ExecutionReportFormat.CSV} key='report-format-csv' disableRipple onClick={e => {
-                    copyToClipboard(e, execCtr, ExecutionReportFormat.CSV)
-                    settings.setReportFormat(ExecutionReportFormat.CSV)
-                    handleFormatMenuClose()
-                }}>
-                    <Box display='flex' alignContent='center'>
-                        Apicize CSV Format
-                        {
-                            settings.reportFormat === ExecutionReportFormat.CSV
-                                ? <CheckIcon sx={{ marginLeft: '0.5em' }} />
-                                : null
-                        }
-                    </Box>
-                </MenuItem>
-            </Menu>
-        </>
+        workspace.copyToClipboard({
+            payloadType,
+            execCtr: execCtr
+        }, format === ExecutionReportFormat.CSV ? 'Summary as CSV' : 'Summary as JSON')
     }
 
     const RenderExecution = ({ result: result, depth }: { result: ExecutionResultSummary, depth: number }) => {
@@ -236,7 +258,11 @@ export const ResultInfoViewer = observer(({
                             </Box>
                         </Grid>
                         <Grid display='flex' flexBasis='content' alignItems='center' alignContent='start' marginLeft='1.0rem'>
-                            <CopyDataButton execCtr={result.execCtr} />
+                            <CopyDataButton
+                                execCtr={result.execCtr}
+                                settings={settings}
+                                copyToClipboard={copyToClipboard}
+                            />
                             {
                                 isFirst
                                     ? <></>
@@ -384,15 +410,6 @@ export const ResultInfoViewer = observer(({
         e.preventDefault()
         e.stopPropagation()
         request.changeExecCtr(execCtr)
-
-    }
-
-    const copyToClipboard = (e: React.MouseEvent, execCtr: number, format?: ExecutionReportFormat) => {
-        const payloadType = format === ExecutionReportFormat.CSV ? 'ResponseSummaryCsv' : 'ResponseSummaryJson'
-        workspace.copyToClipboard({
-            payloadType,
-            execCtr: execCtr
-        }, payloadType === "ResponseSummaryCsv" ? 'Summary as CSV' : 'Summary as JSON')
     }
 
     const result = <Stack className="results-info" sx={{

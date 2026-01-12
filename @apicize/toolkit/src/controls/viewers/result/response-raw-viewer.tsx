@@ -5,9 +5,9 @@ import { EditorMode } from "../../../models/editor-mode";
 import { ResultEditSessionType } from "../../editors/editor-types";
 import { useWorkspace } from "../../../contexts/workspace.context";
 import { editor } from 'monaco-editor'
-import { ExecutionResultDetailWithBase64 } from "../../../models/workspace/execution";
+import { ExecutionResultDetail } from "@apicize/lib-typescript";
 
-export function ResultRawPreview({ detail }: { detail: ExecutionResultDetailWithBase64 | null }) {
+export function ResultRawPreview({ detail }: { detail: ExecutionResultDetail | null }) {
 
     const workspace = useWorkspace()
 
@@ -31,7 +31,7 @@ export function ResultRawPreview({ detail }: { detail: ExecutionResultDetailWith
     switch (body?.type) {
         case 'Binary':
             isBinary = true
-            text = detail.resultBodyBase64 ?? ''
+            text = body.data ?? ''
             mode = EditorMode.txt
             model = workspace.getResultEditModel(detail, ResultEditSessionType.Base64, mode)
             break

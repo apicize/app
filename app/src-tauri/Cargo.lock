@@ -278,7 +278,7 @@ checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
 
 [[package]]
 name = "apicize"
-version = "0.29.2"
+version = "0.29.3"
 dependencies = [
  "actix-web",
  "apicize_lib",
@@ -286,6 +286,7 @@ dependencies = [
  "chrono",
  "dirs",
  "env_logger",
+ "file_type",
  "indexmap 2.13.0",
  "log 0.4.29",
  "parking_lot",
@@ -315,9 +316,9 @@ dependencies = [
 
 [[package]]
 name = "apicize_lib"
-version = "0.30.3"
+version = "0.30.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "266c016927b1af38e803d03f5ede2e4e2ef5e7e2a06c68db167b20acafa1f5f1"
+checksum = "a5aff08c7a0c57044ed3ca8b905f4fd8d8b5e5f4bb77de9c2bf594e97cd92769"
 dependencies = [
  "async-recursion",
  "async-trait",
@@ -1715,6 +1716,15 @@ checksum = "38e2275cc4e4fc009b0669731a1e5ab7ebf11f469eaede2bab9309a5b4d6057f"
 dependencies = [
  "memoffset",
  "rustc_version",
+]
+
+[[package]]
+name = "file_type"
+version = "0.8.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cdb59c35ae9deec7122ad59eb8a29378c78c16b530092da679686d4c106c6b3b"
+dependencies = [
+ "phf 0.13.1",
 ]
 
 [[package]]
@@ -3936,6 +3946,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "phf"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c1562dc717473dbaa4c1f85a36410e03c047b2e7df7f45ee938fbef64ae7fadf"
+dependencies = [
+ "phf_shared 0.13.1",
+]
+
+[[package]]
 name = "phf_codegen"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4035,6 +4054,15 @@ name = "phf_shared"
 version = "0.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67eabc2ef2a60eb7faa00097bd1ffdb5bd28e62bf39990626a582201b7a754e5"
+dependencies = [
+ "siphasher 1.0.1",
+]
+
+[[package]]
+name = "phf_shared"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e57fef6bc5981e38c2ce2d63bfa546861309f875b8a75f092d1d54ae2d64f266"
 dependencies = [
  "siphasher 1.0.1",
 ]

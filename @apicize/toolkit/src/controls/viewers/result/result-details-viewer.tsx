@@ -7,10 +7,10 @@ import { RichViewer } from "../rich-viewer"
 import { EditorMode } from "../../../models/editor-mode"
 import { ResultEditSessionType } from "../../editors/editor-types"
 import { useWorkspace } from "../../../contexts/workspace.context"
-import { ExecutionResultDetailWithBase64 } from "../../../models/workspace/execution"
 import { toJS } from "mobx"
+import { ExecutionResultDetail } from "@apicize/lib-typescript"
 
-export const ResultDetailsViewer = observer(({ detail }: { detail: ExecutionResultDetailWithBase64 | null }) => {
+export const ResultDetailsViewer = observer(({ detail }: { detail: ExecutionResultDetail | null }) => {
 
     const workspace = useWorkspace()
 
@@ -20,16 +20,11 @@ export const ResultDetailsViewer = observer(({ detail }: { detail: ExecutionResu
 
     const detailToRender = structuredClone(toJS(detail))
 
-    // Render binary request or responses as Base64 because large byte arrays are painful to render
+    // Remove tracking elements from displayed result details
     if (detailToRender.entityType === 'request') {
-        if (detailToRender.testContext.request?.body?.type === 'Binary') {
-            (detailToRender as any).testContext.request.body.data = detailToRender.requestBodyBase64
-            detailToRender.requestBodyBase64 = undefined
-        }
-        if (detailToRender.testContext.response?.body?.type === 'Binary') {
-            (detailToRender as any).testContext.response.body.data = detailToRender.resultBodyBase64
-            detailToRender.resultBodyBase64 = undefined
-        }
+        const temp = detailToRender as any
+        delete temp['entityType']
+        delete temp['execCtr']
     }
 
     const text = beautify.js_beautify(JSON.stringify(detailToRender), {})

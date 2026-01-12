@@ -53,13 +53,6 @@ export interface ExecutionMenuItem {
 }
 
 
-export type ExecutionResultDetailWithBase64 = ExecutionResultDetailRequestWithBase64 | ExecutionResultDetailGroup
-
-export interface ExecutionResultDetailRequestWithBase64 extends ExecutionResultDetailRequest {
-     requestBodyBase64?: string
-     resultBodyBase64?: string
-}
-
 export interface ExecutionResultViewState {
      hideSuccess: boolean
      hideFailure: boolean

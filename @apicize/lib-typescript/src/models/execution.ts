@@ -184,7 +184,7 @@ export interface ApicizeBodyXML {
 
 export interface ApicizeBodyBinary {
     type: 'Binary'
-    data: Uint8Array
+    data: string
 }
 
 export type ApicizeBody = ApicizeBodyText | ApicizeBodyJSON | ApicizeBodyJSON | ApicizeBodyForm | ApicizeBodyBinary

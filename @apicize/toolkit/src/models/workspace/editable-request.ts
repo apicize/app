@@ -1,9 +1,9 @@
 import { Selection, Body, BodyType, MultiRunExecution, Method, NameValuePair, Request, ValidationWarnings, ValidationErrors, BodyJSON, BodyNone, BodyRaw, BodyText, BodyXML } from "@apicize/lib-typescript"
-import { action, computed, observable, toJS } from "mobx"
+import { action, computed, observable, runInAction, toJS } from "mobx"
 import { EditableNameValuePair } from "./editable-name-value-pair"
 import { GenerateIdentifier } from "../../services/random-identifier-generator"
 import { EntityType } from "./entity-type"
-import { EntityRequest, EntityTypeName, WorkspaceStore } from "../../contexts/workspace.context"
+import { EntityRequest, EntityTypeName, RequestBodyInfo, RequestBodyInfoWithBody, WorkspaceStore } from "../../contexts/workspace.context"
 import { EditableRequestEntry } from "./editable-request-entry"
 import { RequestDuplex } from "undici-types"
 import { EditableWarnings } from "./editable-warnings"
@@ -12,6 +12,8 @@ import { editor } from "monaco-editor"
 import { EditorMode } from "../editor-mode"
 import { IRequestEditorTextModel } from "../editor-text-model"
 import { ExecutionResultViewState } from "./execution"
+import { base64Decode, base64Encode } from "../../services/base64"
+import { Editable } from "../editable"
 export class EditableRequest extends EditableRequestEntry {
     public readonly entityType = EntityType.Request
 
@@ -36,6 +38,7 @@ export class EditableRequest extends EditableRequestEntry {
     @observable public accessor isBodyInitialized = false
     @observable public accessor body: EditableBody = { type: BodyType.None, data: undefined }
     @observable public accessor bodyMimeType: string | null = null
+    @observable public accessor bodyLength: number | null = null
     @observable public accessor bodyLanguage: EditorMode | null = null
     @observable public accessor bodyEditorModel: IRequestEditorTextModel | null = null
 
@@ -98,8 +101,10 @@ export class EditableRequest extends EditableRequestEntry {
         this.duplex = entry.duplex
     }
 
-    public initializeBody(body: Body | undefined) {
-        this.body = EditableRequest.createEditableBody(body)
+    public initializeBody(bodyInfo: RequestBodyInfoWithBody) {
+        this.body = EditableRequest.createEditableBody(bodyInfo.body)
+        this.bodyMimeType = bodyInfo.bodyMimeType ?? null
+        this.bodyLength = bodyInfo.bodyLength ?? null
         this.isBodyInitialized = true
         this.checkEditModel()
     }
@@ -158,19 +163,33 @@ export class EditableRequest extends EditableRequestEntry {
         })
     }
 
-    public onUpdateBody() {
+    @action
+    public async onUpdateBody(body: Body) {
         this.markAsDirty()
-        this.workspace.updateRequestBody({
-            entityTypeName: EntityTypeName.RequestBody,
-            id: this.id,
-            body: this.body.type === BodyType.None
-                ? undefined
-                : {
-                    type: this.body.type,
-                    data: this.body.data
-                } as Body
-        })
+        const bodyInfo = await this.workspace.updateRequestBody(
+            this.id, body)
+        const editableBody = EditableRequest.createEditableBody(body)
+        this.body.type = editableBody.type
+        this.body.data = editableBody.data
+        this.bodyMimeType = bodyInfo?.bodyMimeType ?? null
+        this.bodyLength = bodyInfo?.bodyLength ?? null
     }
+
+    @action
+    onUpdateBodyFromExternal(bodyInfo: RequestBodyInfoWithBody | null) {
+        this.markAsDirty()
+        if (bodyInfo?.body) {
+            const editable = EditableRequest.createEditableBody(bodyInfo.body)
+            this.body.type = editable.type
+            this.body.data = editable.data
+            this.bodyMimeType = bodyInfo.bodyMimeType ?? null
+            this.bodyLength = bodyInfo.bodyLength ?? null
+        } else {
+            this.body.type = BodyType.None
+            this.bodyMimeType = null
+            this.bodyLength = null
+        }
+    }    
 
     @action
     setKey(value: string) {
@@ -230,40 +249,50 @@ export class EditableRequest extends EditableRequestEntry {
         this.onUpdate()
     }
 
+    @action setBodyFromRawData(data: Uint8Array) {
+        this.bodyLength = data.length
+        this.setBody({ type: BodyType.Raw, data: base64Encode(data) })
+    }
+
     @action
-    setBody(body: Body | undefined) {
+    setBody(body: Body) {
+        this.markAsDirty()
         this.body = EditableRequest.createEditableBody(body)
-        this.checkEditModel()
-        this.onUpdateBody()
+        this.onUpdateBody(this.body)
     }
 
     @action
     setBodyType(newBodyType: BodyType) {
+        let body: Body
+
         switch (newBodyType) {
             case BodyType.Raw:
                 switch (this.body.type) {
                     case BodyType.Form:
-                        this.body = {
+                        body = {
                             type: BodyType.Raw,
-                            data: (new TextEncoder()).encode(
-                                encodeFormData(this.body.data)
-                            )
+                            data: base64Encode((new TextEncoder()).encode(
+                                encodeFormData(this.body.data)))
                         }
                         break
                     case BodyType.XML:
                     case BodyType.JSON:
                     case BodyType.Text:
-                        this.body = {
+                        body = {
                             type: BodyType.Raw,
-                            data: (new TextEncoder()).encode(this.body.data)
+                            data: base64Encode((new TextEncoder()).encode(this.body.data))
                         }
                         break
                     case BodyType.Raw:
+                        body = {
+                            type: BodyType.Raw,
+                            data: this.body.data
+                        }
                         break
                     default:
-                        this.body = {
+                        body = {
                             type: BodyType.Raw,
-                            data: new Uint8Array()
+                            data: base64Encode(new Uint8Array())
                         }
                         break
                 }
@@ -273,25 +302,25 @@ export class EditableRequest extends EditableRequestEntry {
                     case BodyType.JSON:
                     case BodyType.XML:
                     case BodyType.Text:
-                        this.body = {
+                        body = {
                             type: BodyType.Form,
                             data: decodeFormData(this.body.data)
                         }
                         break
                     case BodyType.Raw:
-                        this.body = {
+                        body = {
                             type: BodyType.Form,
-                            data: decodeFormData(new TextDecoder().decode(this.body.data))
+                            data: decodeFormData(new TextDecoder().decode(base64Decode(this.body.data)))
                         }
                         break
                     case BodyType.Form:
-                        this.body = {
+                        body = {
                             type: BodyType.Form,
-                            data: this.body.data,
+                            data: this.body.data
                         }
                         break
                     default:
-                        this.body = {
+                        body = {
                             type: BodyType.Form,
                             data: []
                         }
@@ -305,42 +334,43 @@ export class EditableRequest extends EditableRequestEntry {
                     case BodyType.JSON:
                     case BodyType.XML:
                     case BodyType.Text:
-                        this.body = {
+                        body = {
                             type: newBodyType,
                             data: this.body.data
                         }
                         break
                     case BodyType.Raw:
-                        this.body = {
+                        body = {
                             type: newBodyType,
-                            data: (new TextDecoder()).decode(this.body.data)
+                            data: (new TextDecoder()).decode(base64Decode(this.body.data))
                         }
                         break
                     default:
-                        this.body = {
+                        body = {
                             type: BodyType.None,
-                            data: undefined,
+                            data: undefined
                         }
                         break
                 }
                 break
             case BodyType.None:
             default:
-                this.body = {
+                body = {
                     type: BodyType.None,
                     data: undefined
                 }
                 break
         }
         this.checkEditModel()
-        this.onUpdateBody()
+        this.onUpdateBody(body)
     }
 
     @action
-    setBodyData(value: string | Uint8Array | EditableNameValuePair[]) {
-        this.body.data = value
-        this.checkEditModel()
-        this.onUpdateBody()
+    setBodyData(value: string | EditableNameValuePair[]) {
+        if (this.isBodyInitialized) {
+            this.body.data = value
+            this.onUpdateBody(this.body)
+        }
     }
 
     @action
@@ -373,7 +403,8 @@ export class EditableRequest extends EditableRequestEntry {
         this.referrer = entity.referrer
         this.referrerPolicy = entity.referrerPolicy
         this.duplex = entity.duplex
-        this.body = EditableRequest.createEditableBody(entity.body)
+        this.isBodyInitialized = false
+        // this.body = EditableRequest.createEditableBody(entity.body)
         this.test = entity.test ?? ''
         this.selectedScenario = entity.selectedScenario
         this.selectedAuthorization = entity.selectedAuthorization
@@ -424,27 +455,15 @@ export class EditableRequest extends EditableRequestEntry {
     private checkEditModel() {
         switch (this.body?.type) {
             case BodyType.JSON:
-                this.bodyMimeType = 'application/json'
                 this.bodyLanguage = EditorMode.json
                 break
             case BodyType.XML:
-                this.bodyMimeType = 'application/xml'
                 this.bodyLanguage = EditorMode.xml
                 break
             case BodyType.Text:
-                this.bodyMimeType = 'text/plain'
                 this.bodyLanguage = EditorMode.txt
                 break
-            case BodyType.Form:
-                this.bodyMimeType = 'application/x-www-form-urlencoded'
-                this.bodyLanguage = null
-                break
-            case BodyType.Raw:
-                this.bodyMimeType = 'application/octet-stream'
-                this.bodyLanguage = null
-                break
             default:
-                this.bodyMimeType = null
                 this.bodyLanguage = null
                 return
         }

@@ -1,5 +1,11 @@
 # Change Log
 
+# 0.29.3
+
+* Fix final result navigation "prev" button
+* Set children to None when serializing/deserializing empty result children lists
+* Fix raw body load from clipboard and file
+
 # 0.29.2
 
 * Performance improvements

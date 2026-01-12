@@ -42,8 +42,6 @@ export class FeedbackStore {
 
     @action
     confirm(options: ConfirmationOptions): Promise<boolean> {
-        // Trigger a click event on the document body to close any open select
-        console.log('Closing selects')
         // Find all MUI popover backdrops and click them
         const backdrops = document.querySelectorAll('.MuiBackdrop-root');
         backdrops.forEach(backdrop => {

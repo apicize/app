@@ -1,5 +1,5 @@
 import { action, computed, makeObservable, observable, runInAction, toJS } from "mobx"
-import { ExecutionEvent, ExecutionResultDetailWithBase64, ExecutionResultViewState } from "../models/workspace/execution"
+import { ExecutionEvent, ExecutionResultViewState } from "../models/workspace/execution"
 import { EditableRequest } from "../models/workspace/editable-request"
 import { EditableRequestGroup } from "../models/workspace/editable-request-group"
 import { EditableScenario } from "../models/workspace/editable-scenario"
@@ -109,7 +109,7 @@ export class WorkspaceStore {
     @observable accessor mode = WorkspaceMode.Normal;
     @observable accessor helpTopic: string | null = null
 
-    @observable public accessor currentExecutionDetail: ExecutionResultDetailWithBase64 | null = null
+    @observable public accessor currentExecutionDetail: ExecutionResultDetail | null = null
 
     @observable public accessor hideSuccess = false
     @observable public accessor hideFailure = false
@@ -159,6 +159,9 @@ export class WorkspaceStore {
             closePkce: (data: { authorizationId: string }) => Promise<void>,
             refreshToken: (data: { authorizationId: string }) => Promise<void>,
             copyToClipboard: (payloadRequest: ClipboardPaylodRequest) => Promise<void>,
+            getRequestBody: (requestId: string) => Promise<RequestBodyInfoWithBody>,
+            updateRequestBody: (requestId: string, body?: Body) => Promise<RequestBodyInfo>,
+            updateRequestBodyFromClipboard: (requestId: String) => Promise<RequestBodyInfoWithBody>,
             openUrl: (url: string) => Promise<void>,
         }) {
         makeObservable(this)
@@ -307,15 +310,18 @@ export class WorkspaceStore {
     }
 
     changeRequestBody(id: string) {
-        this.getRequestBody(id)
+        if (this.activeSelection?.entityType === EntityType.Request && this.activeSelection.id === id &&
+            this.activeSelection.isBodyInitialized) {
+            return this.activeSelection.body
+        }
+
+        this.callbacks.getRequestBody(id)
             .then(bodyInfo => {
-                runInAction(() => {
-                    if (this.activeSelection?.entityType === EntityType.Request && this.activeSelection.id === id) {
-                        this.activeSelection.initializeBody(bodyInfo)
-                    }
-                })
+                if (this.activeSelection?.entityType === EntityType.Request && this.activeSelection.id === id) {
+                    this.activeSelection.initializeBody(bodyInfo)
+                }
             })
-            .catch(e => runInAction(() => this.feedback.toastError(e)))
+            .catch(e => this.feedback.toastError(e))
     }
 
     @action
@@ -658,34 +664,12 @@ export class WorkspaceStore {
         throw new Error(`Entity is not a request or group ${id} (${result.entityTypeName})`)
     }
 
-    private async getRequestBody(id: string) {
-        if (this.activeSelection?.entityType === EntityType.Request && this.activeSelection.id === id &&
-            this.activeSelection.isBodyInitialized) {
-            return this.activeSelection.body
-        }
-
-        const result = await this.callbacks.get(EntityType.RequestBody, id)
-        if (!result) {
-            throw new Error(`Request ID "${id}" is not valid`)
-        }
-        if (result.entityTypeName == EntityTypeName.RequestBody) {
-            return result.body
-        }
-        throw new Error(`Invalid request ${id}`)
-    }
-
     getResponseTitle(id: string) {
         return this.callbacks.getTitle(EntityType.Request, id)
     }
 
     updateRequest(request: EntityRequest) {
         this.callbacks.update(request).catch((e) => {
-            this.feedback.toastError(e)
-        })
-    }
-
-    updateRequestBody(bodyInfo: EntityRequestBody) {
-        this.callbacks.update(bodyInfo).catch((e) => {
             this.feedback.toastError(e)
         })
     }
@@ -1090,15 +1074,7 @@ export class WorkspaceStore {
     updateExecutionDetail(execCtr: number) {
         this.currentExecutionDetail = null
         this.callbacks.getResultDetail(execCtr)
-            .then((d: ExecutionResultDetailWithBase64) => runInAction(() => {
-                if (d.entityType === 'request') {
-                    if (d.testContext.request?.body?.type === 'Binary') {
-                        d.requestBodyBase64 = base64Encode(d.testContext.request.body.data)
-                    }
-                    if (d.testContext.response?.body?.type === 'Binary') {
-                        d.resultBodyBase64 = base64Encode(d.testContext.response.body.data)
-                    }
-                }
+            .then((d: ExecutionResultDetail) => runInAction(() => {
                 this.currentExecutionDetail = d
             }))
             .catch(e => this.feedback.toastError(e))
@@ -1348,7 +1324,7 @@ export class WorkspaceStore {
                 switch (type) {
                     case ResultEditSessionType.Base64:
                         text = (detail.testContext.response?.body?.type === 'Binary')
-                            ? base64Encode(detail.testContext.response.body.data)
+                            ? detail.testContext.response.body.data
                             : ''
                         break
                     default:
@@ -1418,6 +1394,31 @@ export class WorkspaceStore {
         this.callbacks.copyToClipboard(payloadRequest)
             .then(() => this.feedback.toast(`${description} copied to clipboard`, ToastSeverity.Info))
             .catch((err) => this.feedback.toastError(err))
+    }
+
+    async updateRequestBody(requestId: string, body: Body | undefined): Promise<RequestBodyInfo | null> {
+        try {
+            if (body) {
+                const bodyInfo = await this.callbacks.updateRequestBody(requestId, body) ?? null
+                // todo:  send to other sessions?
+                return bodyInfo
+            } else {
+                return null
+            }
+        } catch (e) {
+            this.feedback.toastError(e)
+            return null
+        }
+    }
+    
+    public async updateRequestBodyFromClipboard(requestId: String): Promise<RequestBodyInfo> {
+        const bodyInfo = await this.callbacks.updateRequestBodyFromClipboard(requestId)
+        runInAction(() => {
+            if (this.activeSelection?.entityType === EntityType.Request && this.activeSelection.id === bodyInfo.requestId) {
+                this.activeSelection.onUpdateBodyFromExternal(bodyInfo)
+            }
+        })
+        return bodyInfo
     }
 
     public openUrl(url: string) {
@@ -1612,7 +1613,12 @@ export interface RequestHeaderInfo {
 }
 
 export interface RequestBodyInfo {
-    id: string
+    requestId: string
+    bodyMimeType?: string
+    bodyLength?: number
+}
+
+export interface RequestBodyInfoWithBody extends RequestBodyInfo {
     body?: Body
 }
 

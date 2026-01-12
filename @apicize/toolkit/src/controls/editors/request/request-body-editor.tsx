@@ -18,8 +18,8 @@ import { editor } from 'monaco-editor'
 import MonacoEditor from 'react-monaco-editor'
 import { useApicizeSettings } from '../../../contexts/apicize-settings.context'
 import { EditableRequest } from '../../../models/workspace/editable-request'
-import { IRequestEditorTextModel } from '../../../models/editor-text-model';
 import { RequestEditSessionType } from '../editor-types';
+import { ImageViewer, KNOWN_IMAGE_EXTENSIONS } from '../../viewers/image-viewer';
 
 export const RequestBodyEditor = observer(({ request }: { request: EditableRequest }) => {
   const workspace = useWorkspace()
@@ -53,30 +53,18 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
           setIsDragging(false)
           switch (file.type) {
             case 'binary':
-              request.setBody({
-                type: BodyType.Raw,
-                data: file.data
-              })
+              request.setBodyFromRawData(file.data)
               break
             case 'text':
               switch (file.extension) {
                 case 'json':
-                  request.setBody({
-                    type: BodyType.JSON,
-                    data: file.data
-                  })
+                  request.setBody({ type: BodyType.JSON, data: file.data })
                   break
                 case 'xml':
-                  request.setBody({
-                    type: BodyType.XML,
-                    data: file.data
-                  })
+                  request.setBody({ type: BodyType.XML, data: file.data })
                   break
                 default:
-                  request.setBody({
-                    type: BodyType.Text,
-                    data: file.data
-                  })
+                  request.setBody({ type: BodyType.Text, data: file.data })
               }
               break
           }
@@ -180,9 +168,8 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
 
   const pasteImageFromClipboard = async () => {
     try {
-      const data = await clipboard.getClipboardImage()
-      request.setBody({ type: BodyType.Raw, data })
-      feedback.toast('Image pasted from clipboard', ToastSeverity.Success)
+      const bodyInfo = await workspace.updateRequestBodyFromClipboard(request.id)
+      feedback.toast(`Image pasted from clipboard (${bodyInfo.bodyMimeType ?? '(No Type)'})`, ToastSeverity.Success)
     } catch (e) {
       feedback.toast(`Unable to access clipboard image - ${e}`, ToastSeverity.Error)
     }
@@ -192,7 +179,7 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
     try {
       const data = await fileOps.openFile()
       if (!data) return
-      request.setBody({ type: BodyType.Raw, data })
+      request.setBodyFromRawData(data)
     } catch (e) {
       feedback.toast(`Unable to open file - ${e}`, ToastSeverity.Error)
     }
@@ -209,26 +196,63 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
     default:
       allowCopy = false
   }
-  const RawEditor = () => {
+  const RawEditor = observer((
+    { bodyLength, bodyMimeType, data }:
+      { bodyLength: number | null, bodyMimeType: string | null, data: string }) => {
+
+    let isImage: boolean
+    let ext: string | undefined
+
+    if (bodyMimeType?.startsWith('image/')) {
+      ext = bodyMimeType.substring(6).toLocaleLowerCase()
+      let idx = ext.indexOf('+')
+      if (idx !== -1) {
+        ext = ext.substring(0, idx)
+      }
+      isImage = KNOWN_IMAGE_EXTENSIONS.includes(ext)
+    } else {
+      isImage = false
+    }
+
     return <Stack
-      direction='row'
-      sx={{
-        borderRadius: '4px',
-        overflow: 'hidden',
-        border: '1px solid #444!important',
-        width: 'fit-content',
-      }}
+      display='flex'
+      direction='column'
+      flexGrow={1}
+      position='relative'
+      boxSizing='border-box'
+      width='100%'
+      maxWidth='100%'
+      height='100%'
+      gap='10px'
     >
-      <IconButton aria-label='load body from file' title='Load Body from File' onClick={() => openFile()} sx={{ marginRight: '4px' }}>
-        <FileOpenIcon color='primary' />
-      </IconButton>
-      <IconButton aria-label='copy body from clipboard' title='Paste Body from Clipboard' disabled={!clipboard.hasImage}
-        onClick={() => pasteImageFromClipboard()} sx={{ marginRight: '4px' }}>
-        <ContentPasteGoIcon color='primary' />
-      </IconButton>
-      <Box padding='10px'>{request.body.data ? request.body.data.length.toLocaleString() + ' Bytes' : '(None)'}</Box>
+      <Stack
+        direction='row'
+        sx={{
+          borderRadius: '4px',
+          overflow: 'hidden',
+          border: '1px solid #444!important',
+          width: 'fit-content',
+        }}
+      >
+        <IconButton aria-label='load body from file' title='Load Body from File' onClick={() => openFile()} sx={{ marginRight: '4px' }}>
+          <FileOpenIcon color='primary' />
+        </IconButton>
+        <IconButton aria-label='copy body from clipboard' title='Paste Body from Clipboard' disabled={!clipboard.hasImage}
+          onClick={() => pasteImageFromClipboard()} sx={{ marginRight: '4px' }}>
+          <ContentPasteGoIcon color='primary' />
+        </IconButton>
+        <Stack direction='row' padding='10px' spacing='1rem'>
+          <Box>{bodyLength ? bodyLength.toLocaleString() + ' Bytes' : ''}</Box>
+          <Box>{bodyMimeType ? bodyMimeType : ''}</Box>
+        </Stack>
+      </Stack>
+      {
+        isImage
+          ? <ImageViewer base64Data={data} extensionToRender={ext} />
+          : null
+      }
     </Stack>
-  }
+  })
 
   return (
     <Box id='request-body-container' ref={refContainer} position='relative' width='100%' height='100%'>
@@ -292,7 +316,7 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
               valueHeader='Value'
               onUpdate={(data) => request.setBodyData(data ?? [])} />
             : request.body.type == BodyType.Raw
-              ? <RawEditor />
+              ? <RawEditor bodyLength={request.bodyLength} bodyMimeType={request.bodyMimeType} data={request.body.data} />
               : <MonacoEditor
                 language={request.bodyLanguage ?? undefined}
                 width='100%'

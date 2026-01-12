@@ -6,11 +6,9 @@ import { EditorMode } from "../../../models/editor-mode";
 import { RichViewer } from "../rich-viewer";
 import { ResultEditSessionType } from "../../editors/editor-types";
 import { useWorkspace } from "../../../contexts/workspace.context";
-import { ClipboardPaylodRequest } from "../../../models/clipboard_payload_request";
 import { ExecutionResultDetail } from "@apicize/lib-typescript";
-import { ExecutionResultDetailWithBase64 } from "../../../models/workspace/execution";
 
-export function ResultResponsePreview({ detail }: { detail: ExecutionResultDetailWithBase64 | null }) {
+export function ResultResponsePreview({ detail }: { detail: ExecutionResultDetail | null }) {
 
     const workspace = useWorkspace()
 
@@ -40,14 +38,12 @@ export function ResultResponsePreview({ detail }: { detail: ExecutionResultDetai
         }
     }
 
-    let image: Uint8Array = new Uint8Array()
+    let isImage = false
     let text: string = ''
 
     switch (body.type) {
         case 'Binary':
-            if (extension && KNOWN_IMAGE_EXTENSIONS.indexOf(extension) !== -1 && body.data.length > 0) {
-                image = body.data
-            }
+            isImage = KNOWN_IMAGE_EXTENSIONS.indexOf(extension) !== -1 && body.data.length > 0
             break
         case 'JSON':
             text = beautify.js_beautify(JSON.stringify(body.data), {})
@@ -72,12 +68,11 @@ export function ResultResponsePreview({ detail }: { detail: ExecutionResultDetai
             }
     }
 
-    let hasImage = image.length > 0 && detail.resultBodyBase64 && detail.resultBodyBase64.length > 0
     let hasText = text.length > 0
 
     let viewer
-    if (hasImage && extension) {
-        viewer = (<ImageViewer base64Data={detail.resultBodyBase64} extensionToRender={extension} />)
+    if (isImage && detail.testContext?.response?.body?.type === 'Binary' && detail.testContext.response.body.data.length > 0 && extension) {
+        viewer = (<ImageViewer base64Data={detail.testContext.response.body.data} extensionToRender={extension} />)
     } else if (hasText) {
         let mode: EditorMode | undefined
         switch (extension) {
@@ -126,7 +121,7 @@ export function ResultResponsePreview({ detail }: { detail: ExecutionResultDetai
                     onClick={_ => workspace.copyToClipboard({
                         payloadType: 'ResponseBodyPreview',
                         execCtr: detail.execCtr
-                    }, hasImage ? 'Image' : 'Data')}
+                    }, isImage ? 'Image' : 'Data')}
                 >
                     <ContentCopyIcon />
                 </IconButton>

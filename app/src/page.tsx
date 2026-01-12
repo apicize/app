@@ -4,7 +4,8 @@ import * as core from '@tauri-apps/api/core'
 import {
   EditableSettings, DragDropProvider, Entity, EntityType, FeedbackStore, IndexedEntityPosition, LogStore, MainPanel, Navigation, ReqwestEvent,
   SessionSaveState, ToastSeverity, UpdatedNavigationEntry, WorkspaceStore, ClipboardPaylodRequest, ExecutionEvent, SessionEntity, WorkspaceInitialization,
-  WorkspaceMode
+  WorkspaceMode,
+  RequestBodyInfo
 } from '@apicize/toolkit'
 import React, { useEffect, useState } from 'react'
 import "@fontsource/roboto-mono/latin.css"
@@ -146,6 +147,15 @@ const workspaceStore = new WorkspaceStore(
       emit('oauth2-refresh-token', data),
     copyToClipboard: (payloadRequest: ClipboardPaylodRequest) => core.invoke<void>(
       'copy_to_clipboard', { sessionId, payloadRequest }
+    ),
+    getRequestBody: (requestId) => core.invoke<RequestBodyInfo>(
+      'get_request_body', { sessionId, requestId }
+    ),
+    updateRequestBody: (requestId, body) => core.invoke<RequestBodyInfo>(
+      'update_request_body', { sessionId, requestId, body }
+    ),
+    updateRequestBodyFromClipboard: (requestId) => core.invoke<RequestBodyInfo>(
+      'update_request_body_from_clipboard', { sessionId, requestId }
     ),
     openUrl: (url: string) => openUrl(url)
   },

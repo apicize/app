@@ -6,6 +6,7 @@ use apicize_lib::{
     Workspace, editing::indexed_entities::IndexedEntityPosition, identifiable::CloneIdentifiable,
     indexed_entities::NO_SELECTION_ID,
 };
+use file_type::FileType;
 use indexmap::IndexMap;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -96,10 +97,26 @@ pub struct RequestHeaderInfo {
 #[derive(Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestBodyInfo {
-    /// Unique identifier (required to keep track of dispatches and test executions)
-    pub id: String,
+    /// Request ID
+    pub request_id: String,
+    /// Mime type of the body
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub body_mime_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub body_length: Option<usize>,
+}
+
+#[derive(Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct RequestBodyInfoWithBody {
+    pub request_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<RequestBody>,
+    /// Mime type of the body
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub body_mime_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub body_length: Option<usize>,
 }
 
 pub struct WorkspaceInfo {
@@ -119,6 +136,8 @@ pub struct WorkspaceInfo {
     pub execution_results: ExecutionResultBuilder,
     /// Execution information
     pub executions: FxHashMap<String, RequestExecution>,
+    /// Request body types
+    pub request_body_mime_types: HashMap<String, String>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -337,6 +356,30 @@ impl Workspaces {
         }
     }
 
+    pub fn get_body_type(body: &RequestBody) -> String {
+        match body {
+            RequestBody::Text { .. } => "text/plain".to_string(),
+            RequestBody::JSON { .. } => "application/json".to_string(),
+            RequestBody::XML { .. } => "application/xml".to_string(),
+            RequestBody::Form { .. } => "application/x-www-form-urlencoded".to_string(),
+            RequestBody::Raw { data } => FileType::from_bytes(data)
+                .media_types()
+                .first()
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| "application/octet-stream".to_string()),
+        }
+    }
+
+    pub fn get_body_length(body: &RequestBody) -> usize {
+        match body {
+            RequestBody::Text { data } => data.len(),
+            RequestBody::JSON { data } => data.len(),
+            RequestBody::XML { data } => data.len(),
+            RequestBody::Form { data } => data.len(),
+            RequestBody::Raw { data } => data.len(),
+        }
+    }
+
     /// Add workspace, return workspace ID and display name
     pub fn add_workspace(
         &mut self,
@@ -368,6 +411,7 @@ impl Workspaces {
                 executions: FxHashMap::default(),
                 file_name: file_name.to_string(),
                 display_name: display_name.clone(),
+                request_body_mime_types: HashMap::default(),
             },
         );
 
@@ -512,16 +556,30 @@ impl Workspaces {
     }
 
     pub fn get_request_body(
-        &self,
+        &mut self,
         workspace_id: &str,
         request_id: &str,
-    ) -> Result<RequestBodyInfo, ApicizeAppError> {
-        let workspace = self.get_workspace(workspace_id)?;
-        match workspace.requests.entities.get(request_id) {
-            Some(RequestEntry::Request(request)) => Ok(RequestBodyInfo {
-                id: request_id.to_string(),
-                body: request.body.clone(),
-            }),
+    ) -> Result<RequestBodyInfoWithBody, ApicizeAppError> {
+        let info = self.get_workspace_info_mut(workspace_id)?;
+        match info.workspace.requests.entities.get(request_id) {
+            Some(RequestEntry::Request(request)) => {
+                let (body_mime_type, body_length) = if let Some(body) = &request.body {
+                    let body_type = Workspaces::get_body_type(body);
+                    let body_length = Workspaces::get_body_length(&body);
+                    info.request_body_mime_types
+                        .insert(request_id.to_string(), body_type.clone());
+                    // println!("Request {} mime type: {}", request_id, &body_type);
+                    (Some(body_type), Some(body_length))
+                } else {
+                    (None, None)
+                };
+                Ok(RequestBodyInfoWithBody {
+                    request_id: request_id.to_string(),
+                    body: request.body.clone(),
+                    body_mime_type,
+                    body_length,
+                })
+            }
             _ => Err(ApicizeAppError::InvalidRequest(request_id.into())),
         }
     }
@@ -674,6 +732,7 @@ impl Workspaces {
         info.dirty = true;
         info.workspace.requests.remove_entity(request_or_group_id)?;
         info.executions.remove(request_or_group_id);
+        info.request_body_mime_types.remove(request_or_group_id);
         info.workspace.validate_selections();
         Ok(())
     }
@@ -911,23 +970,29 @@ impl Workspaces {
     pub fn update_request_body(
         &mut self,
         workspace_id: &str,
-        body_info: RequestBodyInfo,
+        body_info: &RequestBodyInfoWithBody,
     ) -> Result<(), ApicizeAppError> {
         match self.workspaces.get_mut(workspace_id) {
             Some(info) => {
                 info.dirty = true;
-                let id = &body_info.id;
+                let id = &body_info.request_id;
                 if let Some(RequestEntry::Request(existing_request)) =
                     info.workspace.requests.entities.get_mut(id)
                 {
-                    if body_info.body.is_some() {
-                        existing_request.body = body_info.body;
-                    } else {
-                        existing_request.body = None;
+                    match &body_info.body {
+                        Some(body) => {
+                            let mime_type = Workspaces::get_body_type(&body);
+                            info.request_body_mime_types.insert(id.clone(), mime_type);
+                            existing_request.body = Some(body.clone());
+                        }
+                        None => {
+                            info.request_body_mime_types.remove(id);
+                            existing_request.body = None;
+                        }
                     }
                     Ok(())
                 } else {
-                    Err(ApicizeAppError::InvalidRequest(body_info.id))
+                    Err(ApicizeAppError::InvalidRequest(body_info.request_id.clone()))
                 }
             }
             None => Err(ApicizeAppError::InvalidWorkspace(workspace_id.into())),
@@ -2165,7 +2230,9 @@ impl WorkspaceInfo {
                 }
             }
             ClipboardPayloadRequest::ResponseDetail { exec_ctr } => {
-                let detail = self.execution_results.get_detail(&exec_ctr)?;
+                let detail: &ExecutionResultDetail =
+                    self.execution_results.get_detail(&exec_ctr)?;
+
                 Ok(Some(PersistableData::Text(serde_json::to_string_pretty(
                     detail,
                 )?)))
@@ -2384,7 +2451,7 @@ impl WorkspaceInfo {
         }
 
         if results.len() > 1 {
-            for i in 0..results.len() - 1 {
+            for i in 0..results.len() {
                 if let Some(next_exec_ctr) = results.get(i + 1).map(|r| r.exec_ctr) {
                     let here = results.get_mut(i).unwrap();
                     here.next_exec_ctr = Some(next_exec_ctr);

@@ -11,8 +11,8 @@ pub mod trace;
 pub mod workspaces;
 use apicize_lib::{
     ApicizeRunner, Authorization, CachedTokenInfo, ExecutionResultSuccess, ExecutionResultSummary,
-    ExecutionState, ExternalData, Parameters, PkceTokenResult, RequestEntry, TestRunnerContext,
-    TokenResult, Validated, Workspace, clear_all_oauth2_tokens_from_cache,
+    ExecutionState, ExternalData, Parameters, PkceTokenResult, RequestBody, RequestEntry,
+    TestRunnerContext, TokenResult, Validated, Workspace, clear_all_oauth2_tokens_from_cache,
     clear_oauth2_token_from_cache, editing::indexed_entities::IndexedEntityPosition,
     get_oauth2_client_credentials, store_oauth2_token_in_cache,
 };
@@ -49,7 +49,9 @@ use workspaces::{
 
 use crate::{
     sessions::SessionEntity,
-    workspaces::{ClipboardPayloadRequest, PersistableData, WorkspaceInitialization},
+    workspaces::{
+        ClipboardPayloadRequest, PersistableData, RequestBodyInfo, RequestBodyInfoWithBody, WorkspaceInitialization,
+    },
 };
 
 struct AuthState {
@@ -266,7 +268,9 @@ async fn main() {
             copy_to_clipboard,
             // get_environment_variables,
             is_release_mode,
-            get_clipboard_image,
+            get_request_body,
+            update_request_body,
+            update_request_body_from_clipboard,
             set_pkce_port,
             generate_authorization_info,
             // launch_pkce_window,
@@ -1502,17 +1506,85 @@ async fn copy_to_clipboard(
     }
     Ok(())
 }
+
 #[tauri::command]
-fn get_clipboard_image(clipboard: State<Clipboard>) -> Result<Vec<u8>, String> {
-    match clipboard.has_image() {
+async fn get_request_body(
+    sessions_state: State<'_, SessionsState>,
+    workspaces_state: State<'_, WorkspacesState>,
+    session_id: &str,
+    request_id: &str,
+) -> Result<RequestBodyInfoWithBody, ApicizeAppError> {
+    let mut workspaces = workspaces_state.workspaces.write().await;
+    let sessions = sessions_state.sessions.read().await;
+    let session = sessions.get_session(session_id)?;
+    workspaces.get_request_body(&session.workspace_id, request_id)
+}
+
+#[tauri::command]
+async fn update_request_body(
+    sessions_state: State<'_, SessionsState>,
+    workspaces_state: State<'_, WorkspacesState>,
+    session_id: &str,
+    request_id: &str,
+    body: RequestBody,
+) -> Result<RequestBodyInfo, ApicizeAppError> {
+    let mut workspaces = workspaces_state.workspaces.write().await;
+    let sessions = sessions_state.sessions.read().await;
+    let session = sessions.get_session(session_id)?;
+
+    let body_mime_type = Some(Workspaces::get_body_type(&body));
+    let body_length = Some(Workspaces::get_body_length(&body));
+
+    let body_info = RequestBodyInfoWithBody {
+        request_id: request_id.to_string(),
+        body: Some(body),
+        body_mime_type: body_mime_type.clone(),
+        body_length,
+    };
+    workspaces.update_request_body(&session.workspace_id, &body_info)?;
+    Ok(RequestBodyInfo {
+        request_id: body_info.request_id,
+        body_mime_type: body_info.body_mime_type,
+        body_length: body_info.body_length,
+    })
+}
+
+#[tauri::command]
+async fn update_request_body_from_clipboard(
+    sessions_state: State<'_, SessionsState>,
+    workspaces_state: State<'_, WorkspacesState>,
+    clipboard_state: State<'_, Clipboard>,
+    session_id: &str,
+    request_id: &str,
+) -> Result<RequestBodyInfoWithBody, ApicizeAppError> {
+    match clipboard_state.has_image() {
         Ok(has_image) => {
             if has_image {
-                clipboard.read_image_binary()
+                let mut workspaces = workspaces_state.workspaces.write().await;
+                let sessions = sessions_state.sessions.read().await;
+                let session = sessions.get_session(session_id)?;
+
+                let data = clipboard_state
+                    .read_image_binary()
+                    .map_err(|err| ApicizeAppError::ClipboardError(err))?;
+                let body_length = Some(data.len());
+                let body = RequestBody::Raw { data };
+                let body_mime_type = Some(Workspaces::get_body_type(&body));
+                let body_info = RequestBodyInfoWithBody {
+                    request_id: request_id.to_string(),
+                    body: Some(body),
+                    body_mime_type,
+                    body_length,
+                };
+                workspaces.update_request_body(&session.workspace_id, &body_info)?;
+                Ok(body_info)
             } else {
-                Err(String::from("Clipboard does not contain an image"))
+                Err(ApicizeAppError::ClipboardError(String::from(
+                    "Clipboard does not contain an image",
+                )))
             }
         }
-        Err(msg) => Err(msg),
+        Err(msg) => Err(ApicizeAppError::ClipboardError(msg)),
     }
 }
 
@@ -1685,12 +1757,13 @@ async fn get(
 ) -> Result<Entity, ApicizeAppError> {
     let sessions = sessions_state.sessions.read().await;
     let session = sessions.get_session(session_id)?;
-    let workspaces = workspaces_state.workspaces.read().await;
     Ok(match entity_type {
         EntityType::RequestEntry => {
+            let workspaces = workspaces_state.workspaces.read().await;
             Entity::RequestEntry(workspaces.get_request_entry(&session.workspace_id, entity_id)?)
         }
         EntityType::Request => {
+            let workspaces = workspaces_state.workspaces.read().await;
             if let RequestEntryInfo::Request { request } =
                 workspaces.get_request_entry(&session.workspace_id, entity_id)?
             {
@@ -1699,10 +1772,8 @@ async fn get(
                 return Err(ApicizeAppError::InvalidRequest(entity_id.to_string()));
             }
         }
-        EntityType::RequestBody => {
-            Entity::RequestBody(workspaces.get_request_body(&session.workspace_id, entity_id)?)
-        }
         EntityType::Group => {
+            let workspaces = workspaces_state.workspaces.read().await;
             if let RequestEntryInfo::Group { group } =
                 workspaces.get_request_entry(&session.workspace_id, entity_id)?
             {
@@ -1711,23 +1782,34 @@ async fn get(
                 return Err(ApicizeAppError::InvalidGroup(entity_id.to_string()));
             }
         }
-        EntityType::Scenario => Entity::Scenario(
-            workspaces
-                .get_scenario(&session.workspace_id, entity_id)?
-                .clone(),
-        ),
+        EntityType::Scenario => {
+            let workspaces = workspaces_state.workspaces.read().await;
+            Entity::Scenario(
+                workspaces
+                    .get_scenario(&session.workspace_id, entity_id)?
+                    .clone(),
+            )
+        }
         EntityType::Authorization => {
+            let workspaces = workspaces_state.workspaces.read().await;
             Entity::Authorization(workspaces.get_authorization(&session.workspace_id, entity_id)?)
         }
         EntityType::Certificate => {
+            let workspaces = workspaces_state.workspaces.read().await;
             Entity::Certificate(workspaces.get_certificate(&session.workspace_id, entity_id)?)
         }
-        EntityType::Proxy => Entity::Proxy(
-            workspaces
-                .get_proxy(&session.workspace_id, entity_id)?
-                .clone(),
-        ),
-        EntityType::Data => Entity::Data(workspaces.get_data(&session.workspace_id, entity_id)?),
+        EntityType::Proxy => {
+            let workspaces = workspaces_state.workspaces.read().await;
+            Entity::Proxy(
+                workspaces
+                    .get_proxy(&session.workspace_id, entity_id)?
+                    .clone(),
+            )
+        }
+        EntityType::Data => {
+            let workspaces = workspaces_state.workspaces.read().await;
+            Entity::Data(workspaces.get_data(&session.workspace_id, entity_id)?)
+        }
         _ => {
             return Err(ApicizeAppError::InvalidTypeForOperation(entity_type));
         }
@@ -1941,10 +2023,6 @@ async fn update(
             workspaces.update_request_headers(&session.workspace_id, header_info)?;
             Ok(None)
         }
-        Entity::RequestBody(body_info) => {
-            workspaces.update_request_body(&session.workspace_id, body_info)?;
-            Ok(None)
-        }
         Entity::Scenario(scenario) => workspaces.update_scenario(&session.workspace_id, scenario),
         Entity::Authorization(authorization) => {
             workspaces.update_authorization(&session.workspace_id, authorization)
@@ -1972,12 +2050,8 @@ async fn update(
                     {
                         match workspaces.get_request_entry(&session.workspace_id, &request_id) {
                             Ok(RequestEntryInfo::Request { request }) => {
-                                app.emit_to(
-                                    session_id,
-                                    "update",
-                                    Entity::Request(request.clone()),
-                                )
-                                .unwrap();
+                                app.emit_to(session_id, "update", Entity::Request(request.clone()))
+                                    .unwrap();
                             }
                             Ok(RequestEntryInfo::Group { group }) => {
                                 app.emit_to(session_id, "update", Entity::Group(group.clone()))

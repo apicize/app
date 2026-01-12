@@ -72,7 +72,7 @@ export interface BodyForm {
 
 export interface BodyRaw {
     type: BodyType.Raw
-    data: Uint8Array
+    data: string
 }
 
 export interface RequestEntry extends Identifiable, Named, SelectedParameters, Executable, ValidationErrors, ValidationWarnings {
