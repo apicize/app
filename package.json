@@ -14,6 +14,7 @@
     "build": "yarn build-deps && yarn workspace app build",
     "tauri": "yarn workspace app tauri",
     "start": "yarn workspace app tauri dev",
+    "launch": "yarn build && yarn start",
     "watch": "concurrently \"yarn workspace @apicize/lib-typescript watch\" \"yarn workspace @apicize/toolkit watch\" \"yarn workspace app tauri dev\"",
     "clean": "rimraf node_modules @apicize/app/src-tauri/target @apicize/app/.next @apicize/app/node_modules @apicize/lib-typescript/dist @apicize/lib-typescript/node_modules @apicize/lib-typescript/tsconfig.tsbuildinfo @apicize/toolkit/dist @apicize/toolkit/node_modules @apicize/toolkit/tsconfig.tsbuildinfo",
     "build-deps": "yarn workspace @apicize/lib-typescript build && yarn workspace @apicize/toolkit build",

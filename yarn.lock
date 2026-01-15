@@ -49,15 +49,15 @@ __metadata:
     js-beautify: "npm:^1.15.3"
     mobx: "npm:^6.13.7"
     mobx-react-lite: "npm:^4.1.0"
-    monaco-editor: "npm:^0.52.2"
+    monaco-editor: "npm:^0.55.1"
     nodemon: "npm:^3.1.9"
     npm: "npm:^10.2.3"
     react: "npm:^18.2.0"
     react-dnd: "npm:^16.0.1"
     react-dom: "npm:^18.2.0"
-    react-monaco-editor: "npm:^0.58.0"
+    react-monaco-editor: "npm:^0.59.0"
     react-remark: "npm:^2.1.0"
-    react-resizable-panels: "npm:^2.1.4"
+    react-resizable-panels: "npm:^4.4.1"
     reflect-metadata: "npm:^0.1.13"
     rehype-react: "npm:^8.0.0"
     remark-directive: "npm:^3.0.0"
@@ -2750,6 +2750,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/trusted-types@npm:^2.0.7":
+  version: 2.0.7
+  resolution: "@types/trusted-types@npm:2.0.7"
+  checksum: 10c0/4c4855f10de7c6c135e0d32ce462419d8abbbc33713b31d294596c0cc34ae1fa6112a2f9da729c8f7a20707782b0d69da3b1f8df6645b0366d08825ca1522e0c
+  languageName: node
+  linkType: hard
+
 "@types/unist@npm:*, @types/unist@npm:^3.0.0, @types/unist@npm:^3.0.2":
   version: 3.0.3
   resolution: "@types/unist@npm:3.0.3"
@@ -3405,8 +3412,8 @@ __metadata:
     mdast-util-to-hast: "npm:^13.1.0"
     mobx: "npm:^6.13.7"
     mobx-react-lite: "npm:^4.1.0"
-    monaco-editor: "npm:^0.52.2"
-    monaco-editor-webpack-plugin: "npm:^7.1.0"
+    monaco-editor: "npm:^0.55.1"
+    monaco-editor-webpack-plugin: "npm:^7.1.1"
     react: "npm:^18.2.0"
     react-dom: "npm:^18.2.0"
     remark-directive: "npm:^3.0.0"
@@ -4741,6 +4748,18 @@ __metadata:
   dependencies:
     domelementtype: "npm:^2.2.0"
   checksum: 10c0/5c199c7468cb052a8b5ab80b13528f0db3d794c64fc050ba793b574e158e67c93f8336e87fd81e9d5ee43b0e04aea4d8b93ed7be4899cb726a1601b3ba18538b
+  languageName: node
+  linkType: hard
+
+"dompurify@npm:3.2.7":
+  version: 3.2.7
+  resolution: "dompurify@npm:3.2.7"
+  dependencies:
+    "@types/trusted-types": "npm:^2.0.7"
+  dependenciesMeta:
+    "@types/trusted-types":
+      optional: true
+  checksum: 10c0/d41bb31a72f1acdf9b84c56723c549924b05d92a39a15bd8c40bec9007ff80d5fccf844bc53ee12af5b69044f9a7ce24a1e71c267a4f49cf38711379ed8c1363
   languageName: node
   linkType: hard
 
@@ -7762,6 +7781,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"marked@npm:14.0.0":
+  version: 14.0.0
+  resolution: "marked@npm:14.0.0"
+  bin:
+    marked: bin/marked.js
+  checksum: 10c0/57a47cb110f7b1a10f398b0a7236f9183aad2dcd5345ee73f2732b6387e585d04cef472bc655d2f84c542296be9728e179aebe3ed7f2f8666b8a0a9dae592876
+  languageName: node
+  linkType: hard
+
 "math-intrinsics@npm:^1.1.0":
   version: 1.1.0
   resolution: "math-intrinsics@npm:1.1.0"
@@ -8686,22 +8714,25 @@ __metadata:
   languageName: node
   linkType: hard
 
-"monaco-editor-webpack-plugin@npm:^7.1.0":
-  version: 7.1.0
-  resolution: "monaco-editor-webpack-plugin@npm:7.1.0"
+"monaco-editor-webpack-plugin@npm:^7.1.1":
+  version: 7.1.1
+  resolution: "monaco-editor-webpack-plugin@npm:7.1.1"
   dependencies:
     loader-utils: "npm:^2.0.2"
   peerDependencies:
     monaco-editor: ">= 0.31.0"
     webpack: ^4.5.0 || 5.x
-  checksum: 10c0/a0536473bb4469f2f0f11d8a0a317733716535153a3ed7fb26b561997a08bf3946355fdb12ac331a0f220d01fb786226b60070598f83c0dc430ecde4b149b052
+  checksum: 10c0/fe75611813617277330524e502d5413abf03cb0fc0ca92a9f79cd88bb8ed689dd2868676950132decb15765a05ca9c96b31830c8ad70cc3f164d70d543b79461
   languageName: node
   linkType: hard
 
-"monaco-editor@npm:^0.52.2":
-  version: 0.52.2
-  resolution: "monaco-editor@npm:0.52.2"
-  checksum: 10c0/5a92da64f1e2ab375c0ce99364137f794d057c97bed10ecc65a08d6e6846804b8ecbd377eacf01e498f7dfbe1b21e8be64f728256681448f0484df90e767b435
+"monaco-editor@npm:^0.55.1":
+  version: 0.55.1
+  resolution: "monaco-editor@npm:0.55.1"
+  dependencies:
+    dompurify: "npm:3.2.7"
+    marked: "npm:14.0.0"
+  checksum: 10c0/c1a0cf887657b42c8996518bc5ee96bbd39c977f862d2a2b2018427c45f14b0dd25d1452278202056f6b1ead97981282ccacd7d7ad918d8f0ef084159f974a25
   languageName: node
   linkType: hard
 
@@ -9947,14 +9978,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-monaco-editor@npm:^0.58.0":
-  version: 0.58.0
-  resolution: "react-monaco-editor@npm:0.58.0"
+"react-monaco-editor@npm:^0.59.0":
+  version: 0.59.0
+  resolution: "react-monaco-editor@npm:0.59.0"
   peerDependencies:
     monaco-editor: ^0.52.0
     react: ">=16.8.0 <20.0.0"
     react-dom: ">=16.8.0 <20.0.0"
-  checksum: 10c0/b82ba4bfa5bbec98ed171878f6463b0f213ff7a43e4ecfe5008693b4e06cbed7447d728e55a51538741d951711946d218000b6074b75447ddb9c147a913973d7
+  checksum: 10c0/173902e22b2fbc36841707a49bf20d3d5e40018eba8f3e353faaab2de039aa9183b3d4a8c660d97e140713d234835bd5f7e4da30c3f0d274290fe7c5447d8d41
   languageName: node
   linkType: hard
 
@@ -9979,13 +10010,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-resizable-panels@npm:^2.1.4":
-  version: 2.1.9
-  resolution: "react-resizable-panels@npm:2.1.9"
+"react-resizable-panels@npm:^4.4.1":
+  version: 4.4.1
+  resolution: "react-resizable-panels@npm:4.4.1"
   peerDependencies:
-    react: ^16.14.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
-    react-dom: ^16.14.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
-  checksum: 10c0/bb8691a21b75142607d2503c1db84da8fe17acbde64cadbd06745e036a52f78de8c589faccef476559d69a61a95ddc30342fc8f6df59d7855a26a9dbba03dbcf
+    react: ^18.0.0 || ^19.0.0
+    react-dom: ^18.0.0 || ^19.0.0
+  checksum: 10c0/360f4b076cae704484e438f864a1ee451ce319fbf5b5902e8a4af282ec2e3546ea0c68ab02b5af9bd8ca2d1a69fe1806867eff486841f36c475dbc78c15fb3ec
   languageName: node
   linkType: hard
 

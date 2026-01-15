@@ -12,7 +12,7 @@ import { observer } from 'mobx-react-lite';
 import { RunToolbar } from '../run-toolbar';
 import { useWorkspace, GroupPanel } from '../../contexts/workspace.context';
 import { RunResultsToolbar } from '../run-results-toolbar';
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { Panel, Group as PanelGroup, Separator, useDefaultLayout } from "react-resizable-panels";
 import { useFileOperations } from '../../contexts/file-operations.context';
 import { useApicizeSettings } from '../../contexts/apicize-settings.context'
 import { RequestGroupInfoEditor } from './request/request-group-info-editor';
@@ -22,7 +22,6 @@ import { reaction, runInAction } from 'mobx';
 
 export const RequestGroupEditor = observer(({ group, sx }: { group: EditableRequestGroup, sx?: SxProps }) => {
     const settings = useApicizeSettings()
-    const fileOps = useFileOperations()
 
     const workspace = useWorkspace()
 
@@ -51,27 +50,14 @@ export const RequestGroupEditor = observer(({ group, sx }: { group: EditableRequ
         usePanel = 'Info'
     }
 
-    let lastResize = Date.now()
-    const saveIfSettled = () => {
-        if (Date.now() - lastResize > 500) {
-            fileOps.saveSettings()
-        } else {
-            setTimeout(saveIfSettled, 500)
-        }
-    }
-
-    const sizeStorage = {
-        getItem: (_: string) => {
-            return settings.editorPanels
-        },
-        setItem: (_: string, value: string) => {
-            if (settings.editorPanels !== value) {
-                lastResize = Date.now()
-                settings.editorPanels = value
-                saveIfSettled()
-            }
-        }
-    }
+    // let lastResize = Date.now()
+    // const saveIfSettled = () => {
+    //     if (Date.now() - lastResize > 500) {
+    //         fileOps.saveSettings()
+    //     } else {
+    //         setTimeout(saveIfSettled, 500)
+    //     }
+    // }
 
     const GroupPanel = observer(() => {
         return <>
@@ -117,40 +103,56 @@ export const RequestGroupEditor = observer(({ group, sx }: { group: EditableRequ
     })
 
     const GroupEditorLayout = observer(({ sx: editorSx }: { sx?: SxProps }) => {
+        const sizeStorage = {
+            getItem: (_: string) => {
+                return settings.editorPanels
+            },
+            setItem: (_: string, value: string) => {
+                runInAction(() => {
+                    if (settings.editorPanels !== value) {
+                        settings.editorPanels = value
+                    }
+                })
+            }
+        }
+
+        const { defaultLayout, onLayoutChanged } = useDefaultLayout({
+            id: "apicize-group",
+            storage: sizeStorage
+        });
+
         return group.resultMenuItems.length > 0 && group.selectedResultMenuItem
-            ? <Box sx={editorSx}>
-                <PanelGroup autoSaveId="apicize-request" direction="horizontal" className='editor split' storage={sizeStorage}>
-                    <Panel id='request-editor' order={0} defaultSize={50} minSize={20} className='split-left'>
+            ? <Box sx={{ ...editorSx }} >
+                <PanelGroup orientation='horizontal' className='editor split' defaultLayout={defaultLayout} onLayoutChange={onLayoutChanged}>
+                    <Panel id='request-editor' defaultSize={50} minSize={400} className='split-left'>
                         <GroupPanel />
                     </Panel>
-                    <PanelResizeHandle className={'resize-handle'} hitAreaMargins={{ coarse: 30, fine: 10 }} />
-                    {
-                        <Panel id='results-viewer' order={1} defaultSize={50} minSize={20} >
-                            <Box position='relative' display='flex' flexGrow={1}>
-                                <Box top={0}
-                                    left={0}
-                                    width='calc(100% - 1em)'
-                                    height='100%'
-                                    position='absolute'
-                                    display={group.isRunning ? 'block' : 'none'}
-                                    className="MuiBackdrop-root MuiModal-backdrop"
-                                    sx={{ zIndex: 99999, opacity: 0.5, transition: "opacity 225ms cubic-bezier(0.4, 0, 0.2, 1) 0ms", backgroundColor: "#000000" }} />
-                                <Box position='relative' display='flex' flexGrow={1} flexDirection='column' className='split-right'>
-                                    <RunResultsToolbar
-                                        className='editor-panel-header'
-                                        request={group}
-                                    />
-                                    <ResultsViewer
-                                        className='results-panel'
-                                        request={group}
-                                        detail={workspace.currentExecutionDetail} />
-                                </Box>
+                    <Separator className='resize-handle' />
+                    <Panel id='results-viewer' defaultSize={50} minSize={400}>
+                        <Box position='relative' display='flex' flexGrow={1} sx={{ height: '100%' }}>
+                            <Box top={0}
+                                left={0}
+                                width='calc(100% - 1em)'
+                                height='100%'
+                                position='absolute'
+                                display={group.isRunning ? 'block' : 'none'}
+                                className="MuiBackdrop-root MuiModal-backdrop"
+                                sx={{ zIndex: 99999, opacity: 0.5, transition: "opacity 225ms cubic-bezier(0.4, 0, 0.2, 1) 0ms" }} />
+                            <Box position='relative' display='flex' flexGrow={1} flexDirection='column' className='split-right'>
+                                <RunResultsToolbar
+                                    className='editor-panel-header'
+                                    request={group}
+                                />
+                                <ResultsViewer
+                                    className='results-panel'
+                                    request={group}
+                                    detail={workspace.currentExecutionDetail} />
                             </Box>
-                        </Panel>
-                    }
+                        </Box>
+                    </Panel>
                 </PanelGroup>
             </Box>
-            : <Box className='editor group' sx={editorSx}>
+            : <Box className='editor group single-panel' sx={editorSx}>
                 <GroupPanel />
             </Box>
     })

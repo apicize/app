@@ -293,7 +293,7 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
         position='absolute'
         display={isDragging ? 'block' : 'none'}
         className="MuiBackdrop-root MuiModal-backdrop"
-        sx={{ zIndex: 99999, opacity: 0.5, transition: "opacity 225ms cubic-bezier(0.4, 0, 0.2, 1) 0ms", backgroundColor: "#008000" }} />
+        sx={{ zIndex: 99999, opacity: 0.5, transition: "opacity 225ms cubic-bezier(0.4, 0, 0.2, 1) 0ms" }} />
 
       <Stack direction='column' spacing={3} position='relative' width='100%' height='100%'>
         <Grid container direction='row' display='flex' justifyContent='space-between' maxWidth='65em'>

@@ -1,5 +1,9 @@
 # Change Log
 
+# 0.29.5
+
+* Fix resize observer bug on Windows when multiple Monaco editors are displayed
+
 # 0.29.4
 
 * Improve body type conversions

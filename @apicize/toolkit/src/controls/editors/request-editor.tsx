@@ -18,7 +18,7 @@ import { observer } from 'mobx-react-lite';
 import { RunToolbar } from '../run-toolbar';
 import { useWorkspace, RequestPanel } from '../../contexts/workspace.context';
 import { RunResultsToolbar } from '../run-results-toolbar';
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { Panel, Group as PanelGroup, Separator, useDefaultLayout } from "react-resizable-panels";
 import RequestIcon from '../../icons/request-icon';
 import { useApicizeSettings } from '../../contexts/apicize-settings.context'
 import { RequestBodyEditor } from './request/request-body-editor'
@@ -37,11 +37,6 @@ const RequestPanel = observer(({
 
     let selectedPanel = workspace.requestPanel
     let hasWarnings = request.validationWarnings.hasEntries
-
-    if (!hasWarnings && selectedPanel === 'Warnings') {
-        selectedPanel = 'Info'
-        return null
-    }
 
     useEffect(() => {
         const disposer = reaction(
@@ -63,6 +58,12 @@ const RequestPanel = observer(({
         (selectedPanel === 'Body' || selectedPanel === 'Test') ? 'panels full-width' : 'panels',
         [selectedPanel]
     )
+
+    if (!hasWarnings && selectedPanel === 'Warnings') {
+        selectedPanel = 'Info'
+        return null
+    }
+
     return <>
         <Stack direction='row' className='editor-panel-header'>
             <EditorTitle
@@ -124,11 +125,18 @@ export const RequestEditor = observer(({ sx, request }: { sx?: SxProps, request:
             return settings.editorPanels
         },
         setItem: (_: string, value: string) => {
-            if (settings.editorPanels !== value) {
-                settings.editorPanels = value
-            }
+            runInAction(() => {
+                if (settings.editorPanels !== value) {
+                    settings.editorPanels = value
+                }
+            })
         }
     }
+
+    const { defaultLayout, onLayoutChanged } = useDefaultLayout({
+        id: "apicize-request",
+        storage: sizeStorage
+    });
 
     // Access observables directly in the parent to establish tracking
     const isRunning = request.isRunning
@@ -138,16 +146,14 @@ export const RequestEditor = observer(({ sx, request }: { sx?: SxProps, request:
 
     return resultMenuItems.length > 0 && selectedResultMenuItem
         ? <Box sx={sx}>
-            <PanelGroup autoSaveId="apicize-request" direction="horizontal" className='editor split'
-                storage={sizeStorage}
-            >
-                <Panel id='request-editor' order={0} defaultSize={50} minSize={20} className='split-left'>
+            <PanelGroup defaultLayout={defaultLayout} onLayoutChange={onLayoutChanged} orientation='horizontal' className='editor split'>
+                <Panel id='request-editor' defaultSize={50} minSize={400} className='split-left'>
                     <RequestPanel request={request} />
                 </Panel>
-                <PanelResizeHandle className={'resize-handle'} hitAreaMargins={{ coarse: 30, fine: 10 }} />
+                <Separator className='resize-handle' />
                 {
-                    <Panel id='results-viewer' order={1} defaultSize={50} minSize={20} >
-                        <Box position='relative' display='flex' flexGrow={1}>
+                    <Panel id='results-viewer' defaultSize={50} minSize={400} >
+                        <Box position='relative' display='flex' flexGrow={1} height='100%'>
                             <Box top={0}
                                 left={0}
                                 width='calc(100% - 1em)'
@@ -172,7 +178,7 @@ export const RequestEditor = observer(({ sx, request }: { sx?: SxProps, request:
                 }
             </PanelGroup>
         </Box>
-        : <Box className='editor request' sx={sx}>
+        : <Box className='editor request single-panel' sx={sx}>
             <RequestPanel request={request} />
         </Box>
 })

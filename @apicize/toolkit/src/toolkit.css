@@ -2,6 +2,11 @@
   box-sizing: border-box;
 }
 
+.resize-handle {
+  width: 4em;
+}
+
+
 .dark .resize-handle {
   flex: 0 0 2em;
   display: flex;
@@ -446,10 +451,14 @@ pre.log {
   flex-direction: column;
 }
 
+.editor.single-panel {
+  max-width: 70em;
+}
+
 .editor-panel-header {
   display: flex;
   justify-content: space-between;
-  max-width: 70em;
+  /* max-width: 70em; */
   flex-direction: row;
   align-items: center;
   min-height: 4em;
@@ -481,7 +490,7 @@ pre.log {
   flex-direction: column;
   overflow: auto;
   margin: 0;
-  max-width: 70em;
+  /* max-width: 70em; */
   padding: 3em 1em 1em 1em;
 }
 
@@ -500,7 +509,7 @@ pre.log {
 
 .panels {
   /* padding: 0 1em 0 0; */
-  max-width: 65em;
+  /* max-width: 65em; */
   margin-bottom: 1.5em;
 }
 
@@ -689,7 +698,7 @@ code.results-log {
 }
 
 .borderless {
-  border: none!important;
+  border: none !important;
 }
 
 /* .section {
@@ -740,3 +749,7 @@ code.results-log {
   flex-grow: 2;
   border-top-right-radius: 5px;
 } */
+
+.monaco-editor {
+  position: absolute !important;
+}
