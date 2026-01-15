@@ -19,11 +19,24 @@ import AuthIcon from '../../icons/auth-icon';
 import { useWorkspace } from '../../contexts/workspace.context';
 import { useApicizeSettings } from '../../contexts/apicize-settings.context';
 import { EditableAuthorization } from '../../models/workspace/editable-authorization'
+import { useFeedback } from '../../contexts/feedback.context'
+import { useState, useEffect } from 'react'
 
 export const AuthorizationEditor = observer(({ authorization, sx }: { authorization: EditableAuthorization, sx: SxProps }) => {
     const settings = useApicizeSettings()
     const workspace = useWorkspace()
+    const feedback = useFeedback()
+
     workspace.nextHelpTopic = 'workspace/authorizations'
+
+    // Register dropdowns so they can be hidden on modal dialogs
+    const [showAuthorizationTypeMenu, setShowAuthorizationTypeMenu] = useState(false)
+    useEffect(() => {
+        const disposer = feedback.registerModalBlocker(() => setShowAuthorizationTypeMenu(false))
+        return (() => {
+            disposer()
+        })
+    })
 
     return (
         <Stack className='editor authorization' direction={'column'} sx={sx}>
@@ -61,6 +74,9 @@ export const AuthorizationEditor = observer(({ authorization, sx }: { authorizat
                                     value={authorization.type}
                                     label='Type'
                                     size='small'
+                                    open={showAuthorizationTypeMenu}
+                                    onClose={() => setShowAuthorizationTypeMenu(false)}
+                                    onOpen={() => setShowAuthorizationTypeMenu(true)}
                                     onChange={e => authorization.setType(e.target.value as AuthorizationType)}
                                 >
                                     <MenuItem value={AuthorizationType.Basic}>Basic Authentication</MenuItem>

@@ -5,12 +5,26 @@ import { observer } from 'mobx-react-lite'
 import { useWorkspace } from '../../../contexts/workspace.context'
 import { ToastSeverity, useFeedback } from '../../../contexts/feedback.context'
 import PlayCircleFilledIcon from '@mui/icons-material/PlayCircleFilled'
+import { useState, useEffect } from 'react'
 
 export const RequestInfoEditor = observer(({ request }: { request: EditableRequest }) => {
     const workspace = useWorkspace()
+    const feedback = useFeedback()
 
     workspace.nextHelpTopic = 'requests/info'
     const zeroRuns = request.runs < 1
+
+    // Register dropdowns so they can be hidden on modal dialogs
+    const [showMethodMenu, setShowMethodMenu] = useState(false)
+    const [showMultiRunMenu, setShowMultiRunMenu] = useState(false)
+    useEffect(() => {
+        const disposer1 = feedback.registerModalBlocker(() => setShowMethodMenu(false))
+        const disposer2 = feedback.registerModalBlocker(() => setShowMultiRunMenu(false))
+        return (() => {
+            disposer1()
+            disposer2()
+        })
+    })
 
     const methodMenuItems = () => {
         return Methods.map(method => (
@@ -38,8 +52,8 @@ export const RequestInfoEditor = observer(({ request }: { request: EditableReque
                         title="Name of request"
                         value={request.name}
                         onChange={e => request.setName(e.target.value)}
-                        error={request.nameInvalid}
-                        helperText={request.nameInvalid ? 'Request name is required' : ''}
+                        error={!!request.nameError}
+                        helperText={request.validationErrors['name']}
                         fullWidth
                     />
                 </Grid>
@@ -66,6 +80,9 @@ export const RequestInfoEditor = observer(({ request }: { request: EditableReque
                             id="request-method"
                             value={request.method}
                             title="HTTP method"
+                            open={showMethodMenu}
+                            onClose={() => setShowMethodMenu(false)}
+                            onOpen={() => setShowMethodMenu(true)}
                             onChange={e => request.setMethod(e.target.value as Method)}
                             size='small'
                             label="Method"
@@ -85,8 +102,8 @@ export const RequestInfoEditor = observer(({ request }: { request: EditableReque
                         title="Destination URL for request"
                         value={request.url}
                         onChange={e => request.setUrl(e.target.value)}
-                        error={request.urlInvalid}
-                        helperText={request.urlInvalid ? 'URL is required' : ''}
+                        error={!!request.urlError}
+                        helperText={request.validationErrors['url']}
                         fullWidth
                     />
                 </Grid>
@@ -128,6 +145,9 @@ export const RequestInfoEditor = observer(({ request }: { request: EditableReque
                             sx={{ minWidth: '10em' }}
                             label='Multi-Run Execution'
                             title='Whether to execute multiple request runs sequentially (one at a time) or concurrently'
+                            open={showMultiRunMenu}
+                            onClose={() => setShowMultiRunMenu(false)}
+                            onOpen={() => setShowMultiRunMenu(true)}
                             onChange={e => request.setMultiRunExecution(e.target.value as MultiRunExecution)}
                         >
                             <MenuItem value={MultiRunExecution.Sequential}>Sequential</MenuItem>

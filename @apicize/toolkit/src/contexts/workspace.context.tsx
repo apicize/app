@@ -317,9 +317,11 @@ export class WorkspaceStore {
 
         this.callbacks.getRequestBody(id)
             .then(bodyInfo => {
-                if (this.activeSelection?.entityType === EntityType.Request && this.activeSelection.id === id) {
-                    this.activeSelection.initializeBody(bodyInfo)
-                }
+                runInAction(() => {
+                    if (this.activeSelection?.entityType === EntityType.Request && this.activeSelection.id === id) {
+                        this.activeSelection.initializeBody(bodyInfo)
+                    }
+                })
             })
             .catch(e => this.feedback.toastError(e))
     }
@@ -351,6 +353,11 @@ export class WorkspaceStore {
             case EntityTypeName.Group:
                 if (activeSelection && activeSelection?.entityType === EntityType.Group && activeSelection.id === updatedItem.id) {
                     activeSelection.refreshFromExternalUpdate(updatedItem)
+                }
+                break
+            case EntityTypeName.RequestBody:
+                if (activeSelection && activeSelection?.entityType === EntityType.Request && activeSelection.id === updatedItem.requestId) {
+                    activeSelection.refreshBodyFromExternalUpdate(updatedItem)
                 }
                 break
             case EntityTypeName.Scenario:
@@ -1410,12 +1417,12 @@ export class WorkspaceStore {
             return null
         }
     }
-    
+
     public async updateRequestBodyFromClipboard(requestId: String): Promise<RequestBodyInfo> {
         const bodyInfo = await this.callbacks.updateRequestBodyFromClipboard(requestId)
         runInAction(() => {
             if (this.activeSelection?.entityType === EntityType.Request && this.activeSelection.id === bodyInfo.requestId) {
-                this.activeSelection.onUpdateBodyFromExternal(bodyInfo)
+                this.activeSelection.refreshBodyFromExternalUpdate(bodyInfo)
             }
         })
         return bodyInfo

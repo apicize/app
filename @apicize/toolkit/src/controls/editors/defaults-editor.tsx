@@ -22,7 +22,7 @@ import AltRouteIcon from '@mui/icons-material/AltRoute'
 import DatasetIcon from '@mui/icons-material/Dataset';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ExternalDataSourceType } from '@apicize/lib-typescript';
 import { useFeedback } from '../../contexts/feedback.context';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
@@ -40,6 +40,29 @@ export const DefaultsEditor = observer(({ sx }: { sx: SxProps }) => {
     const data = workspace.data
 
     const [panel, setPanel] = useState<DefaultsPanels>('Parameters')
+
+    // Register dropdowns so they can be hidden on modal dialogs
+    const [showDefaultScenarioMenu, setShowDefaultScenarioMenu] = useState(false)
+    const [showDefaultAuthorizationMenu, setShowDefaultAuthorizationMenu] = useState(false)
+    const [showDefaultCertificateMenu, setShowDefaultCertificateMenu] = useState(false)
+    const [showDefaultProxyMenu, setShowDefaultProxyMenu] = useState(false)
+    const [showDefaultDataMenu, setShowDefaultDataMenu] = useState(false)
+    const [showDataTypeMenu, setShowDataTypeMenu] = useState(false)
+    useEffect(() => {
+        const disposers = [
+            feedback.registerModalBlocker(() => setShowDefaultScenarioMenu(false)),
+            feedback.registerModalBlocker(() => setShowDefaultAuthorizationMenu(false)),
+            feedback.registerModalBlocker(() => setShowDefaultCertificateMenu(false)),
+            feedback.registerModalBlocker(() => setShowDefaultProxyMenu(false)),
+            feedback.registerModalBlocker(() => setShowDefaultDataMenu(false)),
+            feedback.registerModalBlocker(() => setShowDataTypeMenu(false)),
+        ]
+        return (() => {
+            for (const disposer of disposers) {
+                disposer()
+            }
+        })
+    })
 
     if (!parameters) {
         workspace.initializeParameterList()
@@ -76,6 +99,9 @@ export const DefaultsEditor = observer(({ sx }: { sx: SxProps }) => {
                 id='cred-scenario'
                 label='Scenario'
                 value={defaults.selectedScenario.id}
+                open={showDefaultScenarioMenu}
+                onClose={() => setShowDefaultScenarioMenu(false)}
+                onOpen={() => setShowDefaultScenarioMenu(true)}
                 onChange={(e) => defaults.setScenarioId(e.target.value)}
                 size='small'
                 fullWidth
@@ -91,6 +117,9 @@ export const DefaultsEditor = observer(({ sx }: { sx: SxProps }) => {
                 id='cred-auth'
                 label='Authorization'
                 value={defaults.selectedAuthorization.id}
+                open={showDefaultAuthorizationMenu}
+                onClose={() => setShowDefaultAuthorizationMenu(false)}
+                onOpen={() => setShowDefaultAuthorizationMenu(true)}
                 onChange={(e) => defaults.setAuthorizationId(e.target.value)}
                 size='small'
                 fullWidth
@@ -106,6 +135,9 @@ export const DefaultsEditor = observer(({ sx }: { sx: SxProps }) => {
                 id='cred-cert'
                 label='Certificate'
                 value={defaults.selectedCertificate.id}
+                open={showDefaultCertificateMenu}
+                onClose={() => setShowDefaultCertificateMenu(false)}
+                onOpen={() => setShowDefaultCertificateMenu(true)}
                 onChange={(e) => defaults.setCertificateId(e.target.value)}
                 size='small'
                 fullWidth
@@ -121,6 +153,9 @@ export const DefaultsEditor = observer(({ sx }: { sx: SxProps }) => {
                 id='cred-proxy'
                 label='Proxy'
                 value={defaults.selectedProxy.id}
+                open={showDefaultProxyMenu}
+                onClose={() => setShowDefaultProxyMenu(false)}
+                onOpen={() => setShowDefaultProxyMenu(true)}
                 onChange={(e) => defaults.setProxyId(e.target.value)}
                 size='small'
                 fullWidth
@@ -136,6 +171,9 @@ export const DefaultsEditor = observer(({ sx }: { sx: SxProps }) => {
                 id='cred-data'
                 label='Seed Data'
                 value={defaults.selectedData.id}
+                open={showDefaultDataMenu}
+                onClose={() => setShowDefaultDataMenu(false)}
+                onOpen={() => setShowDefaultDataMenu(true)}
                 onChange={(e) => defaults.setDataId(e.target.value)}
                 fullWidth
                 size='small'
@@ -174,6 +212,9 @@ export const DefaultsEditor = observer(({ sx }: { sx: SxProps }) => {
                                 size='small'
                                 value={d.type}
                                 sx={{ minWidth: '8rem' }}
+                                open={showDataTypeMenu}
+                                onClose={() => setShowDataTypeMenu(false)}
+                                onOpen={() => setShowDataTypeMenu(true)}
                                 onChange={e => d.setSourceType(e.target.value as ExternalDataSourceType)}
                             >
                                 <MenuItem key={`${d.id}-type-file-json`} value={ExternalDataSourceType.FileJSON}>JSON File</MenuItem>

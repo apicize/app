@@ -1,5 +1,11 @@
 # Change Log
 
+# 0.29.4
+
+* Improve body type conversions
+* Add request body clipboard copy
+* Fix backdrop crash hiding on closing modals
+
 # 0.29.3
 
 * Fix final result navigation "prev" button

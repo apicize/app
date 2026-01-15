@@ -1,4 +1,4 @@
-import * as React from 'react'
+import { useEffect } from 'react'
 import { useMemo } from 'react'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import ToggleButton from '@mui/material/ToggleButton'
@@ -25,6 +25,7 @@ import { RequestBodyEditor } from './request/request-body-editor'
 import { WarningsEditor } from './warnings-editor'
 import { RequestParametersEditor } from './request/request-parameters-editor'
 import { EditableRequest } from '../../models/workspace/editable-request'
+import { reaction, runInAction } from 'mobx'
 
 const RequestPanel = observer(({
     request,
@@ -41,6 +42,16 @@ const RequestPanel = observer(({
         selectedPanel = 'Info'
         return null
     }
+
+    useEffect(() => {
+        const disposer = reaction(
+            () => workspace.data,
+            () => runInAction(() => {
+                request.parameters = undefined
+            })
+        )
+        return () => disposer()
+    })
 
     const handlePanelChanged = (_: React.SyntheticEvent, newValue: RequestPanel) => {
         if (newValue) {

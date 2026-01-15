@@ -1,14 +1,16 @@
 {
   "name": "@apicize/toolkit",
   "private": true,
-  "version": "0.29.3",
+  "version": "0.29.4",
   "description": "UI toolkit for Apicize applications",
   "keywords": [],
   "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "test": "jest",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
     "css": "shx cp ./src/toolkit.css ./dist/toolkit.css && shx cp ./src/test-editor.d.ts ./dist/test-editor.d.ts",
     "build": "tsc --build && npm run css",
     "watch-css": "nodemon --watch src/toolkit.css --exec npm run css",
@@ -19,27 +21,27 @@
   "devDependencies": {
     "@types/chai": "^5.2.2",
     "@types/hast": "^3.0.4",
-    "@types/jest": "^29.5.3",
     "@types/js-beautify": "^1.14.3",
-    "@types/node": "^18.17.6",
+    "@types/node": "^24",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.2.4",
-    "@types/react-test-renderer": "^18.0.0",
     "@types/unist": "^3.0.2",
     "@types/uuid": "^9.0.7",
+    "@types/xml2js": "^0",
+    "@vitest/coverage-v8": "^2.1.8",
+    "@vitest/ui": "^2.1.8",
     "concurrently": "^9.1.2",
     "hast-util-to-jsx-runtime": "^2.3.0",
-    "jest": "^29.6.2",
     "nodemon": "^3.1.9",
     "npm": "^10.2.3",
     "reflect-metadata": "^0.1.13",
     "rimraf": "^6.0.1",
     "shx": "^0.3.4",
-    "ts-jest": "^29.1.1",
     "ts-node": "^10.9.1",
     "typescript": "^5.8.3",
     "undici-types": "^5.27.2",
-    "unist-util-visit": "^5.0.0"
+    "unist-util-visit": "^5.0.0",
+    "vitest": "^2.1.8"
   },
   "dependencies": {
     "@apicize/lib-typescript": "workspace:^",
@@ -67,6 +69,7 @@
     "remark-rehype": "^11.1.0",
     "unified": "^11.0.5",
     "unist-util-visit": "^5.0.0",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "xml2js": "^0.6.2"
   }
 }

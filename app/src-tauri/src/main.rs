@@ -50,7 +50,8 @@ use workspaces::{
 use crate::{
     sessions::SessionEntity,
     workspaces::{
-        ClipboardPayloadRequest, PersistableData, RequestBodyInfo, RequestBodyInfoWithBody, WorkspaceInitialization,
+        ClipboardPayloadRequest, PersistableData, RequestBodyInfo, RequestBodyInfoWithBody,
+        WorkspaceInitialization,
     },
 };
 
@@ -1522,6 +1523,7 @@ async fn get_request_body(
 
 #[tauri::command]
 async fn update_request_body(
+    app: AppHandle,
     sessions_state: State<'_, SessionsState>,
     workspaces_state: State<'_, WorkspacesState>,
     session_id: &str,
@@ -1542,6 +1544,17 @@ async fn update_request_body(
         body_length,
     };
     workspaces.update_request_body(&session.workspace_id, &body_info)?;
+
+    // Publish updates on all other sessions than the one sending the update
+    // so they can update themselves
+    let other_sessions = get_workspace_sessions(&session.workspace_id, &sessions, Some(session_id));
+    if let Some(other_session_ids) = other_sessions {
+        let event = Entity::RequestBody(body_info.clone());
+        for other_session_id in other_session_ids {
+            app.emit_to(other_session_id, "update", &event).unwrap();
+        }
+    }
+
     Ok(RequestBodyInfo {
         request_id: body_info.request_id,
         body_mime_type: body_info.body_mime_type,
@@ -1551,6 +1564,7 @@ async fn update_request_body(
 
 #[tauri::command]
 async fn update_request_body_from_clipboard(
+    app: AppHandle,
     sessions_state: State<'_, SessionsState>,
     workspaces_state: State<'_, WorkspacesState>,
     clipboard_state: State<'_, Clipboard>,
@@ -1566,7 +1580,7 @@ async fn update_request_body_from_clipboard(
 
                 let data = clipboard_state
                     .read_image_binary()
-                    .map_err(|err| ApicizeAppError::ClipboardError(err))?;
+                    .map_err(ApicizeAppError::ClipboardError)?;
                 let body_length = Some(data.len());
                 let body = RequestBody::Raw { data };
                 let body_mime_type = Some(Workspaces::get_body_type(&body));
@@ -1576,7 +1590,20 @@ async fn update_request_body_from_clipboard(
                     body_mime_type,
                     body_length,
                 };
+
                 workspaces.update_request_body(&session.workspace_id, &body_info)?;
+
+                // Publish updates on all other sessions than the one sending the update
+                // so they can update themselves
+                let other_sessions =
+                    get_workspace_sessions(&session.workspace_id, &sessions, Some(session_id));
+                if let Some(other_session_ids) = other_sessions {
+                    let event = Entity::RequestBody(body_info.clone());
+                    for other_session_id in other_session_ids {
+                        app.emit_to(other_session_id, "update", &event).unwrap();
+                    }
+                }
+
                 Ok(body_info)
             } else {
                 Err(ApicizeAppError::ClipboardError(String::from(
@@ -2019,10 +2046,6 @@ async fn update(
     let result = match entity {
         Entity::Request(request) => workspaces.update_request(&session.workspace_id, request),
         Entity::Group(group) => workspaces.update_group(&session.workspace_id, group),
-        Entity::RequestHeaders(header_info) => {
-            workspaces.update_request_headers(&session.workspace_id, header_info)?;
-            Ok(None)
-        }
         Entity::Scenario(scenario) => workspaces.update_scenario(&session.workspace_id, scenario),
         Entity::Authorization(authorization) => {
             workspaces.update_authorization(&session.workspace_id, authorization)

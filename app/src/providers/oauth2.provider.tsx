@@ -59,15 +59,18 @@ export const OAuth2Provider = observer(({ store, children }: { store: WorkspaceS
             }
         }
 
-        reaction(
-            () => settings.pkceListenerPort,
-            (pkceListenerPort) => {
-                if (lastPortTimeout.current) {
-                    clearTimeout(lastPortTimeout.current)
-                }
-                lastPortTimeout.current = setTimeout(() => checkPortUpdate(pkceListenerPort), 500)
-            }
-        )
+        // useEffect(() => {
+        //     const disposer = reaction(
+        //         () => settings.pkceListenerPort,
+        //         (pkceListenerPort) => {
+        //             if (lastPortTimeout.current) {
+        //                 clearTimeout(lastPortTimeout.current)
+        //             }
+        //             lastPortTimeout.current = setTimeout(() => checkPortUpdate(pkceListenerPort), 500)
+        //         }
+        //     )
+        //     return () => disposer()
+        // })
 
         return () => {
             unlistenOAuth2ClientToken.then(f => f())

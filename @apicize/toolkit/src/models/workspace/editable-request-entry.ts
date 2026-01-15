@@ -41,13 +41,6 @@ export abstract class EditableRequestEntry extends Editable<Request | RequestGro
         this.hideFailure = executionResultViewState.hideFailure
         this.hideError = executionResultViewState.hideError
 
-        reaction(
-            () => workspace.data,
-            () => runInAction(() => {
-                this.parameters = undefined
-            })
-        )
-
         this.applyExecution(requestExecution)
 
         if (executionResultViewState.execCtr !== undefined) {

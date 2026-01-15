@@ -23,6 +23,7 @@ import { useWorkspace } from '../../contexts/workspace.context';
 import { SshFileType } from '../../models/workspace/ssh-file-type';
 import { useApicizeSettings } from '../../contexts/apicize-settings.context';
 import { EditableCertificate } from '../../models/workspace/editable-certificate'
+import { useState, useEffect } from 'react'
 
 export const CertificateEditor = observer(({ certificate, sx }: { certificate: EditableCertificate, sx: SxProps }) => {
     const settings = useApicizeSettings()
@@ -32,6 +33,15 @@ export const CertificateEditor = observer(({ certificate, sx }: { certificate: E
     const feedback = useFeedback()
     const clipboard = useClipboard()
     const fileOps = useFileOperations()
+
+    // Register dropdowns so they can be hidden on modal dialogs
+    const [showCertificateTypeMenu, setShowCertificateTypeMenu] = useState(false)
+    useEffect(() => {
+        const disposer = feedback.registerModalBlocker(() => setShowCertificateTypeMenu(false))
+        return (() => {
+            disposer()
+        })
+    })
 
     let pemToView: string = ''
     if (certificate.pem && (certificate.pem.length > 0)) {
@@ -124,6 +134,9 @@ export const CertificateEditor = observer(({ certificate, sx }: { certificate: E
                             value={certificate.type}
                             label='Type'
                             size='small'
+                            open={showCertificateTypeMenu}
+                            onClose={() => setShowCertificateTypeMenu(false)}
+                            onOpen={() => setShowCertificateTypeMenu(true)}
                             onChange={e => certificate.setType(e.target.value as
                                 CertificateType.PEM | CertificateType.PKCS8_PEM | CertificateType.PKCS12)}
                         >

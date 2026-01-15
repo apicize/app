@@ -5,7 +5,6 @@ import { useWorkspace } from "../../../contexts/workspace.context";
 import { Box, Button, IconButton, Stack } from "@mui/material";
 import { DroppedFile, useFileDragDrop } from "../../../contexts/file-dragdrop.context";
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import { useClipboard } from "../../../contexts/clipboard.context";
 import { useFeedback } from "../../../contexts/feedback.context";
 import MonacoEditor, { monaco } from 'react-monaco-editor';
 

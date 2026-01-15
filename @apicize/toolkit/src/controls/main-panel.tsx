@@ -73,11 +73,11 @@ export const MainPanel = observer(() => {
                         case EntityType.Scenario:
                             return <ScenarioEditor scenario={activeSelection} sx={{ display: 'block', flexGrow: 1 }} />
                         case EntityType.Authorization:
-                            return <AuthorizationEditor authorization={activeSelection}  sx={{ display: 'block', flexGrow: 1 }} />
+                            return <AuthorizationEditor authorization={activeSelection} sx={{ display: 'block', flexGrow: 1 }} />
                         case EntityType.Certificate:
                             return <CertificateEditor certificate={activeSelection} sx={{ display: 'block', flexGrow: 1 }} />
                         case EntityType.Proxy:
-                            return <ProxyEditor proxy={activeSelection}  sx={{ display: 'block', flexGrow: 1 }} />
+                            return <ProxyEditor proxy={activeSelection} sx={{ display: 'block', flexGrow: 1 }} />
                         default:
                             return <></>
                     }

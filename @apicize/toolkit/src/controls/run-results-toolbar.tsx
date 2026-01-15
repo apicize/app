@@ -1,7 +1,7 @@
 import { FormControl, InputLabel, Select, MenuItem, Box, IconButton, SvgIcon } from "@mui/material";
 import { Stack, SxProps } from "@mui/material";
 import { observer } from "mobx-react-lite";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import KeyboardReturnIcon from '@mui/icons-material/KeyboardReturn';
@@ -13,7 +13,7 @@ import { ExecutionState } from "@apicize/lib-typescript";
 import { useApicizeSettings } from "../contexts/apicize-settings.context";
 import { EditableRequestEntry } from "../models/workspace/editable-request-entry";
 import { useWorkspace } from "../contexts/workspace.context";
-import { ExecutionMenuItem } from "../models/workspace/execution";
+import { useFeedback } from "../contexts/feedback.context";
 
 // Memoized component to display execution state icon
 const ExecutionStateIcon = React.memo(({ executionState }: { executionState: ExecutionState }) => {
@@ -58,6 +58,16 @@ export const RunResultsToolbar = observer((
 ) => {
     const settings = useApicizeSettings()
     const workspace = useWorkspace()
+    const feedback = useFeedback()
+
+    // Register dropdowns so they can be hidden on modal dialogs
+    const [showResultsMenu, setShowResultsMenu] = useState(false)
+    useEffect(() => {
+        const disposer = feedback.registerModalBlocker(() => setShowResultsMenu(false))
+        return (() => {
+            disposer()
+        })
+    })
 
     // CRITICAL: Extract observable values ONCE at the top for consistent render snapshot
     // MobX observables can change mid-render, causing Select value/children mismatch
@@ -65,6 +75,7 @@ export const RunResultsToolbar = observer((
     const menuItems = request.resultMenuItems.slice()
     const selectedResultMenuItem = request.selectedResultMenuItem
     const isRunning = request.isRunning
+
 
     if (menuItems.length < 1 || !selectedResultMenuItem) {
         return null
@@ -100,6 +111,9 @@ export const RunResultsToolbar = observer((
                         sx={{ minWidth: '10em' }}
                         size='small'
                         value={selectedResultMenuItem.execCtr}
+                        open={showResultsMenu}
+                        onClose={() => setShowResultsMenu(false)}
+                        onOpen={() => setShowResultsMenu(true)}
                         onChange={e => {
                             const value = typeof e.target.value === 'string'
                                 ? parseInt(e.target.value, 10)

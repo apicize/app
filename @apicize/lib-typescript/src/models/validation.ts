@@ -1,8 +1,13 @@
 /**
+ * Mapping of validation error to property names
+ */
+export type ValidationErrorList = { [property: string]: string }
+
+/**
  * List of validation errors, by property
  */
 export interface ValidationErrors {
-    validationErrors?: { [property: string] : string }
+    validationErrors?: ValidationErrorList
 }
 
 /**

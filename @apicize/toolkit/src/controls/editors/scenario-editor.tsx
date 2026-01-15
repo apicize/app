@@ -9,13 +9,25 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { VariableSourceType } from '@apicize/lib-typescript';
 import { useWorkspace } from '../../contexts/workspace.context';
 import { useApicizeSettings } from '../../contexts/apicize-settings.context';
+import { useFeedback } from '../../contexts/feedback.context';
+import { useState, useEffect } from 'react';
 
 export const ScenarioEditor = observer(({ scenario, sx } : { scenario: EditableScenario, sx?: SxProps }) => {
 
     const settings = useApicizeSettings()
     const workspace = useWorkspace()
+    const feedback = useFeedback()
 
     workspace.nextHelpTopic = 'workspace/scenarios'
+
+    // Register dropdowns so they can be hidden on modal dialogs
+    const [showVariableTypeMenu, setShowVariableTypeMenu] = useState(false)
+    useEffect(() => {
+        const disposer = feedback.registerModalBlocker(() => setShowVariableTypeMenu(false))
+        return (() => {
+            disposer()
+        })
+    })
 
     const onAddVariable = () => {
         scenario.variables.push(new EditableVariable(
@@ -86,6 +98,9 @@ export const ScenarioEditor = observer(({ scenario, sx } : { scenario: EditableS
                                                     arial-label='variable-type'
                                                     size='small'
                                                     value={variable.type}
+                                                    open={showVariableTypeMenu}
+                                                    onClose={() => setShowVariableTypeMenu(false)}
+                                                    onOpen={() => setShowVariableTypeMenu(true)}
                                                     onChange={e => {
                                                         variable.updateSourceType(e.target.value as VariableSourceType)
                                                         scenario.notifyVariableUpdates()

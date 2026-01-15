@@ -201,7 +201,7 @@ export const NavTreeItem = React.memo(observer(({
                     alignItems='center'
                     display='flex'
                 >
-                    {entry.name}
+                    {entry.name.length > 0 ? entry.name : '(Unnamed)'}
                     <Box className='nav-node-text-state'>
                         {iconsFromState(entry)}
                     </Box>

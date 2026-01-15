@@ -5,9 +5,9 @@ import {
   EditableSettings, DragDropProvider, Entity, EntityType, FeedbackStore, IndexedEntityPosition, LogStore, MainPanel, Navigation, ReqwestEvent,
   SessionSaveState, ToastSeverity, UpdatedNavigationEntry, WorkspaceStore, ClipboardPaylodRequest, ExecutionEvent, SessionEntity, WorkspaceInitialization,
   WorkspaceMode,
-  RequestBodyInfo
+  RequestBodyInfo,
 } from '@apicize/toolkit'
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import "@fontsource/roboto-mono/latin.css"
 import '@fontsource/roboto-flex'
 import { ClipboardProvider } from './providers/clipboard.provider';

@@ -5,12 +5,28 @@ import { observer } from 'mobx-react-lite';
 import { useWorkspace } from '../../../contexts/workspace.context';
 import PlayCircleFilledIcon from '@mui/icons-material/PlayCircleFilled'
 import { NO_SELECTION_ID } from '../../../models/store';
+import { useFeedback } from '../../../contexts/feedback.context';
+import { useState, useEffect } from 'react';
 
 export const RequestGroupInfoEditor = observer(({ sx, group }: {
     sx?: SxProps,
     group: EditableRequestGroup | null
 }) => {
     const workspace = useWorkspace()
+    const feedback = useFeedback()
+
+    // Register dropdowns so they can be hidden on modal dialogs
+    const [showGroupExecutionMenu, setShowGroupExecutionMenu] = useState(false)
+    const [showGroupItemExecutionMenu, setShowGroupItemExecutionMenu] = useState(false)
+    useEffect(() => {
+        const disposer1 = feedback.registerModalBlocker(() => setShowGroupExecutionMenu(false))
+        const disposer2 = feedback.registerModalBlocker(() => setShowGroupItemExecutionMenu(false))
+        return (() => {
+            disposer1()
+            disposer2()
+        })
+    })
+
     if (!group) {
         return null
     }
@@ -96,6 +112,9 @@ export const RequestGroupInfoEditor = observer(({ sx, group }: {
                             sx={{ minWidth: '10em' }}
                             label='Group Execution'
                             size='small'
+                            open={showGroupExecutionMenu}
+                            onClose={() => setShowGroupExecutionMenu(false)}
+                            onOpen={() => setShowGroupExecutionMenu(true)}
                             onChange={e => group.setMultiRunExecution(e.target.value as MultiRunExecution)}
                             title='Whether to execute mutiple group runs sequentially (one at a time) or concurrently'
                         >
@@ -117,6 +136,9 @@ export const RequestGroupInfoEditor = observer(({ sx, group }: {
                             size='small'
                             label='Group Item Execution'
                             title='Whether to execute each request in the group sequentially (one at a time) or concurrently'
+                            open={showGroupItemExecutionMenu}
+                            onClose={() => setShowGroupItemExecutionMenu(false)}
+                            onOpen={() => setShowGroupItemExecutionMenu(true)}
                             onChange={e => group.setGroupConcurrency(e.target.value as MultiRunExecution)}
                         >
                             <MenuItem value={MultiRunExecution.Sequential}>Sequential</MenuItem>

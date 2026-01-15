@@ -18,7 +18,6 @@ import { useApicizeSettings } from "../../../contexts/apicize-settings.context"
 import { NavigationEntry, ParamNavigationSection } from "../../../models/navigation"
 import { IndexedEntityPosition } from "../../../models/workspace/indexed-entity-position"
 import { useDragDrop } from "../../../contexts/dragdrop.context"
-import { SettingsEditor } from "../../editors/settings-editor"
 
 const ParameterSubsection = observer(({
     type,
@@ -89,7 +88,7 @@ const ParameterSubsection = observer(({
                         workspace.updateExpanded(headerId, true)
                     }}>
                     <Box className='nav-icon-context'>
-                        <AddIcon style={{fontSize: settings.navigationFontSize * 1.5}} />
+                        <AddIcon style={{ fontSize: settings.navigationFontSize * 1.5 }} />
                     </Box>
                 </IconButton>
             </Box>

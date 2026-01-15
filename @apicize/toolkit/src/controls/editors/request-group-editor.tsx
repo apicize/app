@@ -18,6 +18,7 @@ import { useApicizeSettings } from '../../contexts/apicize-settings.context'
 import { RequestGroupInfoEditor } from './request/request-group-info-editor';
 import { WarningsEditor } from './warnings-editor';
 import { EditableRequestGroup } from '../../models/workspace/editable-request-group';
+import { reaction, runInAction } from 'mobx';
 
 export const RequestGroupEditor = observer(({ group, sx }: { group: EditableRequestGroup, sx?: SxProps }) => {
     const settings = useApicizeSettings()
@@ -26,6 +27,16 @@ export const RequestGroupEditor = observer(({ group, sx }: { group: EditableRequ
     const workspace = useWorkspace()
 
     workspace.nextHelpTopic = 'workspace/groups'
+
+    React.useEffect(() => {
+        const disposer = reaction(
+            () => workspace.data,
+            () => runInAction(() => {
+                group.parameters = undefined
+            })
+        )
+        return () => disposer()
+    })
 
     const handlePanelChanged = (_: React.SyntheticEvent, newValue: GroupPanel) => {
         if (newValue) {

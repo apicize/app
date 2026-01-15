@@ -8,7 +8,6 @@ import SvgIcon from '@mui/material/SvgIcon'
 import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import { useEffect, useCallback, useMemo } from 'react'
-import { EntityType } from "../../models/workspace/entity-type";
 import { useWorkspace, WorkspaceMode } from "../../contexts/workspace.context";
 import DefaultsIcon from "../../icons/defaults-icon";
 import { ScenarioSection } from "./sections/scenario-scection";

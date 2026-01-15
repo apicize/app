@@ -8,6 +8,7 @@ import { Selection } from '@apicize/lib-typescript'
 import { EditableRequest } from '../../../models/workspace/editable-request'
 import { useFeedback } from '../../../contexts/feedback.context'
 import { reaction } from 'mobx'
+import { useState, useEffect } from 'react'
 
 export const RequestParametersEditor = observer(({
     requestOrGroup,
@@ -17,6 +18,27 @@ export const RequestParametersEditor = observer(({
     const workspace = useWorkspace()
     const feedback = useFeedback()
     workspace.nextHelpTopic = 'requests/parameters'
+
+    // Register dropdowns so they can be hidden on modal dialogs
+    const [showScenarioMenu, setShowScenarioMenu] = useState(false)
+    const [showAuthorizationMenu, setShowAuthorizationMenu] = useState(false)
+    const [showCertificateMenu, setShowCertificateMenu] = useState(false)
+    const [showProxyMenu, setShowProxyMenu] = useState(false)
+    const [showDataMenu, setShowDataMenu] = useState(false)
+    useEffect(() => {
+        const disposers = [
+            feedback.registerModalBlocker(() => setShowScenarioMenu(false)),
+            feedback.registerModalBlocker(() => setShowAuthorizationMenu(false)),
+            feedback.registerModalBlocker(() => setShowCertificateMenu(false)),
+            feedback.registerModalBlocker(() => setShowProxyMenu(false)),
+            feedback.registerModalBlocker(() => setShowDataMenu(false)),
+        ]
+        return (() => {
+            for (const disposer of disposers) {
+                disposer()
+            }
+        })
+    })
 
     if (!requestOrGroup.parameters) {
         workspace.getRequestParameterList(requestOrGroup.id)
@@ -43,6 +65,9 @@ export const RequestParametersEditor = observer(({
                     id='cred-scenario'
                     label='Scenario'
                     value={requestOrGroup.selectedScenario?.id ?? DEFAULT_SELECTION_ID}
+                    open={showScenarioMenu}
+                    onClose={() => setShowScenarioMenu(false)}
+                    onOpen={() => setShowScenarioMenu(true)}
                     onChange={(e) => requestOrGroup.setSelectedScenarioId(e.target.value)}
                     fullWidth
                     size='small'
@@ -58,6 +83,9 @@ export const RequestParametersEditor = observer(({
                     id='cred-auth'
                     label='Authorization'
                     value={requestOrGroup.selectedAuthorization?.id ?? DEFAULT_SELECTION_ID}
+                    open={showAuthorizationMenu}
+                    onClose={() => setShowAuthorizationMenu(false)}
+                    onOpen={() => setShowAuthorizationMenu(true)}
                     onChange={(e) => requestOrGroup.setSelectedAuthorizationId(e.target.value)}
                     fullWidth
                     size='small'
@@ -73,6 +101,9 @@ export const RequestParametersEditor = observer(({
                     id='cred-cert'
                     label='Certificate'
                     value={requestOrGroup.selectedCertificate?.id ?? DEFAULT_SELECTION_ID}
+                    open={showCertificateMenu}
+                    onClose={() => setShowCertificateMenu(false)}
+                    onOpen={() => setShowCertificateMenu(true)}
                     onChange={(e) => requestOrGroup.setSelectedCertificateId(e.target.value)}
                     fullWidth
                     size='small'
@@ -88,6 +119,9 @@ export const RequestParametersEditor = observer(({
                     id='cred-proxy'
                     label='Proxy'
                     value={requestOrGroup.selectedProxy?.id ?? DEFAULT_SELECTION_ID}
+                    open={showProxyMenu}
+                    onClose={() => setShowProxyMenu(false)}
+                    onOpen={() => setShowProxyMenu(true)}
                     onChange={(e) => requestOrGroup.setSelectedProxyId(e.target.value)}
                     fullWidth
                     size='small'
@@ -103,6 +137,9 @@ export const RequestParametersEditor = observer(({
                     id='cred-data'
                     label='Seed Data'
                     value={requestOrGroup.selectedData?.id ?? DEFAULT_SELECTION_ID}
+                    open={showDataMenu}
+                    onClose={() => setShowDataMenu(false)}
+                    onOpen={() => setShowDataMenu(true)}
                     onChange={(e) => requestOrGroup.setSelectedDataId(e.target.value)}
                     fullWidth
                     size='small'

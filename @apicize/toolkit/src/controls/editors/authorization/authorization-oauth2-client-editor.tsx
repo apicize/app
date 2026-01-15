@@ -6,10 +6,23 @@ import { DEFAULT_SELECTION_ID, NO_SELECTION, NO_SELECTION_ID } from "../../../mo
 import { ToastSeverity, useFeedback } from "../../../contexts/feedback.context"
 import { Selection } from "@apicize/lib-typescript"
 import { WorkspaceParameters } from "../../../models/workspace/workspace-parameters"
+import { useState, useEffect } from "react"
 
 export const AuthorizationOAuth2ClientEditor = observer(({ authorization, parameters: parametersProps }: { authorization: EditableAuthorization, parameters: WorkspaceParameters | null }) => {
     const workspace = useWorkspace()
     const feedback = useFeedback()
+
+    // Register dropdowns so they can be hidden on modal dialogs
+    const [showCertificateMenu, setShowCertificateMenu] = useState(false)
+    const [showProxyMenu, setShowProxyMenu] = useState(false)
+    useEffect(() => {
+        const disposer1 = feedback.registerModalBlocker(() => setShowCertificateMenu(false))
+        const disposer2 = feedback.registerModalBlocker(() => setShowProxyMenu(false))
+        return (() => {
+            disposer1()
+            disposer2()
+        })
+    })
 
     let credIndex = 0
     const itemsFromSelections = (selections: Selection[]) => {
@@ -123,6 +136,9 @@ export const AuthorizationOAuth2ClientEditor = observer(({ authorization, parame
                     label='Certificate'
                     value={authorization.selectedCertificate?.id ?? NO_SELECTION_ID}
                     sx={{ minWidth: '8em' }}
+                    open={showCertificateMenu}
+                    onClose={() => setShowCertificateMenu(false)}
+                    onOpen={() => setShowCertificateMenu(true)}
                     onChange={(e) => {
                         const selectionId = e.target.value
                         authorization.setSelectedCertificate(
@@ -148,6 +164,9 @@ export const AuthorizationOAuth2ClientEditor = observer(({ authorization, parame
                     label='Proxy'
                     value={authorization.selectedProxy?.id ?? NO_SELECTION_ID}
                     sx={{ minWidth: '8em' }}
+                    open={showProxyMenu}
+                    onClose={() => setShowProxyMenu(false)}
+                    onOpen={() => setShowProxyMenu(true)}
                     onChange={(e) => {
                         const selectionId = e.target.value
                         authorization.setSelectedProxy(

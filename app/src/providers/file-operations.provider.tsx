@@ -109,7 +109,7 @@ export function FileOperationsProvider({ activeSessionId, workspaceStore, childr
      * Launches a new workspace
      * @returns 
      */
-    const newWorkspace = async (openInNewWindow: boolean) => {
+    const newWorkbook = async (openInNewWindow: boolean) => {
         if (!openInNewWindow && workspaceStore.dirty) {
             if (! await feedback.confirm({
                 title: 'New Workbook',
@@ -132,7 +132,7 @@ export function FileOperationsProvider({ activeSessionId, workspaceStore, childr
      * @param doUpdateSettings 
      * @returns 
      */
-    const openWorkspace = async (openInNewWindow: boolean, defaultFileName?: string) => {
+    const openWorkbook = async (openInNewWindow: boolean, defaultFileName?: string) => {
         try {
             if (!openInNewWindow && workspaceStore.dirty && workspaceStore.editorCount < 2) {
                 if (! await feedback.confirm({
@@ -170,12 +170,45 @@ export function FileOperationsProvider({ activeSessionId, workspaceStore, childr
         }
     }
 
+    const checkWorkspaceStatus = async () => {
+        const saveStatus = await core.invoke<WorkspaceSaveStatus>('get_workspace_save_status', {
+            sessionId: activeSessionId
+        })
+        if (saveStatus.anyInvalid) {
+            if (! await feedback.confirm({
+                title: 'Save Workbook',
+                message: 'Your workspace has one or more errors, are you sure you want to save?',
+                okButton: 'Yes',
+                cancelButton: 'No',
+                defaultToCancel: true
+            })) {
+                return null
+            }
+        }
+
+        if (saveStatus.warnOnWorkspaceCreds) {
+            if (! await feedback.confirm({
+                title: 'Save Workbook',
+                message: 'Your workspace has authorizations or certifiations stored publicly in the workbook, which will be included if you share the workbook; are you sure you want to save?',
+                okButton: 'Yes',
+                cancelButton: 'No',
+                defaultToCancel: true
+            })) {
+                return null
+            }
+        }
+        return saveStatus
+    }
+
     /**
      * Saves the current worspake under its current name
      * @returns 
      */
-    const saveWorkspace = async () => {
+    const saveWorkbook = async () => {
         try {
+            if (! await checkWorkspaceStatus()) {
+                return
+            }
             await core.invoke('save_workspace', {
                 sessionId: activeSessionId
             })
@@ -191,31 +224,9 @@ export function FileOperationsProvider({ activeSessionId, workspaceStore, childr
      */
     const saveWorkbookAs = async () => {
         try {
-            const saveStatus = await core.invoke<WorkspaceSaveStatus>('get_workspace_save_status', {
-                sessionId: activeSessionId
-            })
-            if (saveStatus.anyInvalid) {
-                if (! await feedback.confirm({
-                    title: 'Save Workbook',
-                    message: 'Your workspace has one or more errors, are you sure you want to save?',
-                    okButton: 'Yes',
-                    cancelButton: 'No',
-                    defaultToCancel: true
-                })) {
-                    return
-                }
-            }
-
-            if (saveStatus.warnOnWorkspaceCreds) {
-                if (! await feedback.confirm({
-                    title: 'Save Workbook',
-                    message: 'Your workspace has authorizations or certifiations stored publicly in the workbook, which will be included if you share the workbook; are you sure you want to save?',
-                    okButton: 'Yes',
-                    cancelButton: 'No',
-                    defaultToCancel: true
-                })) {
-                    return
-                }
+            const saveStatus = await checkWorkspaceStatus()
+            if (!saveStatus) {
+                return
             }
 
             feedback.setModal(true)
@@ -415,9 +426,9 @@ export function FileOperationsProvider({ activeSessionId, workspaceStore, childr
     }
 
     const fileOpsStore = new FileOperationsStore({
-        onNewWorkbook: newWorkspace,
-        onOpenWorkbook: openWorkspace,
-        onSaveWorkbook: saveWorkspace,
+        onNewWorkbook: newWorkbook,
+        onOpenWorkbook: openWorkbook,
+        onSaveWorkbook: saveWorkbook,
         onSaveWorkbookAs: saveWorkbookAs,
         onCloneWorkspace: cloneWorkspace,
         onOpenSshFile: openSsshFile,

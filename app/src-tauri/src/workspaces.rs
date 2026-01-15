@@ -1,9 +1,9 @@
 use apicize_lib::{
     Authorization, Certificate, Executable, ExecutionReportFormat, ExecutionResultSuccess,
-    ExecutionResultSummary, ExecutionState, ExternalData, Identifiable, IndexedEntities,
-    NameValuePair, Proxy, Request, RequestBody, RequestEntry, RequestGroup, Scenario,
-    SelectedParameters, Selection, Validated, ValidationState, WorkbookDefaultParameters,
-    Workspace, editing::indexed_entities::IndexedEntityPosition, identifiable::CloneIdentifiable,
+    ExecutionResultSummary, ExecutionState, ExternalData, Identifiable, IndexedEntities, Proxy,
+    Request, RequestBody, RequestEntry, RequestGroup, Scenario, SelectedParameters, Selection,
+    Validated, ValidationState, WorkbookDefaultParameters, Workspace,
+    editing::indexed_entities::IndexedEntityPosition, identifiable::CloneIdentifiable,
     indexed_entities::NO_SELECTION_ID,
 };
 use file_type::FileType;
@@ -82,16 +82,6 @@ pub struct Navigation {
 pub enum RequestEntryInfo {
     Request { request: Request },
     Group { group: RequestGroup },
-}
-
-#[derive(Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct RequestHeaderInfo {
-    /// Unique identifier (required to keep track of dispatches and test executions)
-    pub id: String,
-    /// HTTP headers
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub headers: Option<Vec<NameValuePair>>,
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq)]
@@ -400,11 +390,22 @@ impl Workspaces {
                 .to_string()
         };
 
+        let any_public_auths = workspace
+            .authorizations
+            .child_ids
+            .get("W")
+            .is_some_and(|c| !c.is_empty());
+        let any_public_certs = workspace
+            .certificates
+            .child_ids
+            .get("W")
+            .is_some_and(|c| !c.is_empty());
+
         self.workspaces.insert(
             workspace_id.clone(),
             WorkspaceInfo {
                 dirty: false,
-                warn_on_workspace_creds: true,
+                warn_on_workspace_creds: !(any_public_auths || any_public_certs),
                 workspace,
                 navigation,
                 execution_results: ExecutionResultBuilder::default(),
@@ -565,7 +566,7 @@ impl Workspaces {
             Some(RequestEntry::Request(request)) => {
                 let (body_mime_type, body_length) = if let Some(body) = &request.body {
                     let body_type = Workspaces::get_body_type(body);
-                    let body_length = Workspaces::get_body_length(&body);
+                    let body_length = Workspaces::get_body_length(body);
                     info.request_body_mime_types
                         .insert(request_id.to_string(), body_type.clone());
                     // println!("Request {} mime type: {}", request_id, &body_type);
@@ -943,29 +944,6 @@ impl Workspaces {
         Ok(result)
     }
 
-    /// Update request headers and return reference to request info so it can be resent
-    pub fn update_request_headers(
-        &mut self,
-        workspace_id: &str,
-        header_info: RequestHeaderInfo,
-    ) -> Result<(), ApicizeAppError> {
-        match self.workspaces.get_mut(workspace_id) {
-            Some(info) => {
-                info.dirty = true;
-                let id = &header_info.id;
-                if let Some(RequestEntry::Request(existing_request)) =
-                    info.workspace.requests.entities.get_mut(id)
-                {
-                    existing_request.headers = header_info.headers;
-                    Ok(())
-                } else {
-                    Err(ApicizeAppError::InvalidRequest(header_info.id))
-                }
-            }
-            None => Err(ApicizeAppError::InvalidWorkspace(workspace_id.into())),
-        }
-    }
-
     /// Update request body and return reference to request info so it can be resent
     pub fn update_request_body(
         &mut self,
@@ -981,7 +959,7 @@ impl Workspaces {
                 {
                     match &body_info.body {
                         Some(body) => {
-                            let mime_type = Workspaces::get_body_type(&body);
+                            let mime_type = Workspaces::get_body_type(body);
                             info.request_body_mime_types.insert(id.clone(), mime_type);
                             existing_request.body = Some(body.clone());
                         }
@@ -992,7 +970,9 @@ impl Workspaces {
                     }
                     Ok(())
                 } else {
-                    Err(ApicizeAppError::InvalidRequest(body_info.request_id.clone()))
+                    Err(ApicizeAppError::InvalidRequest(
+                        body_info.request_id.clone(),
+                    ))
                 }
             }
             None => Err(ApicizeAppError::InvalidWorkspace(workspace_id.into())),
@@ -2512,8 +2492,7 @@ pub enum Entity {
     RequestEntry(RequestEntryInfo),
     Request(Request),
     Group(RequestGroup),
-    RequestBody(RequestBodyInfo),
-    RequestHeaders(RequestHeaderInfo),
+    RequestBody(RequestBodyInfoWithBody),
     Scenario(Scenario),
     Authorization(Authorization),
     Certificate(Certificate),

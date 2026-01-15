@@ -1,7 +1,6 @@
 import { Toast } from "../controls/toast"
 import { ConfirmationDialog } from "../controls/confirmation-dialog"
-import { FeedbackContext, FeedbackStore, ToastSeverity } from "@apicize/toolkit"
-import React, { useEffect } from "react"
+import { FeedbackContext, FeedbackStore } from "@apicize/toolkit"
 import { ReactNode } from "react"
 import { ModalBlock } from "../controls/modal-block."
 

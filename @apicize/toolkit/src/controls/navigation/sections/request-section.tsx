@@ -147,13 +147,13 @@ export const RequestSection = observer(({ includeHeader }: { includeHeader?: boo
                 open={requestsMenu !== undefined}
                 onClose={closeRequestsMenu}
                 anchorReference='anchorPosition'
-                sx={{fontSize: settings.navigationFontSize}}
+                sx={{ fontSize: settings.navigationFontSize }}
                 anchorPosition={{
                     top: requestsMenu?.mouseY ?? 0,
                     left: requestsMenu?.mouseX ?? 0
                 }}
             >
-                <MenuItem className='navigation-menu-item' sx={{fontSize: 'inherit'}} onClick={(_) => handleAddRequest(null, IndexedEntityPosition.Under)} >
+                <MenuItem className='navigation-menu-item' sx={{ fontSize: 'inherit' }} onClick={(_) => handleAddRequest(null, IndexedEntityPosition.Under)} >
                     <ListItemIcon>
                         <SvgIcon fontSize='inherit' color='request'><RequestIcon /></SvgIcon>
                     </ListItemIcon>
@@ -191,13 +191,13 @@ export const RequestSection = observer(({ includeHeader }: { includeHeader?: boo
             open={requestMenu !== undefined}
             onClose={closeRequestMenu}
             anchorReference='anchorPosition'
-            sx={{fontSize: settings.navigationFontSize}}
+            sx={{ fontSize: settings.navigationFontSize }}
             anchorPosition={{
                 top: requestMenu?.mouseY ?? 0,
                 left: requestMenu?.mouseX ?? 0
             }}
         >
-            <MenuItem className='navigation-menu-item' sx={{fontSize: 'inherit'}} onClick={(e) => handleAddRequest(
+            <MenuItem className='navigation-menu-item' sx={{ fontSize: 'inherit' }} onClick={(e) => handleAddRequest(
                 requestMenu.id,
                 positionType
             )}>
@@ -206,7 +206,7 @@ export const RequestSection = observer(({ includeHeader }: { includeHeader?: boo
                 </ListItemIcon>
                 <ListItemText disableTypography>{action} Request</ListItemText>
             </MenuItem>
-            <MenuItem className='navigation-menu-item' sx={{fontSize: 'inherit'}}  onClick={(e) =>
+            <MenuItem className='navigation-menu-item' sx={{ fontSize: 'inherit' }} onClick={(e) =>
                 handleAddRequestGroup(
                     requestMenu.id,
                     positionType
@@ -216,13 +216,13 @@ export const RequestSection = observer(({ includeHeader }: { includeHeader?: boo
                 </ListItemIcon>
                 <ListItemText disableTypography>{action} Request Group</ListItemText>
             </MenuItem>
-            <MenuItem className='navigation-menu-item' sx={{fontSize: 'inherit'}}  onClick={(e) => handleDupeRequest(requestMenu.id, requestMenu.type)}>
+            <MenuItem className='navigation-menu-item' sx={{ fontSize: 'inherit' }} onClick={(e) => handleDupeRequest(requestMenu.id, requestMenu.type)}>
                 <ListItemIcon>
                     <ContentCopyOutlinedIcon fontSize='inherit' sx={{ color: 'request' }} />
                 </ListItemIcon>
                 <ListItemText disableTypography>Add Duplicate</ListItemText>
             </MenuItem>
-            <MenuItem className='navigation-menu-item' sx={{fontSize: 'inherit'}}  onClick={(e) => handleDeleteRequest(requestMenu.id, requestMenu.type)}>
+            <MenuItem className='navigation-menu-item' sx={{ fontSize: 'inherit' }} onClick={(e) => handleDeleteRequest(requestMenu.id, requestMenu.type)}>
                 <ListItemIcon>
                     <DeleteIcon fontSize='inherit' color='error' />
                 </ListItemIcon>
@@ -324,7 +324,7 @@ export const RequestSection = observer(({ includeHeader }: { includeHeader?: boo
                 // sx={{ background: isOver ? dragPositionToColor(dragDrop.dragPosition) : 'default' }}
                 >
                     <Box className='nav-icon-box'><SvgIcon className='nav-folder' color='request'><RequestIcon /></SvgIcon></Box>
-                    <Box className='nav-node-text'sx={{ flexGrow: 1 }}>
+                    <Box className='nav-node-text' sx={{ flexGrow: 1 }}>
                         <Typography variant="navigation">Requests</Typography>
                     </Box>
                     <IconButton sx={{ flexGrow: 0, margin: 0, padding: 0, visibility: focused ? 'normal' : 'hidden' }} onClick={(e) => {
@@ -332,7 +332,7 @@ export const RequestSection = observer(({ includeHeader }: { includeHeader?: boo
                         e.stopPropagation()
                         handleShowRequestsMenu(e, 'menu-requests', EntityType.Group)
                     }}>
-                        <Box className='nav-icon-context'><MoreVertIcon  style={{fontSize: settings.navigationFontSize * 1.5}} /></Box>
+                        <Box className='nav-icon-context'><MoreVertIcon style={{ fontSize: settings.navigationFontSize * 1.5 }} /></Box>
                     </IconButton>
                 </Box >
             )}>

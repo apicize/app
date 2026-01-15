@@ -1,0 +1,25 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "incremental": false,
+    "rootDir": "../",
+    "noEmit": true,
+    "types": [
+      "vitest/globals"
+    ],
+    "skipLibCheck": true
+  },
+  "include": [
+    "./**/*",
+    "../src/**/*.ts",
+    "../src/**/*.tsx"
+  ],
+  "exclude": [
+    "../node_modules",
+    "../vitest.config.ts",
+    "../src/test-editor.d.ts"
+  ]
+}

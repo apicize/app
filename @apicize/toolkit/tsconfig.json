@@ -23,11 +23,15 @@
     "declarationMap": true,
     "useDefineForClassFields": true,
   },
+  "include": [
+    "src/**/*.tsx",
+    "src/**/*.ts"
+  ],
   "exclude": [
-    "./src/test-editor.d.ts",
+    "__tests__",
     "./test-editor.d.ts",
     "./dist/**/*",
-    "test",
+    "vitest.config.ts",
     "release/build",
     "release/app/dist",
     ".erb/dll",

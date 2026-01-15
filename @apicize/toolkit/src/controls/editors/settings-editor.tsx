@@ -23,6 +23,7 @@ import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import { useApicizeSettings } from '../../contexts/apicize-settings.context';
 import { BorderedSection } from '../bordered-section';
 import { toJS } from 'mobx';
+import { useState, useEffect } from 'react'
 
 export const SettingsEditor = observer(({ sx }: { sx?: SxProps }) => {
     const settings = useApicizeSettings()
@@ -31,6 +32,15 @@ export const SettingsEditor = observer(({ sx }: { sx?: SxProps }) => {
     const fileOps = useFileOperations()
 
     workspace.nextHelpTopic = 'settings'
+
+    // Register dropdowns so they can be hidden on modal dialogs
+    const [showColorSchemeMenu, setShowColorSchemeMenu] = useState(false)
+    useEffect(() => {
+        const disposer = feedback.registerModalBlocker(() => setShowColorSchemeMenu(false))
+        return (() => {
+            disposer()
+        })
+    })
 
     const resetToDefaults = async () => {
         if (await feedback.confirm({
@@ -92,6 +102,9 @@ export const SettingsEditor = observer(({ sx }: { sx?: SxProps }) => {
                             <InputLabel id='color-mode-label-id' sx={{ width: '12em' }}>Color Mode:</InputLabel>
                             <Select
                                 value={settings.colorScheme}
+                                open={showColorSchemeMenu}
+                                onClose={() => setShowColorSchemeMenu(false)}
+                                onOpen={() => setShowColorSchemeMenu(true)}
                                 onChange={(e) => settings.setColorScheme(e.target.value as SupportedColorScheme)}
                                 size='small'
                             >

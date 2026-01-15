@@ -3,6 +3,9 @@ import { createContext, useContext } from "react";
 
 /**
  * Manages state for Toast and Confirmation dialogs
+ * 
+ * We also manage dropdown state in here because dropdowns have to be hidden
+ * before showing modal dialogs (because of backdrop conflicts)
  */
 export class FeedbackStore {
     @observable accessor toastOpen = false
@@ -12,14 +15,17 @@ export class FeedbackStore {
     @observable accessor confirmOpen = false
     @observable accessor confirmOptions: ConfirmationOptions = {}
 
+    @observable accessor lastModalRequest = 0
     @observable accessor modalInProgress = false
+
+    private registeredModalCounter = 0
+    private registeredModalBlockers = new Map<number, () => void>()
 
     constructor() {
         makeObservable(this)
     }
 
     private confirmResolve: (ok: boolean) => void = () => { };
-
 
     @action
     toast(message: string, severity: ToastSeverity) {
@@ -40,20 +46,41 @@ export class FeedbackStore {
         this.toastOpen = false
     }
 
+    registerModalBlocker(callback: () => void) {
+        const counter = (this.registeredModalCounter === Number.MAX_SAFE_INTEGER)
+            ? 0 : this.registeredModalCounter + 1
+        this.registeredModalCounter = counter
+        this.registeredModalBlockers.set(counter, callback)
+        return (() => this.registeredModalBlockers.delete(counter))
+    }
+
+    /**
+     * Calls any registered modal blocker callbacks, mainly to deal with MUI
+     * bombing out if there are multiple backdrops called at the same time
+     * @returns True if any modal blockers were registered and called
+     */
+    hideAllMenus() {
+        if (this.registeredModalBlockers.size > 0) {
+            for (const callback of this.registeredModalBlockers.values()) {
+                runInAction(callback)
+            }
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     @action
     confirm(options: ConfirmationOptions): Promise<boolean> {
-        // Find all MUI popover backdrops and click them
-        const backdrops = document.querySelectorAll('.MuiBackdrop-root');
-        backdrops.forEach(backdrop => {
-            if (backdrop instanceof HTMLElement) {
-                backdrop.click();
-            }
-        });
-
+        // Hide all dropdown menus so we don't get backdrop errors
         return new Promise((resolve) => {
-            this.confirmResolve = resolve
-            this.confirmOptions = options
-            this.confirmOpen = true
+            const visibleDropdowns = this.hideAllMenus()
+            setTimeout(() => runInAction(() => {
+
+                this.confirmResolve = resolve
+                this.confirmOptions = options
+                this.confirmOpen = true
+            }), visibleDropdowns ? 10 : 0)
         })
     }
 
@@ -67,7 +94,6 @@ export class FeedbackStore {
     setModal(onOff: boolean) {
         this.modalInProgress = onOff
     }
-
 }
 
 export const FeedbackContext = createContext<FeedbackStore | null>(null)

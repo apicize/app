@@ -31,7 +31,14 @@ export default (env, options) => {
                 },
             ],
         },
-        resolve: { extensions: [".tsx", ".ts", ".js"] },
+        resolve: {
+            extensions: [".tsx", ".ts", ".js"],
+            fallback: {
+                "stream": false,
+                "timers": false,
+                "url": false
+            }
+        },
         output: {
             filename: "js/[name].bundle.js",
             path: path.resolve(__dirname, outputConfig.destPath),
