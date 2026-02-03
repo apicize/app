@@ -2,10 +2,14 @@
 
 import * as core from '@tauri-apps/api/core'
 import {
-  EditableSettings, DragDropProvider, Entity, EntityType, FeedbackStore, IndexedEntityPosition, LogStore, MainPanel, Navigation, ReqwestEvent,
-  SessionSaveState, ToastSeverity, UpdatedNavigationEntry, WorkspaceStore, ClipboardPaylodRequest, ExecutionEvent, SessionEntity, WorkspaceInitialization,
+  EditableSettings, DragDropProvider,EntityType, FeedbackStore, IndexedEntityPosition, LogStore, MainPanel, Navigation, ReqwestEvent,
+  SessionSaveState, DataSetContent, UpdatedNavigationEntry, WorkspaceStore, ClipboardPaylodRequest, ExecutionEvent, SessionEntity, WorkspaceInitialization,
   WorkspaceMode,
+  UpdateResponse,
+  EntityUpdate,
+  EntityUpdateNotification,
   RequestBodyInfo,
+  RequestBodyMimeInfo,
 } from '@apicize/toolkit'
 import { useEffect, useState } from 'react'
 import "@fontsource/roboto-mono/latin.css"
@@ -24,6 +28,7 @@ import { FileDragDropProvider } from './providers/file-dragdrop.provider'
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 import { TokenResult } from '@apicize/lib-typescript'
 import { openUrl } from '@tauri-apps/plugin-opener';
+import { runInAction } from 'mobx'
 
 // This is defined externally via Tauri main or other boostrap application
 const sessionId: string = (window as any).__TAURI_INTERNALS__.metadata.currentWindow.label
@@ -71,9 +76,12 @@ const workspaceStore = new WorkspaceStore(
     getDirty: () => core.invoke('get_dirty', {
       sessionId,
     }),
-    list: (entityType: EntityType, requestId?: string) => core.invoke('list', {
+    getDataSetContent: (dataSetId: string) => core.invoke<DataSetContent>('get_data_set_content', {
       sessionId,
-      entityType,
+      dataSetId,
+    }),
+    listParameters: (requestId?: string) => core.invoke('list_parameters', {
+      sessionId,
       requestId
     }),
     getRequestActiveAuthorization: (requestId: string) => core.invoke('get_request_active_authorization', {
@@ -97,9 +105,9 @@ const workspaceStore = new WorkspaceStore(
       entityType,
       entityId
     }),
-    update: async (entity: Entity) => core.invoke('update', {
+    update: async (entityUpdate: EntityUpdate) => core.invoke<UpdateResponse>('update', {
       sessionId,
-      entity,
+      entityUpdate,
     }),
     move: async (entityType: EntityType, entityId: string, relativeToId: string, relativePosition: IndexedEntityPosition) => core.invoke('move_entity', {
       sessionId,
@@ -151,7 +159,7 @@ const workspaceStore = new WorkspaceStore(
     getRequestBody: (requestId) => core.invoke<RequestBodyInfo>(
       'get_request_body', { sessionId, requestId }
     ),
-    updateRequestBody: (requestId, body) => core.invoke<RequestBodyInfo>(
+    updateRequestBody: (requestId, body) => core.invoke<RequestBodyMimeInfo>(
       'update_request_body', { sessionId, requestId, body }
     ),
     updateRequestBodyFromClipboard: (requestId) => core.invoke<RequestBodyInfo>(
@@ -184,9 +192,10 @@ export default function Home() {
       workspaceStore.updateSaveState(data.payload)
     })
     // Notification on record changes (not sent to window/session initiating the update)
-    let unlistenUpdate = w.listen<Entity>('update', (data) => {
-      workspaceStore.dirty = true
-      workspaceStore.refreshFromExternalUpdate(data.payload)
+    let unlistenUpdate = w.listen<EntityUpdateNotification>('update', (data) => {
+      runInAction(() => {
+        workspaceStore.refreshFromExternalUpdate(data.payload)
+      })
     })
     // // Notification on request execution starts or stops
     // let unlistenExecution = w.listen<ExecutionStatus>('update_execution', (data) => {
@@ -227,7 +236,22 @@ export default function Home() {
         <ConfigurableTheme>
           <CssBaseline />
           <FeedbackProvider store={feedbackStore}>
-            <FileOperationsProvider activeSessionId={sessionId} workspaceStore={workspaceStore}>
+            <FileOperationsProvider
+              activeSessionId={sessionId}
+              workspaceStore={workspaceStore}
+              callbacks={{
+                openDataSetFile: (fileName: string) => core.invoke<[string, string]>(
+                  'open_data_set_file',
+                  {
+                    sessionId, fileName
+                  }),
+                saveDataSetFile: (fileName: string, data: string) => core.invoke<string>(
+                  'save_data_set_file',
+                  {
+                    sessionId, fileName, data
+                  })
+              }}
+            >
               <WorkspaceProvider store={workspaceStore}>
                 <DragDropProvider>
                   <FileDragDropProvider>

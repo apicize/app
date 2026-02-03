@@ -11,12 +11,72 @@ import { NavTreeItem } from "../nav-tree-item"
 import { Persistence } from "@apicize/lib-typescript"
 import { MenuPosition } from "../../../models/menu-position"
 import { useState } from "react"
-import { useWorkspace } from "../../../contexts/workspace.context"
+import { useWorkspace, WorkspaceMode } from "../../../contexts/workspace.context"
 import { useFeedback } from "../../../contexts/feedback.context"
 import { observer } from "mobx-react-lite"
 import { useApicizeSettings } from "../../../contexts/apicize-settings.context"
 import { NavigationRequestEntry } from "../../../models/navigation"
 import { IndexedEntityPosition } from "../../../models/workspace/indexed-entity-position"
+
+interface RequestTreeItemProps {
+    entry: NavigationRequestEntry
+    depth: number
+    onSelectRequest: (id: string) => void
+    onSelectGroup: (id: string) => void
+    onShowMenu: (event: React.MouseEvent, id: string, type: EntityType) => void
+    onMoveRequest: (id: string, relativeToId: string, relativePosition: IndexedEntityPosition) => void
+    onMoveGroup: (id: string, relativeToId: string, relativePosition: IndexedEntityPosition) => void
+}
+
+const RequestTreeItem = observer(({
+    entry,
+    depth,
+    onSelectRequest,
+    onSelectGroup,
+    onShowMenu,
+    onMoveRequest,
+    onMoveGroup
+}: RequestTreeItemProps) => {
+    return entry.children
+        ? <NavTreeItem
+            entry={entry}
+            depth={depth}
+            type={EntityType.Group}
+            acceptDropTypes={[EntityType.Request, EntityType.Group]}
+            acceptDropAppends={true}
+            onSelect={() => onSelectGroup(entry.id)}
+            onMenu={onShowMenu}
+            onMove={onMoveGroup}
+            isDraggable={true}
+            icon={<FolderIcon />}
+            iconColor="folder"
+        >
+            {
+                entry.children.map((child) =>
+                    <RequestTreeItem
+                        entry={child}
+                        depth={depth + 1}
+                        key={child.id}
+                        onSelectRequest={onSelectRequest}
+                        onSelectGroup={onSelectGroup}
+                        onShowMenu={onShowMenu}
+                        onMoveRequest={onMoveRequest}
+                        onMoveGroup={onMoveGroup}
+                    />
+                )
+            }
+        </NavTreeItem>
+        : <NavTreeItem
+            entry={entry}
+            depth={depth}
+            type={EntityType.Request}
+            acceptDropTypes={[EntityType.Request, EntityType.Group]}
+            onSelect={() => onSelectRequest(entry.id)}
+            onMenu={onShowMenu}
+            onMove={onMoveRequest}
+            isDraggable={true}
+        />
+})
 
 export const RequestSection = observer(({ includeHeader }: { includeHeader?: boolean }) => {
     const workspace = useWorkspace()
@@ -62,8 +122,7 @@ export const RequestSection = observer(({ includeHeader }: { includeHeader?: boo
     const handleSelectHeader = (headerId: string, helpTopic?: string) => {
         // closeAllMenus()
         if (helpTopic) {
-            workspace.updateExpanded(headerId, true)
-            workspace.showHelp(helpTopic)
+            workspace.showHelp(helpTopic, headerId)
         }
     }
     const handleAddRequest = (targetRequestId: string | null, targetPosition: IndexedEntityPosition) => {
@@ -231,61 +290,17 @@ export const RequestSection = observer(({ includeHeader }: { includeHeader?: boo
         </Menu>
     }
 
-    const RequestTreeItem = observer(({ entry, depth }: { entry: NavigationRequestEntry, depth: number }) => {
-        return entry.children
-            ? <NavTreeItem
-                entry={entry}
-                // key={entry.id}
-                depth={depth}
-                type={EntityType.Group}
-                acceptDropTypes={[EntityType.Request, EntityType.Group]}
-                acceptDropAppends={true}
-                onSelect={() => workspace.changeActive(EntityType.Group, entry.id)}
-                onMenu={showRequestMenu}
-                onMove={handleMoveRequestGroup}
-                isDraggable={true}
-                icon={<FolderIcon />}
-                iconColor="folder"
-            >
-                {
-                    entry.children.map((child) =>
-                        <RequestTreeItem entry={child} depth={depth + 1} key={child.id} />
-                    )
-                }
-            </NavTreeItem>
-            : <NavTreeItem
-                entry={entry}
-                // key={entry.id}
-                depth={depth}
-                type={EntityType.Request}
-                acceptDropTypes={[EntityType.Request, EntityType.Group]}
-                onSelect={() => workspace.changeActive(EntityType.Request, entry.id)}
-                onMenu={showRequestMenu}
-                onMove={handleMoveRequest}
-                isDraggable={true}
-            />
-    })
+    const requestTreeItemProps = {
+        onSelectRequest: (id: string) => workspace.changeActive(EntityType.Request, id),
+        onSelectGroup: (id: string) => workspace.changeActive(EntityType.Group, id),
+        onShowMenu: showRequestMenu,
+        onMoveRequest: handleMoveRequest,
+        onMoveGroup: handleMoveRequestGroup
+    }
 
-    // const { isOver, setNodeRef: setDropRef } = useDroppable({
-    //     id: 'hdr-r',
-    //     data: {
-    //         acceptAppend: true,
-    //         acceptReposition: false,
-    //         acceptsTypes: [EntityType.Request, EntityType.Group],
-    //         depth: 0,
-    //         isHeader: true,
-    //     } as DroppableData
-    // })
-
-    const SectionContent = observer(() => {
-        return <>
-            {
-                workspace.navigation.requests.map(r => <RequestTreeItem entry={r} depth={1} key={r.id} />)
-            }
-            <RequestsMenu />
-            <RequestMenu />
-        </>
-    })
+    const renderRequestTreeItems = () => workspace.navigation.requests.map(r =>
+        <RequestTreeItem entry={r} depth={1} key={r.id} {...requestTreeItemProps} />
+    )
 
     return includeHeader
         ? <TreeItem
@@ -336,7 +351,13 @@ export const RequestSection = observer(({ includeHeader }: { includeHeader?: boo
                     </IconButton>
                 </Box >
             )}>
-            <SectionContent />
+            {renderRequestTreeItems()}
+            <RequestsMenu />
+            <RequestMenu />
         </TreeItem >
-        : <SectionContent />
+        : <>
+            {renderRequestTreeItems()}
+            <RequestsMenu />
+            <RequestMenu />
+        </>
 })

@@ -1,58 +1,66 @@
-import { Proxy } from "@apicize/lib-typescript"
+import { Proxy, ValidationErrorList } from "@apicize/lib-typescript"
 import { Editable } from "../editable"
-import { action, computed, observable } from "mobx"
+import { action, computed, observable, runInAction } from "mobx"
 import { EntityType } from "./entity-type"
-import { EntityProxy, EntityTypeName, WorkspaceStore } from "../../contexts/workspace.context"
+import { EntityTypeName, EntityUpdateNotification, WorkspaceStore } from "../../contexts/workspace.context"
+import { ProxyUpdate } from "../updates/proxy-update"
 
 export class EditableProxy extends Editable<Proxy> {
     public readonly entityType = EntityType.Proxy
     @observable accessor url = ''
+
+    @observable accessor validationErrors: ValidationErrorList
 
     public constructor(entry: Proxy, workspace: WorkspaceStore) {
         super(workspace)
         this.id = entry.id
         this.name = entry.name ?? ''
         this.url = entry.url
+        this.validationErrors = entry.validationErrors ?? {}
     }
 
-    protected onUpdate() {
+    protected performUpdate(update: ProxyUpdate) {
         this.markAsDirty()
-        this.workspace.updateProxy({
-            entityTypeName: EntityTypeName.Proxy,
-            id: this.id,
-            name: this.name,
-            url: this.url,
-        })
+        this.workspace.update(update)
+            .then(updates => runInAction(() => {
+                if (updates) {
+                    this.validationErrors = updates.validationErrors || {}
+                }
+            }))
+    }
+
+    @action
+    setName(value: string) {
+        this.name = value
+        this.performUpdate({ id: this.id, type: EntityTypeName.Proxy, entityType: EntityType.Proxy, name: value })
     }
 
     @action
     setUrl(value: string) {
         this.url = value
-        this.onUpdate()
+        this.performUpdate({ id: this.id, type: EntityTypeName.Proxy, entityType: EntityType.Proxy, url: value })
     }
 
     @action
-    refreshFromExternalUpdate(updatedItem: EntityProxy) {
-        this.name = updatedItem.name ?? ''
-        this.url = updatedItem.url
-    }
-
-    @computed get nameInvalid() {
-        return ((this.name?.length ?? 0) === 0)
-    }
-
-    @computed get urlInvalid() {
-        return ! /^(\{\{.+\}\}|https?:\/\/|socks5:\/\/)(\w+:?\w*)?(\S+)(:\d+)?(\/|\/([\w#!:.?+=&%!\-\/]))?$/.test(this.url)
-    }
-
-    @computed get validationErrors(): { [property: string]: string } | undefined {
-        const results: { [property: string]: string } = {}
-        if (this.nameInvalid) {
-            results.name = 'Name is required'
+    refreshFromExternalSpecificUpdate(notification: EntityUpdateNotification) {
+        if (notification.update.entityType !== EntityType.Proxy) {
+            return
         }
-        if (this.urlInvalid) {
-            results.url = 'The proxy URL is invalid'
+        if (notification.update.name !== undefined) {
+            this.name = notification.update.name
         }
-        return Object.keys(results).length > 0 ? results : undefined
+        if (notification.update.url !== undefined) {
+            this.name = notification.update.url
+        }
+        this.validationErrors = notification.validationErrors ?? {}
     }
+
+    @computed get nameError() {
+        return this.validationErrors['name']
+    }
+
+    @computed get urlError() {
+        return this.validationErrors['url']
+    }
+
 }

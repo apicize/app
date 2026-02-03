@@ -21,22 +21,10 @@ export abstract class Editable<T> {
     @observable accessor dirty: boolean = false
 
     public abstract readonly entityType: EntityType
-    protected abstract onUpdate(): void
 
     constructor(protected workspace: WorkspaceStore) { }
 
     markAsDirty() {
         this.dirty = true
-    }
-
-    @action
-    setName(value: string) {
-        this.name = value
-        this.onUpdate()
-    }
-
-    @computed
-    get nameInvalid() {
-        return this.dirty && ((this.name?.length ?? 0) === 0)
     }
 }

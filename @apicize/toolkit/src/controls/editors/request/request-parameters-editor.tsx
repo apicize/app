@@ -130,13 +130,13 @@ export const RequestParametersEditor = observer(({
                 </Select>
             </FormControl>
             <FormControl>
-                <InputLabel id='proxy-data-id'>Seed Data</InputLabel>
+                <InputLabel id='proxy-data-id'>Data Set</InputLabel>
                 <Select
                     labelId='proxy-data'
                     aria-labelledby='proxy-data-id'
                     id='cred-data'
-                    label='Seed Data'
-                    value={requestOrGroup.selectedData?.id ?? DEFAULT_SELECTION_ID}
+                    label='Data Set'
+                    value={requestOrGroup.selectedDataSet?.id ?? DEFAULT_SELECTION_ID}
                     open={showDataMenu}
                     onClose={() => setShowDataMenu(false)}
                     onOpen={() => setShowDataMenu(true)}

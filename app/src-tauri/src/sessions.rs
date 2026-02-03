@@ -124,7 +124,7 @@ impl Session {
     pub fn update_active_entity(
         &mut self,
         entity: &Option<SessionEntity>,
-    ) -> Result<(), ApicizeAppError> {
+    ) {
         let ok = match entity {
             Some(entity) => matches!(
                 entity.entity_type,
@@ -135,16 +135,14 @@ impl Session {
                     | EntityType::Authorization
                     | EntityType::Certificate
                     | EntityType::Proxy
+                    | EntityType::DataSet
             ),
             None => false,
         };
         if ok {
             self.active_entity = entity.clone();
-            Ok(())
         } else {
-            Err(ApicizeAppError::InvalidTypeForOperation(
-                entity.as_ref().unwrap().entity_type,
-            ))
+            self.active_entity = None;
         }
     }
 

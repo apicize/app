@@ -2,7 +2,7 @@
   "$schema": "../../node_modules/@tauri-apps/cli/config.schema.json",
   "identifier": "apicize",
   "productName": "Apicize",
-  "version": "0.29.5",
+  "version": "0.29.6",
   "app": {
     "security": {
       "csp": null
@@ -31,7 +31,7 @@
     "active": true,
     "category": "DeveloperTool",
     "homepage": "https://www.apicize.com",
-    "copyright": "2025 Jason Terando",
+    "copyright": "2026 Jason Terando",
     "license": "MIT",
     "externalBin": [],
     "icon": [

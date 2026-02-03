@@ -1,6 +1,7 @@
 import { Identifiable } from "./identifiable"
 import { Named } from "./named"
 import { Selection } from "./selection"
+import { ValidationErrors } from "./validation"
 
 /**
  * Specifies the type of authorization used for a request
@@ -22,7 +23,7 @@ export type Authorization = BasicAuthorization | OAuth2ClientAuthorization
 /**
  * Information required for basic authentication
  */
-export interface BasicAuthorization extends Identifiable, Named {
+export interface BasicAuthorization extends Identifiable, Named, ValidationErrors {
     type: AuthorizationType.Basic
     username: string
     password: string
@@ -31,7 +32,7 @@ export interface BasicAuthorization extends Identifiable, Named {
 /**
  * Information required for OAuth2 client flow authentication
  */
-export interface OAuth2ClientAuthorization extends Identifiable, Named {
+export interface OAuth2ClientAuthorization extends Identifiable, Named, ValidationErrors {
     type: AuthorizationType.OAuth2Client
     accessTokenUrl: string
     clientId: string
@@ -46,7 +47,7 @@ export interface OAuth2ClientAuthorization extends Identifiable, Named {
 /**
  * Information required for OAuth2 PKCE flow authentication
  */
-export interface OAuth2PkceAuthorization extends Identifiable, Named {
+export interface OAuth2PkceAuthorization extends Identifiable, Named, ValidationErrors {
     type: AuthorizationType.OAuth2Pkce
     authorizeUrl: string
     accessTokenUrl: string
@@ -60,7 +61,7 @@ export interface OAuth2PkceAuthorization extends Identifiable, Named {
 /**
  * Information required for API key authentication (passed in via header)
  */
-export interface ApiKeyAuthorization extends Identifiable, Named {
+export interface ApiKeyAuthorization extends Identifiable, Named, ValidationErrors {
     type: AuthorizationType.ApiKey
     header: string
     value: string

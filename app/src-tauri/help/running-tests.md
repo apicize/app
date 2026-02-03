@@ -23,10 +23,10 @@ have Requests in a group that rely upon variables set in a previous Request (see
 
 > Use **Sequential** Group Item Execution for a Group when outputing values from a Request's test to be used by subsequent Requests
 
-## Seeding Data
+## Data Sets
 
 You can maintain them in a JSON or CSV file separate from your workbook.  This may be useful if you have a large set of test cases
-that you want to maintain outside of Apicize.  Seed data can be used from the Apicize CLI runner.
+that you want to maintain outside of Apicize.  Data Sets can be used from the Apicize CLI runner.
 
 Some things to keep in mind when using Seeded data:
 
@@ -34,7 +34,7 @@ Some things to keep in mind when using Seeded data:
 2. As a security measure, the Seed file **must** be in the same directory or child directory as the workbook.
 3. When using a JSON file, if the file contains a scalar value (string, number, etc.) or ab array of scalar values, a variable named **data** will be set.
 4. Although you can set a Seeded file for any request or group (as well as the Workspace itself), only one Seed file can be active at any time.  There is no support for "nested"
-seed files.  This means that once a Seed file is loaded for a workbook or group, any Seed data configured for child groups or requests will be ignored.
+seed files.  This means that once a Seed file is loaded for a workbook or group, any Data Set configured for child groups or requests will be ignored.
 
 ## Viewing Results
 

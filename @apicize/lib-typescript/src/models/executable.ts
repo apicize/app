@@ -1,7 +1,7 @@
 /**
  * Indicates whether multiple execution occur sequentially or concurrently
  */
-export enum MultiRunExecution {
+export enum ExecutionConcurrency {
     Sequential = "SEQUENTIAL",
     Concurrent = "CONCURRENT",
 }
@@ -11,5 +11,5 @@ export enum MultiRunExecution {
  */
 export interface Executable {
     runs: number
-    multiRunExecution: MultiRunExecution
+    multiRunExecution: ExecutionConcurrency
 }

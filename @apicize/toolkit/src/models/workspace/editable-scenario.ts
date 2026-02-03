@@ -1,18 +1,21 @@
-import { Scenario, Variable, VariableSourceType } from "@apicize/lib-typescript"
+import { Scenario, ValidationErrorList, Variable, VariableSourceType } from "@apicize/lib-typescript"
 import { Editable } from "../editable"
-import { action, computed, observable, toJS } from "mobx"
+import { action, computed, observable, runInAction, toJS } from "mobx"
 import { GenerateIdentifier } from "../../services/random-identifier-generator"
 import { EntityType } from "./entity-type"
-import { EntityScenario, EntityTypeName, WorkspaceStore } from "../../contexts/workspace.context"
+import { EntityScenario, EntityTypeName, EntityUpdateNotification, WorkspaceStore } from "../../contexts/workspace.context"
+import { ScenarioUpdate } from "../updates/scenario-update"
 
 export class EditableScenario extends Editable<Scenario> {
     public readonly entityType = EntityType.Scenario
     @observable accessor variables: EditableVariable[] = []
+    @observable accessor validationErrors: ValidationErrorList = {}
 
     public constructor(entry: Scenario, workspace: WorkspaceStore) {
         super(workspace)
         this.id = entry.id
         this.name = entry.name ?? ''
+        this.validationErrors = entry.validationErrors ?? {}
         this.variables = entry.variables?.map(v => new EditableVariable(
             GenerateIdentifier(),
             v.name,
@@ -22,58 +25,56 @@ export class EditableScenario extends Editable<Scenario> {
         )) ?? []
     }
 
-    protected onUpdate() {
+    protected performUpdate(update: ScenarioUpdate) {
         this.markAsDirty()
-        this.workspace.updateScenario({
-            entityTypeName: EntityTypeName.Scenario,
-            id: this.id,
-            name: this.name,
-            variables: this.variables.map(v => v.toWorkspace()),
-        })
+        this.workspace.update(update)
+            .then(updates => runInAction(() => {
+                if (updates) {
+                    this.validationErrors = updates.validationErrors || {}
+                }
+            }))
     }
 
     @action
-    setVariables(value: EditableVariable[] | undefined) {
-        this.variables = value || []
-        this.onUpdate()
+    setName(value: string) {
+        this.name = value
+        this.performUpdate({ type: EntityTypeName.Scenario, entityType: EntityType.Scenario, id: this.id, name: value })
     }
 
     @action
-    notifyVariableUpdates() {
-        this.onUpdate()
+    setVariables(value: EditableVariable[]) {
+        this.variables = value
+        this.performUpdate({ type: EntityTypeName.Scenario, entityType: EntityType.Scenario, id: this.id, variables: this.variables.map(v => v.toWorkspace()) })
     }
 
     @action
-    refreshFromExternalUpdate(updatedItem: EntityScenario) {
-        this.name = updatedItem.name ?? ''
-        this.variables = updatedItem.variables?.map(v => new EditableVariable(
-            GenerateIdentifier(),
-            v.name ?? '',
-            v.type ?? VariableSourceType.Text,
-            v.value,
-            v.disabled
-        )) ?? []
-    }
-
-    @computed get nameInvalid() {
-        return ((this.name?.length ?? 0) === 0)
-    }
-
-    @computed get validationErrors(): { [property: string]: string } | undefined {
-        const results: { [property: string]: string } = {}
-        if (this.nameInvalid) {
-            results.name = 'Name is required'
+    refreshFromExternalSpecificUpdate(notification: EntityUpdateNotification) {
+        if (notification.update.entityType !== EntityType.Scenario) {
+            return
         }
-        if (this.variables?.findIndex(v => v.nameInvalid || v.valueError !== null) !== -1) {
-            results.variables = 'One ore more variables are incorrectly defined'
+        if (notification.update.name !== undefined) {
+            this.name = notification.update.name
         }
-        return Object.keys(results).length > 0 ? results : undefined
+        if (notification.update.variables !== undefined) {
+            this.variables = notification.update.variables.map(
+                v => new EditableVariable(
+                    GenerateIdentifier(),
+                    v.name ?? '',
+                    v.type ?? VariableSourceType.Text,
+                    v.value,
+                    v.disabled
+                )
+            )
+        }
+        this.validationErrors = notification.validationErrors ?? {}
+    }
+
+    @computed get nameError() {
+        return this.validationErrors['name']
     }
 }
 
-
 export class EditableVariable implements Variable {
-
     @observable accessor id: string
     @observable accessor name: string
     @observable accessor type: VariableSourceType

@@ -3,7 +3,6 @@ import IconButton from '@mui/material/IconButton'
 import Link from '@mui/material/Link'
 import { LinkProps } from '@mui/material/Link'
 import ListSubheader from '@mui/material/ListSubheader'
-import Menu from '@mui/material/Menu'
 import MenuItem from '@mui/material/MenuItem'
 import SvgIcon from '@mui/material/SvgIcon'
 import { SxProps, TypographyVariant } from '@mui/material/styles'
@@ -39,6 +38,7 @@ import { observer } from 'mobx-react-lite';
 import { ToastSeverity, useFeedback } from '../contexts/feedback.context';
 import { useFileOperations } from '../contexts/file-operations.context';
 import AuthIcon from '../icons/auth-icon';
+import DataSetIcon from '@mui/icons-material/Dataset';
 import ScenarioIcon from '../icons/scenario-icon';
 import CertificateIcon from '../icons/certificate-icon';
 import ProxyIcon from '../icons/proxy-icon';
@@ -227,6 +227,8 @@ export const HelpPanel = observer(({ sx }: { sx?: SxProps }) => {
                 return <AltRouteIcon className='help-icon' color='request' sx={{ marginRight: '0.5em' }} />
             case 'test':
                 return <ScienceIcon className='help-icon' color='request' sx={{ marginRight: '0.5em' }} />
+            case 'dataset':
+                return <SvgIcon className='help-icon' color='data' sx={{ marginRight: '0.5em' }}><DataSetIcon /></SvgIcon>
             case 'authorization':
                 return <SvgIcon className='help-icon' color='authorization' sx={{ marginRight: '0.5em' }}><AuthIcon /></SvgIcon>
             case 'scenario':

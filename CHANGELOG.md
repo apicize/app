@@ -1,5 +1,10 @@
 # Change Log
 
+# 0.29.6
+
+* Move DataSets to main navigation, include file editors
+* Performance improvements
+
 # 0.29.5
 
 * Fix resize observer bug on Windows when multiple Monaco editors are displayed

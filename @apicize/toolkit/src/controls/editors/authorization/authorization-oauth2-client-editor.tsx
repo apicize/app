@@ -62,8 +62,8 @@ export const AuthorizationOAuth2ClientEditor = observer(({ authorization, parame
                 label='Access Token URL'
                 aria-label='oauth access token url'
                 value={authorization.accessTokenUrl}
-                error={authorization.accessTokenUrlInvalid}
-                helperText={authorization.accessTokenUrlInvalid ? 'Access Token URL is required' : ''}
+                error={!!authorization.accessTokenUrlError}
+                helperText={authorization.accessTokenUrlError ?? ''}
                 onChange={e => authorization.setAccessTokenUrl(e.target.value)}
                 size='small'
                 fullWidth
@@ -75,8 +75,8 @@ export const AuthorizationOAuth2ClientEditor = observer(({ authorization, parame
                 label='Client ID'
                 aria-label='oauth client id'
                 value={authorization.clientId}
-                error={authorization.clientIdInvalid}
-                helperText={authorization.clientIdInvalid ? 'Client ID is required' : ''}
+                error={!!authorization.clientIdError}
+                helperText={authorization.clientIdError ?? ''}
                 onChange={e => authorization.setClientId(e.target.value)}
                 size='small'
                 fullWidth
@@ -97,7 +97,7 @@ export const AuthorizationOAuth2ClientEditor = observer(({ authorization, parame
             <FormControl>
                 <FormLabel id='lbl-auth-send-creds'>Send Crendentials In</FormLabel>
                 <RadioGroup defaultValue='false' name='auth-send-creds' aria-labelledby="auth-send-creds" row value={authorization.sendCredentialsInBody} onChange={
-                    e => authorization.setCredentialsInBody(e.target.value === 'true')
+                    e => authorization.setSendCredentialsInBody(e.target.value === 'true')
                 }>
                     <FormControlLabel value={false} control={<Radio />} label='Basic Authorization' />
                     <FormControlLabel value={true} control={<Radio />} label='Body' />

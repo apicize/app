@@ -15,7 +15,7 @@ no value will be used for that parameter, regardless of parent values.
 
 :image[requests/parameters.webp]
 
-> If you want to run your tests by seeding external data, set that in workbook's [defaults](help:defaults-and-settings).
+If you want to run your tests by seeding external data, set that in workbook's [defaults](help:defaults-and-settings).
 
 ### See Also
 

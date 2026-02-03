@@ -66,6 +66,12 @@ export const ConfigurableTheme = observer(({ children }: {
         },
         name: 'certificate'
       }),
+      data: palette.palette.augmentColor({
+        color: {
+          main: '#663399'
+        },
+        name: 'proxy'
+      }),
       proxy: palette.palette.augmentColor({
         color: {
           main: '#cc0099'

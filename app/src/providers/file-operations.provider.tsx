@@ -4,16 +4,22 @@ import * as dialog from '@tauri-apps/plugin-dialog'
 import * as path from '@tauri-apps/api/path'
 import { exists, readFile, readTextFile } from "@tauri-apps/plugin-fs"
 import { base64Encode, FileOperationsContext, FileOperationsStore, HelpContents, SshFileType, ToastSeverity, useApicizeSettings, useFeedback, WorkspaceStore } from "@apicize/toolkit";
-import { GetTitle, ApicizeSettings, Workspace, Persistence } from "@apicize/lib-typescript";
+import { ApicizeSettings, DataSourceType } from "@apicize/lib-typescript";
 import { extname, join, resourceDir } from '@tauri-apps/api/path';
 import { EditableSettings } from "@apicize/toolkit/dist/models/editable-settings";
-import { toJS } from "mobx";
 
+export type FileOperationsProviderCallbacks = {
+    openDataSetFile: (fileName: string) => Promise<[string, string]>
+    saveDataSetFile: (fileName: string, data: string) => Promise<string>
+}
 
 /**
  * Implementation of file opeartions via Tauri
  */
-export function FileOperationsProvider({ activeSessionId, workspaceStore, children }: { activeSessionId: string, workspaceStore: WorkspaceStore, children?: ReactNode }) {
+export function FileOperationsProvider(
+    { activeSessionId, workspaceStore, children, callbacks }:
+        { activeSessionId: string, workspaceStore: WorkspaceStore, children?: ReactNode, callbacks: FileOperationsProviderCallbacks }
+) {
 
     const EXT = 'apicize';
 
@@ -22,6 +28,9 @@ export function FileOperationsProvider({ activeSessionId, workspaceStore, childr
 
     const _sshPath = useRef('')
     const _bodyDataPath = useRef('')
+
+    // Saves that are pending
+    const pendingDataSetSaves = new Map<string, string>()
 
     /**
      * Generate default settings
@@ -343,6 +352,7 @@ export function FileOperationsProvider({ activeSessionId, workspaceStore, childr
             title: 'Open File',
             defaultPath: await getBodyDataPath(),
             directory: false,
+
             filters: [{
                 name: 'All Files',
                 extensions: ['*']
@@ -360,6 +370,152 @@ export function FileOperationsProvider({ activeSessionId, workspaceStore, childr
         }
 
         return await readFile(fileName)
+    }
+
+    /**
+     * Prompt for a file with the specified type, open a data file and return its results
+     * @returns tuple of data and fully qualified file name
+     */
+    const promptAndOpenDataSetFile = async (type: DataSourceType): Promise<[string, string] | null> => {
+        let defaultFilter: dialog.DialogFilter[]
+
+        switch (type) {
+            case DataSourceType.FileJSON:
+                defaultFilter = [{
+                    name: 'JSON Files (*.json)', extensions: ['json'],
+                }]
+                break
+            case DataSourceType.FileCSV:
+                defaultFilter = [{
+                    name: 'CSV Files (*.csv)', extensions: ['csv'],
+                }]
+                break
+            default:
+                defaultFilter = []
+        }
+
+        try {
+            feedback.setModal(true)
+            const fileName = await dialog.open({
+                multiple: false,
+                title: 'Open Data Set File',
+                defaultPath: await getBodyDataPath(),
+                directory: false,
+                filters: [
+                    ...defaultFilter,
+                    {
+                        name: 'All Files',
+                        extensions: ['*']
+                    }]
+            })
+            return fileName ? await callbacks.openDataSetFile(fileName) : null
+        } catch (e) {
+            feedback.toastError(e)
+            return null
+        } finally {
+            feedback.setModal(false)
+        }
+    }
+
+    /*
+     * Open the speicfied data set file
+     * @returns tuple of data and fully qualified file name
+     */
+    const openDataSetFile = async (fileName: string): Promise<[string, string] | null> => {
+        try {
+            if (fileName) {
+                return await callbacks.openDataSetFile(fileName)
+            } else {
+                return null
+            }
+        } catch (e) {
+            feedback.toastError(e)
+            return null
+        } finally {
+            feedback.setModal(false)
+        }
+    }
+
+    /**
+     * Prompt for a file with the specified type and save a data file
+     * @returns fully qualified file name
+     */
+    const promptAndSaveDataSetFile = async (type: DataSourceType, data: string): Promise<string | null> => {
+        let defaultFilter: dialog.DialogFilter[]
+
+        switch (type) {
+            case DataSourceType.FileJSON:
+                defaultFilter = [{
+                    name: 'JSON Files (*.json)', extensions: ['json'],
+                }]
+                break
+            case DataSourceType.FileCSV:
+                defaultFilter = [{
+                    name: 'CSV Files (*.csv)', extensions: ['csv'],
+                }]
+                break
+            default:
+                defaultFilter = []
+        }
+
+        try {
+            feedback.setModal(true)
+            let fileName = await dialog.save({
+                title: 'Save Data Set File',
+                defaultPath: await getBodyDataPath(),
+                canCreateDirectories: true,
+                filters: [
+                    ...defaultFilter,
+                    {
+                        name: 'All Files',
+                        extensions: ['*']
+                    }]
+            })
+            
+            if (! fileName) {
+                return null
+            }
+            
+            // Tauri save dialog doesn't force extensions from save dialog, even if filter is set.
+            // So, if file name doesn't have extension, add one
+            let idxPeriod = fileName.lastIndexOf('.')
+            let idxSlash = fileName.lastIndexOf('/')
+            if (idxPeriod === -1 === idxPeriod < idxSlash) {
+                const ext = type === DataSourceType.FileCSV ? '.csv' : '.json'
+                fileName += ext
+            }
+
+            return await callbacks.saveDataSetFile(fileName, data)
+        } catch (e) {
+            feedback.toastError(e)
+            return null
+        } finally {
+            feedback.setModal(false)
+        }
+    }
+
+    /*
+     * Save the speicfied data set file
+     * @returns fully qualified file name
+     */
+    const saveDataSetFile = async (fileName: string, data: string): Promise<string | null> => {
+        try {
+            return await callbacks.saveDataSetFile(fileName, data)
+        } catch (e) {
+            feedback.toastError(e)
+            return null
+        } finally {
+            feedback.setModal(false)
+        }
+    }
+
+    /**
+     * Queue the specified data set file for saving
+     * @param fileName 
+     * @param data 
+     */
+    const queueSaveDataSetFile = (fileName: string, data: string) => {
+        pendingDataSetSaves.set(fileName, data)
     }
 
     /**
@@ -438,6 +594,25 @@ export function FileOperationsProvider({ activeSessionId, workspaceStore, childr
         onRetrieveHelpContents: retriveHelpContents,
         onSelectWorkbookDirectory: selectWorkbookDirectory,
         onGenerateDefaultSettings: generateDefaultSettings,
+        onPromptAndOpenDataSetFile: promptAndOpenDataSetFile,
+        onOpenDataSetFile: openDataSetFile,
+        onPromptAndSaveDataSetFile: promptAndSaveDataSetFile,
+        onSaveDataSetFile: saveDataSetFile,
+        onQueueSaveDataSetFile: queueSaveDataSetFile,
+    })
+
+    useEffect(() => {
+        const saveDataSetQueue = setInterval(async () => {
+            const iter = pendingDataSetSaves.entries().next().value
+            if (iter !== undefined) {
+                const [fileName, data] = iter
+                pendingDataSetSaves.delete(fileName)
+                await saveDataSetFile(fileName, data)
+            }
+        }, 1000)
+        return () => {
+            clearInterval(saveDataSetQueue)
+        }
     })
 
     return (

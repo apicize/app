@@ -5,7 +5,7 @@ import { Scenario } from './scenario'
 import { Authorization } from './authorization'
 import { Certificate } from './certificate'
 import { Proxy } from './proxy'
-import { ExternalData } from './external-data-entry'
+import { DataSet } from './data-set'
 
 /**
  * A workspace is an indexed view of an Apicize workbook,
@@ -20,5 +20,5 @@ export interface Workspace {
     certificates: IndexedEntities<Certificate>,
     proxies: IndexedEntities<Proxy>,
     defaults: WorkspaceDefaultParameters,
-    data: ExternalData[],
+    data: DataSet[],
 }

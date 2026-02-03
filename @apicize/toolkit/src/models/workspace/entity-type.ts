@@ -6,11 +6,6 @@ export enum EntityType {
     Authorization = 7,
     Certificate = 8,
     Proxy = 9,
-    Data = 10,
-    Parameters = 11,
-    Defaults = 12,
-    Warnings = 13,
-    DataList = 14,
-    RequestHeaders = 100,
-    RequestBody = 101,
+    DataSet = 10,
+    Defaults = 11,
 }

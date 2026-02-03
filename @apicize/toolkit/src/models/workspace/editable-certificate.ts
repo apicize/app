@@ -1,8 +1,9 @@
-import { CertificateType, Certificate } from "@apicize/lib-typescript"
+import { CertificateType, Certificate, ValidationErrorList } from "@apicize/lib-typescript"
 import { Editable } from "../editable"
-import { action, computed, observable } from "mobx"
+import { action, computed, observable, runInAction } from "mobx"
 import { EntityType } from "./entity-type"
-import { EntityCertificate, EntityTypeName, WorkspaceStore } from "../../contexts/workspace.context"
+import { EntityTypeName, EntityUpdateNotification, WorkspaceStore } from "../../contexts/workspace.context"
+import { CertificateUpdate } from "../updates/certificate-update"
 
 export class EditableCertificate extends Editable<Certificate> {
     public readonly entityType = EntityType.Certificate
@@ -13,11 +14,13 @@ export class EditableCertificate extends Editable<Certificate> {
     @observable accessor pfx = ''
     @observable accessor password = ''
 
+    @observable accessor validationErrors: ValidationErrorList
 
     public constructor(certificate: Certificate, workspace: WorkspaceStore) {
         super(workspace)
         this.id = certificate.id
         this.name = certificate.name ?? ''
+        this.validationErrors = certificate.validationErrors ?? {}
 
         switch (certificate.type) {
             case CertificateType.PKCS8_PEM:
@@ -36,122 +39,98 @@ export class EditableCertificate extends Editable<Certificate> {
         }
     }
 
-    protected onUpdate() {
+    protected performUpdate(update: CertificateUpdate) {
         this.markAsDirty()
-        let result: EntityCertificate
+        this.workspace.update(update)
+            .then(updates => runInAction(() => {
+                if (updates) {
+                    this.validationErrors = updates.validationErrors || {}
+                }
+            }))
+    }
 
-        switch (this.type) {
-            case CertificateType.PKCS8_PEM:
-                result = {
-                    entityTypeName: EntityTypeName.Certificate,
-                    type: this.type,
-                    id: this.id,
-                    name: this.name,
-                    pem: this.pem,
-                    key: this.key,
-                }
-                break
-            case CertificateType.PEM:
-                result = {
-                    entityTypeName: EntityTypeName.Certificate,
-                    type: this.type,
-                    id: this.id,
-                    name: this.name,
-                    pem: this.pem,
-                }
-                break
-            case CertificateType.PKCS12:
-                result = {
-                    entityTypeName: EntityTypeName.Certificate,
-                    type: this.type,
-                    id: this.id,
-                    name: this.name,
-                    pfx: this.pfx,
-                    password: this.password,
-                }
-                break
-        }
-
-        this.workspace.updateCertificate(result)
+    @action
+    setName(value: string) {
+        this.name = value
+        this.performUpdate({ type: EntityTypeName.Certificate, entityType: EntityType.Certificate, id: this.id, name: value })
     }
 
     @action
     setType(value: CertificateType) {
         this.type = value
-        this.onUpdate()
+        this.performUpdate({ type: EntityTypeName.Certificate, entityType: EntityType.Certificate, id: this.id, certType: value })
     }
 
     @action
     setPem(value: string) {
         this.pem = value
-        this.onUpdate()
+        this.performUpdate({ type: EntityTypeName.Certificate, entityType: EntityType.Certificate, id: this.id, pem: value })
     }
 
     @action
     setKey(value: string | undefined) {
         this.key = value || ''
-        this.onUpdate()
+        this.performUpdate({ type: EntityTypeName.Certificate, entityType: EntityType.Certificate, id: this.id, key: value ?? null })
     }
 
     @action
     setCertificatePfx(value: string) {
         this.pfx = value
-        this.onUpdate()
+        this.performUpdate({ type: EntityTypeName.Certificate, entityType: EntityType.Certificate, id: this.id, pfx: value })
     }
 
     @action
     setPassword(value: string) {
         this.password = value
-        this.onUpdate()
+        this.performUpdate({ type: EntityTypeName.Certificate, entityType: EntityType.Certificate, id: this.password, pfx: value })
     }
 
     @action
-    refreshFromExternalUpdate(updatedItem: EntityCertificate) {
-        this.name = updatedItem.name ?? ''
-        switch (updatedItem.type) {
-            case CertificateType.PEM:
-                this.pem = updatedItem.pem
-                break
-            case CertificateType.PKCS8_PEM:
-                this.pem = updatedItem.pem
-                this.key = updatedItem.key ?? ''
-                break
-            case CertificateType.PKCS12:
-                this.pfx = updatedItem.pfx
-                this.password = updatedItem.password
-                break
+    refreshFromExternalSpecificUpdate(notification: EntityUpdateNotification) {
+        if (notification.update.entityType !== EntityType.Certificate) {
+            return
         }
+        if (notification.update.name !== undefined) {
+            this.name = notification.update.name
+        }
+        if (notification.update.certType !== undefined) {
+            this.type = notification.update.certType
+        }
+        if (notification.update.pem !== undefined) {
+            this.pem = notification.update.pem
+        }
+        if (notification.update.key !== undefined) {
+            this.key = notification.update.key ?? ''
+        }
+        if (notification.update.pfx !== undefined) {
+            this.pfx = notification.update.pfx
+        }
+        if (notification.update.password !== undefined) {
+            this.password = notification.update.password
+        }
+        this.validationErrors = notification.validationErrors ?? {}
     }
 
-    @computed get pemInvalid() {
-        return (this.type === CertificateType.PKCS8_PEM || this.type === CertificateType.PEM)
-            ? ((this.pem?.length ?? 0) === 0) : false
+    @computed get nameError() {
+        // return this.type === AuthorizationType.ApiKey && ((this.header?.length ?? 0) === 0)
+        return this.validationErrors['nameError']
     }
 
-    @computed get keyInvalid() {
-        return this.type === CertificateType.PKCS8_PEM
-            ? ((this.key?.length ?? 0) === 0) : false
+    @computed get pemError() {
+        return this.validationErrors['pem']
+        // return (this.type === CertificateType.PKCS8_PEM || this.type === CertificateType.PEM)
+        //     ? ((this.pem?.length ?? 0) === 0) : false
     }
 
-    @computed get pfxInvalid() {
-        return ((this.pfx?.length ?? 0) === 0)
+    @computed get keyError() {
+        return this.validationErrors['key']
+        // return this.type === CertificateType.PKCS8_PEM
+        //     ? ((this.key?.length ?? 0) === 0) : false
     }
 
-    @computed get validationErrors(): { [property: string]: string } | undefined {
-        const results: { [property: string]: string } = {}
-        if (this.nameInvalid) {
-            results.name = 'Name is required'
-        }
-        if (this.pemInvalid) {
-            results.pem = 'PEM is invalid'
-        }
-        if (this.keyInvalid) {
-            results.key = 'Key is invalid'
-        }
-        if (this.pfx) {
-            results.pfx = 'PFX is invalid'
-        }
-        return Object.keys(results).length > 0 ? results : undefined
+    @computed get pfxError() {
+        return this.validationErrors['pfx']
+        // return ((this.pfx?.length ?? 0) === 0)
     }
 }
 

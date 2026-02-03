@@ -22,9 +22,11 @@ import AuthIcon from "../../icons/auth-icon"
 import CertificateIcon from "../../icons/certificate-icon"
 import RequestIcon from "../../icons/request-icon"
 import ScenarioIcon from "../../icons/scenario-icon"
+import DatasetIcon from '@mui/icons-material/Dataset';
 import { NavOpsMenu } from "./nav-ops-menu"
 import { iconsFromState } from "./nav-tree-item"
 import { ValidationState } from "@apicize/lib-typescript"
+import { DataSetSection } from "./sections/data-set-section"
 
 const PREFERRED_WIDTH = 1200
 
@@ -39,6 +41,7 @@ export const NavigationControl = observer(() => {
         WorkspaceMode.ScenarioList,
         WorkspaceMode.AuthorizationList,
         WorkspaceMode.CertificateList,
+        WorkspaceMode.DataSetList,
         WorkspaceMode.ProxyList
     ], [])
 
@@ -71,6 +74,11 @@ export const NavigationControl = observer(() => {
                     <ToggleButton title='Scenarios' value={WorkspaceMode.ScenarioList} onClick={() => toggleMode(WorkspaceMode.ScenarioList)}>
                         <SvgIcon color='scenario'>
                             <ScenarioIcon />
+                        </SvgIcon>
+                    </ToggleButton>
+                    <ToggleButton title='Data' value={WorkspaceMode.ProxyList} onClick={() => toggleMode(WorkspaceMode.DataSetList)}>
+                        <SvgIcon color='data'>
+                            <DatasetIcon />
                         </SvgIcon>
                     </ToggleButton>
                     <ToggleButton title='Authorizations' value={WorkspaceMode.AuthorizationList} onClick={() => toggleMode(WorkspaceMode.AuthorizationList)}>
@@ -139,6 +147,7 @@ export const NavigationControl = observer(() => {
             >
                 <RequestSection includeHeader={true} />
                 <ScenarioSection includeHeader={true} />
+                <DataSetSection includeHeader={true} />
                 <AuthorizationSection includeHeader={true} />
                 <CertificateSection includeHeader={true} />
                 <ProxySection includeHeader={true} />

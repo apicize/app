@@ -1,7 +1,6 @@
-import { Selection, MultiRunExecution, Request, RequestGroup, ExecutionResultSummary } from "@apicize/lib-typescript"
+import { Selection, ExecutionConcurrency, Request, RequestGroup, ExecutionResultSummary } from "@apicize/lib-typescript"
 import { Editable } from "../editable"
 import { action, computed, observable, reaction, runInAction, toJS } from "mobx"
-import { DEFAULT_SELECTION_ID, NO_SELECTION_ID, NO_SELECTION } from "../store"
 import { WorkspaceParameters } from "./workspace-parameters"
 import { ResultsPanel, WorkspaceStore } from "../../contexts/workspace.context"
 import { ExecutionEvent, ExecutionMenuItem, ExecutionResultViewState } from "./execution"
@@ -9,7 +8,7 @@ import { RequestExecution } from "../request-execution"
 
 export abstract class EditableRequestEntry extends Editable<Request | RequestGroup> {
     @observable accessor runs = 0
-    @observable public accessor multiRunExecution = MultiRunExecution.Sequential
+    @observable public accessor multiRunExecution = ExecutionConcurrency.Sequential
 
     @observable public accessor resultMenuItems: ExecutionMenuItem[] = []
     @observable public accessor selectedResultMenuItem: ExecutionMenuItem | null = null
@@ -19,8 +18,8 @@ export abstract class EditableRequestEntry extends Editable<Request | RequestGro
     @observable accessor selectedScenario: Selection | undefined = undefined
     @observable accessor selectedAuthorization: Selection | undefined = undefined
     @observable accessor selectedCertificate: Selection | undefined = undefined
+    @observable accessor selectedDataSet: Selection | undefined = undefined
     @observable accessor selectedProxy: Selection | undefined = undefined
-    @observable accessor selectedData: Selection | undefined = undefined
 
     @observable public accessor parameters: WorkspaceParameters | undefined = undefined
 
@@ -61,66 +60,6 @@ export abstract class EditableRequestEntry extends Editable<Request | RequestGro
         this.workspace.updateExecutionDetail(execCtr)
         this.selectedResultMenuItem = match
         this.updateExecutionResulltViewState()
-    }
-
-    @action
-    setRuns(value: number) {
-        this.runs = value
-        this.onUpdate()
-    }
-
-    @action
-    setMultiRunExecution(value: MultiRunExecution) {
-        this.multiRunExecution = value
-        this.onUpdate()
-    }
-
-    @action
-    setSelectedScenarioId(entityId: string) {
-        this.selectedScenario = entityId === DEFAULT_SELECTION_ID
-            ? undefined
-            : entityId == NO_SELECTION_ID
-                ? NO_SELECTION
-                : { id: entityId, name: this.workspace.getNavigationName(entityId) }
-        this.onUpdate()
-    }
-
-    @action
-    setSelectedAuthorizationId(entityId: string) {
-        this.selectedAuthorization = entityId === DEFAULT_SELECTION_ID
-            ? undefined
-            : entityId == NO_SELECTION_ID
-                ? NO_SELECTION
-                : { id: entityId, name: this.workspace.getNavigationName(entityId) }
-        this.onUpdate()
-    }
-
-    @action
-    setSelectedCertificateId(entityId: string) {
-        this.selectedCertificate = entityId === DEFAULT_SELECTION_ID
-            ? undefined
-            : entityId == NO_SELECTION_ID
-                ? NO_SELECTION
-                : { id: entityId, name: this.workspace.getNavigationName(entityId) }
-        this.onUpdate()
-    }
-
-    @action
-    setSelectedProxyId(entityId: string) {
-        this.selectedProxy = entityId === DEFAULT_SELECTION_ID
-            ? undefined
-            : entityId == NO_SELECTION_ID
-                ? NO_SELECTION
-                : { id: entityId, name: this.workspace.getNavigationName(entityId) }
-        this.onUpdate()
-    }
-
-    @action
-    setSelectedDataId(entityId: string) {
-        this.selectedData = entityId === DEFAULT_SELECTION_ID
-            ? undefined
-            : { id: entityId, name: this.workspace.data?.find(d => d.id === entityId)?.name ?? "Unnamed" }
-        this.onUpdate()
     }
 
     @action
@@ -224,10 +163,6 @@ export abstract class EditableRequestEntry extends Editable<Request | RequestGro
     @action toggleError() {
         this.hideError = !this.hideError
         this.updateExecutionResulltViewState()
-    }
-
-    @computed get nameInvalid() {
-        return this.dirty && ((this.name?.length ?? 0) === 0)
     }
 
     // Computed values for performance optimization

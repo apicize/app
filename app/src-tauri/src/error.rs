@@ -1,6 +1,6 @@
 use std::{io, string::FromUtf8Error};
 
-use apicize_lib::{ApicizeError};
+use apicize_lib::ApicizeError;
 use serde_xml_rs::Error as XmlError;
 use thiserror::Error;
 
@@ -47,8 +47,8 @@ pub enum ApicizeAppError {
     #[error("invalid proxy '{0}'")]
     InvalidProxy(String),
 
-    #[error("invalid external data '{0}'")]
-    InvalidExternalData(String),
+    #[error("invalid data set '{0}'")]
+    InvalidDataSet(String),
 
     #[error("invalid operation type '{0}'")]
     InvalidTypeForOperation(EntityType),

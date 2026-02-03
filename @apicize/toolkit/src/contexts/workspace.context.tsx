@@ -13,7 +13,7 @@ import {
     Authorization,
     Scenario,
     Proxy,
-    ExternalData,
+    DataSet,
     WorkspaceDefaultParameters,
     BasicAuthorization,
     OAuth2ClientAuthorization,
@@ -25,16 +25,16 @@ import {
     ExecutionResultDetail,
     ValidationState,
     ExecutionState,
-    RequestEntry,
     Body,
     BodyType,
     NameValuePair,
     TokenResult,
+    DataSourceType,
 } from "@apicize/lib-typescript"
 import { EntityType } from "../models/workspace/entity-type"
 import { createContext, useContext } from "react"
 import { EditableDefaults } from "../models/workspace/editable-defaults"
-import { EditableExternalDataEntry } from "../models/workspace/editable-external-data-entry"
+import { EditableDataSet } from "../models/workspace/editable-data-set"
 import { EditableRequestEntry } from "../models/workspace/editable-request-entry"
 import { Navigation, NavigationRequestEntry, ParamNavigationSection } from "../models/navigation"
 import { WorkspaceParameters } from "../models/workspace/workspace-parameters"
@@ -46,10 +46,13 @@ import { IndexedEntityPosition } from "../models/workspace/indexed-entity-positi
 import { ReqwestEvent } from "../models/trace"
 import { editor } from "monaco-editor"
 import { EditorMode } from "../models/editor-mode"
-import { base64Encode } from "../services/base64"
 import { ClipboardPaylodRequest } from "../models/clipboard_payload_request"
 import { RequestExecution } from "../models/request-execution"
-import { IRequestEditorTextModel, IResultEditorTextModel } from "../models/editor-text-model"
+import { IDataSetEditorTextModel, IRequestEditorTextModel, IResultEditorTextModel } from "../models/editor-text-model"
+import { EntityUpdate } from "../models/updates/entity-update"
+import { RequestBodyInfo, RequestBodyMimeInfo } from "../models/workspace/request-body-info"
+import { DefaultsUpdate } from "../models/updates/defaults-update"
+import { DataSetContent } from "../models/updates/data-set-update"
 
 export enum WorkspaceMode {
     Normal = 0,
@@ -63,6 +66,7 @@ export enum WorkspaceMode {
     AuthorizationList = 7,
     CertificateList = 8,
     ProxyList = 9,
+    DataSetList = 10,
 }
 
 export type ResultsPanel = 'Info' | 'Headers' | 'Preview' | 'Text' | 'Details'
@@ -70,8 +74,8 @@ export type RequestPanel = 'Info' | 'Headers' | 'Query String' | 'Body' | 'Test'
 export type GroupPanel = 'Info' | 'Parameters' | 'Warnings'
 
 export type ActiveSelection = EditableRequest | EditableRequestGroup | EditableScenario |
-    EditableAuthorization | EditableCertificate | EditableProxy
-
+    EditableAuthorization | EditableCertificate | EditableProxy | EditableDataSet |
+    EditableDefaults
 export class WorkspaceStore {
     private pkceTokens = new Map<string, CachedTokenInfo>()
     private indexedNavigationNames = new Map<string, string>()
@@ -84,16 +88,16 @@ export class WorkspaceStore {
     @observable accessor navigation = {
         requests: [],
         scenarios: { public: [], private: [], vault: [] },
+        dataSets: [],
         authorizations: { public: [], private: [], vault: [] },
         certificates: { public: [], private: [], vault: [] },
         proxies: { public: [], private: [], vault: [] },
     } as Navigation
 
     @observable accessor activeSelection: ActiveSelection | null = null
-    @observable accessor activeParameters: ListParameters | null = null
+    @observable accessor activeParameters: WorkspaceParameters | null = null
 
     @observable accessor defaults = new EditableDefaults({}, this)
-    @observable accessor data: EditableExternalDataEntry[] | null = null
 
     @observable accessor warnOnWorkspaceCreds: boolean = true
     // @updateActiveobservable accessor invalidItems = new Set<string>()
@@ -122,6 +126,8 @@ export class WorkspaceStore {
     private requestModels = new Map<string, Map<RequestEditSessionType, IRequestEditorTextModel>>()
     // Result edit sessions, indexed by request/group ID, and then by result index, and then by type
     private resultModels = new Map<string, Map<number, Map<ResultEditSessionType, IResultEditorTextModel>>>()
+    // Result edit sessions, indexed by request/group ID, and then by result index, and then by type
+    private dataSetModels = new Map<string, IDataSetEditorTextModel>()
 
     constructor(
         initialization: WorkspaceInitialization,
@@ -135,15 +141,15 @@ export class WorkspaceStore {
             getTitle: (entityType: EntityType, id: string) => Promise<String>,
             getExecution: (requestOrGroupId: string) => Promise<RequestExecution>,
             getDirty: () => Promise<boolean>,
-            list: (entityType: EntityType, requestId?: string) => Promise<ListEntities>,
+            listParameters: (requestId?: string) => Promise<WorkspaceParameters>,
             add: (entity: EntityType, relativeToId: string | null, relativePosition: IndexedEntityPosition | null, cloneFromId: string | null) => Promise<string>,
-            update: (entity: Entity) => Promise<void>,
+            update: (entity: EntityUpdate) => Promise<UpdateResponse>,
             delete: (entityType: EntityType, entityId: string) => Promise<void>,
             move: (entity: EntityType, entityId: string, relativeToId: string, relativePosition: IndexedEntityPosition) => Promise<string[]>,
             listLogs: () => Promise<ReqwestEvent[]>,
             clearLogs: () => Promise<void>,
             getRequestActiveAuthorization: (id: string) => Promise<Authorization | undefined>,
-            getRequestActiveData: (id: string) => Promise<ExternalData | undefined>,
+            getRequestActiveData: (id: string) => Promise<DataSet | undefined>,
             storeToken: (authorizationId: string, tokenInfo: CachedTokenInfo) => Promise<void>,
             clearToken: (authorizationId: string) => Promise<void>,
             clearAllTokens: () => Promise<void>,
@@ -153,35 +159,21 @@ export class WorkspaceStore {
             updateExecutionResultViewState: (requestId: string, executionResultViewState: ExecutionResultViewState) => Promise<undefined>,
             getResultDetail: (execCtr: number) => Promise<ExecutionResultDetail>,
             getEntityType: (entityId: string) => Promise<EntityType | null>,
+            getDataSetContent: (dataSetId: string) => Promise<DataSetContent>,
             findDescendantGroups: (groupId: string) => Promise<string[]>,
             getOAuth2ClientToken: (data: { authorizationId: string }) => Promise<TokenResult>,
             initializePkce: (data: { authorizationId: string }) => Promise<void>,
             closePkce: (data: { authorizationId: string }) => Promise<void>,
             refreshToken: (data: { authorizationId: string }) => Promise<void>,
             copyToClipboard: (payloadRequest: ClipboardPaylodRequest) => Promise<void>,
-            getRequestBody: (requestId: string) => Promise<RequestBodyInfoWithBody>,
-            updateRequestBody: (requestId: string, body?: Body) => Promise<RequestBodyInfo>,
-            updateRequestBodyFromClipboard: (requestId: String) => Promise<RequestBodyInfoWithBody>,
+            getRequestBody: (requestId: string) => Promise<RequestBodyInfo>,
+            updateRequestBody: (requestId: string, body?: Body) => Promise<RequestBodyMimeInfo>,
+            updateRequestBodyFromClipboard: (requestId: String) => Promise<RequestBodyInfo>,
             openUrl: (url: string) => Promise<void>,
+
         }) {
         makeObservable(this)
         this.initialize(initialization)
-    }
-
-
-    anyInvalid() {
-        // for (const entities of [
-        //     this.requests.values,
-        //     this.scenarios.values,
-        //     this.authorizations.values,
-        //     this.certificates.values,
-        //     this.proxies.values,
-        // ]) {
-        //     for (const entity of entities) {
-        //         if (entity.state === EditableState.Warning) { console.log('invalid', { type: entity.entityType, id: entity.id }); return true; }
-        //     }
-        // }
-        return false
     }
 
     @action
@@ -198,12 +190,13 @@ export class WorkspaceStore {
         this.executingRequestIDs = []
         this.processExecutionEvents(initialization.executions)
         this.pendingPkceRequests.clear()
-        this.mode = WorkspaceMode.Normal
+        this.mode = initialization.session.mode ?? WorkspaceMode.Normal
         this.helpTopic = null
         this.helpTopicHistory = []
         this.nextHelpTopic = null
         this.requestModels.clear()
         this.resultModels.clear()
+        this.dataSetModels.clear()
         this.expandedItems = initialization.session.expandedItems ?? []
         if (initialization.session.activeEntity) {
             this.performChangeActive(
@@ -217,7 +210,6 @@ export class WorkspaceStore {
         }
 
         this.helpTopic = initialization.session.helpTopic ?? null
-        this.mode = initialization.session.mode ?? WorkspaceMode.Normal
 
         if (initialization.error) {
             this.feedback.toast(`Initialization error: ${initialization.error}`, ToastSeverity.Error)
@@ -229,12 +221,13 @@ export class WorkspaceStore {
         return this.callbacks.close()
     }
 
-    @action
     updateSaveState(state: SessionSaveState) {
-        this.fileName = state.fileName
-        this.displayName = state.displayName
-        this.dirty = state.dirty
-        this.editorCount = state.editorCount
+        runInAction(() => {
+            this.fileName = state.fileName
+            this.displayName = state.displayName
+            this.dirty = state.dirty
+            this.editorCount = state.editorCount
+        })
     }
 
     @action
@@ -341,65 +334,6 @@ export class WorkspaceStore {
         }
     }
 
-    @action
-    refreshFromExternalUpdate(updatedItem: Entity) {
-        let activeSelection = this.activeSelection
-        switch (updatedItem.entityTypeName) {
-            case EntityTypeName.Request:
-                if (activeSelection && activeSelection?.entityType === EntityType.Request && activeSelection.id === updatedItem.id) {
-                    activeSelection.refreshFromExternalUpdate(updatedItem)
-                }
-                break
-            case EntityTypeName.Group:
-                if (activeSelection && activeSelection?.entityType === EntityType.Group && activeSelection.id === updatedItem.id) {
-                    activeSelection.refreshFromExternalUpdate(updatedItem)
-                }
-                break
-            case EntityTypeName.RequestBody:
-                if (activeSelection && activeSelection?.entityType === EntityType.Request && activeSelection.id === updatedItem.requestId) {
-                    activeSelection.refreshBodyFromExternalUpdate(updatedItem)
-                }
-                break
-            case EntityTypeName.Scenario:
-                if (activeSelection && activeSelection?.entityType === EntityType.Scenario && activeSelection.id === updatedItem.id) {
-                    activeSelection.refreshFromExternalUpdate(updatedItem)
-                }
-                break
-            case EntityTypeName.Authorization:
-                if (activeSelection && activeSelection?.entityType === EntityType.Authorization && activeSelection.id === updatedItem.id) {
-                    activeSelection.refreshFromExternalUpdate(updatedItem)
-                }
-                break
-            case EntityTypeName.Certificate:
-                if (activeSelection && activeSelection?.entityType === EntityType.Certificate && activeSelection.id === updatedItem.id) {
-                    activeSelection.refreshFromExternalUpdate(updatedItem)
-                }
-                break
-            case EntityTypeName.Proxy:
-                if (activeSelection && activeSelection?.entityType === EntityType.Proxy && activeSelection.id === updatedItem.id) {
-                    activeSelection.refreshFromExternalUpdate(updatedItem)
-                }
-                break
-            case EntityTypeName.Defaults:
-                this.defaults.refreshFromExternalUpdate(updatedItem)
-                break
-            case EntityTypeName.DataList:
-                this.setDataList(updatedItem.list)
-                break
-            case EntityTypeName.Data:
-                this.setData(updatedItem)
-                break
-        }
-
-        if (this.mode === WorkspaceMode.Normal) {
-            // If we are looking at a request and have externally updated data, refresh the request
-            // in case the data referred to is now invalid 
-            if (activeSelection?.entityType === EntityType.Request || activeSelection?.entityType === EntityType.Group) {
-                activeSelection.parameters = undefined
-            }
-        }
-    }
-
     /**
      * Display help, optionally triggering an expansion/collapse of a parameter header
      */
@@ -410,7 +344,7 @@ export class WorkspaceStore {
             const updateExpandedToValue = (this.mode === WorkspaceMode.Help && this.helpTopic === newHelpTopic)
                 ? !isExpanded
                 : true
-            if (updateExpandedToValue !== null) {
+            if (updateExpandedToValue !== isExpanded) {
                 this.updateExpanded(expandHeaderId, updateExpandedToValue)
             }
         }
@@ -549,6 +483,9 @@ export class WorkspaceStore {
         updateFromSection(this.navigation.authorizations)
         updateFromSection(this.navigation.certificates)
         updateFromSection(this.navigation.proxies)
+        for (const entry of this.navigation.dataSets) {
+            this.indexedNavigationNames.set(entry.id, entry.name)
+        }
     }
 
     @action
@@ -601,11 +538,17 @@ export class WorkspaceStore {
                 return findMatchingParameter(this.navigation.certificates)
             case EntityType.Proxy:
                 return findMatchingParameter(this.navigation.proxies)
+            case EntityType.DataSet:
+                return this.navigation.dataSets.find(e => e.id === id)
+            case EntityType.Defaults:
+                return this.defaults
+            default:
+                throw entityType satisfies never
         }
     }
 
     @action
-    async updateNavigationState(entry: UpdatedNavigationEntry) {
+    updateNavigationState(entry: UpdatedNavigationEntry) {
         const match = this.findNavigationEntry(entry.id, entry.entityType)
         if (match) {
             match.name = entry.name
@@ -634,10 +577,14 @@ export class WorkspaceStore {
                 return await this.getAuthorization(id)
             case EntityType.Certificate:
                 return await this.getCertificate(id)
+            case EntityType.DataSet:
+                return await this.getDataSet(id)
             case EntityType.Proxy:
                 return await this.getProxy(id)
+            case EntityType.Defaults:
+                return this.defaults
             default:
-                throw new Error('Invalid entity type')
+                throw type satisfies never
         }
     }
 
@@ -673,24 +620,6 @@ export class WorkspaceStore {
 
     getResponseTitle(id: string) {
         return this.callbacks.getTitle(EntityType.Request, id)
-    }
-
-    updateRequest(request: EntityRequest) {
-        this.callbacks.update(request).catch((e) => {
-            this.feedback.toastError(e)
-        })
-    }
-
-    updateRequestHeaders(headerInfo: EntityRequestHeaders) {
-        this.callbacks.update(headerInfo).catch((e) => {
-            this.feedback.toastError(e)
-        })
-    }
-
-    updateGroup(group: EntityGroup) {
-        this.callbacks.update(group).catch((e) => {
-            this.feedback.toastError(e)
-        })
     }
 
     @action
@@ -731,12 +660,8 @@ export class WorkspaceStore {
         return this.callbacks.getRequestActiveData(request.id)
     }
 
-    async getRequestParameterList(requestOrGroupId: string): Promise<WorkspaceParameters> {
-        const results = await this.callbacks.list(EntityType.Parameters, requestOrGroupId)
-        if (results.entityTypeName !== EntityTypeName.Parameters) {
-            throw new Error('Request parameters not available')
-        }
-        return results
+    getRequestParameterList(requestOrGroupId: string): Promise<WorkspaceParameters> {
+        return this.callbacks.listParameters(requestOrGroupId)
     }
 
     @action
@@ -804,12 +729,6 @@ export class WorkspaceStore {
             .catch(e => this.feedback.toastError(e))
     }
 
-    updateScenario(scenario: EntityScenario) {
-        this.callbacks.update(scenario).catch((e) => {
-            this.feedback.toastError(e)
-        })
-    }
-
     async getAuthorization(id: string) {
         const result = await this.callbacks.get(EntityType.Authorization, id)
         if (result.entityTypeName === EntityTypeName.Authorization) {
@@ -847,12 +766,6 @@ export class WorkspaceStore {
                 this.updateExpanded(parentIds.map(parentId => `hdr-${EntityType.Authorization}-${parentId}`), true)
             })
             .catch(e => this.feedback.toastError(e))
-    }
-
-    updateAuthorization(authorization: EntityAuthorization) {
-        this.callbacks.update(authorization).catch((e) => {
-            this.feedback.toastError(e)
-        })
     }
 
     async getCertificate(id: string) {
@@ -895,12 +808,6 @@ export class WorkspaceStore {
             .catch(e => this.feedback.toastError(e))
     }
 
-    updateCertificate(certificate: EntityCertificate) {
-        this.callbacks.update(certificate).catch((e) => {
-            this.feedback.toastError(e)
-        })
-    }
-
     async getProxy(id: string) {
         const result = await this.callbacks.get(EntityType.Proxy, id)
         if (result.entityTypeName === EntityTypeName.Proxy) {
@@ -940,98 +847,46 @@ export class WorkspaceStore {
             .catch(e => this.feedback.toastError(e))
     }
 
-    updateProxy(proxy: EntityProxy) {
-        this.callbacks.update(proxy).catch((e) => {
-            this.feedback.toastError(e)
-        })
-    }
-
     @action
-    updateDefaults(defaults: WorkspaceDefaultParameters) {
-        this.defaults = new EditableDefaults(defaults, this)
-        this.callbacks.update({ entityTypeName: EntityTypeName.Defaults, ...defaults }).catch((e) => {
-            this.feedback.toastError(e)
-        }).finally(() => {
-            runInAction(() => {
-                // switch (this.activeSelection?.entityType) {
-                //     case EntityType.Request:
-                //     case EntityType.Group:
-                //         this.activeSelection.parameters = null
-                //         break
-                // }
-            })
-        })
-    }
-
-    @action
-    addData(cloneFromId: string | null) {
-        this.callbacks.add(
-            EntityType.Data,
-            null,
-            null,
-            cloneFromId)
-            // .then(() => this.updateDataLists())
-            .catch(e => this.feedback.toastError(e))
-
-    }
-
-    @action
-    deleteData(id: string) {
-        this.callbacks.delete(EntityType.Data, id)
-            // .then(() => this.updateDataLists())
-            .catch(e => this.feedback.toastError(e))
-    }
-
-    async getData(id: string) {
-        const result = await this.callbacks.get(EntityType.Data, id)
-        if (result.entityTypeName === EntityTypeName.Data) {
-            return new EditableExternalDataEntry(result, this)
-        }
-        throw new Error(`Invalid data item ${id}`)
-    }
-
-    getDataTitle(id: string) {
-        return this.callbacks.getTitle(EntityType.Data, id)
-    }
-
-    updateData(data: EntityData) {
-        this.callbacks.update(data).catch((e) => {
-            this.feedback.toastError(e)
-        })
-    }
-
-    @action
-    setDataList(data: ExternalData[]) {
-        this.data = data.map(d => new EditableExternalDataEntry(d, this))
-    }
-
-    @action
-    setData(data: ExternalData) {
-        const match = this.data?.find(d => d.id === data.id)
-        if (match) {
-            match.refreshFromExternalUpdate(match)
-        }
-    }
-
-    getDataList() {
-        return this.callbacks.list(EntityType.Data)
-    }
-
-    /**
-     * Initialize the data list
-     * @returns 
-     */
-    initializeDataList() {
-        this.callbacks.list(EntityType.DataList)
-            .then(result => {
-                if (result.entityTypeName !== EntityTypeName.DataList) {
-                    throw new Error(`Data not available (${result.entityTypeName})`)
+    addDataSet(relativeToId: string | null, relativePosition: IndexedEntityPosition, cloneFromId: string | null) {
+        this.callbacks.add(EntityType.DataSet, relativeToId, relativePosition, cloneFromId)
+            .then(id => {
+                if (relativeToId && relativePosition === IndexedEntityPosition.Under) {
+                    this.updateExpanded(`g-${relativeToId}`, true)
                 }
-                runInAction(() => {
-                    this.data = result.data.map(d => new EditableExternalDataEntry(d, this))
-                })
+                this.changeActive(EntityType.DataSet, id)
             })
             .catch(e => this.feedback.toastError(e))
+    }
+
+    @action
+    deleteDataSet(id: string) {
+        this.callbacks.delete(EntityType.DataSet, id)
+            .then(() => {
+                this.clearActiveConditionally(EntityType.DataSet, id)
+            })
+            .catch(e => this.feedback.toastError(e))
+    }
+
+    @action
+    moveDataSet(id: string, relativeToId: string, relativePosition: IndexedEntityPosition) {
+        this.callbacks.move(EntityType.DataSet, id, relativeToId, relativePosition)
+            .then(parentIds => {
+                this.updateExpanded(parentIds.map(pid => `g-${pid}`), true)
+            })
+            .catch(e => this.feedback.toastError(e))
+    }
+
+
+    async getDataSet(id: string) {
+        const [result, content] = await Promise.all([
+            this.callbacks.get(EntityType.DataSet, id),
+            this.callbacks.getDataSetContent(id)
+        ])
+        if (result.entityTypeName === EntityTypeName.DataSet) {
+            return new EditableDataSet(result, this, content)
+        }
+        throw new Error(`Invalid data set ${id}`)
     }
 
     /**
@@ -1039,13 +894,9 @@ export class WorkspaceStore {
      * @returns 
      */
     initializeParameterList() {
-        this.callbacks.list(EntityType.Parameters)
+        this.callbacks.listParameters()
             .then(results => runInAction(() => {
-                if (results.entityTypeName !== EntityTypeName.Parameters) {
-                    this.feedback.toast('Parameters not available ofr initialization', ToastSeverity.Error)
-                } else {
-                    this.activeParameters = results
-                }
+                this.activeParameters = results
             }))
             .catch(e => this.feedback.toastError(e))
     }
@@ -1368,6 +1219,27 @@ export class WorkspaceStore {
         return model
     }
 
+    /**
+     * Returns edit model if exists for the specified request/group
+     * Note:  request.body should already be initialized when this is called
+     * @param requestId
+     * @param type 
+     * @returns 
+     */
+    async getDataSetEditModel(dataSet: EditableDataSet): Promise<IDataSetEditorTextModel> {
+        const dataSetId = dataSet.id
+
+        let model = this.dataSetModels.get(dataSetId)
+        if (model) {
+            return model
+        }
+
+        model = editor.createModel(dataSet.text, EditorMode.json) as IDataSetEditorTextModel
+        model.dataSetId = dataSetId
+        this.dataSetModels.set(dataSetId, model)
+        return model
+    }
+
     @action
     clearAllEditSessions() {
         for (const [, resultMap] of this.resultModels) {
@@ -1378,6 +1250,7 @@ export class WorkspaceStore {
             }
         }
         this.resultModels.clear()
+        this.dataSetModels.clear()
     }
 
     /**
@@ -1403,12 +1276,10 @@ export class WorkspaceStore {
             .catch((err) => this.feedback.toastError(err))
     }
 
-    async updateRequestBody(requestId: string, body: Body | undefined): Promise<RequestBodyInfo | null> {
+    async updateRequestBody(requestId: string, body: Body | undefined): Promise<RequestBodyMimeInfo | null> {
         try {
             if (body) {
-                const bodyInfo = await this.callbacks.updateRequestBody(requestId, body) ?? null
-                // todo:  send to other sessions?
-                return bodyInfo
+                return await this.callbacks.updateRequestBody(requestId, body) ?? null
             } else {
                 return null
             }
@@ -1421,8 +1292,17 @@ export class WorkspaceStore {
     public async updateRequestBodyFromClipboard(requestId: String): Promise<RequestBodyInfo> {
         const bodyInfo = await this.callbacks.updateRequestBodyFromClipboard(requestId)
         runInAction(() => {
-            if (this.activeSelection?.entityType === EntityType.Request && this.activeSelection.id === bodyInfo.requestId) {
-                this.activeSelection.refreshBodyFromExternalUpdate(bodyInfo)
+            if (this.activeSelection?.entityType === EntityType.Request && this.activeSelection.id === bodyInfo.id) {
+                this.activeSelection.refreshFromExternalSpecificUpdate({
+                    update: {
+                        type: EntityTypeName.Request,
+                        entityType: EntityType.Request,
+                        id: bodyInfo.id,
+                        body: bodyInfo.body,
+                        bodyLength: bodyInfo.bodyLength,
+                        bodyMimeType: bodyInfo.bodyMimeType,
+                    }
+                })
             }
         })
         return bodyInfo
@@ -1431,6 +1311,20 @@ export class WorkspaceStore {
     public openUrl(url: string) {
         this.callbacks.openUrl(url)
             .catch((err) => this.feedback.toastError(err))
+    }
+
+    public update(update: EntityUpdate) {
+        return this.callbacks.update(update)
+    }
+
+    @action
+    refreshFromExternalUpdate(notification: EntityUpdateNotification) {
+        this.dirty = true
+        let activeSelection = this.activeSelection
+        if (activeSelection && activeSelection.entityType === notification.update.entityType &&
+            (notification.update.entityType === EntityType.Defaults || activeSelection.id === notification.update.id)) {
+            activeSelection.refreshFromExternalSpecificUpdate(notification)
+        }
     }
 }
 
@@ -1445,22 +1339,19 @@ export function useWorkspace() {
 }
 
 
-export type Entity = EntityRequestEntry | EntityRequest | EntityGroup | EntityRequestHeaders | EntityRequestBody |
+export type Entity = EntityRequestEntry | EntityRequest | EntityGroup |
     EntityScenario | EntityAuthorization | EntityCertificate | EntityProxy |
-    EntityData | EntityDataList | EntityDefaults
+    EntityDataSet | EntityDefaults
 
 export enum EntityTypeName {
     RequestEntry = 'RequestEntry',
     Request = 'Request',
-    ReqeustHeaders = 'RequestHeaders',
-    RequestBody = 'RequestBody',
-    Group = 'Group',
+    Group = 'RequestGroup',
     Scenario = 'Scenario',
     Authorization = 'Authorization',
     Certificate = 'Certificate',
     Proxy = 'Proxy',
-    Data = 'Data',
-    DataList = 'DataList',
+    DataSet = 'DataSet',
     Defaults = 'Defaults',
     Parameters = 'Parameters',
 }
@@ -1473,20 +1364,16 @@ export interface EntityRequest extends Request {
     entityTypeName: EntityTypeName.Request
 }
 
-export interface EntityRequestHeaders extends RequestHeaderInfo {
-    entityTypeName: EntityTypeName.ReqeustHeaders
-}
-
-export interface EntityRequestBody extends RequestBodyInfo {
-    entityTypeName: EntityTypeName.RequestBody
-}
-
 export interface EntityGroup extends RequestGroup {
     entityTypeName: EntityTypeName.Group
 }
 
 export interface EntityScenario extends Scenario {
     entityTypeName: EntityTypeName.Scenario
+}
+
+export interface EntityDataSet extends DataSet {
+    entityTypeName: EntityTypeName.DataSet
 }
 
 export interface EntityBasicAuthorization extends BasicAuthorization {
@@ -1526,36 +1413,13 @@ export interface EntityProxy extends Proxy {
     entityTypeName: EntityTypeName.Proxy
 }
 
-export interface EntityData extends ExternalData {
-    entityTypeName: EntityTypeName.Data
-}
-
-export interface EntityDataList {
-    entityTypeName: EntityTypeName.DataList
-    list: ExternalData[]
+export interface EntityDataSet extends DataSet {
+    entityTypeName: EntityTypeName.DataSet
 }
 
 export interface EntityDefaults extends WorkspaceDefaultParameters {
     entityTypeName: EntityTypeName.Defaults
 }
-
-export enum ListEntityType {
-    Parameters = 1,
-    Data = 2,
-    Defaults = 3,
-}
-
-export interface ListParameters extends WorkspaceParameters {
-    entityTypeName: EntityTypeName.Parameters
-}
-
-export interface ListData {
-    entityTypeName: EntityTypeName.DataList
-    data: ExternalData[]
-}
-
-export type ListEntities = ListParameters | ListData
-
 
 export interface UpdatedNavigationEntry {
     id: string
@@ -1614,22 +1478,18 @@ export interface RequestEntryInfo {
     group?: RequestGroup
 }
 
-export interface RequestHeaderInfo {
-    id: string
-    headers?: NameValuePair[]
-}
-
-export interface RequestBodyInfo {
-    requestId: string
-    bodyMimeType?: string
-    bodyLength?: number
-}
-
-export interface RequestBodyInfoWithBody extends RequestBodyInfo {
-    body?: Body
-}
-
 export interface SessionEntity {
     entityType: EntityType,
     entityId: string
+}
+
+export interface UpdateResponse {
+    validationWarnings?: string[]
+    validationErrors?: { [name: string]: string },
+}
+
+export interface EntityUpdateNotification {
+    update: EntityUpdate
+    validationWarnings?: string[]
+    validationErrors?: { [name: string]: string },
 }

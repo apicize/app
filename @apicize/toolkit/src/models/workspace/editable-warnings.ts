@@ -7,7 +7,7 @@ export class EditableWarnings {
 
     public readonly id = 'Warnings'
     public readonly name = 'Warnings'
-    @observable accessor entityType = EntityType.Warnings;
+    // @observable accessor entityType = EntityType.Warnings;
     @observable accessor entries = new Map<string, string>()
 
     @action

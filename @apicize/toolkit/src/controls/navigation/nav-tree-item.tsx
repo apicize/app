@@ -56,10 +56,10 @@ export const iconsFromState = (entry: NavigationEntry) => {
 
     if (entry.validationState) {
         if ((entry.validationState & ValidationState.warning) === ValidationState.warning) {
-            icons.push(<WarningAmberIcon color="warning" fontSize='medium' sx={{ marginLeft: icons.length === 0 ? 'none' : '0.5em' }} key={`warn-${entry.id}`} />)
+            icons.push(<WarningAmberIcon color="warning" fontSize='medium' sx={{ fontSize: '1.1rem', marginLeft: icons.length === 0 ? 'none' : '0.5em' }} key={`warn-${entry.id}`} />)
         }
         if ((entry.validationState & ValidationState.error) === ValidationState.error) {
-            icons.push(<ErrorIcon color="error" fontSize='medium' sx={{ marginLeft: icons.length === 0 ? 'none' : '0.5em' }} key={`err-${entry.id}`} />)
+            icons.push(<ErrorIcon color="error" fontSize='medium' sx={{ fontSize: '1.1rem', marginLeft: icons.length === 0 ? 'none' : '0.5em' }} key={`err-${entry.id}`} />)
         }
     }
 

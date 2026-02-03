@@ -9,6 +9,7 @@ declare module '@mui/material/styles' {
         scenario: Palette['primary']
         authorization: Palette['primary']
         certificate: Palette['primary']
+        data: Palette['primary']
         proxy: Palette['primary']
         defaults: Palette['primary']
         unselected: Palette['primary']
@@ -22,6 +23,7 @@ declare module '@mui/material/styles' {
         scenario?: PaletteOptions['primary']
         authorization?: PaletteOptions['primary']
         certificate?: PaletteOptions['primary']
+        data?: PaletteOptions['primary']
         proxy?: PaletteOptions['primary']
         public?: PaletteOptions['primary']
         private?: PaletteOptions['primary']
@@ -53,6 +55,7 @@ declare module '@mui/material/IconButton' {
         scenario: true
         authorization: true
         certificate: true
+        data: true
         proxy: true
         public: true
         private: true
@@ -67,6 +70,7 @@ declare module '@mui/material/SvgIcon' {
         scenario: true
         authorization: true
         certificate: true
+        data: true,
         proxy: true,
         public: true
         private: true

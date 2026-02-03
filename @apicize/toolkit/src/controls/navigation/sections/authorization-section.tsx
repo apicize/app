@@ -3,7 +3,7 @@ import { ListItemIcon, ListItemText, Menu, MenuItem, SvgIcon, useTheme } from "@
 import AuthorizationIcon from "../../../icons/auth-icon";
 import DeleteIcon from '@mui/icons-material/DeleteOutlined'
 import { EntityType } from "../../../models/workspace/entity-type"
-import { useWorkspace } from "../../../contexts/workspace.context"
+import { useWorkspace, WorkspaceMode } from "../../../contexts/workspace.context"
 import { useState } from "react"
 import { ParameterSection } from "./parameter-section"
 import { MenuPosition } from "../../../models/menu-position"

@@ -12,7 +12,7 @@ import { useApicizeSettings } from '../../contexts/apicize-settings.context';
 import { useFeedback } from '../../contexts/feedback.context';
 import { useState, useEffect } from 'react';
 
-export const ScenarioEditor = observer(({ scenario, sx } : { scenario: EditableScenario, sx?: SxProps }) => {
+export const ScenarioEditor = observer(({ scenario, sx }: { scenario: EditableScenario, sx?: SxProps }) => {
 
     const settings = useApicizeSettings()
     const workspace = useWorkspace()
@@ -30,18 +30,21 @@ export const ScenarioEditor = observer(({ scenario, sx } : { scenario: EditableS
     })
 
     const onAddVariable = () => {
-        scenario.variables.push(new EditableVariable(
-            GenerateIdentifier(),
-            '',
-            VariableSourceType.Text,
-            ''
-        ))
-        scenario.notifyVariableUpdates()
+        scenario.setVariables([
+            new EditableVariable(
+                GenerateIdentifier(),
+                '',
+                VariableSourceType.Text,
+                ''
+            ),
+            ...scenario.variables
+        ])
     }
 
     const onDeleteVariable = (id: string) => {
-        scenario.variables = scenario.variables.filter(v => v.id !== id)
-        scenario.notifyVariableUpdates()
+        scenario.setVariables(
+            scenario.variables.filter(v => v.id !== id)
+        )
     }
 
     return (
@@ -63,8 +66,8 @@ export const ScenarioEditor = observer(({ scenario, sx } : { scenario: EditableS
                         value={scenario.name}
                         autoFocus={scenario.name === ''}
                         onChange={e => scenario.setName(e.target.value)}
-                        error={scenario.nameInvalid}
-                        helperText={scenario.nameInvalid ? 'Scenario name is required' : ''}
+                        error={!!scenario.nameError}
+                        helperText={scenario.nameError ?? ''}
                         fullWidth
                     />
                     <Stack direction='column' paddingTop='2em'>
@@ -83,7 +86,7 @@ export const ScenarioEditor = observer(({ scenario, sx } : { scenario: EditableS
                                                 helperText={variable.nameInvalid ? 'Variable name is required' : ''}
                                                 onChange={(e) => {
                                                     variable.updateName(e.target.value)
-                                                    scenario.notifyVariableUpdates()
+                                                    scenario.setVariables(scenario.variables)
                                                 }}
                                                 fullWidth
                                             />
@@ -103,7 +106,7 @@ export const ScenarioEditor = observer(({ scenario, sx } : { scenario: EditableS
                                                     onOpen={() => setShowVariableTypeMenu(true)}
                                                     onChange={e => {
                                                         variable.updateSourceType(e.target.value as VariableSourceType)
-                                                        scenario.notifyVariableUpdates()
+                                                        scenario.setVariables(scenario.variables)
                                                     }}
                                                 >
                                                     <MenuItem key={`${variable.id}-type-text`} value={VariableSourceType.Text}>Text Value</MenuItem>
@@ -128,7 +131,7 @@ export const ScenarioEditor = observer(({ scenario, sx } : { scenario: EditableS
                                                 helperText={variable.valueError ?? ''}
                                                 onChange={(e) => {
                                                     variable.updateValue(e.target.value)
-                                                    scenario.notifyVariableUpdates()
+                                                    scenario.setVariables(scenario.variables)
                                                 }}
                                                 fullWidth
                                             />

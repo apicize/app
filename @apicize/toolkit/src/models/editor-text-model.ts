@@ -12,3 +12,7 @@ export interface IResultEditorTextModel extends editor.ITextModel {
     type: ResultEditSessionType
 
 }
+
+export interface IDataSetEditorTextModel extends editor.ITextModel {
+    dataSetId: string
+}

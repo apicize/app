@@ -10,8 +10,8 @@ export const AuthorizationBasicEditor = observer(({ authorization }: { authoriza
                 label="Username"
                 aria-label='authorization user name'
                 value={authorization.username}
-                error={authorization.usernameInvalid}
-                helperText={authorization.usernameInvalid ? 'Username is required' : ''}
+                error={!!authorization.usernameError}
+                helperText={authorization.usernameError ?? ''}
                 onChange={e => authorization.setUsername(e.target.value)}
                 size='small'
                 fullWidth

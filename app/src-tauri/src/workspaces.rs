@@ -1,10 +1,12 @@
 use apicize_lib::{
-    Authorization, Certificate, Executable, ExecutionReportFormat, ExecutionResultSuccess,
-    ExecutionResultSummary, ExecutionState, ExternalData, Identifiable, IndexedEntities, Proxy,
-    Request, RequestBody, RequestEntry, RequestGroup, Scenario, SelectedParameters, Selection,
-    Validated, ValidationState, WorkbookDefaultParameters, Workspace,
-    editing::indexed_entities::IndexedEntityPosition, identifiable::CloneIdentifiable,
+    Authorization, Certificate, DataSet, DataSourceType, ExecutionReportFormat,
+    ExecutionResultSuccess, ExecutionResultSummary, ExecutionState, Identifiable, IndexedEntities,
+    Proxy, Request, RequestBody, RequestEntry, RequestGroup, Scenario, SelectedParameters,
+    Selection, Validated, ValidationState, WorkbookDefaultParameters, Workspace,
+    editing::indexed_entities::IndexedEntityPosition,
+    identifiable::CloneIdentifiable,
     indexed_entities::NO_SELECTION_ID,
+    workspace::{InvalidSelections, SelectedOption},
 };
 use file_type::FileType;
 use indexmap::IndexMap;
@@ -21,61 +23,20 @@ use uuid::Uuid;
 
 use crate::{
     error::ApicizeAppError,
+    navigation::{
+        Navigation, NavigationRequestEntry, UpdateWithNavigationResponse, UpdatedNavigationEntry,
+    },
     results::{ExecutionResultBuilder, ExecutionResultDetail},
     sessions::{Session, SessionSaveState},
     settings::ApicizeSettings,
+    updates::{
+        AuthorizationUpdate, AuthorizationUpdateType, CertificateUpdate, CertificateUpdateType,
+        DataSetUpdate, DefaultsUpdate, EntityUpdate, EntityUpdateNotification, ProxyUpdate,
+        RequestGroupUpdate, RequestUpdate, ScenarioUpdate,
+    },
 };
 
-#[derive(Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct NavigationRequestEntry {
-    pub id: String,
-    pub name: String,
-    pub children: Option<Vec<NavigationRequestEntry>>,
-    pub validation_state: ValidationState,
-    pub execution_state: ExecutionState,
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct NavigationEntry {
-    pub id: String,
-    pub name: String,
-    pub validation_state: ValidationState,
-    pub execution_state: ExecutionState,
-}
-
-impl Executable for NavigationEntry {
-    fn get_execution_state(&self) -> &ExecutionState {
-        &self.execution_state
-    }
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct ParamNavigationSection {
-    pub public: Vec<NavigationEntry>,
-    pub private: Vec<NavigationEntry>,
-    pub vault: Vec<NavigationEntry>,
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct UpdatedNavigationEntry {
-    pub id: String,
-    pub name: String,
-    pub entity_type: EntityType,
-    pub validation_state: Option<ValidationState>,
-    pub execution_state: Option<ExecutionState>,
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct Navigation {
-    pub requests: Vec<NavigationRequestEntry>,
-    pub scenarios: ParamNavigationSection,
-    pub authorizations: ParamNavigationSection,
-    pub certificates: ParamNavigationSection,
-    pub proxies: ParamNavigationSection,
-}
+pub const DEFAULT_SELECTION_ID: &str = "\tDEFAULT\t";
 
 #[derive(Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", untagged)]
@@ -88,20 +49,21 @@ pub enum RequestEntryInfo {
 #[serde(rename_all = "camelCase")]
 pub struct RequestBodyInfo {
     /// Request ID
-    pub request_id: String,
+    pub id: String,
+    /// Request body
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub body: Option<RequestBody>,
     /// Mime type of the body
     #[serde(skip_serializing_if = "Option::is_none")]
     pub body_mime_type: Option<String>,
+    /// Length of body content (in bytes)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub body_length: Option<usize>,
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct RequestBodyInfoWithBody {
-    pub request_id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub body: Option<RequestBody>,
+pub struct BodyMimeInfo {
     /// Mime type of the body
     #[serde(skip_serializing_if = "Option::is_none")]
     pub body_mime_type: Option<String>,
@@ -126,8 +88,8 @@ pub struct WorkspaceInfo {
     pub execution_results: ExecutionResultBuilder,
     /// Execution information
     pub executions: FxHashMap<String, RequestExecution>,
-    /// Request body types
-    pub request_body_mime_types: HashMap<String, String>,
+    /// Active data set content
+    pub data_set_content: FxHashMap<String, DataSetContent>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -143,191 +105,6 @@ pub struct WorkspaceSaveStatus {
     pub file_name: String,
     /// Display name
     pub display_name: String,
-}
-
-impl ParamNavigationSection {
-    pub fn new<T: Identifiable + Validated>(
-        parameters: &IndexedEntities<T>,
-    ) -> ParamNavigationSection {
-        ParamNavigationSection {
-            public: Self::map_entities(
-                &parameters.entities,
-                parameters.child_ids.get("W").map_or(&[], |e| e),
-            ),
-            private: Self::map_entities(
-                &parameters.entities,
-                parameters.child_ids.get("P").map_or(&[], |e| e),
-            ),
-            vault: Self::map_entities(
-                &parameters.entities,
-                parameters.child_ids.get("V").map_or(&[], |e| e),
-            ),
-        }
-    }
-
-    fn map_entities<T: Identifiable + Validated>(
-        entities: &std::collections::HashMap<String, T>,
-        ids: &[String],
-    ) -> Vec<NavigationEntry> {
-        ids.iter()
-            .map(|id| {
-                let entity = &entities.get(id).unwrap();
-                NavigationEntry {
-                    id: id.clone(),
-                    name: entity.get_title(),
-                    validation_state: entity.get_validation_state().clone(),
-                    execution_state: ExecutionState::empty(),
-                }
-            })
-            .collect()
-    }
-
-    pub fn generate_selection_list(&self, include_off: bool) -> Vec<Selection> {
-        let mut results: Vec<Selection> = if include_off {
-            vec![Selection {
-                id: NO_SELECTION_ID.to_string(),
-                name: "Off".to_string(),
-            }]
-        } else {
-            vec![]
-        };
-        let create_selection = |entry: &NavigationEntry| Selection {
-            id: entry.id.clone(),
-            name: entry.name.clone(),
-        };
-        results.extend(self.public.iter().map(create_selection));
-        results.extend(self.private.iter().map(create_selection));
-        results.extend(self.vault.iter().map(create_selection));
-        results
-    }
-}
-
-impl NavigationRequestEntry {
-    /// Iteratively build navigation tree with pre-allocated capacity
-    fn from_requests(
-        ids: &[String],
-        requests: &IndexedEntities<RequestEntry>,
-        executions: &FxHashMap<String, RequestExecution>,
-    ) -> Option<Vec<NavigationRequestEntry>> {
-        if ids.is_empty() {
-            return None;
-        }
-
-        // Pre-allocate result vector with exact capacity
-        let mut results = Vec::with_capacity(ids.len());
-
-        // Process each top-level ID
-        for id in ids {
-            if let Some(entity) = requests.entities.get(id) {
-                let children = match entity {
-                    RequestEntry::Request(_) => None,
-                    RequestEntry::Group(_) => {
-                        // For groups, build children iteratively
-                        match requests.child_ids.get(id) {
-                            Some(child_ids) if !child_ids.is_empty() => {
-                                Self::build_children_iteratively(child_ids, requests, executions)
-                            }
-                            _ => Some(Vec::new()), // Empty group
-                        }
-                    }
-                };
-
-                let execution_state = if let Some(execution) = executions.get(id) {
-                    execution.execution_state
-                } else {
-                    ExecutionState::empty()
-                };
-
-                results.push(NavigationRequestEntry {
-                    id: id.clone(),
-                    name: entity.get_title(),
-                    children,
-                    validation_state: entity.get_validation_state().clone(),
-                    execution_state,
-                });
-            }
-        }
-
-        if results.is_empty() {
-            None
-        } else {
-            Some(results)
-        }
-    }
-
-    /// Build children iteratively with pre-allocated capacity
-    fn build_children_iteratively(
-        child_ids: &[String],
-        requests: &IndexedEntities<RequestEntry>,
-        executions: &FxHashMap<String, RequestExecution>,
-    ) -> Option<Vec<NavigationRequestEntry>> {
-        if child_ids.is_empty() {
-            return Some(Vec::new());
-        }
-
-        let mut results = Vec::with_capacity(child_ids.len());
-
-        for child_id in child_ids {
-            if let Some(entity) = requests.entities.get(child_id) {
-                let validation_state = entity.get_validation_state();
-
-                let children = match entity {
-                    RequestEntry::Request(_) => None,
-                    RequestEntry::Group(_) => {
-                        match requests.child_ids.get(child_id) {
-                            Some(grandchild_ids) if !grandchild_ids.is_empty() => {
-                                // Recursive call but much more controlled - only for group structure
-                                Self::build_children_iteratively(
-                                    grandchild_ids,
-                                    requests,
-                                    executions,
-                                )
-                            }
-                            _ => Some(Vec::new()), // Empty group
-                        }
-                    }
-                };
-
-                let execution_state = if let Some(execution) = executions.get(child_id) {
-                    execution.execution_state
-                } else {
-                    ExecutionState::empty()
-                };
-
-                results.push(NavigationRequestEntry {
-                    id: child_id.clone(),
-                    name: entity.get_title(),
-                    children,
-                    validation_state: validation_state.clone(),
-                    execution_state,
-                });
-            }
-        }
-
-        Some(results)
-    }
-
-    pub fn build(
-        requests: &IndexedEntities<RequestEntry>,
-        executions: &FxHashMap<String, RequestExecution>,
-    ) -> Vec<NavigationRequestEntry> {
-        Self::from_requests(&requests.top_level_ids, requests, executions).unwrap_or_default()
-    }
-}
-
-impl Navigation {
-    pub fn new(
-        workspace: &Workspace,
-        executions: &FxHashMap<String, RequestExecution>,
-    ) -> Navigation {
-        Navigation {
-            requests: NavigationRequestEntry::build(&workspace.requests, executions),
-            scenarios: ParamNavigationSection::new(&workspace.scenarios),
-            authorizations: ParamNavigationSection::new(&workspace.authorizations),
-            certificates: ParamNavigationSection::new(&workspace.certificates),
-            proxies: ParamNavigationSection::new(&workspace.proxies),
-        }
-    }
 }
 
 #[derive(Default)]
@@ -378,6 +155,7 @@ impl Workspaces {
         is_new: bool,
     ) -> OpenWorkspaceResult {
         let workspace_id = Uuid::new_v4().to_string();
+
         let navigation = Navigation::new(&workspace, &FxHashMap::default());
 
         let display_name = if file_name.is_empty() {
@@ -395,6 +173,7 @@ impl Workspaces {
             .child_ids
             .get("W")
             .is_some_and(|c| !c.is_empty());
+
         let any_public_certs = workspace
             .certificates
             .child_ids
@@ -412,7 +191,8 @@ impl Workspaces {
                 executions: FxHashMap::default(),
                 file_name: file_name.to_string(),
                 display_name: display_name.clone(),
-                request_body_mime_types: HashMap::default(),
+                data_set_content: FxHashMap::default(),
+                // request_body_mime_types: HashMap::default(),
             },
         );
 
@@ -542,7 +322,7 @@ impl Workspaces {
         match workspace.requests.entities.get(request_id) {
             Some(entry) => match entry {
                 RequestEntry::Request(request) => {
-                    // Remove the headers and body, they will be returned separately
+                    // Remove the body, it will be returned separately
                     // to keep the request size smaller for everything else
                     let mut request = request.clone();
                     request.body = None;
@@ -560,22 +340,19 @@ impl Workspaces {
         &mut self,
         workspace_id: &str,
         request_id: &str,
-    ) -> Result<RequestBodyInfoWithBody, ApicizeAppError> {
+    ) -> Result<RequestBodyInfo, ApicizeAppError> {
         let info = self.get_workspace_info_mut(workspace_id)?;
         match info.workspace.requests.entities.get(request_id) {
             Some(RequestEntry::Request(request)) => {
                 let (body_mime_type, body_length) = if let Some(body) = &request.body {
                     let body_type = Workspaces::get_body_type(body);
                     let body_length = Workspaces::get_body_length(body);
-                    info.request_body_mime_types
-                        .insert(request_id.to_string(), body_type.clone());
-                    // println!("Request {} mime type: {}", request_id, &body_type);
                     (Some(body_type), Some(body_length))
                 } else {
                     (None, None)
                 };
-                Ok(RequestBodyInfoWithBody {
-                    request_id: request_id.to_string(),
+                Ok(RequestBodyInfo {
+                    id: request_id.to_string(),
                     body: request.body.clone(),
                     body_mime_type,
                     body_length,
@@ -728,14 +505,13 @@ impl Workspaces {
         &mut self,
         workspace_id: &str,
         request_or_group_id: &str,
-    ) -> Result<(), ApicizeAppError> {
+    ) -> Result<Option<InvalidSelections>, ApicizeAppError> {
         let info = self.get_workspace_info_mut(workspace_id)?;
         info.dirty = true;
         info.workspace.requests.remove_entity(request_or_group_id)?;
-        info.executions.remove(request_or_group_id);
-        info.request_body_mime_types.remove(request_or_group_id);
-        info.workspace.validate_selections();
-        Ok(())
+        info.navigation
+            .delete_navigation_entity(request_or_group_id, EntityType::RequestEntry);
+        Ok(None)
     }
 
     pub fn move_request_entry(
@@ -754,72 +530,266 @@ impl Workspaces {
     pub fn update_request(
         &mut self,
         workspace_id: &str,
-        request: Request,
-    ) -> Result<Option<UpdatedNavigationEntry>, ApicizeAppError> {
+        update: &RequestUpdate,
+    ) -> Result<UpdateWithNavigationResponse, ApicizeAppError> {
         let info = self.get_workspace_info_mut(workspace_id)?;
         info.dirty = true;
 
-        let (name, validation_state) = match info.workspace.requests.entities.get_mut(&request.id) {
-            Some(RequestEntry::Request(existing_request)) => {
-                existing_request.name = request.name;
-                existing_request.key = request.key;
-                existing_request.test = request.test;
-                existing_request.url = request.url;
-                existing_request.method = request.method;
-                existing_request.query_string_params = request.query_string_params;
-                existing_request.timeout = request.timeout;
-                existing_request.accept_invalid_certs = request.accept_invalid_certs;
-                existing_request.keep_alive = request.keep_alive;
-                existing_request.runs = request.runs;
-                existing_request.multi_run_execution = request.multi_run_execution;
-                existing_request.selected_scenario = request.selected_scenario;
-                existing_request.selected_authorization = request.selected_authorization;
-                existing_request.selected_certificate = request.selected_certificate;
-                existing_request.selected_proxy = request.selected_proxy;
-                existing_request.selected_data = request.selected_data;
+        let id = update.id.to_string();
 
-                existing_request.set_validation_warnings(request.validation_warnings);
-                existing_request.set_validation_errors(request.validation_errors);
-
-                (
-                    existing_request.get_name().to_string(),
-                    existing_request.get_validation_state().clone(),
-                )
-            }
+        let request = match info.workspace.requests.entities.get_mut(&id) {
+            Some(RequestEntry::Request(request)) => request,
             _ => {
-                return Err(ApicizeAppError::InvalidRequest(
-                    format!("Mismatch request ID: {}", request.id).to_string(),
-                ));
+                return Err(ApicizeAppError::InvalidRequest(id));
             }
         };
 
-        info.check_request_navigation_update(&request.id, &name, Some(&validation_state), None)
+        if let Some(name) = &update.name {
+            request.name = name.to_string();
+            request.validate_name();
+        }
+
+        if let Some(key) = &update.key {
+            request.key = if key.trim().is_empty() {
+                None
+            } else {
+                Some(key.to_string())
+            };
+        }
+
+        if let Some(url) = &update.url {
+            request.url = url.to_string();
+            request.validate_url();
+        }
+
+        if let Some(method) = &update.method {
+            request.method = Some(method.clone());
+        }
+
+        if let Some(runs) = &update.runs {
+            request.runs = *runs;
+        }
+
+        if let Some(multi_run_execution) = &update.multi_run_execution {
+            request.multi_run_execution = multi_run_execution.clone();
+        }
+
+        if let Some(timeout) = &update.timeout {
+            request.timeout = if *timeout > 0 { Some(*timeout) } else { None };
+        }
+
+        if let Some(keep_alive) = &update.keep_alive {
+            request.keep_alive = *keep_alive;
+        }
+
+        if let Some(accept_invalid_certs) = &update.accept_invalid_certs {
+            request.accept_invalid_certs = *accept_invalid_certs;
+        }
+
+        if let Some(number_of_redirects) = &update.number_of_redirects {
+            request.number_of_redirects = *number_of_redirects;
+        }
+
+        if let Some(query_string_params) = &update.query_string_params {
+            request.query_string_params = if query_string_params.is_empty() {
+                None
+            } else {
+                Some(query_string_params.clone())
+            };
+        }
+
+        if let Some(headers) = &update.headers {
+            request.headers = if headers.is_empty() {
+                None
+            } else {
+                Some(headers.clone())
+            };
+        }
+
+        if let Some(selected_scenario) = &update.selected_scenario {
+            request.selected_scenario = if selected_scenario.id == DEFAULT_SELECTION_ID {
+                None
+            } else {
+                Some(selected_scenario.clone())
+            };
+        }
+
+        if let Some(selected_authorization) = &update.selected_authorization {
+            request.selected_authorization = if selected_authorization.id == DEFAULT_SELECTION_ID {
+                None
+            } else {
+                Some(selected_authorization.clone())
+            };
+        }
+
+        if let Some(selected_certificate) = &update.selected_certificate {
+            request.selected_certificate = if selected_certificate.id == DEFAULT_SELECTION_ID {
+                None
+            } else {
+                Some(selected_certificate.clone())
+            };
+        }
+
+        if let Some(selected_proxy) = &update.selected_proxy {
+            request.selected_proxy = if selected_proxy.id == DEFAULT_SELECTION_ID {
+                None
+            } else {
+                Some(selected_proxy.clone())
+            };
+        }
+
+        if let Some(selected_data_set) = &update.selected_data {
+            request.selected_data = if selected_data_set.id == DEFAULT_SELECTION_ID {
+                None
+            } else {
+                Some(selected_data_set.clone())
+            };
+        }
+
+        if let Some(validation_warnings) = &update.validation_warnings {
+            request.set_validation_warnings(if validation_warnings.is_empty() {
+                None
+            } else {
+                Some(validation_warnings.clone())
+            });
+        };
+
+        let updated_name = request.get_title();
+        let updated_validation_state = request.validation_state;
+        let updated_validation_warnings = request.validation_warnings.clone();
+        let updated_validation_errors = request.validation_errors.clone();
+        let execution_state = if let Some(execution) = info.executions.get(&id) {
+            execution.execution_state
+        } else {
+            ExecutionState::empty()
+        };
+
+        let response = UpdateWithNavigationResponse {
+            navigation: info.check_request_navigation_update(
+                &id,
+                &updated_name,
+                updated_validation_state,
+                execution_state,
+            )?,
+            validation_warnings: updated_validation_warnings.clone(),
+            validation_errors: updated_validation_errors.clone(),
+        };
+
+        Ok(response)
     }
 
     pub fn update_group(
         &mut self,
         workspace_id: &str,
-        group: RequestGroup,
-    ) -> Result<Option<UpdatedNavigationEntry>, ApicizeAppError> {
-        match self.workspaces.get_mut(workspace_id) {
-            Some(info) => {
-                info.dirty = true;
-                let id = &group.id;
-                let result = info.check_request_navigation_update(
-                    &group.id,
-                    &group.get_title().to_string(),
-                    Some(group.get_validation_state()),
-                    None,
-                );
-                info.workspace
-                    .requests
-                    .entities
-                    .insert(id.clone(), RequestEntry::Group(group));
+        update: &RequestGroupUpdate,
+    ) -> Result<UpdateWithNavigationResponse, ApicizeAppError> {
+        let info = self.get_workspace_info_mut(workspace_id)?;
+        info.dirty = true;
 
-                result
+        let id = update.id.to_string();
+
+        let group = match info.workspace.requests.entities.get_mut(&id) {
+            Some(RequestEntry::Group(group)) => group,
+            _ => {
+                return Err(ApicizeAppError::InvalidGroup(id));
             }
-            None => Err(ApicizeAppError::InvalidWorkspace(workspace_id.into())),
+        };
+
+        if let Some(name) = &update.name {
+            group.name = name.to_string();
+            group.validate_name();
         }
+
+        if let Some(key) = &update.key {
+            group.key = if key.trim().is_empty() {
+                None
+            } else {
+                Some(key.to_string())
+            };
+        }
+
+        if let Some(runs) = &update.runs {
+            group.runs = *runs;
+        }
+
+        if let Some(multi_run_execution) = &update.multi_run_execution {
+            group.multi_run_execution = multi_run_execution.clone();
+        }
+
+        if let Some(execution) = &update.execution {
+            group.execution = execution.clone();
+        }
+
+        if let Some(selected_scenario) = &update.selected_scenario {
+            group.selected_scenario = if selected_scenario.id == DEFAULT_SELECTION_ID {
+                None
+            } else {
+                Some(selected_scenario.clone())
+            };
+        }
+
+        if let Some(selected_authorization) = &update.selected_authorization {
+            group.selected_authorization = if selected_authorization.id == DEFAULT_SELECTION_ID {
+                None
+            } else {
+                Some(selected_authorization.clone())
+            };
+        }
+
+        if let Some(selected_certificate) = &update.selected_certificate {
+            group.selected_certificate = if selected_certificate.id == DEFAULT_SELECTION_ID {
+                None
+            } else {
+                Some(selected_certificate.clone())
+            };
+        }
+
+        if let Some(selected_proxy) = &update.selected_proxy {
+            group.selected_proxy = if selected_proxy.id == DEFAULT_SELECTION_ID {
+                None
+            } else {
+                Some(selected_proxy.clone())
+            };
+        }
+
+        if let Some(selected_data_set) = &update.selected_data {
+            group.selected_data = if selected_data_set.id == DEFAULT_SELECTION_ID {
+                None
+            } else {
+                Some(selected_data_set.clone())
+            };
+        }
+
+        if let Some(validation_warnings) = &update.validation_warnings {
+            group.set_validation_warnings(if validation_warnings.is_empty() {
+                None
+            } else {
+                Some(validation_warnings.clone())
+            });
+        };
+
+        let updated_name = group.get_title();
+        let updated_validation_state = group.validation_state;
+        let updated_validation_warnings = group.validation_warnings.clone();
+        let updated_validation_errors = group.validation_errors.clone();
+        let execution_state = if let Some(execution) = info.executions.get(&id) {
+            execution.execution_state
+        } else {
+            ExecutionState::empty()
+        };
+
+        let response = UpdateWithNavigationResponse {
+            navigation: info.check_request_navigation_update(
+                &id,
+                &updated_name,
+                updated_validation_state,
+                execution_state,
+            )?,
+            validation_warnings: updated_validation_warnings.clone(),
+            validation_errors: updated_validation_errors.clone(),
+        };
+
+        Ok(response)
     }
 
     pub fn get_request_title(
@@ -893,26 +863,24 @@ impl Workspaces {
         &self,
         workspace_id: &str,
         request_id: &str,
-    ) -> Result<Option<ExternalData>, ApicizeAppError> {
+    ) -> Result<Option<DataSet>, ApicizeAppError> {
         let workspace = self.get_workspace(workspace_id)?;
 
-        let mut result: Option<ExternalData> = None;
+        let mut result: Option<DataSet> = None;
         let mut id_to_check = request_id.to_string();
 
         while let Some(entry) = workspace.requests.entities.get(&id_to_check) {
-            if let Some(data) = entry.selected_data() {
-                if data.id == NO_SELECTION_ID {
+            match workspace.data.find(entry.selected_data()) {
+                SelectedOption::Off => {
                     result = None;
                     break;
-                } else {
-                    match workspace.data.iter().find(|d| d.id == data.id) {
-                        Some(ed) => {
-                            result = Some(ed.clone());
-                        }
-                        None => {
-                            return Err(ApicizeAppError::InvalidExternalData(data.id.to_owned()));
-                        }
-                    }
+                }
+                SelectedOption::UseDefault => {
+                    // use parent data
+                }
+                SelectedOption::Some(data) => {
+                    result = Some(data.clone());
+                    break;
                 }
             }
 
@@ -929,14 +897,12 @@ impl Workspaces {
         if result.is_none()
             && let Some(selection) = &workspace.defaults.selected_data
         {
-            match workspace.data.iter().find(|d| d.id == selection.id) {
+            match workspace.data.entities.get(&selection.id) {
                 Some(ed) => {
                     result = Some(ed.clone());
                 }
                 None => {
-                    return Err(ApicizeAppError::InvalidExternalData(
-                        selection.id.to_owned(),
-                    ));
+                    return Err(ApicizeAppError::InvalidDataSet(selection.id.to_owned()));
                 }
             }
         }
@@ -944,35 +910,142 @@ impl Workspaces {
         Ok(result)
     }
 
+    /// Return a list of entity and navigation update notifications to reflect changes
+    /// in available selections (scenarios, authorizations, etc.)
+    pub fn generate_request_selection_update(
+        &self,
+        workspace_id: &str,
+        request_or_group_id: &str,
+    ) -> Result<(EntityUpdateNotification, UpdatedNavigationEntry), ApicizeAppError> {
+        let info = self.get_workspace_info(workspace_id)?;
+        let workspace = &info.workspace;
+
+        let Some(request_or_group) = workspace.requests.entities.get(request_or_group_id) else {
+            return Err(ApicizeAppError::InvalidRequest(
+                request_or_group_id.to_string(),
+            ));
+        };
+
+        let execution_state = if let Some(execution) = info.executions.get(request_or_group_id) {
+            execution.execution_state
+        } else {
+            ExecutionState::empty()
+        };
+
+        match request_or_group {
+            RequestEntry::Request(request) => {
+                let notification = EntityUpdateNotification {
+                    update: EntityUpdate::Request(RequestUpdate::from_selections(request)),
+                    validation_warnings: request.validation_warnings.clone(),
+                    validation_errors: request.validation_errors.clone(),
+                };
+
+                let navigation = UpdatedNavigationEntry {
+                    id: request.id.to_string(),
+                    name: request.get_title(),
+                    entity_type: EntityType::RequestEntry,
+                    validation_state: request.validation_state,
+                    execution_state,
+                };
+
+                Ok((notification, navigation))
+            }
+            RequestEntry::Group(group) => {
+                let notification = EntityUpdateNotification {
+                    update: EntityUpdate::RequestGroup(RequestGroupUpdate::from_selections(group)),
+                    validation_warnings: group.validation_warnings.clone(),
+                    validation_errors: group.validation_errors.clone(),
+                };
+
+                let navigation = UpdatedNavigationEntry {
+                    id: group.id.to_string(),
+                    name: group.get_title(),
+                    entity_type: EntityType::RequestEntry,
+                    validation_state: group.validation_state,
+                    execution_state,
+                };
+
+                Ok((notification, navigation))
+            }
+        }
+    }
+
+    /// Return a list of entity and navigation update notifications to reflect changes
+    /// in available selections (scenarios, authorizations, etc.)
+    pub fn generate_authorization_selection_update(
+        &self,
+        workspace_id: &str,
+        authorization_id: &str,
+    ) -> Result<(EntityUpdateNotification, UpdatedNavigationEntry), ApicizeAppError> {
+        let info = self.get_workspace_info(workspace_id)?;
+        let workspace = &info.workspace;
+
+        let Some(authorization) = workspace.authorizations.entities.get(authorization_id) else {
+            return Err(ApicizeAppError::InvalidAuthorization(
+                authorization_id.to_string(),
+            ));
+        };
+
+        let Authorization::OAuth2Client {
+            id,
+            selected_certificate,
+            selected_proxy,
+            ..
+        } = authorization
+        else {
+            return Err(ApicizeAppError::InvalidAuthorization(format!(
+                "Authorization {authorization_id} is not an OAuth2 authorization"
+            )));
+        };
+
+        let notification = EntityUpdateNotification {
+            update: EntityUpdate::Authorization(AuthorizationUpdate::from_selections(
+                id,
+                selected_certificate,
+                selected_proxy,
+            )),
+            validation_warnings: authorization.get_validation_warnings().clone(),
+            validation_errors: authorization.get_validation_errors().clone(),
+        };
+
+        let navigation = UpdatedNavigationEntry {
+            id: authorization.get_id().to_string(),
+            name: authorization.get_title(),
+            entity_type: EntityType::Authorization,
+            validation_state: authorization.get_validation_state(),
+            execution_state: ExecutionState::empty(),
+        };
+
+        Ok((notification, navigation))
+    }
+
     /// Update request body and return reference to request info so it can be resent
     pub fn update_request_body(
         &mut self,
         workspace_id: &str,
-        body_info: &RequestBodyInfoWithBody,
+        body_info: &RequestBodyInfo,
     ) -> Result<(), ApicizeAppError> {
         match self.workspaces.get_mut(workspace_id) {
             Some(info) => {
                 info.dirty = true;
-                let id = &body_info.request_id;
+                let id = &body_info.id;
                 if let Some(RequestEntry::Request(existing_request)) =
                     info.workspace.requests.entities.get_mut(id)
                 {
                     match &body_info.body {
                         Some(body) => {
-                            let mime_type = Workspaces::get_body_type(body);
-                            info.request_body_mime_types.insert(id.clone(), mime_type);
+                            // let mime_type = Workspaces::get_body_type(body);
+                            // info.request_body_mime_types.insert(id.clone(), mime_type);
                             existing_request.body = Some(body.clone());
                         }
                         None => {
-                            info.request_body_mime_types.remove(id);
+                            // info.request_body_mime_types.remove(id);
                             existing_request.body = None;
                         }
                     }
                     Ok(())
                 } else {
-                    Err(ApicizeAppError::InvalidRequest(
-                        body_info.request_id.clone(),
-                    ))
+                    Err(ApicizeAppError::InvalidRequest(body_info.id.clone()))
                 }
             }
             None => Err(ApicizeAppError::InvalidWorkspace(workspace_id.into())),
@@ -1018,6 +1091,7 @@ impl Workspaces {
             EntityType::Authorization => &workspace.authorizations.child_ids,
             EntityType::Certificate => &workspace.certificates.child_ids,
             EntityType::Proxy => &workspace.proxies.child_ids,
+            EntityType::DataSet => &workspace.data.child_ids,
             _ => {
                 return Err(ApicizeAppError::InvalidOperation(format!(
                     "Invalid list type {entity_type}",
@@ -1120,12 +1194,13 @@ impl Workspaces {
         &mut self,
         workspace_id: &str,
         scenario_id: &str,
-    ) -> Result<(), ApicizeAppError> {
+    ) -> Result<Option<InvalidSelections>, ApicizeAppError> {
         let info = self.get_workspace_info_mut(workspace_id)?;
         info.dirty = true;
         info.workspace.scenarios.remove_entity(scenario_id)?;
-        info.workspace.validate_selections();
-        Ok(())
+        info.navigation
+            .delete_navigation_entity(scenario_id, EntityType::Scenario);
+        Ok(info.workspace.validate_selections())
     }
 
     pub fn move_scenario(
@@ -1144,38 +1219,67 @@ impl Workspaces {
     pub fn update_scenario(
         &mut self,
         workspace_id: &str,
-        scenario: Scenario,
-    ) -> Result<Option<UpdatedNavigationEntry>, ApicizeAppError> {
-        match self.workspaces.get_mut(workspace_id) {
-            Some(info) => {
-                info.dirty = true;
-                let id = scenario.get_id();
-                let result =
-                    info.check_parameter_navigation_update(&scenario, EntityType::Scenario);
+        update: &ScenarioUpdate,
+    ) -> Result<UpdateWithNavigationResponse, ApicizeAppError> {
+        let info = self.get_workspace_info_mut(workspace_id)?;
+        info.dirty = true;
 
-                for request_entry in info.workspace.requests.entities.values_mut() {
-                    if let Some(s) = request_entry.selected_scenario_as_mut()
-                        && s.id == id
-                    {
-                        s.name = scenario.name.clone();
-                    }
-                }
+        let id = update.id.to_string();
 
-                if let Some(s) = info.workspace.defaults.selected_scenario_as_mut()
-                    && s.id == id
-                {
-                    s.name = scenario.name.clone();
-                }
-
-                info.workspace
-                    .scenarios
-                    .entities
-                    .insert(id.to_string(), scenario);
-
-                Ok(result)
+        let scenario = match info.workspace.scenarios.entities.get_mut(&id) {
+            Some(scenario) => scenario,
+            None => {
+                return Err(ApicizeAppError::InvalidScenario(id));
             }
-            None => Err(ApicizeAppError::InvalidWorkspace(workspace_id.into())),
+        };
+
+        if let Some(name) = &update.name {
+            scenario.name = name.to_string();
+            scenario.validate_name();
         }
+
+        if let Some(variables) = &update.variables {
+            scenario.variables = if variables.is_empty() {
+                None
+            } else {
+                Some(variables.clone())
+            };
+            scenario.validate_variables();
+        }
+
+        let updated_name = scenario.get_title();
+        let updated_validation_state = scenario.validation_state;
+        let updated_validation_warnings = scenario.validation_warnings.clone();
+        let updated_validation_errors = scenario.validation_errors.clone();
+
+        let response = UpdateWithNavigationResponse {
+            navigation: info.check_parameter_navigation_update(
+                &id,
+                &updated_name,
+                updated_validation_state,
+                EntityType::Scenario,
+            ),
+            validation_warnings: updated_validation_warnings.clone(),
+            validation_errors: updated_validation_errors.clone(),
+        };
+
+        // Update request entry selections
+        for request_entry in info.workspace.requests.entities.values_mut() {
+            if let Some(s) = request_entry.selected_scenario_as_mut()
+                && s.id == id
+            {
+                s.name = updated_name.clone();
+            }
+        }
+
+        // Update workspace default entry selection
+        if let Some(s) = info.workspace.defaults.selected_scenario_as_mut()
+            && s.id == id
+        {
+            s.name = updated_name;
+        }
+
+        Ok(response)
     }
 
     pub fn get_authorization(
@@ -1231,14 +1335,15 @@ impl Workspaces {
         &mut self,
         workspace_id: &str,
         authorization_id: &str,
-    ) -> Result<(), ApicizeAppError> {
+    ) -> Result<Option<InvalidSelections>, ApicizeAppError> {
         let info = self.get_workspace_info_mut(workspace_id)?;
         info.dirty = true;
         info.workspace
             .authorizations
             .remove_entity(authorization_id)?;
-
-        Ok(())
+        info.navigation
+            .delete_navigation_entity(authorization_id, EntityType::Authorization);
+        Ok(info.workspace.validate_selections())
     }
 
     pub fn move_authorization(
@@ -1259,38 +1364,275 @@ impl Workspaces {
     pub fn update_authorization(
         &mut self,
         workspace_id: &str,
-        authorization: Authorization,
-    ) -> Result<Option<UpdatedNavigationEntry>, ApicizeAppError> {
-        match self.workspaces.get_mut(workspace_id) {
-            Some(info) => {
-                info.dirty = true;
-                let id = authorization.get_id();
-                let result = info
-                    .check_parameter_navigation_update(&authorization, EntityType::Authorization);
+        update: &AuthorizationUpdate,
+    ) -> Result<UpdateWithNavigationResponse, ApicizeAppError> {
+        let info = self.get_workspace_info_mut(workspace_id)?;
+        info.dirty = true;
 
-                for request_entry in info.workspace.requests.entities.values_mut() {
-                    if let Some(s) = request_entry.selected_authorization_as_mut()
-                        && s.id == id
-                    {
-                        s.name = authorization.get_name().to_string();
-                    }
-                }
-
-                if let Some(s) = info.workspace.defaults.selected_authorization_as_mut()
-                    && s.id == id
-                {
-                    s.name = authorization.get_name().to_string();
-                }
-
-                info.workspace
-                    .authorizations
-                    .entities
-                    .insert(id.to_string(), authorization);
-
-                Ok(result)
+        let mut auth = match info.workspace.authorizations.entities.get_mut(&update.id) {
+            Some(auth) => auth,
+            None => {
+                return Err(ApicizeAppError::InvalidScenario(update.id.to_string()));
             }
-            None => Err(ApicizeAppError::InvalidWorkspace(workspace_id.into())),
+        };
+
+        // Make sure that we haven't switched authorization types
+        match update.auth_type {
+            Some(AuthorizationUpdateType::Basic) => {
+                match &mut auth {
+                    Authorization::Basic { .. } => {}
+                    _ => {
+                        *auth = Authorization::Basic {
+                            id: update.id.to_string(),
+                            name: auth.get_name().to_string(),
+                            username: "".to_string(),
+                            password: "".to_string(),
+                            validation_state: ValidationState::empty(),
+                            validation_warnings: None,
+                            validation_errors: None,
+                        };
+                    }
+                };
+            }
+            Some(AuthorizationUpdateType::OAuth2Client) => match auth {
+                Authorization::OAuth2Client { .. } => {}
+                _ => {
+                    *auth = Authorization::OAuth2Client {
+                        id: update.id.to_string(),
+                        name: auth.get_name().to_string(),
+                        access_token_url: "".to_string(),
+                        client_id: "".to_string(),
+                        client_secret: "".to_string(),
+                        audience: None,
+                        scope: None,
+                        selected_certificate: None,
+                        selected_proxy: None,
+                        send_credentials_in_body: None,
+                        validation_state: ValidationState::empty(),
+                        validation_warnings: None,
+                        validation_errors: None,
+                    };
+                }
+            },
+            Some(AuthorizationUpdateType::OAuth2Pkce) => match auth {
+                Authorization::OAuth2Pkce { .. } => {}
+                _ => {
+                    *auth = Authorization::OAuth2Pkce {
+                        id: update.id.to_string(),
+                        name: auth.get_name().to_string(),
+                        authorize_url: "".to_string(),
+                        access_token_url: "".to_string(),
+                        client_id: "".to_string(),
+                        scope: None,
+                        send_credentials_in_body: None,
+                        token: None,
+                        refresh_token: None,
+                        expiration: None,
+                        validation_state: ValidationState::empty(),
+                        validation_warnings: None,
+                        validation_errors: None,
+                    };
+                }
+            },
+            Some(AuthorizationUpdateType::ApiKey) => match auth {
+                Authorization::ApiKey { .. } => {}
+                _ => {
+                    *auth = Authorization::ApiKey {
+                        id: update.id.to_string(),
+                        name: auth.get_name().to_string(),
+                        header: "".to_string(),
+                        value: "".to_string(),
+                        validation_state: ValidationState::empty(),
+                        validation_warnings: None,
+                        validation_errors: None,
+                    };
+                }
+            },
+            None => {}
         }
+
+        if let Some(updated_name) = &update.name {
+            match auth {
+                Authorization::Basic { name, .. } => {
+                    *name = updated_name.to_string();
+                }
+                Authorization::OAuth2Client { name, .. } => {
+                    *name = updated_name.to_string();
+                }
+                Authorization::OAuth2Pkce { name, .. } => {
+                    *name = updated_name.to_string();
+                }
+                Authorization::ApiKey { name, .. } => {
+                    *name = updated_name.to_string();
+                }
+            }
+            auth.validate_name();
+        }
+
+        if let Some(updated_username) = &update.username
+            && let Authorization::Basic { username, .. } = auth
+        {
+            *username = updated_username.to_string();
+        }
+
+        if let Some(updated_password) = &update.password
+            && let Authorization::Basic { password, .. } = auth
+        {
+            *password = updated_password.to_string();
+        }
+
+        if let Some(updated_header) = &update.header
+            && let Authorization::ApiKey { header, .. } = auth
+        {
+            *header = updated_header.to_string();
+        }
+
+        if let Some(updated_value) = &update.value
+            && let Authorization::ApiKey { value, .. } = auth
+        {
+            *value = updated_value.to_string();
+        }
+
+        if let Some(updated_access_tokeen_url) = &update.access_token_url {
+            match auth {
+                Authorization::OAuth2Client {
+                    access_token_url, ..
+                } => {
+                    *access_token_url = updated_access_tokeen_url.to_string();
+                }
+                Authorization::OAuth2Pkce {
+                    access_token_url, ..
+                } => {
+                    *access_token_url = updated_access_tokeen_url.to_string();
+                }
+                _ => {}
+            }
+        }
+
+        if let Some(updated_authorize_url) = &update.authorize_url
+            && let Authorization::OAuth2Pkce { authorize_url, .. } = auth
+        {
+            *authorize_url = updated_authorize_url.to_string();
+        }
+
+        if let Some(updated_client_id) = &update.client_id {
+            match auth {
+                Authorization::OAuth2Client { client_id, .. } => {
+                    *client_id = updated_client_id.to_string();
+                }
+                Authorization::OAuth2Pkce { client_id, .. } => {
+                    *client_id = updated_client_id.to_string();
+                }
+                _ => {}
+            }
+        }
+
+        if let Some(updated_client_secret) = &update.client_secret
+            && let Authorization::OAuth2Client { client_secret, .. } = auth
+        {
+            *client_secret = updated_client_secret.to_string();
+        }
+
+        if let Some(updated_audience) = &update.audience
+            && let Authorization::OAuth2Client { audience, .. } = auth
+        {
+            *audience = updated_audience.clone();
+        }
+
+        if let Some(updated_scope) = &update.scope {
+            match auth {
+                Authorization::OAuth2Client { scope, .. } => {
+                    *scope = updated_scope.clone();
+                }
+                Authorization::OAuth2Pkce { scope, .. } => {
+                    *scope = updated_scope.clone();
+                }
+                _ => {}
+            }
+        }
+
+        if let Some(updated_selected_certificate) = &update.selected_certificate
+            && let Authorization::OAuth2Client {
+                selected_certificate,
+                ..
+            } = auth
+        {
+            *selected_certificate = if updated_selected_certificate.id == DEFAULT_SELECTION_ID {
+                None
+            } else {
+                Some(updated_selected_certificate.clone())
+            };
+        }
+
+        if let Some(updated_selected_proxy) = &update.selected_proxy
+            && let Authorization::OAuth2Client { selected_proxy, .. } = auth
+        {
+            *selected_proxy = if updated_selected_proxy.id == DEFAULT_SELECTION_ID {
+                None
+            } else {
+                Some(updated_selected_proxy.clone())
+            };
+        }
+
+        if let Some(updated_send_credentials_in_body) = &update.send_credentials_in_body {
+            match auth {
+                Authorization::OAuth2Client {
+                    send_credentials_in_body,
+                    ..
+                } => {
+                    *send_credentials_in_body = *updated_send_credentials_in_body;
+                }
+                Authorization::OAuth2Pkce {
+                    send_credentials_in_body,
+                    ..
+                } => {
+                    *send_credentials_in_body = *updated_send_credentials_in_body;
+                }
+                _ => {}
+            }
+        }
+
+        if let Some(validation_warnings) = &update.validation_warnings {
+            auth.set_validation_warnings(if validation_warnings.is_empty() {
+                None
+            } else {
+                Some(validation_warnings.clone())
+            });
+        };
+
+        let updated_name = auth.get_title();
+        let updated_validation_state = auth.get_validation_state();
+        let updated_validation_warnings = auth.get_validation_warnings().clone();
+        let updated_validation_errors = auth.get_validation_errors().clone();
+
+        let response = UpdateWithNavigationResponse {
+            navigation: info.check_parameter_navigation_update(
+                &update.id,
+                &updated_name,
+                updated_validation_state,
+                EntityType::Authorization,
+            ),
+            validation_warnings: updated_validation_warnings.clone(),
+            validation_errors: updated_validation_errors.clone(),
+        };
+
+        // Update request entry selections
+        for request_entry in info.workspace.requests.entities.values_mut() {
+            if let Some(s) = request_entry.selected_authorization_as_mut()
+                && s.id == update.id
+            {
+                s.name = updated_name.clone();
+            }
+        }
+
+        // Update workspace default entry selection
+        if let Some(s) = info.workspace.defaults.selected_authorization_as_mut()
+            && s.id == update.id
+        {
+            s.name = updated_name;
+        }
+
+        Ok(response)
     }
 
     /// List authorizations that are stored in the public or private workbook files
@@ -1367,12 +1709,13 @@ impl Workspaces {
         &mut self,
         workspace_id: &str,
         certificate_id: &str,
-    ) -> Result<(), ApicizeAppError> {
+    ) -> Result<Option<InvalidSelections>, ApicizeAppError> {
         let info = self.get_workspace_info_mut(workspace_id)?;
         info.dirty = true;
         info.workspace.certificates.remove_entity(certificate_id)?;
-        info.workspace.validate_selections();
-        Ok(())
+        info.navigation
+            .delete_navigation_entity(certificate_id, EntityType::Certificate);
+        Ok(info.workspace.validate_selections())
     }
 
     pub fn move_certificate(
@@ -1391,48 +1734,144 @@ impl Workspaces {
     pub fn update_certificate(
         &mut self,
         workspace_id: &str,
-        certificate: Certificate,
-    ) -> Result<Option<UpdatedNavigationEntry>, ApicizeAppError> {
-        match self.workspaces.get_mut(workspace_id) {
-            Some(info) => {
-                info.dirty = true;
-                let id = certificate.get_id();
-                let result =
-                    info.check_parameter_navigation_update(&certificate, EntityType::Certificate);
+        update: &CertificateUpdate,
+    ) -> Result<UpdateWithNavigationResponse, ApicizeAppError> {
+        let info = self.get_workspace_info_mut(workspace_id)?;
+        info.dirty = true;
 
-                for request_entry in info.workspace.requests.entities.values_mut() {
-                    if let Some(s) = request_entry.selected_certificate_as_mut()
-                        && s.id == id
-                    {
-                        s.name = certificate.get_name().to_string();
-                    }
-                }
-
-                for auth in info.workspace.authorizations.entities.values_mut() {
-                    if let Authorization::OAuth2Client {
-                        selected_certificate: Some(s),
-                        ..
-                    } = auth
-                        && s.id == id
-                    {
-                        s.name = certificate.get_name().to_string();
-                    }
-                }
-
-                if let Some(s) = info.workspace.defaults.selected_certificate_as_mut()
-                    && s.id == id
-                {
-                    s.name = certificate.get_name().to_string();
-                }
-
-                info.workspace
-                    .certificates
-                    .entities
-                    .insert(id.to_string(), certificate);
-                Ok(result)
+        let mut cert = match info.workspace.certificates.entities.get_mut(&update.id) {
+            Some(cert) => cert,
+            None => {
+                return Err(ApicizeAppError::InvalidScenario(update.id.to_string()));
             }
-            None => Err(ApicizeAppError::InvalidWorkspace(workspace_id.into())),
+        };
+
+        // Handle switching certificate types before applying other values
+        match update.cert_type {
+            Some(CertificateUpdateType::PKCS12) => {
+                match &mut cert {
+                    Certificate::PKCS12 { .. } => {}
+                    _ => {
+                        *cert = Certificate::PKCS12 {
+                            id: update.id.to_string(),
+                            name: cert.get_name().to_string(),
+                            pfx: vec![],
+                            password: None,
+                            validation_state: ValidationState::empty(),
+                            validation_warnings: None,
+                            validation_errors: None,
+                        };
+                    }
+                };
+            }
+            Some(CertificateUpdateType::PKCS8PEM) => match cert {
+                Certificate::PKCS8PEM { .. } => {}
+                _ => {
+                    *cert = Certificate::PKCS8PEM {
+                        id: update.id.to_string(),
+                        name: cert.get_name().to_string(),
+                        pem: vec![],
+                        key: vec![],
+                        validation_state: ValidationState::empty(),
+                        validation_warnings: None,
+                        validation_errors: None,
+                    };
+                }
+            },
+            Some(CertificateUpdateType::PEM) => match cert {
+                Certificate::PEM { .. } => {}
+                _ => {
+                    *cert = Certificate::PEM {
+                        id: update.id.to_string(),
+                        name: cert.get_name().to_string(),
+                        pem: vec![],
+                        validation_state: ValidationState::empty(),
+                        validation_warnings: None,
+                        validation_errors: None,
+                    };
+                }
+            },
+            None => {}
         }
+
+        if let Some(updated_name) = &update.name {
+            match cert {
+                Certificate::PKCS12 { name, .. } => {
+                    *name = updated_name.to_string();
+                }
+                Certificate::PKCS8PEM { name, .. } => {
+                    *name = updated_name.to_string();
+                }
+                Certificate::PEM { name, .. } => {
+                    *name = updated_name.to_string();
+                }
+            }
+            cert.validate_name();
+        }
+
+        if let Some(updated_pfx) = &update.pfx
+            && let Certificate::PKCS12 { pfx, .. } = cert
+        {
+            *pfx = updated_pfx.to_vec();
+        }
+
+        if let Some(updated_password) = &update.password
+            && let Certificate::PKCS12 { password, .. } = cert
+        {
+            *password = updated_password.clone();
+        }
+
+        if let Some(updated_pem) = &update.pem {
+            match cert {
+                Certificate::PKCS8PEM { pem, .. } => {
+                    *pem = updated_pem.to_vec();
+                }
+                Certificate::PEM { pem, .. } => {
+                    *pem = updated_pem.to_vec();
+                }
+                _ => {}
+            }
+        }
+
+        if let Some(updated_key) = &update.key
+            && let Certificate::PKCS8PEM { key, .. } = cert
+        {
+            *key = updated_key.to_vec();
+        }
+
+        let updated_name = cert.get_title();
+        let updated_validation_state = cert.get_validation_state();
+        let updated_validation_warnings = cert.get_validation_warnings().clone();
+        let updated_validation_errors = cert.get_validation_errors().clone();
+
+        let response = UpdateWithNavigationResponse {
+            navigation: info.check_parameter_navigation_update(
+                &update.id,
+                &updated_name,
+                updated_validation_state,
+                EntityType::Certificate,
+            ),
+            validation_warnings: updated_validation_warnings.clone(),
+            validation_errors: updated_validation_errors.clone(),
+        };
+
+        // Update request entry selections
+        for request_entry in info.workspace.requests.entities.values_mut() {
+            if let Some(s) = request_entry.selected_certificate_as_mut()
+                && s.id == update.id
+            {
+                s.name = updated_name.clone();
+            }
+        }
+
+        // Update workspace default entry selection
+        if let Some(s) = info.workspace.defaults.selected_certificate_as_mut()
+            && s.id == update.id
+        {
+            s.name = updated_name;
+        }
+
+        Ok(response)
     }
 
     pub fn get_proxy(&self, workspace_id: &str, proxy_id: &str) -> Result<&Proxy, ApicizeAppError> {
@@ -1482,12 +1921,13 @@ impl Workspaces {
         &mut self,
         workspace_id: &str,
         proxy_id: &str,
-    ) -> Result<(), ApicizeAppError> {
+    ) -> Result<Option<InvalidSelections>, ApicizeAppError> {
         let info = self.get_workspace_info_mut(workspace_id)?;
         info.dirty = true;
         info.workspace.proxies.remove_entity(proxy_id)?;
-        info.workspace.validate_selections();
-        Ok(())
+        info.navigation
+            .delete_navigation_entity(proxy_id, EntityType::Proxy);
+        Ok(info.workspace.validate_selections())
     }
 
     pub fn move_proxy(
@@ -1507,59 +1947,153 @@ impl Workspaces {
     pub fn update_proxy(
         &mut self,
         workspace_id: &str,
-        proxy: Proxy,
-    ) -> Result<Option<UpdatedNavigationEntry>, ApicizeAppError> {
-        match self.workspaces.get_mut(workspace_id) {
-            Some(info) => {
-                info.dirty = true;
-                let id = proxy.get_id();
-                let result = info.check_parameter_navigation_update(&proxy, EntityType::Proxy);
+        update: &ProxyUpdate,
+    ) -> Result<UpdateWithNavigationResponse, ApicizeAppError> {
+        let info = self.get_workspace_info_mut(workspace_id)?;
+        info.dirty = true;
 
-                for request_entry in info.workspace.requests.entities.values_mut() {
-                    if let Some(s) = request_entry.selected_proxy_as_mut()
-                        && s.id == id
-                    {
-                        s.name = proxy.name.clone();
-                    }
-                }
+        let id = update.id.to_string();
 
-                for auth in info.workspace.authorizations.entities.values_mut() {
-                    if let Authorization::OAuth2Client {
-                        selected_proxy: Some(s),
-                        ..
-                    } = auth
-                        && s.id == id
-                    {
-                        s.name = proxy.get_name().to_string();
-                    }
-                }
-
-                if let Some(s) = info.workspace.defaults.selected_proxy_as_mut()
-                    && s.id == id
-                {
-                    s.name = proxy.name.clone();
-                }
-
-                info.workspace
-                    .proxies
-                    .entities
-                    .insert(id.to_string(), proxy);
-                Ok(result)
+        let proxy = match info.workspace.proxies.entities.get_mut(&id) {
+            Some(proxy) => proxy,
+            None => {
+                return Err(ApicizeAppError::InvalidProxy(id));
             }
-            None => Err(ApicizeAppError::InvalidWorkspace(workspace_id.into())),
+        };
+
+        if let Some(name) = &update.name {
+            proxy.name = name.to_string();
+            proxy.validate_name();
         }
+
+        if let Some(url) = &update.url {
+            proxy.url = url.to_string();
+            proxy.validate_url();
+        }
+
+        let updated_name = proxy.get_title();
+        let updated_validation_state = proxy.validation_state;
+        let updated_validation_warnings = proxy.validation_warnings.clone();
+        let updated_validation_errors = proxy.validation_errors.clone();
+
+        let response = UpdateWithNavigationResponse {
+            navigation: info.check_parameter_navigation_update(
+                &id,
+                &updated_name,
+                updated_validation_state,
+                EntityType::Proxy,
+            ),
+            validation_warnings: updated_validation_warnings.clone(),
+            validation_errors: updated_validation_errors.clone(),
+        };
+
+        // Update request entry selections
+        for request_entry in info.workspace.requests.entities.values_mut() {
+            if let Some(s) = request_entry.selected_proxy_as_mut()
+                && s.id == id
+            {
+                s.name = updated_name.clone();
+            }
+        }
+
+        // Update workspace default entry selection
+        if let Some(s) = info.workspace.defaults.selected_proxy_as_mut()
+            && s.id == id
+        {
+            s.name = updated_name;
+        }
+
+        Ok(response)
     }
 
     pub fn update_defaults(
         &mut self,
         workspace_id: &str,
-        defaults: WorkbookDefaultParameters,
-    ) -> Result<(), ApicizeAppError> {
+        update: &DefaultsUpdate,
+    ) -> Result<UpdateWithNavigationResponse, ApicizeAppError> {
         let info = self.get_workspace_info_mut(workspace_id)?;
         info.dirty = true;
-        info.workspace.defaults = defaults.clone();
+
+        if let Some(selected_scenario) = &update.selected_scenario {
+            info.workspace.defaults.selected_scenario =
+                if selected_scenario.id == DEFAULT_SELECTION_ID {
+                    None
+                } else {
+                    Some(selected_scenario.clone())
+                };
+        }
+
+        if let Some(selected_authorization) = &update.selected_authorization {
+            info.workspace.defaults.selected_authorization =
+                if selected_authorization.id == DEFAULT_SELECTION_ID {
+                    None
+                } else {
+                    Some(selected_authorization.clone())
+                };
+        }
+
+        if let Some(selected_certificate) = &update.selected_certificate {
+            info.workspace.defaults.selected_certificate =
+                if selected_certificate.id == DEFAULT_SELECTION_ID {
+                    None
+                } else {
+                    Some(selected_certificate.clone())
+                };
+        }
+
+        if let Some(selected_proxy) = &update.selected_proxy {
+            info.workspace.defaults.selected_proxy = if selected_proxy.id == DEFAULT_SELECTION_ID {
+                None
+            } else {
+                Some(selected_proxy.clone())
+            };
+        }
+
+        if let Some(selected_data_set) = &update.selected_data {
+            info.workspace.defaults.selected_data = if selected_data_set.id == DEFAULT_SELECTION_ID
+            {
+                None
+            } else {
+                Some(selected_data_set.clone())
+            };
+        }
+
+        if let Some(validation_warnings) = &update.validation_warnings {
+            info.workspace
+                .defaults
+                .set_validation_warnings(if validation_warnings.is_empty() {
+                    None
+                } else {
+                    Some(validation_warnings.clone())
+                });
+        };
+
+        info.workspace.defaults.perform_validation();
         info.workspace.validate_selections();
-        Ok(())
+
+        let validation_state = info.workspace.defaults.get_validation_state();
+        let validation_warnings = info.workspace.defaults.validation_warnings.clone();
+        let validation_errors = info.workspace.defaults.validation_errors.clone();
+
+        let requires_update = info.navigation.defaults.validation_state != validation_state;
+
+        let response = UpdateWithNavigationResponse {
+            navigation: if requires_update {
+                Some(UpdatedNavigationEntry {
+                    id: info.navigation.defaults.id.clone(),
+                    name: info.navigation.defaults.name.clone(),
+                    entity_type: EntityType::Defaults,
+                    validation_state,
+                    execution_state: ExecutionState::empty(),
+                })
+            } else {
+                None
+            },
+            validation_warnings,
+            validation_errors,
+        };
+
+        Ok(response)
     }
 
     fn insert_default_selection(selection: &Option<Selection>, results: &mut Vec<Selection>) {
@@ -1629,88 +2163,170 @@ impl Workspaces {
         copy_name
     }
 
-    pub fn add_data(
+    pub fn add_data_set(
         &mut self,
         workspace_id: &str,
+        relative_to: Option<&str>,
+        relative_position: Option<IndexedEntityPosition>,
         clone_from_id: Option<&str>,
     ) -> Result<String, ApicizeAppError> {
         let info = self.get_workspace_info_mut(workspace_id)?;
         info.dirty = true;
-        let data = match clone_from_id {
-            Some(other_id) => match info.workspace.data.iter().find(|data| data.id == other_id) {
-                Some(other) => other.clone_as_new(Self::create_copy_name(&other.name)),
-                None => return Err(ApicizeAppError::InvalidExternalData(other_id.to_owned())),
+        let data_set = match clone_from_id {
+            Some(other_id) => match info.workspace.data.get(other_id) {
+                Some(other) => {
+                    let clone = other.clone_as_new(Self::create_copy_name(&other.name));
+                    if let Some(existing_content) = info.data_set_content.get(&other.id) {
+                        info.data_set_content
+                            .insert(clone.id.to_string(), existing_content.clone());
+                    }
+                    clone
+                }
+                None => return Err(ApicizeAppError::InvalidDataSet(other_id.to_owned())),
             },
-            None => ExternalData::default(),
+            None => DataSet::default(),
         };
-        let id = data.id.clone();
-        info.workspace.data.push(data);
+        let id = data_set.id.clone();
+        info.workspace
+            .data
+            .add_entity(data_set, relative_to, relative_position)?;
         Ok(id)
     }
 
-    pub fn delete_data(
+    pub fn delete_data_set(
         &mut self,
         workspace_id: &str,
-        data_id: &str,
-    ) -> Result<(), ApicizeAppError> {
+        data_set_id: &str,
+    ) -> Result<Option<InvalidSelections>, ApicizeAppError> {
         let info = self.get_workspace_info_mut(workspace_id)?;
         info.dirty = true;
-        if let Some(index) = info.workspace.data.iter().position(|d| d.id == data_id) {
-            info.workspace.data.remove(index);
-        }
-        info.workspace.validate_selections();
-        Ok(())
+        info.workspace.data.remove_entity(data_set_id)?;
+        info.data_set_content.remove(data_set_id);
+        info.navigation
+            .delete_navigation_entity(data_set_id, EntityType::DataSet);
+        Ok(info.workspace.validate_selections())
     }
 
-    pub fn update_data(
+    pub fn move_data_set(
         &mut self,
         workspace_id: &str,
-        data: ExternalData,
-    ) -> Result<Option<UpdatedNavigationEntry>, ApicizeAppError> {
-        match self.workspaces.get_mut(workspace_id) {
-            Some(info) => {
-                info.dirty = true;
+        data_set_id: &str,
+        relative_to: &str,
+        relative_position: IndexedEntityPosition,
+    ) -> Result<bool, ApicizeAppError> {
+        let workspace = self.get_workspace_mut(workspace_id)?;
+        Ok(workspace
+            .data
+            .move_entity(data_set_id, relative_to, relative_position)?)
+    }
 
-                for request_entry in info.workspace.requests.entities.values_mut() {
-                    if let Some(s) = request_entry.selected_data_as_mut()
-                        && s.id == data.id
-                    {
-                        s.name = data.name.clone();
-                    }
-                }
+    pub fn update_data_set(
+        &mut self,
+        workspace_id: &str,
+        update: &DataSetUpdate,
+    ) -> Result<UpdateWithNavigationResponse, ApicizeAppError> {
+        let info = self.get_workspace_info_mut(workspace_id)?;
+        info.dirty = true;
 
-                if let Some(s) = info.workspace.defaults.selected_data_as_mut()
-                    && s.id == data.id
-                {
-                    s.name = data.name.clone();
-                }
+        let id = update.id.to_string();
 
-                if let Some(index) = info.workspace.data.iter().position(|d| d.id == data.id) {
-                    let _ = std::mem::replace(&mut info.workspace.data[index], data);
-                }
-
-                Ok(None)
+        let data_set = match info.workspace.data.entities.get_mut(&id) {
+            Some(data_set) => data_set,
+            None => {
+                return Err(ApicizeAppError::InvalidDataSet(id));
             }
-            None => Err(ApicizeAppError::InvalidWorkspace(workspace_id.into())),
+        };
+
+        if let Some(name) = &update.name {
+            data_set.name = name.to_string();
+            data_set.validate_name();
         }
+
+        if let Some(source_type) = &update.source_type {
+            data_set.source_type = source_type.clone();
+            data_set.validate_source();
+        }
+
+        if let Some(source_file_name) = &update.source_file_name
+            && (data_set.source_type == DataSourceType::FileJSON
+                || data_set.source_type == DataSourceType::FileCSV)
+        {
+            data_set.source = source_file_name.to_string();
+            data_set.validate_source();
+        }
+
+        if let Some(source_text) = &update.source_text 
+            && data_set.source_type == DataSourceType::JSON
+        {
+            data_set.source = source_text.to_string();
+        }
+
+        info.data_set_content.insert(id.to_string(), DataSetContent {
+            csv_columns: update.csv_columns.clone(),
+            csv_rows: update.csv_rows.clone(),
+            source_text: if data_set.source_type == DataSourceType::FileCSV {
+                None
+            } else {
+                update.source_text.clone()
+            }
+        });
+
+        let updated_name = data_set.get_title();
+        let updated_validation_state = data_set.validation_state;
+        let updated_validation_warnings = data_set.validation_warnings.clone();
+        let updated_validation_errors = data_set.validation_errors.clone();
+
+        let response = UpdateWithNavigationResponse {
+            navigation: info.check_parameter_navigation_update(
+                &id,
+                &updated_name,
+                updated_validation_state,
+                EntityType::DataSet,
+            ),
+            validation_warnings: updated_validation_warnings.clone(),
+            validation_errors: updated_validation_errors.clone(),
+        };
+
+        // Update request entry selections
+        for request_entry in info.workspace.requests.entities.values_mut() {
+            if let Some(s) = request_entry.selected_data_as_mut()
+                && s.id == id
+            {
+                s.name = updated_name.clone();
+            }
+        }
+
+        // Update workspace default entry selection
+        if let Some(s) = info.workspace.defaults.selected_data_as_mut()
+            && s.id == id
+        {
+            s.name = updated_name;
+        }
+
+        Ok(response)
     }
 
     /// Return a list of all external data elements
-    pub fn list_data(&self, workspace_id: &str) -> Result<Vec<ExternalData>, ApicizeAppError> {
+    pub fn list_data(&self, workspace_id: &str) -> Result<Vec<DataSet>, ApicizeAppError> {
         let workspace = self.get_workspace(workspace_id)?;
-        Ok(workspace.data.clone())
+        Ok(workspace
+            .data
+            .entities
+            .values()
+            .cloned()
+            .collect::<Vec<DataSet>>())
     }
 
     /// Return specified external data element
-    pub fn get_data(
+    pub fn get_data_set(
         &self,
         workspace_id: &str,
         data_id: &str,
-    ) -> Result<ExternalData, ApicizeAppError> {
+    ) -> Result<DataSet, ApicizeAppError> {
         let workspace = self.get_workspace(workspace_id)?;
-        match workspace.data.iter().find(|d| d.id == data_id) {
+        match workspace.data.get(data_id) {
             Some(data) => Ok(data.clone()),
-            None => Err(ApicizeAppError::InvalidExternalData(data_id.into())),
+            None => Err(ApicizeAppError::InvalidDataSet(data_id.into())),
         }
     }
 
@@ -1720,7 +2336,7 @@ impl Workspaces {
         data_id: &str,
     ) -> Result<String, ApicizeAppError> {
         let workspace = self.get_workspace(workspace_id)?;
-        match workspace.data.iter().find(|d| d.id == data_id) {
+        match workspace.data.get(data_id) {
             Some(entry) => Ok(entry.get_title()),
             None => Err(ApicizeAppError::InvalidRequest(data_id.into())),
         }
@@ -1750,20 +2366,24 @@ impl Workspaces {
             .certificates
             .generate_selection_list(include_off);
         let mut proxies = info.navigation.proxies.generate_selection_list(include_off);
-        let mut data = vec![Selection {
-            id: NO_SELECTION_ID.to_string(),
-            name: "Off".to_string(),
-        }];
-        data.extend(
-            info.workspace
-                .data
-                .iter()
-                .map(|data| Selection {
-                    id: data.id.clone(),
-                    name: data.name.clone(),
-                })
-                .collect::<Vec<Selection>>(),
-        );
+
+        let mut data: Vec<Selection> = if include_off {
+            vec![Selection {
+                id: NO_SELECTION_ID.to_string(),
+                name: "Off".to_string(),
+            }]
+        } else {
+            vec![]
+        };
+
+        data.extend(info.navigation.data_sets.iter().map(|d| Selection {
+            id: d.id.clone(),
+            name: if d.name.is_empty() {
+                "(Unnamed)".to_string()
+            } else {
+                d.name.to_string()
+            },
+        }));
 
         if let Some(request_id) = active_request_id {
             let mut default_scenario: Option<Selection> = None;
@@ -1773,61 +2393,67 @@ impl Workspaces {
             let mut default_data: Option<Selection> = None;
 
             let mut id = request_id.to_string();
+            let mut is_self = true;
 
             loop {
                 match info.workspace.requests.entities.get(&id) {
                     Some(request) => {
-                        if default_scenario.is_none()
-                            && let Some(e) = request.selected_scenario()
-                        {
-                            default_scenario =
-                                if let Some(m) = scenarios.iter().find(|s| s.id == e.id) {
+                        if is_self {
+                            is_self = false;
+                        } else {
+                            if default_scenario.is_none()
+                                && let Some(e) = request.selected_scenario()
+                            {
+                                default_scenario =
+                                    if let Some(m) = scenarios.iter().find(|s| s.id == e.id) {
+                                        Some(m.clone())
+                                    } else {
+                                        Some(e.clone())
+                                    };
+                            }
+
+                            if default_authorization.is_none()
+                                && let Some(e) = request.selected_authorization()
+                            {
+                                default_authorization =
+                                    if let Some(m) = authorizations.iter().find(|s| s.id == e.id) {
+                                        Some(m.clone())
+                                    } else {
+                                        Some(e.clone())
+                                    };
+                            }
+
+                            if default_certificate.is_none()
+                                && let Some(e) = request.selected_certificate()
+                            {
+                                default_certificate =
+                                    if let Some(m) = certificates.iter().find(|s| s.id == e.id) {
+                                        Some(m.clone())
+                                    } else {
+                                        Some(e.clone())
+                                    };
+                            }
+
+                            if default_proxy.is_none()
+                                && let Some(e) = request.selected_proxy()
+                            {
+                                default_proxy =
+                                    if let Some(m) = proxies.iter().find(|s| s.id == e.id) {
+                                        Some(m.clone())
+                                    } else {
+                                        Some(e.clone())
+                                    };
+                            }
+
+                            if default_data.is_none()
+                                && let Some(e) = request.selected_data()
+                            {
+                                default_data = if let Some(m) = data.iter().find(|s| s.id == e.id) {
                                     Some(m.clone())
                                 } else {
                                     Some(e.clone())
                                 };
-                        }
-
-                        if default_authorization.is_none()
-                            && let Some(e) = request.selected_authorization()
-                        {
-                            default_authorization =
-                                if let Some(m) = authorizations.iter().find(|s| s.id == e.id) {
-                                    Some(m.clone())
-                                } else {
-                                    Some(e.clone())
-                                };
-                        }
-
-                        if default_certificate.is_none()
-                            && let Some(e) = request.selected_certificate()
-                        {
-                            default_certificate =
-                                if let Some(m) = certificates.iter().find(|s| s.id == e.id) {
-                                    Some(m.clone())
-                                } else {
-                                    Some(e.clone())
-                                };
-                        }
-
-                        if default_proxy.is_none()
-                            && let Some(e) = request.selected_proxy()
-                        {
-                            default_proxy = if let Some(m) = proxies.iter().find(|s| s.id == e.id) {
-                                Some(m.clone())
-                            } else {
-                                Some(e.clone())
-                            };
-                        }
-
-                        if default_data.is_none()
-                            && let Some(e) = request.selected_data()
-                        {
-                            default_data = if let Some(m) = data.iter().find(|s| s.id == e.id) {
-                                Some(m.clone())
-                            } else {
-                                Some(e.clone())
-                            };
+                            }
                         }
                     }
                     None => return Err(ApicizeAppError::InvalidRequest(id.to_string())),
@@ -1911,16 +2537,10 @@ impl Workspaces {
             }
             if default_data.is_none() {
                 default_data = match &info.workspace.defaults.selected_data {
-                    Some(s) => {
-                        info.workspace
-                            .data
-                            .iter()
-                            .find(|d| d.id == s.id)
-                            .map(|e| Selection {
-                                id: e.get_id().to_string(),
-                                name: e.name.to_string(),
-                            })
-                    }
+                    Some(s) => info.workspace.data.entities.get(&s.id).map(|e| Selection {
+                        id: e.get_id().to_string(),
+                        name: e.name.to_string(),
+                    }),
                     None => None,
                 }
             }
@@ -1944,45 +2564,55 @@ impl Workspaces {
 
 impl WorkspaceInfo {
     /// Check parameter and returns update to navigation if required
-    pub fn check_parameter_navigation_update<T: Identifiable + Validated>(
+    pub fn check_parameter_navigation_update(
         &mut self,
-        parameter: &T,
+        id: &str,
+        updated_name: &str,
+        updated_validation_state: ValidationState,
         entity_type: EntityType,
     ) -> Option<UpdatedNavigationEntry> {
-        let section = match entity_type {
-            EntityType::Scenario => &mut self.navigation.scenarios,
-            EntityType::Authorization => &mut self.navigation.authorizations,
-            EntityType::Certificate => &mut self.navigation.certificates,
-            EntityType::Proxy => &mut self.navigation.proxies,
-            _ => {
-                return None;
+        let entry = if entity_type == EntityType::DataSet {
+            self.navigation.data_sets.iter_mut().find(|e| e.id == id)
+        } else {
+            let section = match entity_type {
+                EntityType::Scenario => &mut self.navigation.scenarios,
+                EntityType::Authorization => &mut self.navigation.authorizations,
+                EntityType::Certificate => &mut self.navigation.certificates,
+                EntityType::Proxy => &mut self.navigation.proxies,
+                _ => {
+                    return None;
+                }
+            };
+
+            let mut entry = section.public.iter_mut().find(|e| e.id == id);
+            if entry.is_none() {
+                entry = section.private.iter_mut().find(|e| e.id == id);
             }
+            if entry.is_none() {
+                entry = section.vault.iter_mut().find(|e| e.id == id);
+            }
+            entry
         };
 
-        let id = parameter.get_id();
-        let nav_name = parameter.get_title();
-        let validation_state = parameter.get_validation_state();
-        // let execution_state = parameter.get_execution_state();
+        if let Some(entry) = entry {
+            let requires_update =
+                entry.name != updated_name || entry.validation_state != updated_validation_state;
 
-        let mut entry = section.public.iter_mut().find(|e| e.id == id);
-        if entry.is_none() {
-            entry = section.private.iter_mut().find(|e| e.id == id);
-        }
-        if entry.is_none() {
-            entry = section.vault.iter_mut().find(|e| e.id == id);
-        }
+            if requires_update {
+                entry.name = updated_name.to_string();
+                entry.validation_state = updated_validation_state;
 
-        if let Some(e) = entry {
-            e.name = nav_name.to_string();
-            e.validation_state = validation_state.clone();
-            // e.execution_state = execution_state.clone();
-            Some(UpdatedNavigationEntry {
-                id: id.to_string(),
-                name: nav_name.to_string(),
-                entity_type,
-                validation_state: Some(validation_state.clone()),
-                execution_state: None, // execution_state.cloned(),
-            })
+                // e.execution_state = execution_state.clone();
+                Some(UpdatedNavigationEntry {
+                    id: id.to_string(),
+                    name: updated_name.to_string(),
+                    entity_type,
+                    validation_state: updated_validation_state,
+                    execution_state: entry.execution_state,
+                })
+            } else {
+                None
+            }
         } else {
             None
         }
@@ -1991,15 +2621,15 @@ impl WorkspaceInfo {
     pub fn check_request_navigation_update(
         &mut self,
         id: &str,
-        name: &str,
-        validation_state: Option<&ValidationState>,
-        execution_state: Option<&ExecutionState>,
+        updated_name: &str,
+        updated_validation_state: ValidationState,
+        updated_execution_state: ExecutionState,
     ) -> Result<Option<UpdatedNavigationEntry>, ApicizeAppError> {
         Self::check_request_navigation_update_int(
             id,
-            name,
-            validation_state,
-            execution_state,
+            updated_name,
+            updated_validation_state,
+            updated_execution_state,
             &mut self.navigation.requests,
         )
     }
@@ -2007,45 +2637,39 @@ impl WorkspaceInfo {
     /// Check request navigation name and returns update to navigation if required
     fn check_request_navigation_update_int(
         id: &str,
-        name: &str,
-        validation_state: Option<&ValidationState>,
-        execution_state: Option<&ExecutionState>,
+        updated_name: &str,
+        updated_validation_state: ValidationState,
+        updated_execution_state: ExecutionState,
         entries: &mut Vec<NavigationRequestEntry>,
     ) -> Result<Option<UpdatedNavigationEntry>, ApicizeAppError> {
         for entry in entries {
-            let validation_passes: bool = match validation_state {
-                Some(state) => entry.validation_state.eq(state),
-                None => true,
-            };
+            if id == entry.id {
+                let requires_update = entry.name != updated_name
+                    || entry.validation_state != updated_validation_state
+                    || entry.execution_state != updated_execution_state;
 
-            let execution_passes: bool = match execution_state {
-                Some(state) => entry.execution_state.eq(state),
-                None => true,
-            };
-
-            if id == entry.id && (entry.name != name || !validation_passes || !execution_passes) {
-                entry.name = name.to_string();
-                if let Some(state) = validation_state {
-                    entry.validation_state = state.clone();
-                }
-                if let Some(state) = execution_state {
-                    entry.execution_state = *state;
-                }
-                return Ok(Some(UpdatedNavigationEntry {
-                    id: id.to_string(),
-                    name: name.to_string(),
-                    entity_type: EntityType::RequestEntry,
-                    validation_state: validation_state.cloned(),
-                    execution_state: execution_state.cloned(),
-                }));
+                return if requires_update {
+                    entry.name = updated_name.to_string();
+                    entry.validation_state = updated_validation_state;
+                    entry.execution_state = updated_execution_state;
+                    Ok(Some(UpdatedNavigationEntry {
+                        id: id.to_string(),
+                        name: updated_name.to_string(),
+                        entity_type: EntityType::RequestEntry,
+                        validation_state: updated_validation_state,
+                        execution_state: updated_execution_state,
+                    }))
+                } else {
+                    Ok(None)
+                };
             }
 
             if let Some(children) = &mut entry.children {
                 let result = Self::check_request_navigation_update_int(
                     id,
-                    name,
-                    validation_state,
-                    execution_state,
+                    updated_name,
+                    updated_validation_state,
+                    updated_execution_state,
                     children,
                 )?;
                 if result.is_some() {
@@ -2229,6 +2853,36 @@ impl WorkspaceInfo {
                 execution_state: ExecutionState::empty(),
                 active_summaries: IndexMap::default(),
             })
+    }
+
+    fn perform_delete_executions(
+        &mut self,
+        request_or_group_id: &str,
+        deleted_ids: &mut Vec<String>,
+    ) {
+        if let Some(child_ids) = &self
+            .workspace
+            .requests
+            .child_ids
+            .get(request_or_group_id)
+            .map(|ids| ids.iter().map(|id| id.to_string()).collect::<Vec<String>>())
+        {
+            for child_id in child_ids {
+                self.delete_executions(child_id);
+            }
+        }
+
+        if self.executions.contains_key(request_or_group_id) {
+            self.executions.remove(request_or_group_id);
+            deleted_ids.push(request_or_group_id.to_string());
+        }
+    }
+
+    /// Clear executions of request/group (including children), return IDs of executions cleared
+    pub fn delete_executions(&mut self, request_or_group_id: &str) -> Vec<String> {
+        let mut deleted_ids = Vec::<String>::new();
+        self.perform_delete_executions(request_or_group_id, &mut deleted_ids);
+        deleted_ids
     }
 
     fn get_navigation_int<'a>(
@@ -2442,7 +3096,7 @@ impl WorkspaceInfo {
     }
 }
 
-#[derive(Serialize_repr, Deserialize_repr, Copy, Clone, Debug)]
+#[derive(Serialize_repr, Deserialize_repr, Copy, Clone, PartialEq, Debug)]
 #[repr(u8)]
 pub enum EntityType {
     RequestEntry = 1,
@@ -2452,12 +3106,8 @@ pub enum EntityType {
     Authorization = 7,
     Certificate = 8,
     Proxy = 9,
-    Data = 10,
-    Parameters = 11,
-    Defaults = 12,
-    Warnings = 13,
-    DataList = 14,
-    RequestBody = 101,
+    DataSet = 10,
+    Defaults = 11,
 }
 
 impl EntityType {
@@ -2470,12 +3120,8 @@ impl EntityType {
             EntityType::Authorization => "Authorization",
             EntityType::Certificate => "Certificate",
             EntityType::Proxy => "Proxy",
-            EntityType::Data => "Data",
-            EntityType::Parameters => "Parameters",
+            EntityType::DataSet => "Data",
             EntityType::Defaults => "Defaults",
-            EntityType::Warnings => "Warnings",
-            EntityType::DataList => "DataList",
-            EntityType::RequestBody => "RequestBody",
         }
     }
 }
@@ -2492,13 +3138,11 @@ pub enum Entity {
     RequestEntry(RequestEntryInfo),
     Request(Request),
     Group(RequestGroup),
-    RequestBody(RequestBodyInfoWithBody),
     Scenario(Scenario),
     Authorization(Authorization),
     Certificate(Certificate),
     Proxy(Proxy),
-    Data(ExternalData),
-    DataList { list: Vec<ExternalData> },
+    DataSet(DataSet),
     Defaults(WorkbookDefaultParameters),
 }
 
@@ -2506,7 +3150,6 @@ pub enum Entity {
 #[serde(tag = "entityTypeName")]
 pub enum Entities {
     Parameters(WorkspaceParameters),
-    DataList { data: Vec<ExternalData> },
     Defaults(WorkbookDefaultParameters),
 }
 
@@ -2613,6 +3256,7 @@ pub struct WorkspaceInitialization {
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize)]
+#[serde(into = "u8", try_from = "u8")]
 #[repr(u8)]
 pub enum WorkspaceMode {
     Normal = 0,
@@ -2626,23 +3270,45 @@ pub enum WorkspaceMode {
     AuthorizationList = 7,
     CertificateList = 8,
     ProxyList = 9,
+    DataSetList = 10,
 }
 
-impl From<u8> for WorkspaceMode {
-    fn from(val: u8) -> Self {
+impl From<WorkspaceMode> for u8 {
+    fn from(mode: WorkspaceMode) -> u8 {
+        mode as u8
+    }
+}
+
+impl TryFrom<u8> for WorkspaceMode {
+    type Error = String;
+
+    fn try_from(val: u8) -> Result<Self, Self::Error> {
         match val {
-            0 => WorkspaceMode::Normal,
-            1 => WorkspaceMode::Help,
-            2 => WorkspaceMode::Settings,
-            3 => WorkspaceMode::Defaults,
+            0 => Ok(WorkspaceMode::Normal),
+            1 => Ok(WorkspaceMode::Help),
+            2 => Ok(WorkspaceMode::Settings),
+            3 => Ok(WorkspaceMode::Defaults),
             // Warnings,
-            4 => WorkspaceMode::Console,
-            5 => WorkspaceMode::RequestList,
-            6 => WorkspaceMode::ScenarioList,
-            7 => WorkspaceMode::AuthorizationList,
-            8 => WorkspaceMode::CertificateList,
-            9 => WorkspaceMode::ProxyList,
-            _ => panic!("Invalid status value"),
+            4 => Ok(WorkspaceMode::Console),
+            5 => Ok(WorkspaceMode::RequestList),
+            6 => Ok(WorkspaceMode::ScenarioList),
+            7 => Ok(WorkspaceMode::AuthorizationList),
+            8 => Ok(WorkspaceMode::CertificateList),
+            9 => Ok(WorkspaceMode::ProxyList),
+            10 => Ok(WorkspaceMode::DataSetList),
+            _ => Err(format!("Invalid WorkspaceMode value: {}", val)),
         }
     }
+}
+
+/// Working status of data set
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DataSetContent {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub csv_columns: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub csv_rows: Option<Vec<HashMap<String, String>>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_text: Option<String>,
 }

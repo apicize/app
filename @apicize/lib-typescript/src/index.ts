@@ -1,4 +1,3 @@
-
 export * from './models/execution-result-summary'
 export * from './models/execution-result-detail'
 export * from './models/execution-result-success'
@@ -10,7 +9,7 @@ export * from './models/scenario'
 export * from './models/authorization'
 export * from './models/certificate'
 export * from './models/proxy'
-export * from './models/external-data-entry'
+export * from './models/data-set'
 export * from './models/persistence'
 export * from './models/name-value-pair';
 export * from './models/selected-parameters'

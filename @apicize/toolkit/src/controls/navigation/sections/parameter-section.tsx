@@ -6,7 +6,6 @@ import AddIcon from '@mui/icons-material/Add'
 import PrivateIcon from "../../../icons/private-icon"
 import PublicIcon from "../../../icons/public-icon"
 import VaultIcon from "../../../icons/vault-icon"
-import { EditableEntity } from "../../../models/editable"
 import { EntityType } from "../../../models/workspace/entity-type"
 import { OverridableStringUnion } from "@mui/types";
 import { DroppableData } from "../../../models/drag-drop"
@@ -113,7 +112,7 @@ const ParameterSubsection = observer(({
 })
 
 
-export const ParameterSection = observer(<T extends EditableEntity>({
+export const ParameterSection = observer(({
     type,
     parameters,
     title,
@@ -152,7 +151,6 @@ export const ParameterSection = observer(<T extends EditableEntity>({
     onItemMenu: (e: React.MouseEvent, persistence: Persistence, id: string) => void,
     onSelectHeader: (headerId: string, helpTopic?: string) => void
 }) => {
-    const settings = useApicizeSettings()
     const Contents = () => {
         return <>
             {contextMenu}

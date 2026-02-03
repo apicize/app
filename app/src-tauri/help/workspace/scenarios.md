@@ -14,7 +14,7 @@ Scenario variables can be used to dynamically set URLs and posted body content. 
 Scenario values can be substituted into request names, URLs, headers, query string parameters and body content.  To access a scenario variable in a test, use the global variables `variables` or 
 
 A scenario value can be text, JSON value, JSON fille or CSV file.  The entire data set will be merged in with each call.  If you want to execute Requests or Groups for each row or entry in the external
-file, you can set up Seed data (see [**Running Tests**](help:running-tests))
+file, you can set up a Data Set (see [**Running Tests**](help:running-tests))
 
 :image[scenarios.webp]
 

@@ -23,6 +23,8 @@ import { useApicizeSettings } from "../contexts/apicize-settings.context";
 import { useFileOperations } from "../contexts/file-operations.context";
 import useWindowSize from "../window-size";
 import { useMemo } from "react";
+import { DataSetEditor } from "./editors/data-set-editor";
+import { DataSetList } from "./navigation/lists/data-set-list";
 
 export const MainPanel = observer(() => {
     const workspace = useWorkspace()
@@ -57,6 +59,8 @@ export const MainPanel = observer(() => {
                 return <RequestList sx={{ display: 'block', flexGrow: 1 }} />
             case WorkspaceMode.ScenarioList:
                 return <ScenarioList sx={{ display: 'block', flexGrow: 1 }} />
+            case WorkspaceMode.DataSetList:
+                return <DataSetList sx={{ display: 'block', flexGrow: 1 }} />
             case WorkspaceMode.AuthorizationList:
                 return <AuthorizationList sx={{ display: 'block', flexGrow: 1 }} />
             case WorkspaceMode.CertificateList:
@@ -72,6 +76,8 @@ export const MainPanel = observer(() => {
                             return <RequestGroupEditor group={activeSelection} sx={{ display: 'block', flexGrow: 1 }} />
                         case EntityType.Scenario:
                             return <ScenarioEditor scenario={activeSelection} sx={{ display: 'block', flexGrow: 1 }} />
+                        case EntityType.DataSet:
+                            return <DataSetEditor dataSet={activeSelection} sx={{ display: 'block', flexGrow: 1 }} />
                         case EntityType.Authorization:
                             return <AuthorizationEditor authorization={activeSelection} sx={{ display: 'block', flexGrow: 1 }} />
                         case EntityType.Certificate:

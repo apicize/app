@@ -1,5 +1,5 @@
 import { TextField, SxProps, Grid, FormControl, InputLabel, MenuItem, Select, ToggleButton } from '@mui/material'
-import { MultiRunExecution } from '@apicize/lib-typescript';
+import { ExecutionConcurrency } from '@apicize/lib-typescript';
 import { EditableRequestGroup } from '../../../models/workspace/editable-request-group';
 import { observer } from 'mobx-react-lite';
 import { useWorkspace } from '../../../contexts/workspace.context';
@@ -59,8 +59,8 @@ export const RequestGroupInfoEditor = observer(({ sx, group }: {
                         // size='small'
                         value={group.name}
                         onChange={e => group.setName(e.target.value)}
-                        error={group.nameInvalid}
-                        helperText={group.nameInvalid ? 'Group name is required' : ''}
+                        error={!!group.nameError}
+                        helperText={group.nameError}
                     />
                 </Grid>
                 <Grid flexGrow={0} width={'12em'}>
@@ -115,11 +115,11 @@ export const RequestGroupInfoEditor = observer(({ sx, group }: {
                             open={showGroupExecutionMenu}
                             onClose={() => setShowGroupExecutionMenu(false)}
                             onOpen={() => setShowGroupExecutionMenu(true)}
-                            onChange={e => group.setMultiRunExecution(e.target.value as MultiRunExecution)}
+                            onChange={e => group.setMultiRunExecution(e.target.value as ExecutionConcurrency)}
                             title='Whether to execute mutiple group runs sequentially (one at a time) or concurrently'
                         >
-                            <MenuItem value={MultiRunExecution.Sequential}>Sequential</MenuItem>
-                            <MenuItem value={MultiRunExecution.Concurrent}>Concurrent</MenuItem>
+                            <MenuItem value={ExecutionConcurrency.Sequential}>Sequential</MenuItem>
+                            <MenuItem value={ExecutionConcurrency.Concurrent}>Concurrent</MenuItem>
                         </Select>
                     </FormControl>
                 </Grid>
@@ -139,10 +139,10 @@ export const RequestGroupInfoEditor = observer(({ sx, group }: {
                             open={showGroupItemExecutionMenu}
                             onClose={() => setShowGroupItemExecutionMenu(false)}
                             onOpen={() => setShowGroupItemExecutionMenu(true)}
-                            onChange={e => group.setGroupConcurrency(e.target.value as MultiRunExecution)}
+                            onChange={e => group.setGroupConcurrency(e.target.value as ExecutionConcurrency)}
                         >
-                            <MenuItem value={MultiRunExecution.Sequential}>Sequential</MenuItem>
-                            <MenuItem value={MultiRunExecution.Concurrent}>Concurrent</MenuItem>
+                            <MenuItem value={ExecutionConcurrency.Sequential}>Sequential</MenuItem>
+                            <MenuItem value={ExecutionConcurrency.Concurrent}>Concurrent</MenuItem>
                         </Select>
                     </FormControl>
                 </Grid>

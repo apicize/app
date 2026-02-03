@@ -1,16 +1,23 @@
-import { Selection, WorkspaceDefaultParameters, GetTitle } from "@apicize/lib-typescript"
+import { Selection, WorkspaceDefaultParameters, GetTitle, ExecutionState, ValidationState } from "@apicize/lib-typescript"
 import { action, makeObservable, observable, toJS } from "mobx"
 import { NO_SELECTION, NO_SELECTION_ID } from "../store"
-import { EntityDefaults, WorkspaceStore } from "../../contexts/workspace.context"
+import { EntityDefaults, EntityTypeName, EntityUpdateNotification, WorkspaceStore } from "../../contexts/workspace.context"
 import { EditableWarnings } from "./editable-warnings"
+import { EntityType } from "./entity-type"
+import { DefaultsUpdate } from "../updates/defaults-update"
 
 export class EditableDefaults {
+    public readonly entityType = EntityType.Defaults
+
     @observable accessor selectedScenario: Selection = NO_SELECTION
     @observable accessor selectedAuthorization: Selection = NO_SELECTION
     @observable accessor selectedCertificate: Selection = NO_SELECTION
     @observable accessor selectedProxy: Selection = NO_SELECTION
     @observable accessor selectedData: Selection = NO_SELECTION
     @observable accessor warnings = new EditableWarnings()
+
+    @observable accessor validationState: ValidationState | undefined
+    @observable accessor executionState: ExecutionState | undefined
 
     @observable accessor id = 'Defaults'
     @observable accessor name = 'Defaults'
@@ -26,22 +33,16 @@ export class EditableDefaults {
         makeObservable(this)
     }
 
-    private onUpdate() {
+    protected performUpdate(update: DefaultsUpdate) {
         this.dirty = true
-        this.workspace.updateDefaults({
-            selectedScenario: this.selectedScenario.id === NO_SELECTION_ID ? undefined : toJS(this.selectedScenario),
-            selectedAuthorization: this.selectedAuthorization.id === NO_SELECTION_ID ? undefined : toJS(this.selectedAuthorization),
-            selectedCertificate: this.selectedCertificate.id === NO_SELECTION_ID ? undefined : toJS(this.selectedCertificate),
-            selectedProxy: this.selectedProxy.id === NO_SELECTION_ID ? undefined : toJS(this.selectedProxy),
-            selectedData: this.selectedData.id === NO_SELECTION_ID ? undefined : toJS(this.selectedData),
-            validationWarnings: this.warnings.hasEntries ? [...this.warnings.entries.values()] : undefined,
-        })
+        this.workspace.update(update)
     }
 
     @action
     deleteWarning(warningId: string) {
         this.warnings.delete(warningId)
-        this.onUpdate()
+        // TODO - MAKE WARNINGS WORK
+        // this.onUpdate()
     }
 
     @action
@@ -49,7 +50,7 @@ export class EditableDefaults {
         this.selectedScenario = entityId == NO_SELECTION_ID
             ? NO_SELECTION
             : { id: entityId, name: this.workspace.getNavigationName(entityId) }
-        this.onUpdate()
+        this.performUpdate({ type: EntityTypeName.Defaults, entityType: EntityType.Defaults, selectedScenario: this.selectedScenario })
     }
 
     @action
@@ -57,7 +58,7 @@ export class EditableDefaults {
         this.selectedAuthorization = entityId == NO_SELECTION_ID
             ? NO_SELECTION
             : { id: entityId, name: this.workspace.getNavigationName(entityId) }
-        this.onUpdate()
+        this.performUpdate({ type: EntityTypeName.Defaults, entityType: EntityType.Defaults, selectedAuthorization: this.selectedAuthorization })
     }
 
     @action
@@ -65,7 +66,7 @@ export class EditableDefaults {
         this.selectedCertificate = entityId == NO_SELECTION_ID
             ? NO_SELECTION
             : { id: entityId, name: this.workspace.getNavigationName(entityId) }
-        this.onUpdate()
+        this.performUpdate({ type: EntityTypeName.Defaults, entityType: EntityType.Defaults, selectedCertificate: this.selectedCertificate })
     }
 
     @action
@@ -73,24 +74,38 @@ export class EditableDefaults {
         this.selectedProxy = entityId == NO_SELECTION_ID
             ? NO_SELECTION
             : { id: entityId, name: this.workspace.getNavigationName(entityId) }
-        this.onUpdate()
+        this.performUpdate({ type: EntityTypeName.Defaults, entityType: EntityType.Defaults, selectedProxy: this.selectedProxy })
     }
 
     @action
     setDataId(entityId: string) {
         this.selectedData = entityId === NO_SELECTION_ID
             ? NO_SELECTION
-            : { id: entityId, name: this.workspace.data?.find(d => d.id === entityId)?.name ?? "Unnamed" }
-        this.onUpdate()
+            : { id: entityId, name: this.workspace.getNavigationName(entityId) }
+        this.performUpdate({ type: EntityTypeName.Defaults, entityType: EntityType.Defaults, selectedData: this.selectedData })
     }
 
     @action
-    refreshFromExternalUpdate(updatedDefaults: EntityDefaults) {
-        this.selectedScenario = updatedDefaults.selectedScenario ?? NO_SELECTION
-        this.selectedAuthorization = updatedDefaults.selectedAuthorization ?? NO_SELECTION
-        this.selectedCertificate = updatedDefaults.selectedCertificate ?? NO_SELECTION
-        this.selectedProxy = updatedDefaults.selectedProxy ?? NO_SELECTION
-        this.selectedData = updatedDefaults.selectedData ?? NO_SELECTION
-        this.warnings.set(updatedDefaults.validationWarnings)
+    refreshFromExternalSpecificUpdate(notification: EntityUpdateNotification) {
+        if (notification.update.entityType !== EntityType.Defaults) {
+            return
+        }
+        const updatedDefaults = notification.update;
+        if (updatedDefaults.selectedScenario !== undefined) {
+            this.selectedScenario = updatedDefaults.selectedScenario
+        }
+        if (updatedDefaults.selectedAuthorization !== undefined) {
+            this.selectedAuthorization = updatedDefaults.selectedAuthorization
+        }
+        if (updatedDefaults.selectedCertificate !== undefined) {
+            this.selectedCertificate = updatedDefaults.selectedCertificate
+        }
+        if (updatedDefaults.selectedProxy !== undefined) {
+            this.selectedProxy = updatedDefaults.selectedProxy
+        }
+        if (updatedDefaults.selectedData !== undefined) {
+            this.selectedData = updatedDefaults.selectedData
+        }
+        this.warnings.set(notification.validationWarnings)
     }
 }

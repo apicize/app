@@ -6,7 +6,7 @@ import {
     RequestMode,
     RequestRedirect
 } from 'undici-types'
-import { Executable, MultiRunExecution } from './executable';
+import { Executable, ExecutionConcurrency } from './executable';
 import { NameValuePair } from './name-value-pair';
 import { SelectedParameters } from './selected-parameters';
 import { ValidationWarnings, ValidationErrors, ValidationState } from './validation';
@@ -103,5 +103,5 @@ export interface RequestGroup extends RequestEntry {
     /**
      * Group-level concurrency
      */
-    execution: MultiRunExecution
+    execution: ExecutionConcurrency
 }

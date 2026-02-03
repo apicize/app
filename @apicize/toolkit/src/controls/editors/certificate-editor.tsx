@@ -118,11 +118,11 @@ export const CertificateEditor = observer(({ certificate, sx }: { certificate: E
                         id='cert-name'
                         label='Name'
                         aria-label='name'
-                        error={certificate.nameInvalid}
+                        error={!!certificate.nameError}
                         autoFocus={certificate.name === ''}
                         size='small'
                         value={certificate.name}
-                        helperText={certificate.nameInvalid ? 'Name is required' : ''}
+                        helperText={certificate.nameError ?? ''}
                         onChange={e => certificate.setName(e.target.value)}
                         fullWidth
                     />
@@ -162,7 +162,7 @@ export const CertificateEditor = observer(({ certificate, sx }: { certificate: E
                                             id='cert-pem'
                                             label='PEM'
                                             aria-label='pem file contents'
-                                            error={certificate.pemInvalid}
+                                            error={!!certificate.pemError}
                                             multiline
                                             slotProps={{
                                                 input: {
@@ -187,7 +187,7 @@ export const CertificateEditor = observer(({ certificate, sx }: { certificate: E
                                             id='cert-key'
                                             label='Certificate Key'
                                             aria-label='certificate key file contents'
-                                            error={certificate.keyInvalid}
+                                            error={!!certificate.keyError}
                                             multiline
                                             slotProps={{
                                                 input: {
@@ -254,7 +254,7 @@ export const CertificateEditor = observer(({ certificate, sx }: { certificate: E
                                                 label='PEM'
                                                 aria-label='pem file contents'
                                                 multiline
-                                                error={certificate.pemInvalid}
+                                                error={!!certificate.pemError}
                                                 slotProps={{
                                                     input: {
                                                         readOnly: true,

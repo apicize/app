@@ -17,7 +17,7 @@ export const ProxyEditor = observer(({ proxy, sx }: { proxy: EditableProxy, sx?:
     workspace.nextHelpTopic = 'proxies'
 
     return (
-        <Stack direction='column' className='editor proxy' sx={sx}>
+        <Stack direction='column' className='editor proxy' sx={{ ...sx, backgroundColor: 'red' }}>
             <Box className='editor-panel-header'>
                 <EditorTitle
                     icon={<AirlineStopsIcon color='proxy' />}
@@ -38,8 +38,8 @@ export const ProxyEditor = observer(({ proxy, sx }: { proxy: EditableProxy, sx?:
                             onChange={e => {
                                 proxy.setName(e.target.value)
                             }}
-                            error={proxy.nameInvalid}
-                            helperText={proxy.nameInvalid ? 'Proxy name is required' : ''}
+                            error={!! proxy.nameError}
+                            helperText={proxy.nameError ?? ''}
                             fullWidth
                         />
                     </Grid>
@@ -53,8 +53,8 @@ export const ProxyEditor = observer(({ proxy, sx }: { proxy: EditableProxy, sx?:
                             onChange={e => {
                                 proxy.setUrl(e.target.value)
                             }}
-                            error={proxy.urlInvalid}
-                            helperText={proxy.urlInvalid ? 'URL must include http/https/socks5 protocol prefix and address' : ''}
+                            error={!! proxy.urlError}
+                            helperText={proxy.urlError ?? ''}
                             fullWidth
                         />
                     </Grid>

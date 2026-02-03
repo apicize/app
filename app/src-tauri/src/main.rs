@@ -3,23 +3,27 @@
 
 pub mod dragdrop;
 pub mod error;
+pub mod navigation;
 pub mod pkce;
 pub mod results;
 pub mod sessions;
 pub mod settings;
 pub mod trace;
+pub mod updates;
 pub mod workspaces;
 use apicize_lib::{
-    ApicizeRunner, Authorization, CachedTokenInfo, ExecutionResultSuccess, ExecutionResultSummary,
-    ExecutionState, ExternalData, Parameters, PkceTokenResult, RequestBody, RequestEntry,
+    ApicizeRunner, Authorization, CachedTokenInfo, DataSet, ExecutionResultSuccess,
+    ExecutionResultSummary, ExecutionState, Parameters, PkceTokenResult, RequestBody, RequestEntry,
     TestRunnerContext, TokenResult, Validated, Workspace, clear_all_oauth2_tokens_from_cache,
     clear_oauth2_token_from_cache, editing::indexed_entities::IndexedEntityPosition,
-    get_oauth2_client_credentials, store_oauth2_token_in_cache,
+    get_absolute_file_name, get_oauth2_client_credentials, store_oauth2_token_in_cache,
 };
 use dirs::home_dir;
 use dragdrop::DroppedFile;
 use error::ApicizeAppError;
 use indexmap::IndexMap;
+use navigation::{Navigation, UpdateResponse, UpdatedNavigationEntry};
+use pathdiff::diff_paths;
 use pkce::{OAuth2PkceInfo, OAuth2PkceRequest, OAuth2PkceService};
 use results::ExecutionResultDetail;
 use rustc_hash::FxHashMap;
@@ -42,17 +46,15 @@ use tauri_plugin_clipboard::Clipboard;
 use tokio_util::sync::CancellationToken;
 use trace::{ReqwestEvent, ReqwestLogger};
 use workspaces::{
-    Entities, Entity, EntityType, ExecutionEvent, Navigation, OpenWorkspaceResult,
-    RequestEntryInfo, RequestExecution, WorkspaceInfo, WorkspaceMode, WorkspaceSaveStatus,
-    Workspaces,
+    BodyMimeInfo, ClipboardPayloadRequest, Entities, Entity, EntityType, ExecutionEvent,
+    OpenWorkspaceResult, PersistableData, RequestBodyInfo, RequestEntryInfo, RequestExecution,
+    WorkspaceInfo, WorkspaceInitialization, WorkspaceMode, WorkspaceSaveStatus, Workspaces,
 };
 
 use crate::{
     sessions::SessionEntity,
-    workspaces::{
-        ClipboardPayloadRequest, PersistableData, RequestBodyInfo, RequestBodyInfoWithBody,
-        WorkspaceInitialization,
-    },
+    updates::{EntityUpdate, EntityUpdateNotification, RequestGroupUpdate, RequestUpdate},
+    workspaces::DataSetContent,
 };
 
 struct AuthState {
@@ -289,7 +291,8 @@ async fn main() {
             get_dirty,
             get_request_active_authorization,
             get_request_active_data,
-            list,
+            get_data_set_content,
+            list_parameters,
             add,
             update,
             delete,
@@ -299,6 +302,8 @@ async fn main() {
             get_entity_type,
             find_descendant_groups,
             get_storage_information,
+            open_data_set_file,
+            save_data_set_file,
         ])
         .run(tauri::generate_context!())
         .expect("error running Apicize");
@@ -723,12 +728,14 @@ fn create_workspace(
                 webview_url.clone(),
             )
             .visible(false)
+            // .visible(true)
             .prevent_overflow_with_margin(LogicalSize::new(64, 64))
             .title(format_window_title(&workspace_result.display_name, info.dirty).as_str())
             .initialization_script(format!("window.__INIT_DATA__= {init_data};"));
 
             builder = position_window_builder(&app, builder, &current_session_id);
             let window = builder.build().unwrap();
+            // window.show().unwrap();
             window.hide().unwrap();
         }
     }
@@ -1514,7 +1521,7 @@ async fn get_request_body(
     workspaces_state: State<'_, WorkspacesState>,
     session_id: &str,
     request_id: &str,
-) -> Result<RequestBodyInfoWithBody, ApicizeAppError> {
+) -> Result<RequestBodyInfo, ApicizeAppError> {
     let mut workspaces = workspaces_state.workspaces.write().await;
     let sessions = sessions_state.sessions.read().await;
     let session = sessions.get_session(session_id)?;
@@ -1529,7 +1536,7 @@ async fn update_request_body(
     session_id: &str,
     request_id: &str,
     body: RequestBody,
-) -> Result<RequestBodyInfo, ApicizeAppError> {
+) -> Result<BodyMimeInfo, ApicizeAppError> {
     let mut workspaces = workspaces_state.workspaces.write().await;
     let sessions = sessions_state.sessions.read().await;
     let session = sessions.get_session(session_id)?;
@@ -1537,29 +1544,37 @@ async fn update_request_body(
     let body_mime_type = Some(Workspaces::get_body_type(&body));
     let body_length = Some(Workspaces::get_body_length(&body));
 
-    let body_info = RequestBodyInfoWithBody {
-        request_id: request_id.to_string(),
+    let body_info = RequestBodyInfo {
+        id: request_id.to_string(),
         body: Some(body),
         body_mime_type: body_mime_type.clone(),
         body_length,
     };
     workspaces.update_request_body(&session.workspace_id, &body_info)?;
 
+    let response = BodyMimeInfo {
+        body_mime_type: body_info.body_mime_type.clone(),
+        body_length: body_info.body_length,
+    };
+
     // Publish updates on all other sessions than the one sending the update
     // so they can update themselves
     let other_sessions = get_workspace_sessions(&session.workspace_id, &sessions, Some(session_id));
     if let Some(other_session_ids) = other_sessions {
-        let event = Entity::RequestBody(body_info.clone());
+        // Publish updates on all other sessions than the one sending the update
+        let notification = EntityUpdateNotification {
+            update: EntityUpdate::Request(RequestUpdate::from_body_info(body_info)),
+            validation_warnings: None,
+            validation_errors: None,
+        };
+
         for other_session_id in other_session_ids {
-            app.emit_to(other_session_id, "update", &event).unwrap();
+            app.emit_to(other_session_id, "update", &notification)
+                .unwrap();
         }
     }
 
-    Ok(RequestBodyInfo {
-        request_id: body_info.request_id,
-        body_mime_type: body_info.body_mime_type,
-        body_length: body_info.body_length,
-    })
+    Ok(response)
 }
 
 #[tauri::command]
@@ -1570,7 +1585,7 @@ async fn update_request_body_from_clipboard(
     clipboard_state: State<'_, Clipboard>,
     session_id: &str,
     request_id: &str,
-) -> Result<RequestBodyInfoWithBody, ApicizeAppError> {
+) -> Result<RequestBodyInfo, ApicizeAppError> {
     match clipboard_state.has_image() {
         Ok(has_image) => {
             if has_image {
@@ -1584,8 +1599,8 @@ async fn update_request_body_from_clipboard(
                 let body_length = Some(data.len());
                 let body = RequestBody::Raw { data };
                 let body_mime_type = Some(Workspaces::get_body_type(&body));
-                let body_info = RequestBodyInfoWithBody {
-                    request_id: request_id.to_string(),
+                let body_info = RequestBodyInfo {
+                    id: request_id.to_string(),
                     body: Some(body),
                     body_mime_type,
                     body_length,
@@ -1593,18 +1608,26 @@ async fn update_request_body_from_clipboard(
 
                 workspaces.update_request_body(&session.workspace_id, &body_info)?;
 
+                let response = body_info.clone();
+
                 // Publish updates on all other sessions than the one sending the update
                 // so they can update themselves
                 let other_sessions =
                     get_workspace_sessions(&session.workspace_id, &sessions, Some(session_id));
                 if let Some(other_session_ids) = other_sessions {
-                    let event = Entity::RequestBody(body_info.clone());
+                    let notification = EntityUpdateNotification {
+                        update: EntityUpdate::Request(RequestUpdate::from_body_info(body_info)),
+                        validation_warnings: None,
+                        validation_errors: None,
+                    };
+
                     for other_session_id in other_session_ids {
-                        app.emit_to(other_session_id, "update", &event).unwrap();
+                        app.emit_to(other_session_id, "update", &notification)
+                            .unwrap();
                     }
                 }
 
-                Ok(body_info)
+                Ok(response)
             } else {
                 Err(ApicizeAppError::ClipboardError(String::from(
                     "Clipboard does not contain an image",
@@ -1740,7 +1763,7 @@ async fn get_request_active_data(
     workspaces_state: State<'_, WorkspacesState>,
     session_id: &str,
     request_id: &str,
-) -> Result<Option<ExternalData>, ApicizeAppError> {
+) -> Result<Option<DataSet>, ApicizeAppError> {
     let sessions = sessions_state.sessions.read().await;
     let session = sessions.get_session(session_id)?;
     let workspaces = workspaces_state.workspaces.read().await;
@@ -1750,28 +1773,32 @@ async fn get_request_active_data(
 }
 
 #[tauri::command]
-async fn list(
+async fn get_data_set_content(
     sessions_state: State<'_, SessionsState>,
     workspaces_state: State<'_, WorkspacesState>,
     session_id: &str,
-    entity_type: EntityType,
+    data_set_id: &str,
+) -> Result<Option<DataSetContent>, ApicizeAppError> {
+    let sessions = sessions_state.sessions.read().await;
+    let session = sessions.get_session(session_id)?;
+    let workspaces = workspaces_state.workspaces.read().await;
+    let info = workspaces.get_workspace_info(&session.workspace_id)?;
+    Ok(info.data_set_content.get(data_set_id).cloned())
+}
+
+#[tauri::command]
+async fn list_parameters(
+    sessions_state: State<'_, SessionsState>,
+    workspaces_state: State<'_, WorkspacesState>,
+    session_id: &str,
     request_id: Option<&str>,
 ) -> Result<Entities, ApicizeAppError> {
     let sessions = sessions_state.sessions.read().await;
     let session = sessions.get_session(session_id)?;
     let workspaces = workspaces_state.workspaces.read().await;
-    let result = match entity_type {
-        EntityType::Parameters => {
-            Entities::Parameters(workspaces.list_parameters(&session.workspace_id, request_id)?)
-        }
-        EntityType::DataList => Entities::DataList {
-            data: workspaces.list_data(&session.workspace_id)?,
-        },
-        _ => {
-            return Err(ApicizeAppError::InvalidTypeForOperation(entity_type));
-        }
-    };
-    Ok(result)
+    Ok(Entities::Parameters(
+        workspaces.list_parameters(&session.workspace_id, request_id)?,
+    ))
 }
 
 #[tauri::command]
@@ -1833,9 +1860,9 @@ async fn get(
                     .clone(),
             )
         }
-        EntityType::Data => {
+        EntityType::DataSet => {
             let workspaces = workspaces_state.workspaces.read().await;
-            Entity::Data(workspaces.get_data(&session.workspace_id, entity_id)?)
+            Entity::DataSet(workspaces.get_data_set(&session.workspace_id, entity_id)?)
         }
         _ => {
             return Err(ApicizeAppError::InvalidTypeForOperation(entity_type));
@@ -1851,7 +1878,8 @@ async fn update_active_entity(
 ) -> Result<(), ApicizeAppError> {
     let mut sessions = sessions_state.sessions.write().await;
     let session = sessions.get_session_mut(session_id)?;
-    session.update_active_entity(&entity)
+    session.update_active_entity(&entity);
+    Ok(())
 }
 
 #[tauri::command]
@@ -1874,7 +1902,8 @@ async fn update_mode(
 ) -> Result<(), ApicizeAppError> {
     let mut sessions = sessions_state.sessions.write().await;
     let session = sessions.get_session_mut(session_id)?;
-    session.mode = WorkspaceMode::from(mode);
+    session.mode =
+        WorkspaceMode::try_from(mode).map_err(ApicizeAppError::InvalidOperation)?;
     Ok(())
 }
 
@@ -1913,7 +1942,7 @@ async fn get_title(
             workspaces.get_certificate_title(&session.workspace_id, entity_id)?
         }
         EntityType::Proxy => workspaces.get_proxy_title(&session.workspace_id, entity_id)?,
-        EntityType::Data => workspaces.get_data_title(&session.workspace_id, entity_id)?,
+        EntityType::DataSet => workspaces.get_data_title(&session.workspace_id, entity_id)?,
         _ => {
             return Err(ApicizeAppError::InvalidTypeForOperation(entity_type));
         }
@@ -1999,14 +2028,20 @@ async fn add(
             relative_position,
             clone_from_id,
         ),
-        EntityType::Data => {
-            let result = workspaces.add_data(&workspace_id, clone_from_id)?;
-            dispatch_data_list_notification(
-                &app,
-                &sessions,
+        EntityType::DataSet => {
+            let result = workspaces.add_data_set(
                 &workspace_id,
-                workspaces.list_data(&workspace_id)?,
-            );
+                relative_to_id,
+                relative_position,
+                clone_from_id,
+            )?;
+            // TODO:  refresh parameter lists
+            // dispatch_data_list_notification(
+            //     &app,
+            //     &sessions,
+            //     &workspace_id,
+            //     workspaces.list_data(&workspace_id)?,
+            // );
             Ok(result)
         }
         _ => Err(ApicizeAppError::InvalidOperation(format!(
@@ -2028,35 +2063,39 @@ async fn update(
     sessions_state: State<'_, SessionsState>,
     workspaces_state: State<'_, WorkspacesState>,
     session_id: &str,
-    entity: Entity,
-) -> Result<(), ApicizeAppError> {
+    entity_update: EntityUpdate,
+) -> Result<UpdateResponse, ApicizeAppError> {
     let sessions = sessions_state.sessions.read().await;
     let session = sessions.get_session(session_id)?;
     let mut workspaces = workspaces_state.workspaces.write().await;
 
     let other_sessions = get_workspace_sessions(&session.workspace_id, &sessions, Some(session_id));
 
-    let event = if other_sessions.is_some() {
-        Some(entity.clone())
-    } else {
-        None
-    };
+    let result = match &entity_update {
+        EntityUpdate::Request(request) => {
+            workspaces.update_request(&session.workspace_id, request)?
+        }
+        EntityUpdate::RequestGroup(group) => {
+            workspaces.update_group(&session.workspace_id, group)?
+        }
+        EntityUpdate::Scenario(scenario) => {
+            workspaces.update_scenario(&session.workspace_id, scenario)?
+        }
+        EntityUpdate::Authorization(authorization) => {
+            workspaces.update_authorization(&session.workspace_id, authorization)?
+        }
+        EntityUpdate::Certificate(certificate) => {
+            workspaces.update_certificate(&session.workspace_id, certificate)?
+        }
+        EntityUpdate::Proxy(proxy) => workspaces.update_proxy(&session.workspace_id, proxy)?,
+        EntityUpdate::DataSet(data_set) => {
+            workspaces.update_data_set(&session.workspace_id, data_set)?
+        }
+        EntityUpdate::Defaults(defaults) => {
+            let response = workspaces.update_defaults(&session.workspace_id, defaults)?;
 
-    // Perform updates and, when applicable, navigation updates
-    let result = match entity {
-        Entity::Request(request) => workspaces.update_request(&session.workspace_id, request),
-        Entity::Group(group) => workspaces.update_group(&session.workspace_id, group),
-        Entity::Scenario(scenario) => workspaces.update_scenario(&session.workspace_id, scenario),
-        Entity::Authorization(authorization) => {
-            workspaces.update_authorization(&session.workspace_id, authorization)
-        }
-        Entity::Certificate(certificate) => {
-            workspaces.update_certificate(&session.workspace_id, certificate)
-        }
-        Entity::Proxy(proxy) => workspaces.update_proxy(&session.workspace_id, proxy),
-        Entity::Data(data) => workspaces.update_data(&session.workspace_id, data),
-        Entity::Defaults(defaults) => {
-            workspaces.update_defaults(&session.workspace_id, defaults)?;
+            // Trigger an update so that requests and groups will update their default screens
+            // todo:  make this "cleaner"
             let workspace_session_ids =
                 get_workspace_sessions(&session.workspace_id, &sessions, None);
             if let Some(session_ids) = workspace_session_ids {
@@ -2071,29 +2110,36 @@ async fn update(
                             None => None,
                         }
                     {
-                        match workspaces.get_request_entry(&session.workspace_id, &request_id) {
-                            Ok(RequestEntryInfo::Request { request }) => {
-                                app.emit_to(session_id, "update", Entity::Request(request.clone()))
-                                    .unwrap();
+                        let workspace = workspaces.get_workspace(&session.workspace_id)?;
+                        match workspace.requests.entities.get(&request_id) {
+                            Some(RequestEntry::Request(request)) => {
+                                let notification = EntityUpdateNotification {
+                                    update: EntityUpdate::Request(RequestUpdate::from_selections(
+                                        request,
+                                    )),
+                                    validation_warnings: None,
+                                    validation_errors: None,
+                                };
+                                app.emit_to(session_id, "update", notification).unwrap();
                             }
-                            Ok(RequestEntryInfo::Group { group }) => {
-                                app.emit_to(session_id, "update", Entity::Group(group.clone()))
-                                    .unwrap();
+                            Some(RequestEntry::Group(group)) => {
+                                let notification = EntityUpdateNotification {
+                                    update: EntityUpdate::RequestGroup(
+                                        RequestGroupUpdate::from_selections(group),
+                                    ),
+                                    validation_warnings: None,
+                                    validation_errors: None,
+                                };
+                                app.emit_to(session_id, "update", notification).unwrap();
                             }
                             _ => {}
                         }
                     }
                 }
             }
-
-            Ok(None)
+            response
         }
-        _ => {
-            return Err(ApicizeAppError::InvalidOperation(
-                "Unable to perform update on entity".to_owned(),
-            ));
-        }
-    }?;
+    };
 
     let info = &workspaces.get_workspace_info(&session.workspace_id)?;
 
@@ -2102,7 +2148,7 @@ async fn update(
     // Publish any navigation updates to all sessions/windows for this workspace
     if let Some(session_ids) = get_workspace_sessions(&session.workspace_id, &sessions, None) {
         for session_id in session_ids {
-            if let Some(updated_navigation) = &result {
+            if let Some(updated_navigation) = &result.navigation {
                 app.emit_to(session_id, "navigation_entry", updated_navigation)
                     .unwrap();
             }
@@ -2115,19 +2161,25 @@ async fn update(
     }
 
     // Publish updates on all other sessions than the one sending the update
-    // so they can update themselves
-    if let Some(other_session_ids) = other_sessions
-        && let Some(event_to_send) = event
-    {
+    if let Some(other_session_ids) = other_sessions {
+        let notification = EntityUpdateNotification {
+            update: entity_update,
+            validation_warnings: result.validation_warnings.clone(),
+            validation_errors: result.validation_errors.clone(),
+        };
+
         for other_session_id in other_session_ids {
-            app.emit_to(other_session_id, "update", &event_to_send)
+            app.emit_to(other_session_id, "update", &notification)
                 .unwrap();
         }
     }
 
     dispatch_save_state(&app, &sessions, &session.workspace_id, info, false);
 
-    Ok(())
+    Ok(UpdateResponse {
+        validation_warnings: result.validation_warnings,
+        validation_errors: result.validation_errors,
+    })
 }
 
 #[tauri::command]
@@ -2142,14 +2194,11 @@ async fn delete(
     let mut sessions = sessions_state.sessions.write().await;
     let mut workspaces = workspaces_state.workspaces.write().await;
 
-    let workspace_id = {
-        let session = sessions.get_session(session_id)?;
-        session.workspace_id.clone()
-    };
+    let workspace_id = sessions.get_session(session_id)?.workspace_id.to_string();
 
     let mut deleted_request = false;
 
-    match entity_type {
+    let entities_with_invalid_selections = match entity_type {
         EntityType::RequestEntry => {
             deleted_request = true;
             workspaces.delete_request_entry(&workspace_id, entity_id)
@@ -2166,38 +2215,85 @@ async fn delete(
         EntityType::Authorization => workspaces.delete_authorization(&workspace_id, entity_id),
         EntityType::Certificate => workspaces.delete_certificate(&workspace_id, entity_id),
         EntityType::Proxy => workspaces.delete_proxy(&workspace_id, entity_id),
-        EntityType::Data => {
-            workspaces.delete_data(&workspace_id, entity_id)?;
-            dispatch_data_list_notification(
-                &app,
-                &sessions,
-                &workspace_id,
-                workspaces.list_data(&workspace_id)?,
-            );
-            Ok(())
-        }
+        EntityType::DataSet => workspaces.delete_data_set(&workspace_id, entity_id),
         _ => Err(ApicizeAppError::InvalidOperation(
             "Unable to perform delete on entity".to_owned(),
         )),
     }?;
 
-    let info = workspaces.get_workspace_info_mut(&workspace_id)?;
-    info.executions.remove(entity_id);
-    if deleted_request {
-        let session_ids: Vec<String> = sessions
-            .get_workspace_session_ids(&workspace_id)
+    // Collect notifications of requests/groups that had their selections updated
+    let notifications = if let Some(entities) = entities_with_invalid_selections {
+        entities
+            .request_or_group_ids
             .iter()
-            .map(|s| s.to_string())
-            .collect();
-        for session_id in session_ids {
-            if let Ok(session) = sessions.get_session_mut(&session_id) {
-                session.remove_request_exec_ctr(entity_id);
-                session.remove_execution_result_view_state(entity_id);
-            }
-        }
-    }
+            .filter_map(|id| {
+                workspaces
+                    .generate_request_selection_update(&workspace_id, id)
+                    .ok()
+            })
+            .collect::<Vec<(EntityUpdateNotification, UpdatedNavigationEntry)>>()
 
-    info.navigation = Navigation::new(&info.workspace, &info.executions);
+        // request_ids_requiring_update
+        //         .into_iter()
+        //         .filter_map(|entity_id| {
+
+        //             if entity_id != "Defaults"
+        //                 && let Ok(notifications) =
+        //                     workspaces.generate_request_selection_update(&workspace_id, &entity_id)
+        //             {
+        //                 Some(notifications)
+        //             } else {
+        //                 None
+        //             }
+        //         })
+        //         .collect::<Vec<(EntityUpdateNotification, UpdatedNavigationEntry)>>();
+    } else {
+        Vec::default()
+    };
+
+    // Clear execution state for deleted requests/groups
+    let info = workspaces.get_workspace_info_mut(&workspace_id)?;
+    let deleted_executed_request_ids = if deleted_request {
+        Some(info.delete_executions(entity_id))
+    } else {
+        None
+    };
+
+    // Update navigation for any updated entries
+    notifications.iter().for_each(|(_update, navigation)| {
+        info.navigation.update_navigation_entity(navigation);
+    });
+
+    // Clear active selection for any sessions with deleted entity
+    // and trigger client-side cleanup of execution info
+    sessions
+        .get_workspace_session_ids(&workspace_id)
+        .iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<String>>()
+        .into_iter()
+        .for_each(|session_id| {
+            notifications.iter().for_each(|(update, navigation)| {
+                app.emit("update", update).unwrap();
+                app.emit("navigation_entry", navigation).unwrap();
+            });
+            if let Ok(session) = sessions.get_session_mut(&session_id) {
+                if session
+                    .active_entity
+                    .as_ref()
+                    .is_some_and(|active| active.entity_id == entity_id)
+                {
+                    session.update_active_entity(&None);
+                }
+                if let Some(deleted_executed_request_ids) = &deleted_executed_request_ids {
+                    for deleted_request_id in deleted_executed_request_ids {
+                        session.remove_request_exec_ctr(deleted_request_id);
+                        session.remove_execution_result_view_state(deleted_request_id);
+                    }
+                }
+            }
+        });
+
     dispatch_save_state(&app, &sessions, &workspace_id, info, true);
     Ok(())
 }
@@ -2249,6 +2345,9 @@ async fn move_entity(
         ),
         EntityType::Certificate => {
             workspaces.move_certificate(&workspace_id, entity_id, relative_to_id, relative_position)
+        }
+        EntityType::DataSet => {
+            workspaces.move_data_set(&workspace_id, entity_id, relative_to_id, relative_position)
         }
         EntityType::Proxy => {
             workspaces.move_proxy(&workspace_id, entity_id, relative_to_id, relative_position)
@@ -2344,18 +2443,89 @@ async fn get_storage_information() -> StorageInformation {
     }
 }
 
-/// Dispatch notification of data list being updated (add or delete)
-fn dispatch_data_list_notification(
-    app: &AppHandle,
-    sessions: &Sessions,
-    workspace_id: &str,
-    data: Vec<ExternalData>,
-) {
-    if let Some(session_ids) = get_workspace_sessions(workspace_id, sessions, None) {
-        let event = Entity::DataList { list: data };
-        for send_to_session_id in session_ids {
-            app.emit_to(send_to_session_id, "update", &event).unwrap();
+#[tauri::command]
+async fn open_data_set_file(
+    sessions_state: State<'_, SessionsState>,
+    workspaces_state: State<'_, WorkspacesState>,
+    session_id: &str,
+    file_name: &str,
+) -> Result<(String, String), ApicizeAppError> {
+    let sessions = sessions_state.sessions.read().await;
+    let session = sessions.get_session(session_id)?;
+    let workspaces = workspaces_state.workspaces.write().await;
+    let info = workspaces.get_workspace_info(&session.workspace_id)?;
+
+    let allowed_data_path: Option<PathBuf> = if info.file_name.is_empty() {
+        None
+    } else {
+        Some(
+            std::path::absolute(&info.file_name)
+                .unwrap()
+                .parent()
+                .unwrap()
+                .to_path_buf(),
+        )
+    };
+
+    let absolute_file_name = get_absolute_file_name(file_name, &allowed_data_path)?;
+
+    // Ensure the file is within the allowed data path (same directory or child)
+    if let Some(ref allowed_path) = allowed_data_path
+        && !absolute_file_name.starts_with(allowed_path)
+    {
+        return Err(ApicizeAppError::InvalidOperation(format!(
+            "{file_name} must be in same or child directory as the workspace"
+        )));
+    }
+
+    let data = fs::read_to_string(&absolute_file_name)?;
+    let relative_file_name = diff_paths(absolute_file_name, allowed_data_path.unwrap());
+
+    Ok((
+        data,
+        if let Some(relative_file_name) = relative_file_name {
+            relative_file_name.to_string_lossy().to_string()
+        } else {
+            file_name.to_string()
+        },
+    ))
+}
+
+#[tauri::command]
+async fn save_data_set_file(
+    sessions_state: State<'_, SessionsState>,
+    workspaces_state: State<'_, WorkspacesState>,
+    session_id: &str,
+    file_name: &str,
+    data: &str,
+) -> Result<String, ApicizeAppError> {
+    let sessions = sessions_state.sessions.read().await;
+    let session = sessions.get_session(session_id)?;
+    let workspaces = workspaces_state.workspaces.write().await;
+    let info = workspaces.get_workspace_info(&session.workspace_id)?;
+
+    let allowed_data_path: PathBuf = if info.file_name.is_empty() {
+        return Err(ApicizeAppError::InvalidOperation(
+            "Workbook must be saved before saving data set file".to_string(),
+        ));
+    } else {
+        std::path::absolute(&info.file_name)?
+            .parent()
+            .ok_or(ApicizeAppError::InvalidOperation(
+                "Unable to determine parent director".to_string(),
+            ))?
+            .to_path_buf()
+    };
+
+    match diff_paths(file_name, allowed_data_path) {
+        Some(relative_file_name) => {
+            fs::write(file_name, data)?;
+            Ok(relative_file_name.to_string_lossy().to_string())
         }
+        None => Err(ApicizeAppError::InvalidOperation(format!(
+            "Data Set file {} is not in same location as workbook ({})",
+            file_name, &info.file_name
+        ))),
     }
 }
 

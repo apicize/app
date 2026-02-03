@@ -57,8 +57,8 @@ export const AuthorizationEditor = observer(({ authorization, sx }: { authorizat
                             size='small'
                             autoFocus={authorization.name === ''}
                             value={authorization.name}
-                            error={authorization.nameInvalid}
-                            helperText={authorization.nameInvalid ? 'Name is required' : ''}
+                            error={!! authorization.nameError}
+                            helperText={authorization.nameError ?? ''}
                             onChange={e => authorization.setName(e.target.value)}
                             fullWidth
                         />

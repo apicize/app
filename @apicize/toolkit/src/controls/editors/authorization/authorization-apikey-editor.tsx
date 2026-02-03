@@ -10,8 +10,8 @@ export const AuthorizationApiKeyEditor = observer(({ authorization }: { authoriz
                 label="Header"
                 aria-label='authorization header name'
                 value={authorization.header}
-                error={authorization.headerInvalid}
-                helperText={authorization.headerInvalid ? 'Header is required' : ''}
+                error={!!authorization.headerError}
+                helperText={authorization.headerError ?? ''}
                 onChange={e => authorization.setHeader(e.target.value)}
                 size='small'
                 fullWidth

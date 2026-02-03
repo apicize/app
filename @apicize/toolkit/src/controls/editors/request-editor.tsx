@@ -38,16 +38,6 @@ const RequestPanel = observer(({
     let selectedPanel = workspace.requestPanel
     let hasWarnings = request.validationWarnings.hasEntries
 
-    useEffect(() => {
-        const disposer = reaction(
-            () => workspace.data,
-            () => runInAction(() => {
-                request.parameters = undefined
-            })
-        )
-        return () => disposer()
-    })
-
     const handlePanelChanged = (_: React.SyntheticEvent, newValue: RequestPanel) => {
         if (newValue) {
             workspace.changeRequestPanel(newValue)

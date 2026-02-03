@@ -21,6 +21,70 @@ import { EditableRequest } from '../../../models/workspace/editable-request'
 import { RequestEditSessionType } from '../editor-types';
 import { ImageViewer, KNOWN_IMAGE_EXTENSIONS } from '../../viewers/image-viewer';
 
+interface RawEditorProps {
+  bodyLength: number | null
+  bodyMimeType: string | null
+  data: string
+  hasClipboardImage: boolean
+  onOpenFile: () => void
+  onPasteFromClipboard: () => void
+}
+
+const RawEditor = observer(({ bodyLength, bodyMimeType, data, hasClipboardImage, onOpenFile, onPasteFromClipboard }: RawEditorProps) => {
+  let isImage: boolean
+  let ext: string | undefined
+
+  if (bodyMimeType?.startsWith('image/')) {
+    ext = bodyMimeType.substring(6).toLocaleLowerCase()
+    let idx = ext.indexOf('+')
+    if (idx !== -1) {
+      ext = ext.substring(0, idx)
+    }
+    isImage = KNOWN_IMAGE_EXTENSIONS.includes(ext)
+  } else {
+    isImage = false
+  }
+
+  return <Stack
+    display='flex'
+    direction='column'
+    flexGrow={1}
+    position='relative'
+    boxSizing='border-box'
+    width='100%'
+    maxWidth='100%'
+    height='100%'
+    gap='10px'
+  >
+    <Stack
+      direction='row'
+      sx={{
+        borderRadius: '4px',
+        overflow: 'hidden',
+        border: '1px solid #444!important',
+        width: 'fit-content',
+      }}
+    >
+      <IconButton aria-label='load body from file' title='Load Body from File' onClick={onOpenFile} sx={{ marginRight: '4px' }}>
+        <FileOpenIcon color='primary' />
+      </IconButton>
+      <IconButton aria-label='copy body from clipboard' title='Paste Body from Clipboard' disabled={!hasClipboardImage}
+        onClick={onPasteFromClipboard} sx={{ marginRight: '4px' }}>
+        <ContentPasteGoIcon color={hasClipboardImage ? 'primary' : 'disabled'} />
+      </IconButton>
+      <Stack direction='row' padding='10px' spacing='1rem'>
+        <Box>{bodyLength ? bodyLength.toLocaleString() + ' Bytes' : ''}</Box>
+        <Box>{bodyMimeType ? bodyMimeType : ''}</Box>
+      </Stack>
+    </Stack>
+    {
+      isImage
+        ? <ImageViewer base64Data={data} extensionToRender={ext} />
+        : null
+    }
+  </Stack>
+})
+
 export const RequestBodyEditor = observer(({ request }: { request: EditableRequest }) => {
   const workspace = useWorkspace()
   const clipboard = useClipboard()
@@ -226,63 +290,6 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
     default:
       allowCopy = false
   }
-  const RawEditor = observer((
-    { bodyLength, bodyMimeType, data }:
-      { bodyLength: number | null, bodyMimeType: string | null, data: string }) => {
-
-    let isImage: boolean
-    let ext: string | undefined
-
-    if (bodyMimeType?.startsWith('image/')) {
-      ext = bodyMimeType.substring(6).toLocaleLowerCase()
-      let idx = ext.indexOf('+')
-      if (idx !== -1) {
-        ext = ext.substring(0, idx)
-      }
-      isImage = KNOWN_IMAGE_EXTENSIONS.includes(ext)
-    } else {
-      isImage = false
-    }
-
-    return <Stack
-      display='flex'
-      direction='column'
-      flexGrow={1}
-      position='relative'
-      boxSizing='border-box'
-      width='100%'
-      maxWidth='100%'
-      height='100%'
-      gap='10px'
-    >
-      <Stack
-        direction='row'
-        sx={{
-          borderRadius: '4px',
-          overflow: 'hidden',
-          border: '1px solid #444!important',
-          width: 'fit-content',
-        }}
-      >
-        <IconButton aria-label='load body from file' title='Load Body from File' onClick={() => openFile()} sx={{ marginRight: '4px' }}>
-          <FileOpenIcon color='primary' />
-        </IconButton>
-        <IconButton aria-label='copy body from clipboard' title='Paste Body from Clipboard' disabled={!clipboard.hasImage}
-          onClick={() => pasteImageFromClipboard()} sx={{ marginRight: '4px' }}>
-          <ContentPasteGoIcon color={clipboard.hasImage ? 'primary' : 'disabled'} />
-        </IconButton>
-        <Stack direction='row' padding='10px' spacing='1rem'>
-          <Box>{bodyLength ? bodyLength.toLocaleString() + ' Bytes' : ''}</Box>
-          <Box>{bodyMimeType ? bodyMimeType : ''}</Box>
-        </Stack>
-      </Stack>
-      {
-        isImage
-          ? <ImageViewer base64Data={data} extensionToRender={ext} />
-          : null
-      }
-    </Stack>
-  })
 
   return (
     <Box id='request-body-container' ref={refContainer} position='relative' width='100%' height='100%'>
@@ -349,7 +356,14 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
               valueHeader='Value'
               onUpdate={(data) => request.setBodyData(data ?? []).catch(e => feedback.toastError(e))} />
             : request.body.type == BodyType.Raw
-              ? <RawEditor bodyLength={request.bodyLength} bodyMimeType={request.bodyMimeType} data={request.body.data} />
+              ? <RawEditor
+                  bodyLength={request.bodyLength}
+                  bodyMimeType={request.bodyMimeType}
+                  data={request.body.data}
+                  hasClipboardImage={clipboard.hasImage}
+                  onOpenFile={openFile}
+                  onPasteFromClipboard={pasteImageFromClipboard}
+                />
               : <MonacoEditor
                 language={request.bodyLanguage ?? undefined}
                 width='100%'

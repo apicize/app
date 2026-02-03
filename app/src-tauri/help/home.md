@@ -19,6 +19,10 @@ Information about HTTP calls to send and how to test them
 
 Key-value pairs that can be substituted for Request URLs, headers, body content, etc. using `{{handlebars}}` placeholders for Keys
 
+### :icon[dataset] [Data Sets](help:workspace/data-sets)
+
+Blocks of data to inject into Requests during testing.
+
 ### :icon[authorization] [Authorizations](help:workspace/authorizations)
 
 Information required to enable authorization based upon API keys, Basic Authentication, OAuth2 Client and OAuth2 PKCE flows

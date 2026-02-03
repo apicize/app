@@ -12,11 +12,11 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 
 export const NameValueEditor = React.memo(({ values, title, nameHeader, valueHeader, onUpdate }: {
-    values: EditableNameValuePair[] | undefined,
+    values: EditableNameValuePair[],
     title: string,
     nameHeader: string,
     valueHeader: string,
-    onUpdate: (pair: EditableNameValuePair[] | undefined) => void
+    onUpdate: (pair: EditableNameValuePair[]) => void
 }) => {
     const onAdd = () => {
         const vals = toJS(values ?? [])

@@ -1,15 +1,16 @@
 import { Identifiable } from "./identifiable"
 import { Named } from "./named"
+import { ValidationErrors } from "./validation"
 
-export enum ExternalDataSourceType {
+export enum DataSourceType {
     JSON = 'JSON',
     FileJSON = 'FILE-JSON',
     FileCSV = 'FILE-CSV',
 }
 
-export interface ExternalData extends Identifiable, Named {
+export interface DataSet extends Identifiable, Named, ValidationErrors {
     id: string
     name: string
-    type: ExternalDataSourceType
+    type: DataSourceType
     source: string
 }

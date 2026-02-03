@@ -1,5 +1,5 @@
 import { TextField, Select, MenuItem, FormControl, InputLabel, Grid, ToggleButton, Checkbox, FormControlLabel } from '@mui/material'
-import { MultiRunExecution, Method, Methods } from '@apicize/lib-typescript'
+import { ExecutionConcurrency, Method, Methods } from '@apicize/lib-typescript'
 import { EditableRequest } from '../../../models/workspace/editable-request'
 import { observer } from 'mobx-react-lite'
 import { useWorkspace } from '../../../contexts/workspace.context'
@@ -47,13 +47,12 @@ export const RequestInfoEditor = observer(({ request }: { request: EditableReque
                         label="Name"
                         aria-label='request name'
                         // autoFocus={request.name === ''}
-                        required
                         size="small"
                         title="Name of request"
                         value={request.name}
                         onChange={e => request.setName(e.target.value)}
                         error={!!request.nameError}
-                        helperText={request.validationErrors['name']}
+                        helperText={request.nameError}
                         fullWidth
                     />
                 </Grid>
@@ -95,15 +94,14 @@ export const RequestInfoEditor = observer(({ request }: { request: EditableReque
                     <TextField
                         id='request-url'
                         label="URL"
-                        aria-label='request url'
+                        aria-label='Without label'
                         // autoFocus={request.url !== ''}
-                        required
                         size="small"
                         title="Destination URL for request"
                         value={request.url}
                         onChange={e => request.setUrl(e.target.value)}
                         error={!!request.urlError}
-                        helperText={request.validationErrors['url']}
+                        helperText={request.urlError}
                         fullWidth
                     />
                 </Grid>
@@ -148,10 +146,10 @@ export const RequestInfoEditor = observer(({ request }: { request: EditableReque
                             open={showMultiRunMenu}
                             onClose={() => setShowMultiRunMenu(false)}
                             onOpen={() => setShowMultiRunMenu(true)}
-                            onChange={e => request.setMultiRunExecution(e.target.value as MultiRunExecution)}
+                            onChange={e => request.setMultiRunExecution(e.target.value as ExecutionConcurrency)}
                         >
-                            <MenuItem value={MultiRunExecution.Sequential}>Sequential</MenuItem>
-                            <MenuItem value={MultiRunExecution.Concurrent}>Concurrent</MenuItem>
+                            <MenuItem value={ExecutionConcurrency.Sequential}>Sequential</MenuItem>
+                            <MenuItem value={ExecutionConcurrency.Concurrent}>Concurrent</MenuItem>
                         </Select>
                     </FormControl>
                 </Grid>
@@ -188,6 +186,12 @@ export const RequestInfoEditor = observer(({ request }: { request: EditableReque
                             size='small'
                             sx={{ width: '8em' }}
                             type='number'
+                            slotProps={{
+                                htmlInput: {
+                                    min: 0,
+                                    max: 99
+                                }
+                            }}
                             value={request.numberOfRedirects}
                             onChange={e => request.setNumberOfRedirects(parseInt(e.target.value))}
                         />

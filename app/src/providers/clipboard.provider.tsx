@@ -1,6 +1,7 @@
 import { ReactNode, useEffect, useMemo } from "react";
 import { hasImage, hasText, readText, readImageBase64, writeImageBase64, writeText, onClipboardUpdate, writeImageBinary, readImageBinary } from "tauri-plugin-clipboard-api"
 import { ClipboardContext, ClipboardStore, ToastSeverity, useFeedback } from "@apicize/toolkit";
+import { runInAction } from "mobx";
 
 /**
  * Implementation of clipboard operations via Tauri
@@ -45,26 +46,38 @@ export function ClipboardProvider({
             text: boolean,
             image: boolean
         }) => {
-            store.updateClipboardTextStatus(state.text)
-            store.updateClipboardImageStatus(state.image)
-            if (state.image) {
-                const tryReadImage = (attempt: number) => {
-                    readImageBase64()
-                        .then(() => { store.updateClipboardImageStatus(true) })
-                        .catch(() => {
-                            if (attempt < 30) setTimeout(() => tryReadImage(attempt + 1), 100)
-                        })
+            if (store.hasText !== state.text) {
+                runInAction(() => {
+                    store.updateClipboardTextStatus(state.text)
+                })
+            }
+            if (store.hasImage !== state.image) {
+                if (state.image) {
+                    const tryReadImage = (attempt: number) => {
+                        readImageBase64()
+                            .then(() => runInAction(() => {
+                                store.updateClipboardImageStatus(true)
+                            }))
+                            .catch(() => {
+                                if (attempt < 10) setTimeout(() => tryReadImage(attempt + 1), 100)
+                                else store.updateClipboardImageStatus(false)
+                            })
+                    }
+                    tryReadImage(0)
+                } else {
+                    runInAction(() => {
+                        store.updateClipboardImageStatus(false)
+                    })
                 }
-                tryReadImage(0)
             }
         }
 
         const unlisten = onClipboardUpdate(updateClipboardState)
-        Promise.all([hasText(), hasImage()]).then(([text, image]) => {
-            updateClipboardState({
-                text, image
-            })
-        })
+        // Promise.all([hasText(), hasImage()]).then(([text, image]) => {
+        //     updateClipboardState({
+        //         text, image
+        //     })
+        // })
         return () => {
             unlisten.then(() => { })
         }
