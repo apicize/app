@@ -2226,7 +2226,6 @@ impl Workspaces {
         update: &DataSetUpdate,
     ) -> Result<UpdateWithNavigationResponse, ApicizeAppError> {
         let info = self.get_workspace_info_mut(workspace_id)?;
-        info.dirty = true;
 
         let id = update.id.to_string();
 
@@ -2243,6 +2242,7 @@ impl Workspaces {
         }
 
         if let Some(source_type) = &update.source_type {
+            info.dirty = true;
             data_set.source_type = source_type.clone();
             data_set.validate_source();
         }
@@ -2251,6 +2251,7 @@ impl Workspaces {
             && (data_set.source_type == DataSourceType::FileJSON
                 || data_set.source_type == DataSourceType::FileCSV)
         {
+            info.dirty = true;
             data_set.source = source_file_name.to_string();
             data_set.validate_source();
         }
@@ -2258,6 +2259,7 @@ impl Workspaces {
         if let Some(source_text) = &update.source_text 
             && data_set.source_type == DataSourceType::JSON
         {
+            info.dirty = true;
             data_set.source = source_text.to_string();
         }
 

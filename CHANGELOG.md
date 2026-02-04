@@ -1,5 +1,9 @@
 # Change Log
 
+# 0.29.7
+
+* Tune data set file persistence, update demo files
+
 # 0.29.6
 
 * Move DataSets to main navigation, include file editors

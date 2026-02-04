@@ -1319,7 +1319,6 @@ export class WorkspaceStore {
 
     @action
     refreshFromExternalUpdate(notification: EntityUpdateNotification) {
-        this.dirty = true
         let activeSelection = this.activeSelection
         if (activeSelection && activeSelection.entityType === notification.update.entityType &&
             (notification.update.entityType === EntityType.Defaults || activeSelection.id === notification.update.id)) {

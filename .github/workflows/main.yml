@@ -50,17 +50,17 @@ jobs:
       releaseUploadUrl: ${{ steps.deploy-tauri.outputs.releaseUploadUrl }}
     
     steps:
-      - name: Verify Azure Signing Access
-        if: matrix.platform == 'windows-latest'
-        shell: pwsh
-        env:
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-        run: |
-          az login --service-principal -t $env:AZURE_TENANT_ID -u $env:AZURE_CLIENT_ID -p $env:AZURE_CLIENT_SECRET
-          az account show
-          az role assignment list --assignee $env:AZURE_CLIENT_ID --output table
+      # - name: Verify Azure Signing Access
+      #   if: matrix.platform == 'windows-latest'
+      #   shell: pwsh
+      #   env:
+      #     AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      #     AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      #     AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      #   run: |
+      #     az login --service-principal -t $env:AZURE_TENANT_ID -u $env:AZURE_CLIENT_ID -p $env:AZURE_CLIENT_SECRET
+      #     az account show
+      #     az role assignment list --assignee $env:AZURE_CLIENT_ID --output table
       - name: Checkout Project
         uses: actions/checkout@v4
       - name: Setup NodeJS

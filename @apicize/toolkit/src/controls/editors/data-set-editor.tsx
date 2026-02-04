@@ -26,12 +26,14 @@ import { EditableSettings } from '../../models/editable-settings'
 
 interface JsonEditorProps {
     dataSet: EditableDataSet
+    feedback: FeedbackStore
+    fileOps: FileOperationsStore
+    sourceFileActive: boolean
     settings: EditableSettings
     workspace: WorkspaceStore
-    feedback: FeedbackStore
 }
 
-const JsonEditor = observer(({ dataSet, settings, workspace, feedback }: JsonEditorProps) => {
+const JsonEditor = observer(({ dataSet, feedback, fileOps, sourceFileActive, settings, workspace }: JsonEditorProps) => {
     const [model, setModel] = useState<IDataSetEditorTextModel | null>(null)
 
     // Make sure we have the editor test model
@@ -47,7 +49,10 @@ const JsonEditor = observer(({ dataSet, settings, workspace, feedback }: JsonEdi
         theme={settings.colorScheme === "dark" ? 'vs-dark' : 'vs-light'}
         value={dataSet.text}
         onChange={(text: string) => {
-            dataSet.setJson(text, true)
+            dataSet.setJson(text)
+            if (dataSet.type === DataSourceType.FileJSON && sourceFileActive) {
+                fileOps.queueSaveDataSetFile(dataSet.sourceFileName, text)
+            }
         }}
         options={{
             automaticLayout: true,
@@ -297,9 +302,9 @@ export const DataSetEditor = observer(({ dataSet, sx }: { dataSet: EditableDataS
                 runInAction(() => {
                     try {
                         if (type === DataSourceType.FileCSV) {
-                            dataSet.setCsv(data, true)
+                            dataSet.setCsv(data)
                         } else {
-                            dataSet.setJson(data, true)
+                            dataSet.setJson(data)
                         }
                     } catch (e) {
                         feedback.toastError(e)
@@ -334,9 +339,9 @@ export const DataSetEditor = observer(({ dataSet, sx }: { dataSet: EditableDataS
                 runInAction(() => {
                     try {
                         if (dataSet.type === DataSourceType.FileCSV) {
-                            dataSet.setCsv(data, false)
+                            dataSet.setCsv(data)
                         } else {
-                            dataSet.setJson(data, false)
+                            dataSet.setJson(data)
                         }
                     } catch (e) {
                         feedback.toastError(e)
@@ -346,7 +351,7 @@ export const DataSetEditor = observer(({ dataSet, sx }: { dataSet: EditableDataS
             })
             .catch(e => {
                 dataSet.setSourceType(DataSourceType.JSON)
-                dataSet.setJson('', true)
+                dataSet.setJson('')
                 feedback.toastError(e)
             })
         return null
@@ -481,7 +486,7 @@ export const DataSetEditor = observer(({ dataSet, sx }: { dataSet: EditableDataS
                     <Grid flexGrow={1}>
                         {
                             dataSet.editType === EditableDataSetType.JSON
-                                ? <JsonEditor dataSet={dataSet} settings={settings} workspace={workspace} feedback={feedback} />
+                                ? <JsonEditor dataSet={dataSet} feedback={feedback} fileOps={fileOps} sourceFileActive={sourceFileActive} settings={settings} workspace={workspace} />
                                 : dataSet.editType === EditableDataSetType.CSV
                                     ? <CsvEditor dataSet={dataSet} feedback={feedback} fileOps={fileOps} sourceFileActive={sourceFileActive} csvColumnWidths={csvColumnWidths} />
                                     : <></>

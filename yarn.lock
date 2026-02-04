@@ -21,7 +21,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@apicize/toolkit@npm:^0.29.6, @apicize/toolkit@workspace:@apicize/toolkit":
+"@apicize/toolkit@npm:^0.29.7, @apicize/toolkit@workspace:@apicize/toolkit":
   version: 0.0.0-use.local
   resolution: "@apicize/toolkit@workspace:@apicize/toolkit"
   dependencies:
@@ -2058,17 +2058,24 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tauri-apps/api@npm:^2, @tauri-apps/api@npm:^2.8.0":
-  version: 2.9.1
-  resolution: "@tauri-apps/api@npm:2.9.1"
-  checksum: 10c0/18c76ec58b579860bfde5cd5b5ea6c3b13019d356c17d436bf395cafdf15dd1f277364cacd24cc94e5d4aa3816f39698f231773d2a18625e98702295ab0c2c8f
-  languageName: node
-  linkType: hard
-
 "@tauri-apps/api@npm:^2.0.0-beta":
   version: 2.2.0
   resolution: "@tauri-apps/api@npm:2.2.0"
   checksum: 10c0/0ff0d9735c33d71c934e34045ef3077831fa98de25a42dc4c343120b482c8c114b87ef83dc02195923c23226fe6b8cb3e6bbaa099ab64d741346ba80c164435a
+  languageName: node
+  linkType: hard
+
+"@tauri-apps/api@npm:^2.10":
+  version: 2.10.1
+  resolution: "@tauri-apps/api@npm:2.10.1"
+  checksum: 10c0/f3c0b2ba67a0b887440a7faa1e0589e847760ee30ec29b964f22573a46b817cb3af2199d6f5f7dfdda54d65b465ebaaa280454c610a5c53d808a0911fa15e45d
+  languageName: node
+  linkType: hard
+
+"@tauri-apps/api@npm:^2.8.0":
+  version: 2.9.1
+  resolution: "@tauri-apps/api@npm:2.9.1"
+  checksum: 10c0/18c76ec58b579860bfde5cd5b5ea6c3b13019d356c17d436bf395cafdf15dd1f277364cacd24cc94e5d4aa3816f39698f231773d2a18625e98702295ab0c2c8f
   languageName: node
   linkType: hard
 
@@ -2304,7 +2311,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tauri-apps/plugin-dialog@npm:^2.6.0":
+"@tauri-apps/plugin-dialog@npm:^2":
   version: 2.6.0
   resolution: "@tauri-apps/plugin-dialog@npm:2.6.0"
   dependencies:
@@ -2313,7 +2320,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tauri-apps/plugin-fs@npm:^2.4.5":
+"@tauri-apps/plugin-fs@npm:^2":
   version: 2.4.5
   resolution: "@tauri-apps/plugin-fs@npm:2.4.5"
   dependencies:
@@ -2322,7 +2329,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tauri-apps/plugin-opener@npm:^2.5.3":
+"@tauri-apps/plugin-opener@npm:^2":
   version: 2.5.3
   resolution: "@tauri-apps/plugin-opener@npm:2.5.3"
   dependencies:
@@ -3457,17 +3464,17 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "app@workspace:app"
   dependencies:
-    "@apicize/toolkit": "npm:^0.29.6"
+    "@apicize/toolkit": "npm:^0.29.7"
     "@dnd-kit/core": "npm:^6.1.0"
     "@fontsource/roboto-flex": "npm:^5.2.6"
     "@fontsource/roboto-mono": "npm:^5.1.1"
     "@mui/material": "npm:^7.3.7"
     "@mui/system": "npm:^7.3.7"
-    "@tauri-apps/api": "npm:^2"
+    "@tauri-apps/api": "npm:^2.10"
     "@tauri-apps/cli": "npm:^2"
-    "@tauri-apps/plugin-dialog": "npm:^2.6.0"
-    "@tauri-apps/plugin-fs": "npm:^2.4.5"
-    "@tauri-apps/plugin-opener": "npm:^2.5.3"
+    "@tauri-apps/plugin-dialog": "npm:^2"
+    "@tauri-apps/plugin-fs": "npm:^2"
+    "@tauri-apps/plugin-opener": "npm:^2"
     "@tauri-apps/plugin-os": "npm:^2"
     "@types/react": "npm:^18.3.3"
     "@types/react-dom": "npm:^18.3"

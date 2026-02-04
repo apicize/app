@@ -1902,8 +1902,7 @@ async fn update_mode(
 ) -> Result<(), ApicizeAppError> {
     let mut sessions = sessions_state.sessions.write().await;
     let session = sessions.get_session_mut(session_id)?;
-    session.mode =
-        WorkspaceMode::try_from(mode).map_err(ApicizeAppError::InvalidOperation)?;
+    session.mode = WorkspaceMode::try_from(mode).map_err(ApicizeAppError::InvalidOperation)?;
     Ok(())
 }
 
@@ -2517,16 +2516,9 @@ async fn save_data_set_file(
             .to_path_buf()
     };
 
-    match diff_paths(file_name, allowed_data_path) {
-        Some(relative_file_name) => {
-            fs::write(file_name, data)?;
-            Ok(relative_file_name.to_string_lossy().to_string())
-        }
-        None => Err(ApicizeAppError::InvalidOperation(format!(
-            "Data Set file {} is not in same location as workbook ({})",
-            file_name, &info.file_name
-        ))),
-    }
+    let absolute_file_name = get_absolute_file_name(file_name, &Some(allowed_data_path))?;
+    fs::write(absolute_file_name, data)?;
+    Ok(file_name.to_string())
 }
 
 #[derive(Clone, Serialize, Deserialize)]
