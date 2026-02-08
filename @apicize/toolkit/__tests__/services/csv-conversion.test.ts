@@ -1,4 +1,4 @@
-import { CsvConversion, CsvRow } from '../../src/services/csv-conversion';
+import { Csv, CsvConversion, CsvRow } from '../../src/services/csv-conversion';
 
 describe('CsvConversion', () => {
     describe('fromCsv', () => {
@@ -136,11 +136,11 @@ describe('CsvConversion', () => {
 
     describe('toCsvString', () => {
         it('converts simple data to CSV string', () => {
-            const data = {
+            const data: Csv = {
                 columns: ['name', 'age', 'city'],
                 rows: [
-                    { name: 'Alice', age: 30, city: 'New York' },
-                    { name: 'Bob', age: 25, city: 'London' }
+                    { name: 'Alice', age: '30', city: 'New York' },
+                    { name: 'Bob', age: '25', city: 'London' }
                 ]
             };
 
@@ -199,8 +199,8 @@ describe('CsvConversion', () => {
             const data = {
                 columns: ['id', 'price', 'quantity'],
                 rows: [
-                    { id: 1, price: 19.99, quantity: 5 },
-                    { id: 2, price: 29.99, quantity: 3 }
+                    { id: '1', price: '19.99', quantity: '5' },
+                    { id: '2', price: '29.99', quantity: '3' }
                 ]
             };
 
@@ -214,8 +214,8 @@ describe('CsvConversion', () => {
             const data = {
                 columns: ['name', 'active', 'verified'],
                 rows: [
-                    { name: 'User 1', active: true, verified: false },
-                    { name: 'User 2', active: false, verified: true }
+                    { name: 'User 1', active: 'true', verified: 'false' },
+                    { name: 'User 2', active: 'false', verified: 'true' }
                 ]
             };
 
@@ -319,18 +319,18 @@ describe('CsvConversion', () => {
                 columns: ['ID', 'Name, Title', 'Quote', 'Active', 'Price'],
                 rows: [
                     {
-                        'ID': 1,
+                        'ID': '1',
                         'Name, Title': 'Dr. Smith, PhD',
                         'Quote': 'He said "hello, world"',
-                        'Active': true,
-                        'Price': 99.99
+                        'Active': 'true',
+                        'Price': '99.99'
                     },
                     {
-                        'ID': 2,
+                        'ID': '2',
                         'Name, Title': 'Ms. Jones',
                         'Quote': 'Simple text',
-                        'Active': false,
-                        'Price': 49.5
+                        'Active': 'false',
+                        'Price': '49.5'
                     }
                 ]
             };
@@ -339,6 +339,166 @@ describe('CsvConversion', () => {
             const expected = 'ID,"Name, Title",Quote,Active,Price\n1,"Dr. Smith, PhD","He said ""hello, world""",true,99.99\n2,Ms. Jones,Simple text,false,49.5';
 
             expect(result).toEqual(expected);
+        });
+    });
+
+    describe('escapeCsv', () => {
+        it('returns simple values unchanged', () => {
+            expect(CsvConversion.escapeCsv('hello')).toBe('hello');
+            expect(CsvConversion.escapeCsv('simple text')).toBe('simple text');
+            expect(CsvConversion.escapeCsv('123')).toBe('123');
+        });
+
+        it('converts numbers to strings', () => {
+            expect(CsvConversion.escapeCsv(123)).toBe('123');
+            expect(CsvConversion.escapeCsv(45.67)).toBe('45.67');
+            expect(CsvConversion.escapeCsv(0)).toBe('0');
+        });
+
+        it('converts booleans to strings', () => {
+            expect(CsvConversion.escapeCsv(true)).toBe('true');
+            expect(CsvConversion.escapeCsv(false)).toBe('false');
+        });
+
+        it('escapes tabs', () => {
+            expect(CsvConversion.escapeCsv('Tab\tseparated')).toBe('Tab\\tseparated');
+            expect(CsvConversion.escapeCsv('one\ttwo\tthree')).toBe('one\\ttwo\\tthree');
+        });
+
+        it('escapes newlines', () => {
+            expect(CsvConversion.escapeCsv('Line 1\nLine 2')).toBe('Line 1\\nLine 2');
+            expect(CsvConversion.escapeCsv('a\nb\nc')).toBe('a\\nb\\nc');
+        });
+
+        it('escapes carriage returns', () => {
+            expect(CsvConversion.escapeCsv('Carriage\rreturn')).toBe('Carriage\\rreturn');
+            expect(CsvConversion.escapeCsv('a\rb\rc')).toBe('a\\rb\\rc');
+        });
+
+        it('wraps values with commas in quotes', () => {
+            expect(CsvConversion.escapeCsv('hello, world')).toBe('"hello, world"');
+            expect(CsvConversion.escapeCsv('one, two, three')).toBe('"one, two, three"');
+        });
+
+        it('wraps values with quotes in quotes and doubles internal quotes', () => {
+            expect(CsvConversion.escapeCsv('He said "hello"')).toBe('"He said ""hello"""');
+            expect(CsvConversion.escapeCsv('A "quoted" value')).toBe('"A ""quoted"" value"');
+            expect(CsvConversion.escapeCsv('"hello"')).toBe('"""hello"""');
+        });
+
+        it('handles values with both commas and quotes', () => {
+            expect(CsvConversion.escapeCsv('He said "hello, world"')).toBe('"He said ""hello, world"""');
+            expect(CsvConversion.escapeCsv('A "special" item, very unique')).toBe('"A ""special"" item, very unique"');
+        });
+
+        it('escapes mixed special characters', () => {
+            expect(CsvConversion.escapeCsv('Tab\tseparated\nnewline\rcarriage')).toBe('Tab\\tseparated\\nnewline\\rcarriage');
+        });
+
+        it('handles empty string', () => {
+            expect(CsvConversion.escapeCsv('')).toBe('');
+        });
+
+        it('round-trips with unescapeCsv', () => {
+            const originalValues = [
+                'simple',
+                'with, comma',
+                'with "quotes"',
+                'with "quotes" and, comma',
+                'with\ttab',
+                'with\nnewline',
+                'with\rcarriage',
+                'mixed\ttab\nand\rall'
+            ];
+
+            for (const original of originalValues) {
+                const escaped = CsvConversion.escapeCsv(original);
+                const unescaped = CsvConversion.unescapeCsv(escaped);
+                expect(unescaped).toBe(original);
+            }
+        });
+    });
+
+    describe('unescapeCsv', () => {
+        it('returns simple values unchanged', () => {
+            expect(CsvConversion.unescapeCsv('hello')).toBe('hello');
+            expect(CsvConversion.unescapeCsv('simple text')).toBe('simple text');
+            expect(CsvConversion.unescapeCsv('123')).toBe('123');
+        });
+
+        it('trims whitespace', () => {
+            expect(CsvConversion.unescapeCsv('  hello  ')).toBe('hello');
+            expect(CsvConversion.unescapeCsv('\thello\t')).toBe('hello');
+        });
+
+        it('removes surrounding quotes', () => {
+            expect(CsvConversion.unescapeCsv('"hello"')).toBe('hello');
+            expect(CsvConversion.unescapeCsv('"simple text"')).toBe('simple text');
+        });
+
+        it('unescapes doubled quotes inside quoted values', () => {
+            expect(CsvConversion.unescapeCsv('"He said ""hello"""')).toBe('He said "hello"');
+            expect(CsvConversion.unescapeCsv('"A ""quoted"" value"')).toBe('A "quoted" value');
+            expect(CsvConversion.unescapeCsv('"""hello"""')).toBe('"hello"');
+        });
+
+        it('unescapes values with commas', () => {
+            expect(CsvConversion.unescapeCsv('"hello, world"')).toBe('hello, world');
+            expect(CsvConversion.unescapeCsv('"one, two, three"')).toBe('one, two, three');
+        });
+
+        it('unescapes values with both commas and quotes', () => {
+            expect(CsvConversion.unescapeCsv('"He said ""hello, world"""')).toBe('He said "hello, world"');
+            expect(CsvConversion.unescapeCsv('"A ""special"" item, very unique"')).toBe('A "special" item, very unique');
+        });
+
+        it('unescapes escaped tabs', () => {
+            expect(CsvConversion.unescapeCsv('Tab\\tseparated')).toBe('Tab\tseparated');
+            expect(CsvConversion.unescapeCsv('one\\ttwo\\tthree')).toBe('one\ttwo\tthree');
+        });
+
+        it('unescapes escaped newlines', () => {
+            expect(CsvConversion.unescapeCsv('Line 1\\nLine 2')).toBe('Line 1\nLine 2');
+            expect(CsvConversion.unescapeCsv('a\\nb\\nc')).toBe('a\nb\nc');
+        });
+
+        it('unescapes escaped carriage returns', () => {
+            expect(CsvConversion.unescapeCsv('Carriage\\rreturn')).toBe('Carriage\rreturn');
+            expect(CsvConversion.unescapeCsv('a\\rb\\rc')).toBe('a\rb\rc');
+        });
+
+        it('unescapes mixed special characters', () => {
+            expect(CsvConversion.unescapeCsv('Tab\\tseparated\\nnewline\\rcarriage')).toBe('Tab\tseparated\nnewline\rcarriage');
+        });
+
+        it('handles empty string', () => {
+            expect(CsvConversion.unescapeCsv('')).toBe('');
+        });
+
+        it('handles empty quoted string', () => {
+            expect(CsvConversion.unescapeCsv('""')).toBe('');
+        });
+
+        it('round-trips with escapeCsv via toCsvString/fromCsv', () => {
+            const originalValues = [
+                'simple',
+                'with, comma',
+                'with "quotes"',
+                'with "quotes" and, comma',
+                'with\ttab',
+                'with\nnewline',
+                'with\rcarriage',
+                'mixed\ttab\nand\rall'
+            ];
+
+            for (const original of originalValues) {
+                const data = { columns: ['value'], rows: [{ value: original }] };
+                const csvString = CsvConversion.toCsvString(data);
+                const lines = csvString.split('\n');
+                const escapedValue = lines[1];
+                const unescaped = CsvConversion.unescapeCsv(escapedValue);
+                expect(unescaped).toBe(original);
+            }
         });
     });
 
@@ -391,10 +551,85 @@ describe('CsvConversion', () => {
             expect(parsedData.columns).toEqual(originalData.columns);
             expect(parsedData.rows).toEqual(originalData.rows);
         });
+
+        it('preserves complex nested objects and arrays through fromObject and toObject', () => {
+            const originalData = [
+                {
+                    id: 1,
+                    name: 'Alice',
+                    address: {
+                        street: '123 Main St',
+                        city: 'New York',
+                        coordinates: { lat: 40.7128, lng: -74.0060 }
+                    },
+                    tags: ['developer', 'designer'],
+                    projects: [
+                        { name: 'Project A', status: 'active' },
+                        { name: 'Project B', status: 'completed' }
+                    ]
+                },
+                {
+                    id: 2,
+                    name: 'Bob',
+                    address: {
+                        street: '456 Oak Ave',
+                        city: 'Los Angeles',
+                        coordinates: { lat: 34.0522, lng: -118.2437 }
+                    },
+                    tags: ['manager'],
+                    projects: [
+                        { name: 'Project C', status: 'pending' }
+                    ]
+                }
+            ];
+
+            // Convert to CSV format
+            const csvData = CsvConversion.fromObject(originalData);
+
+            // Verify columns were created
+            expect(csvData.columns).toContain('id');
+            expect(csvData.columns).toContain('name');
+            expect(csvData.columns).toContain('address');
+            expect(csvData.columns).toContain('tags');
+            expect(csvData.columns).toContain('projects');
+
+            // Convert back to objects
+            const result: { [name: string]: any }[] = CsvConversion.toObject(csvData);
+
+            // Verify round-trip preserves the data
+            expect(result.length).toBe(2);
+
+            // Check first object
+            expect(result[0].id).toBe('1');
+            expect(result[0].name).toBe('Alice');
+            expect(result[0].address).toEqual({
+                street: '123 Main St',
+                city: 'New York',
+                coordinates: { lat: 40.7128, lng: -74.0060 }
+            });
+            expect(result[0].tags).toEqual(['developer', 'designer']);
+            expect(result[0].projects).toEqual([
+                { name: 'Project A', status: 'active' },
+                { name: 'Project B', status: 'completed' }
+            ]);
+
+            // Check second object
+            expect(result[1].id).toBe('2');
+            expect(result[1].name).toBe('Bob');
+            expect(result[1].address).toEqual({
+                street: '456 Oak Ave',
+                city: 'Los Angeles',
+                coordinates: { lat: 34.0522, lng: -118.2437 }
+            });
+            expect(result[1].tags).toEqual(['manager']);
+            expect(result[1].projects).toEqual([
+                { name: 'Project C', status: 'pending' }
+            ]);
+        });
     });
 
     describe('toObject', () => {
-        it('converts simple CSV data to array of name/value objects', () => {
+        it('converts simple CSV data to array of objects', () => {
             const data = {
                 columns: ['name', 'age', 'city'],
                 rows: [
@@ -406,16 +641,8 @@ describe('CsvConversion', () => {
             const result = CsvConversion.toObject(data);
 
             expect(result).toEqual([
-                [
-                    { name: 'name', value: 'Alice' },
-                    { name: 'age', value: '30' },
-                    { name: 'city', value: 'New York' }
-                ],
-                [
-                    { name: 'name', value: 'Bob' },
-                    { name: 'age', value: '25' },
-                    { name: 'city', value: 'London' }
-                ]
+                { name: 'Alice', age: '30', city: 'New York' },
+                { name: 'Bob', age: '25', city: 'London' }
             ]);
         });
 
@@ -430,10 +657,7 @@ describe('CsvConversion', () => {
             const result = CsvConversion.toObject(data);
 
             expect(result).toEqual([
-                [
-                    { name: 'product', value: 'Widget' },
-                    { name: 'price', value: '19.99' }
-                ]
+                { product: 'Widget', price: '19.99' }
             ]);
         });
 
@@ -450,9 +674,9 @@ describe('CsvConversion', () => {
             const result = CsvConversion.toObject(data);
 
             expect(result).toEqual([
-                [{ name: 'name', value: 'Alice' }],
-                [{ name: 'name', value: 'Bob' }],
-                [{ name: 'name', value: 'Charlie' }]
+                { name: 'Alice' },
+                { name: 'Bob' },
+                { name: 'Charlie' }
             ]);
         });
 
@@ -468,16 +692,8 @@ describe('CsvConversion', () => {
             const result = CsvConversion.toObject(data);
 
             expect(result).toEqual([
-                [
-                    { name: 'name', value: 'Alice' },
-                    { name: 'email', value: 'alice@example.com' },
-                    { name: 'phone', value: '' }
-                ],
-                [
-                    { name: 'name', value: '' },
-                    { name: 'email', value: 'bob@example.com' },
-                    { name: 'phone', value: '555-1234' }
-                ]
+                { name: 'Alice', email: 'alice@example.com', phone: '' },
+                { name: '', email: 'bob@example.com', phone: '555-1234' }
             ]);
         });
 
@@ -493,16 +709,8 @@ describe('CsvConversion', () => {
             const result = CsvConversion.toObject(data);
 
             expect(result).toEqual([
-                [
-                    { name: 'name', value: 'Alice' },
-                    { name: 'email', value: 'alice@example.com' },
-                    { name: 'phone', value: '' }
-                ],
-                [
-                    { name: 'name', value: 'Bob' },
-                    { name: 'email', value: '' },
-                    { name: 'phone', value: '' }
-                ]
+                { name: 'Alice', email: 'alice@example.com', phone: '' },
+                { name: 'Bob', email: '', phone: '' }
             ]);
         });
 
@@ -517,11 +725,7 @@ describe('CsvConversion', () => {
             const result = CsvConversion.toObject(data);
 
             expect(result).toEqual([
-                [
-                    { name: 'Full Name', value: 'Alice Smith' },
-                    { name: 'Address, City', value: '123 Main St, NYC' },
-                    { name: 'Favorite "Color"', value: 'Blue' }
-                ]
+                { 'Full Name': 'Alice Smith', 'Address, City': '123 Main St, NYC', 'Favorite "Color"': 'Blue' }
             ]);
         });
 
@@ -537,14 +741,8 @@ describe('CsvConversion', () => {
             const result = CsvConversion.toObject(data);
 
             expect(result).toEqual([
-                [
-                    { name: 'product', value: 'Item 1' },
-                    { name: 'description', value: 'A "special" item, very unique' }
-                ],
-                [
-                    { name: 'product', value: 'Item 2' },
-                    { name: 'description', value: 'Has\ttabs\tand\nnewlines' }
-                ]
+                { product: 'Item 1', description: 'A "special" item, very unique' },
+                { product: 'Item 2', description: 'Has\ttabs\tand\nnewlines' }
             ]);
         });
 
@@ -559,7 +757,7 @@ describe('CsvConversion', () => {
             expect(result).toEqual([]);
         });
 
-        it('maintains column order', () => {
+        it('maintains column order in object keys', () => {
             const data = {
                 columns: ['z_field', 'a_field', 'm_field'],
                 rows: [
@@ -570,17 +768,14 @@ describe('CsvConversion', () => {
             const result = CsvConversion.toObject(data);
 
             expect(result).toEqual([
-                [
-                    { name: 'z_field', value: 'Z' },
-                    { name: 'a_field', value: 'A' },
-                    { name: 'm_field', value: 'M' }
-                ]
+                { z_field: 'Z', a_field: 'A', m_field: 'M' }
             ]);
 
-            // Verify order is preserved
-            expect(result[0][0].name).toBe('z_field');
-            expect(result[0][1].name).toBe('a_field');
-            expect(result[0][2].name).toBe('m_field');
+            // Verify keys exist in object
+            const keys = Object.keys(result[0]);
+            expect(keys).toContain('z_field');
+            expect(keys).toContain('a_field');
+            expect(keys).toContain('m_field');
         });
 
         it('handles complex data with multiple rows and columns', () => {
@@ -596,17 +791,50 @@ describe('CsvConversion', () => {
             const result = CsvConversion.toObject(data);
 
             expect(result.length).toBe(3);
-            expect(result[0].length).toBe(5);
-            expect(result[1].length).toBe(5);
-            expect(result[2].length).toBe(5);
+            expect(Object.keys(result[0]).length).toBe(5);
+            expect(Object.keys(result[1]).length).toBe(5);
+            expect(Object.keys(result[2]).length).toBe(5);
 
-            expect(result[0]).toEqual([
-                { name: 'id', value: '1' },
-                { name: 'name', value: 'Alice' },
-                { name: 'email', value: 'alice@example.com' },
-                { name: 'status', value: 'active' },
-                { name: 'score', value: '95' }
+            expect(result[0]).toEqual({
+                id: '1',
+                name: 'Alice',
+                email: 'alice@example.com',
+                status: 'active',
+                score: '95'
+            });
+        });
+
+        it('unescapes CSV-escaped values', () => {
+            const data = {
+                columns: ['name', 'description'],
+                rows: [
+                    { name: 'Product A', description: '"A product, with a comma"' },
+                    { name: 'Product B', description: '"He said ""hello"""' },
+                    { name: 'Product C', description: 'Tab\\tseparated\\nnewline' }
+                ]
+            };
+
+            const result = CsvConversion.toObject(data);
+
+            expect(result).toEqual([
+                { name: 'Product A', description: 'A product, with a comma' },
+                { name: 'Product B', description: 'He said "hello"' },
+                { name: 'Product C', description: 'Tab\tseparated\nnewline' }
             ]);
+        });
+
+        it('unescapes quoted values containing JSON and parses them', () => {
+            const data = {
+                columns: ['name', 'config'],
+                rows: [
+                    { name: 'Item 1', config: '"{""key"": ""value""}"' }
+                ]
+            };
+
+            const result = CsvConversion.toObject(data);
+
+            // After unescaping, the JSON is parsed into an object
+            expect(result[0]).toEqual({ name: 'Item 1', config: { key: 'value' } });
         });
     });
 

@@ -1,4 +1,4 @@
-import { action, computed, makeObservable, observable, runInAction, toJS } from "mobx"
+import { action, computed, makeObservable, observable, runInAction } from "mobx"
 import { ExecutionEvent, ExecutionResultViewState } from "../models/workspace/execution"
 import { EditableRequest } from "../models/workspace/editable-request"
 import { EditableRequestGroup } from "../models/workspace/editable-request-group"
@@ -26,8 +26,6 @@ import {
     ValidationState,
     ExecutionState,
     Body,
-    BodyType,
-    NameValuePair,
     TokenResult,
     DataSourceType,
 } from "@apicize/lib-typescript"
@@ -51,7 +49,6 @@ import { RequestExecution } from "../models/request-execution"
 import { IDataSetEditorTextModel, IRequestEditorTextModel, IResultEditorTextModel } from "../models/editor-text-model"
 import { EntityUpdate } from "../models/updates/entity-update"
 import { RequestBodyInfo, RequestBodyMimeInfo } from "../models/workspace/request-body-info"
-import { DefaultsUpdate } from "../models/updates/defaults-update"
 import { DataSetContent } from "../models/updates/data-set-update"
 
 export enum WorkspaceMode {
@@ -84,6 +81,7 @@ export class WorkspaceStore {
     @observable accessor dirty = false
     @observable accessor editorCount = 0
     @observable accessor fileName = ''
+    @observable accessor directory = ''
     @observable accessor displayName = ''
     @observable accessor navigation = {
         requests: [],
@@ -170,7 +168,6 @@ export class WorkspaceStore {
             updateRequestBody: (requestId: string, body?: Body) => Promise<RequestBodyMimeInfo>,
             updateRequestBodyFromClipboard: (requestId: String) => Promise<RequestBodyInfo>,
             openUrl: (url: string) => Promise<void>,
-
         }) {
         makeObservable(this)
         this.initialize(initialization)
@@ -180,6 +177,7 @@ export class WorkspaceStore {
     initialize(initialization: WorkspaceInitialization) {
         this.defaults = new EditableDefaults(initialization.defaults, this)
         this.fileName = initialization.saveState.fileName
+        this.directory = initialization.saveState.directory
         this.displayName = initialization.saveState.displayName
         this.dirty = initialization.saveState.dirty
         this.editorCount = initialization.saveState.editorCount
@@ -224,6 +222,7 @@ export class WorkspaceStore {
     updateSaveState(state: SessionSaveState) {
         runInAction(() => {
             this.fileName = state.fileName
+            this.directory = state.directory
             this.displayName = state.displayName
             this.dirty = state.dirty
             this.editorCount = state.editorCount
@@ -1467,6 +1466,7 @@ export interface WorkspaceInitialization {
 
 export interface SessionSaveState {
     fileName: string
+    directory: string
     displayName: string
     dirty: boolean
     editorCount: number
@@ -1491,4 +1491,9 @@ export interface EntityUpdateNotification {
     update: EntityUpdate
     validationWarnings?: string[]
     validationErrors?: { [name: string]: string },
+}
+
+export interface OpenDataSetFileResponse {
+    relativeFileName: string
+    dataSetContent?: DataSetContent
 }

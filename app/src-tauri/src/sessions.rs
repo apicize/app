@@ -251,6 +251,7 @@ impl Session {
 #[serde(rename_all = "camelCase")]
 pub struct SessionSaveState {
     pub file_name: String,
+    pub directory: String,
     pub display_name: String,
     pub dirty: bool,
     pub editor_count: usize,

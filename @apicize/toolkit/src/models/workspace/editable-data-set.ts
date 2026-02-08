@@ -33,15 +33,12 @@ export class EditableDataSet extends Editable<DataSet> {
         this.type = entry.type
         this.csvColumns = content?.csvColumns ?? []
         this.csvRows = content?.csvRows ?? []
-        this.text = entry.type === DataSourceType.JSON
-            ? entry.source
-            : content?.sourceText ?? ''
         if (entry.type == DataSourceType.FileCSV || entry.type === DataSourceType.FileJSON) {
             this.text = content?.sourceText ?? ''
             this.sourceFileName = entry.source
             this.triggerFileLoad = (content?.sourceText === undefined && this.sourceFileName.length > 0)
         } else {
-            this.text = content?.sourceText ?? ''
+            this.text = entry.source
             this.sourceFileName = ''
             this.triggerFileLoad = false
         }
@@ -49,10 +46,8 @@ export class EditableDataSet extends Editable<DataSet> {
         this.validationErrors = entry.validationErrors ?? {}
     }
 
-    protected performUpdate(update: DataSetUpdate, markAsDirty: boolean) {
-        if (markAsDirty) {
-            this.markAsDirty()
-        }
+    protected performUpdate(update: DataSetUpdate) {
+        this.markAsDirty()
         this.workspace.update(update)
             .then(updates => runInAction(() => {
                 if (updates) {
@@ -69,7 +64,7 @@ export class EditableDataSet extends Editable<DataSet> {
             entityType: EntityType.DataSet,
             id: this.id,
             name: value
-        }, true)
+        })
     }
 
     @action
@@ -77,7 +72,6 @@ export class EditableDataSet extends Editable<DataSet> {
         if (this.type === value) {
             return
         }
-
         if (this.type === DataSourceType.FileCSV) {
             const data = CsvConversion.toObject({ columns: this.csvColumns, rows: this.csvRows })
             this.text = JSON.stringify(data, undefined, '   ')
@@ -109,7 +103,7 @@ export class EditableDataSet extends Editable<DataSet> {
             sourceFileName: '',
             csvColumns: this.csvColumns,
             csvRows: this.csvRows,
-        }, true)
+        })
     }
 
     @action
@@ -122,7 +116,7 @@ export class EditableDataSet extends Editable<DataSet> {
                 entityType: EntityType.DataSet,
                 id: this.id,
                 sourceFileName: value
-            }, true)
+            })
         }
     }
 
@@ -142,52 +136,39 @@ export class EditableDataSet extends Editable<DataSet> {
             sourceText: '',
             csvColumns: ['data'],
             csvRows: []
-        }, true)
+        })
     }
 
     @action
-    public setCsv(csv: string) {
-        this.editType = EditableDataSetType.CSV
+    public setCsv(csvColumns: string[], csvRows: CsvRow[], triggerUpdate: boolean) {
         this.triggerFileLoad = false
-        try {
-            if (csv.length === 0) {
-                throw new Error('CSV data source is empty')
-            }
-            const converted = CsvConversion.fromCsv(csv)
-            this.csvColumns = converted.columns
-            this.csvRows = converted.rows.map(r => ({ ...r, _id: GenerateIdentifier() }))
+        this.editType = EditableDataSetType.CSV
+        this.csvColumns = csvColumns
+        this.csvRows = csvRows
+        if (triggerUpdate) {
             this.performUpdate({
                 type: EntityTypeName.DataSet,
                 entityType: EntityType.DataSet,
                 id: this.id,
-                csvColumns: converted.columns,
-                csvRows: converted.rows,
-            }, false)
-        } catch (e) {
-            this.csvColumns = ['data']
-            this.csvRows = []
-            this.performUpdate({
-                type: EntityTypeName.DataSet,
-                entityType: EntityType.DataSet,
-                id: this.id,
-                csvColumns: ['data'],
-                csvRows: [],
-            }, false)
-            throw e
+                csvColumns,
+                csvRows,
+            })
         }
     }
 
     @action
-    public setJson(value: string) {
+    public setJson(value: string, triggerUpdate: boolean) {
         this.triggerFileLoad = false
         this.editType = EditableDataSetType.JSON
         this.text = value
-        this.performUpdate({
-            type: EntityTypeName.DataSet,
-            entityType: EntityType.DataSet,
-            id: this.id,
-            sourceText: value,
-        }, this.type === DataSourceType.JSON)
+        if (triggerUpdate) {
+            this.performUpdate({
+                type: EntityTypeName.DataSet,
+                entityType: EntityType.DataSet,
+                id: this.id,
+                sourceText: value,
+            })
+        }
     }
 
     public getTextToSave() {
@@ -234,11 +215,11 @@ export class EditableDataSet extends Editable<DataSet> {
             id: this.id,
             csvColumns: this.csvColumns,
             csvRows: this.csvRows,
-        }, false)
+        })
     }
 
     @action
-    public deleteColumn(columnField: string): string {
+    public deleteColumn(columnField: string) {
         // Remove the column from the columns array
         this.csvColumns = this.csvColumns.filter(c => c !== columnField)
 
@@ -254,14 +235,10 @@ export class EditableDataSet extends Editable<DataSet> {
             id: this.id,
             csvColumns: this.csvColumns,
             csvRows: this.csvRows,
-        }, false)
-        return CsvConversion.toCsvString({
-            columns: this.csvColumns,
-            rows: this.csvRows
         })
     }
 
-    public addRow(): string {
+    public addRow() {
         const newRow = Object.fromEntries(this.csvColumns.map(c => [c, '']))
         newRow['_id'] = GenerateIdentifier()
         this.csvRows = [...this.csvRows, newRow]
@@ -270,12 +247,11 @@ export class EditableDataSet extends Editable<DataSet> {
             entityType: EntityType.DataSet,
             id: this.id,
             csvRows: this.csvRows,
-        }, false)
-        return CsvConversion.toCsvString({ columns: this.csvColumns, rows: this.csvRows })
+        })
     }
 
     @action
-    public deleteRow(rowId: string): string {
+    public deleteRow(rowId: string) {
         // Remove the row with the specified id
         this.csvRows = this.csvRows.filter(row => row._id !== rowId)
         this.performUpdate({
@@ -283,12 +259,11 @@ export class EditableDataSet extends Editable<DataSet> {
             entityType: EntityType.DataSet,
             id: this.id,
             csvRows: this.csvRows,
-        }, false)
-        return CsvConversion.toCsvString({ columns: this.csvColumns, rows: this.csvRows })
+        })
     }
 
     @action
-    public updateRow(row: CsvRow): string {
+    public updateRow(row: CsvRow) {
         // Remove the row with the specified id
         const index = this.csvRows.findIndex(r => r._id == row._id)
         if (index === -1) {
@@ -300,8 +275,7 @@ export class EditableDataSet extends Editable<DataSet> {
             entityType: EntityType.DataSet,
             id: this.id,
             csvRows: this.csvRows,
-        }, false)
-        return CsvConversion.toCsvString({ columns: this.csvColumns, rows: this.csvRows })
+        })
     }
 
     @action

@@ -17,6 +17,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     fmt::Display,
+    fs,
     path::PathBuf,
 };
 use uuid::Uuid;
@@ -78,6 +79,8 @@ pub struct WorkspaceInfo {
     pub warn_on_workspace_creds: bool,
     /// File name to save worksapce to, empty if new
     pub file_name: String,
+    /// Directory workspace is saved to
+    pub directory: String,
     /// Display name for workspace, empty if new
     pub display_name: String,
     /// Actual workspace
@@ -105,6 +108,8 @@ pub struct WorkspaceSaveStatus {
     pub file_name: String,
     /// Display name
     pub display_name: String,
+    /// Directory workbook is saved to
+    pub directory: String,
 }
 
 #[derive(Default)]
@@ -158,15 +163,17 @@ impl Workspaces {
 
         let navigation = Navigation::new(&workspace, &FxHashMap::default());
 
-        let display_name = if file_name.is_empty() {
-            String::default()
+        let directory: String;
+        let display_name: String;
+
+        if file_name.is_empty() {
+            directory = String::default();
+            display_name = String::default();
         } else {
-            PathBuf::from(&file_name)
-                .file_stem()
-                .unwrap()
-                .to_string_lossy()
-                .to_string()
-        };
+            let path_buf = PathBuf::from(&file_name);
+            directory = path_buf.parent().unwrap().to_string_lossy().to_string();
+            display_name = path_buf.file_stem().unwrap().to_string_lossy().to_string();
+        }
 
         let any_public_auths = workspace
             .authorizations
@@ -190,7 +197,8 @@ impl Workspaces {
                 execution_results: ExecutionResultBuilder::default(),
                 executions: FxHashMap::default(),
                 file_name: file_name.to_string(),
-                display_name: display_name.clone(),
+                directory: directory.to_string(),
+                display_name: display_name.to_string(),
                 data_set_content: FxHashMap::default(),
                 // request_body_mime_types: HashMap::default(),
             },
@@ -221,6 +229,7 @@ impl Workspaces {
         OpenWorkspaceResult {
             workspace_id,
             display_name,
+            directory,
             error: None,
         }
     }
@@ -2226,6 +2235,7 @@ impl Workspaces {
         update: &DataSetUpdate,
     ) -> Result<UpdateWithNavigationResponse, ApicizeAppError> {
         let info = self.get_workspace_info_mut(workspace_id)?;
+        info.dirty = true;
 
         let id = update.id.to_string();
 
@@ -2233,6 +2243,15 @@ impl Workspaces {
             Some(data_set) => data_set,
             None => {
                 return Err(ApicizeAppError::InvalidDataSet(id));
+            }
+        };
+
+        let content = match info.data_set_content.get_mut(&id) {
+            Some(content) => content,
+            None => {
+                let content = DataSetContent::default();
+                info.data_set_content.insert(id.clone(), content);
+                info.data_set_content.get_mut(&id).unwrap()
             }
         };
 
@@ -2247,31 +2266,37 @@ impl Workspaces {
             data_set.validate_source();
         }
 
+        let data_set_is_file = data_set.source_type != DataSourceType::JSON;
+
         if let Some(source_file_name) = &update.source_file_name
-            && (data_set.source_type == DataSourceType::FileJSON
-                || data_set.source_type == DataSourceType::FileCSV)
+            && data_set_is_file
         {
             info.dirty = true;
+            content.dirty = true;
             data_set.source = source_file_name.to_string();
             data_set.validate_source();
         }
 
-        if let Some(source_text) = &update.source_text 
-            && data_set.source_type == DataSourceType::JSON
+        if let Some(source_text) = &update.source_text
+            && data_set.source_type != DataSourceType::FileCSV
         {
             info.dirty = true;
-            data_set.source = source_text.to_string();
+            if !data_set_is_file {
+                data_set.source = source_text.to_string();
+            }
+            content.dirty = true;
+            content.source_text = Some(source_text.to_string());
         }
 
-        info.data_set_content.insert(id.to_string(), DataSetContent {
-            csv_columns: update.csv_columns.clone(),
-            csv_rows: update.csv_rows.clone(),
-            source_text: if data_set.source_type == DataSourceType::FileCSV {
-                None
-            } else {
-                update.source_text.clone()
-            }
-        });
+        if let Some(csv_columns) = &update.csv_columns {
+            content.csv_columns = Some(csv_columns.clone());
+            content.dirty = true;
+        }
+
+        if let Some(csv_rows) = &update.csv_rows {
+            content.csv_rows = Some(csv_rows.clone());
+            content.dirty = true;
+        }
 
         let updated_name = data_set.get_title();
         let updated_validation_state = data_set.validation_state;
@@ -2306,6 +2331,107 @@ impl Workspaces {
         }
 
         Ok(response)
+    }
+
+    /// Load data contetn from file, return content and, if applicable, updated navigation entry
+    pub fn load_data_set_from_file(
+        &mut self,
+        workspace_id: &str,
+        data_set_id: &str,
+        absolute_file_name: &PathBuf,
+        relative_file_name: &str,
+    ) -> Result<OpenDataSetFileResponse, ApicizeAppError> {
+        let mut data_set = self.get_data_set(workspace_id, data_set_id)?;
+        let info = self.get_workspace_info_mut(workspace_id)?;
+
+        let data_set_content = if data_set.source_type == DataSourceType::FileCSV {
+            match csv::ReaderBuilder::new().from_path(absolute_file_name) {
+                Ok(mut rdr) => {
+                    let mut has_id = false;
+                    let mut columns: Vec<String> = rdr
+                        .headers()?
+                        .iter()
+                        .map(|h| {
+                            if h == "_id" {
+                                has_id = true;
+                            }
+                            h.to_string()
+                        })
+                        .collect();
+
+                    if !has_id {
+                        columns.push("_id".to_string());
+                    }
+
+                    match rdr
+                        .records()
+                        .map(|result| {
+                            result.map(|mut record| {
+                                record.push_field(&Uuid::new_v4().to_string());
+                                columns
+                                    .iter()
+                                    .zip(record.iter())
+                                    .map(|(h, v)| (h.to_string(), v.to_string()))
+                                    .collect()
+                            })
+                        })
+                        .collect()
+                    {
+                        Ok(rows) => {
+                            data_set.source_error = None;
+                            Some(DataSetContent {
+                                csv_columns: Some(columns),
+                                csv_rows: Some(rows),
+                                source_text: None,
+                                dirty: false,
+                            })
+                        }
+                        Err(err) => {
+                            data_set.source_error = Some(err.to_string());
+                            None
+                        }
+                    }
+                }
+                Err(err) => {
+                    data_set.source_error = Some(err.to_string());
+                    None
+                }
+            }
+        } else {
+            let data = fs::read_to_string(absolute_file_name)?;
+            Some(DataSetContent {
+                csv_columns: None,
+                csv_rows: None,
+                source_text: Some(data),
+                dirty: false,
+            })
+        };
+
+        // Cache file content for external file data sets
+        if let Some(content) = &data_set_content
+            && data_set.source_type != DataSourceType::JSON
+        {
+            info.data_set_content
+                .insert(data_set_id.to_string(), content.clone());
+        }
+
+        let source_changed = if data_set.source_type == DataSourceType::JSON {
+            false
+        } else {
+            data_set.source != relative_file_name
+        };
+
+        if source_changed {
+            data_set.source = relative_file_name.to_string();
+        }
+
+        data_set.perform_validation();
+
+        Ok(OpenDataSetFileResponse {
+            relative_file_name: relative_file_name.to_string(),
+            data_set_content,
+            validation_errors: data_set.validation_errors.clone(),
+        })
     }
 
     /// Return a list of all external data elements
@@ -2680,6 +2806,32 @@ impl WorkspaceInfo {
             }
         }
         Ok(None)
+    }
+
+    pub fn check_for_conflicting_data_set_file(
+        &self,
+        file_name: &str,
+        skip_data_set_id: &str,
+    ) -> Result<(), ApicizeAppError> {
+        self.workspace
+            .data
+            .entities
+            .iter()
+            .find_map(|(id, data_set)| {
+                if id != skip_data_set_id
+                    && data_set.source_type != DataSourceType::JSON
+                    && data_set.source == file_name
+                {
+                    Some(Err(ApicizeAppError::InvalidOperation(format!(
+                        "Data set {} already usess {}",
+                        data_set.get_title(),
+                        file_name,
+                    ))))
+                } else {
+                    None
+                }
+            })
+            .unwrap_or(Ok(()))
     }
 
     pub fn get_clipboard_payload(
@@ -3166,6 +3318,7 @@ pub struct WorkspaceParameters {
 
 pub struct OpenWorkspaceResult {
     pub workspace_id: String,
+    pub directory: String,
     pub display_name: String,
     pub error: Option<String>,
 }
@@ -3304,7 +3457,7 @@ impl TryFrom<u8> for WorkspaceMode {
 }
 
 /// Working status of data set
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct DataSetContent {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -3313,4 +3466,15 @@ pub struct DataSetContent {
     pub csv_rows: Option<Vec<HashMap<String, String>>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_text: Option<String>,
+    pub dirty: bool,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OpenDataSetFileResponse {
+    pub relative_file_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data_set_content: Option<DataSetContent>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub validation_errors: Option<HashMap<String, String>>,
 }

@@ -20,6 +20,9 @@ pub enum ApicizeAppError {
     #[error("serialization error")]
     JsonError(#[from] serde_json::Error),
 
+    #[error("csv error")]
+    CsvError(#[from] csv::Error),
+
     #[error("invalid session '{0}'")]
     InvaliedSession(String),
 

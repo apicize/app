@@ -11,7 +11,7 @@ import { useApicizeSettings } from '../../contexts/apicize-settings.context';
 import { EditableDataSet, EditableDataSetType } from '../../models/workspace/editable-data-set'
 import { DataSourceType } from '@apicize/lib-typescript'
 import { FormControl, InputLabel, Select, MenuItem, Button, Dialog, DialogTitle, DialogContent, DialogActions, ListItemIcon, Divider, IconButton, Box, Typography } from '@mui/material'
-import { FeedbackStore, useFeedback } from '../../contexts/feedback.context'
+import { FeedbackStore, ToastSeverity, useFeedback } from '../../contexts/feedback.context'
 import { useState, useEffect, useRef, useMemo } from 'react'
 import MonacoEditor from 'react-monaco-editor';
 import { IDataSetEditorTextModel } from '../../models/editor-text-model'
@@ -24,16 +24,13 @@ import FileOpenIcon from '@mui/icons-material/FileOpen'
 import SaveAsIcon from '@mui/icons-material/SaveAs'
 import { EditableSettings } from '../../models/editable-settings'
 
-interface JsonEditorProps {
+
+const JsonEditor = observer(({ dataSet, feedback, settings, workspace }: {
     dataSet: EditableDataSet
     feedback: FeedbackStore
-    fileOps: FileOperationsStore
-    sourceFileActive: boolean
     settings: EditableSettings
     workspace: WorkspaceStore
-}
-
-const JsonEditor = observer(({ dataSet, feedback, fileOps, sourceFileActive, settings, workspace }: JsonEditorProps) => {
+}) => {
     const [model, setModel] = useState<IDataSetEditorTextModel | null>(null)
 
     // Make sure we have the editor test model
@@ -49,10 +46,7 @@ const JsonEditor = observer(({ dataSet, feedback, fileOps, sourceFileActive, set
         theme={settings.colorScheme === "dark" ? 'vs-dark' : 'vs-light'}
         value={dataSet.text}
         onChange={(text: string) => {
-            dataSet.setJson(text)
-            if (dataSet.type === DataSourceType.FileJSON && sourceFileActive) {
-                fileOps.queueSaveDataSetFile(dataSet.sourceFileName, text)
-            }
+            dataSet.setJson(text, true)
         }}
         options={{
             automaticLayout: true,
@@ -68,15 +62,12 @@ const JsonEditor = observer(({ dataSet, feedback, fileOps, sourceFileActive, set
     />
 })
 
-interface CsvEditorProps {
+
+const CsvEditor = observer(({ dataSet, feedback, csvColumnWidths }: {
     dataSet: EditableDataSet
     feedback: FeedbackStore
-    fileOps: FileOperationsStore
-    sourceFileActive: boolean
     csvColumnWidths: React.MutableRefObject<{ [field: string]: number }>
-}
-
-const CsvEditor = observer(({ dataSet, feedback, fileOps, sourceFileActive, csvColumnWidths }: CsvEditorProps) => {
+}) => {
     const dataGridRef = useRef<GridApiCommunity>(null)
     const unsizedColumns = dataSet.csvColumns.filter(c => !csvColumnWidths.current[c])
 
@@ -106,10 +97,7 @@ const CsvEditor = observer(({ dataSet, feedback, fileOps, sourceFileActive, csvC
                     defaultToCancel: true,
                 }).then(ok => {
                     if (!ok) return
-                    const csv = dataSet.deleteColumn(props.colDef.field)
-                    if (sourceFileActive) {
-                        fileOps.queueSaveDataSetFile(dataSet.sourceFileName, csv)
-                    }
+                    dataSet.deleteColumn(props.colDef.field)
                 })
             }
 
@@ -180,7 +168,7 @@ const CsvEditor = observer(({ dataSet, feedback, fileOps, sourceFileActive, csvC
                 </>
             )
         })
-    }, [dataSet, feedback, fileOps, sourceFileActive])
+    }, [dataSet, feedback])
 
     const columnsWithActions: GridColDef[] = [
         {
@@ -219,10 +207,7 @@ const CsvEditor = observer(({ dataSet, feedback, fileOps, sourceFileActive, csvC
                             defaultToCancel: true
                         }).then(ok => {
                             if (!ok) return
-                            const csv = dataSet.deleteRow(params.row._id)
-                            if (sourceFileActive) {
-                                fileOps.queueSaveDataSetFile(dataSet.sourceFileName, csv)
-                            }
+                            dataSet.deleteRow(params.row._id)
                         })
                     }}
                     sx={{ minWidth: 'auto', padding: '4px' }}
@@ -254,10 +239,7 @@ const CsvEditor = observer(({ dataSet, feedback, fileOps, sourceFileActive, csvC
         }}
         processRowUpdate={(updatedRow) => {
             try {
-                const csv = dataSet.updateRow(updatedRow)
-                if (sourceFileActive) {
-                    fileOps.queueSaveDataSetFile(dataSet.sourceFileName, csv)
-                }
+                dataSet.updateRow(updatedRow)
             } catch (e) {
                 feedback.toastError(e)
             }
@@ -294,64 +276,65 @@ export const DataSetEditor = observer(({ dataSet, sx }: { dataSet: EditableDataS
         ? "Workbook must be saved before linking to a data file"
         : dataSet.sourceError
 
-    const openDataFile = (type: DataSourceType) => {
-        fileOps.promptAndOpenDataSetFile(type)
+    const openDataFileFrom = () => {
+        feedback.setModal(true)
+        fileOps.openDataSetFileFrom(dataSet.id, dataSet.type)
             .then(results => {
                 if (!results) return
-                const [data, fileName] = results
                 runInAction(() => {
                     try {
-                        if (type === DataSourceType.FileCSV) {
-                            dataSet.setCsv(data)
-                        } else {
-                            dataSet.setJson(data)
+                        if (dataSet.type === DataSourceType.FileCSV) {
+                            if (results.dataSetContent?.csvColumns && results.dataSetContent?.csvRows) {
+                                dataSet.setCsv(results.dataSetContent.csvColumns, results.dataSetContent.csvRows, false)
+                            }
+                        } else if (results.dataSetContent?.sourceText) {
+                            dataSet.setJson(results.dataSetContent.sourceText, true)
                         }
+
                     } catch (e) {
                         feedback.toastError(e)
                     }
-                    dataSet.setFileName(fileName, true)
+                    if (dataSet.type !== DataSourceType.JSON) {
+                        dataSet.setFileName(results.relativeFileName, true)
+                    }
                 })
             })
+            .catch(e => feedback.toastError(e))
+            .finally(() => feedback.setModal(false))
     }
 
-    const saveDataFile = () => {
-        const data = dataSet.getTextToSave()
-        fileOps.promptAndSaveDataSetFile(dataSet.type, data)
-            .then(sourceName => {
-                if (sourceName) {
-                    runInAction(() => {
-                        dataSet.setFileName(sourceName, true)
-                    })
-                }
+    const saveDataFileAs = () => {
+        fileOps.saveDataSetAs(dataSet.id, dataSet.type)
+            .then((newSource) => {
+                runInAction(() => {
+                    if (newSource) {
+                        dataSet.sourceFileName = newSource
+                        feedback.toast('Data set saved', ToastSeverity.Info)
+                    }
+                })
             })
             .catch(e => feedback.toastError(e))
     }
 
-
     if (dataSet.triggerFileLoad) {
-        fileOps.openDataSetFile(dataSet.sourceFileName)
+        fileOps.openDataSetFile(dataSet.id)
             .then(results => {
-                if (!results) {
-                    throw new Error(`Unable to open ${dataSet.sourceFileName}`)
-                }
-                const data = results[0]
-                const relativeFileName = results[1]
                 runInAction(() => {
                     try {
                         if (dataSet.type === DataSourceType.FileCSV) {
-                            dataSet.setCsv(data)
+                            dataSet.setCsv(results.dataSetContent?.csvColumns ?? [], results.dataSetContent?.csvRows ?? [], false)
                         } else {
-                            dataSet.setJson(data)
+                            dataSet.setJson(results.dataSetContent?.sourceText ?? '', false)
                         }
                     } catch (e) {
                         feedback.toastError(e)
                     }
-                    dataSet.setFileName(relativeFileName, false)
+                    dataSet.setFileName(results.relativeFileName, false)
                 })
             })
             .catch(e => {
                 dataSet.setSourceType(DataSourceType.JSON)
-                dataSet.setJson('')
+                dataSet.setJson('', false)
                 feedback.toastError(e)
             })
         return null
@@ -424,11 +407,8 @@ export const DataSetEditor = observer(({ dataSet, sx }: { dataSet: EditableDataS
                             </FormControl>
                         </Grid>
                         <Grid container alignContent='center' flexGrow={1}>
-                            {isInternal ? null : (<Grid container justifyContent='center'>
-                                <Grid alignContent='center'>
-                                    {sourceFileActive ? dataSet.sourceFileName : <Box display='inline-block' color='warn'>(Not Saved)</Box>}
-                                </Grid>
-                                <Grid marginLeft='2em' alignContent='center'>
+                            {isInternal
+                                ? (<Grid container gap={1}>
                                     <IconButton
                                         size="large"
                                         aria-label='new'
@@ -443,20 +423,43 @@ export const DataSetEditor = observer(({ dataSet, sx }: { dataSet: EditableDataS
                                         id='datasource-open-btn'
                                         title='Open Data Source File'
                                         disabled={workspace.fileName.length == 0}
-                                        onClick={() => openDataFile(dataSet.type)}>
+                                        onClick={() => openDataFileFrom()}>
                                         <FileOpenIcon />
                                     </IconButton>
-                                    <IconButton
-                                        size="large"
-                                        aria-label='save'
-                                        id='datasource-save-as-btn'
-                                        title='Save Data Source File As'
-                                        disabled={workspace.fileName.length == 0}
-                                        onClick={() => saveDataFile()}>
-                                        <SaveAsIcon />
-                                    </IconButton>
-                                </Grid>
-                            </Grid>)}
+                                </Grid>)
+                                : (<Grid container justifyContent='center'>
+                                    <Grid alignContent='center'>
+                                        {sourceFileActive ? dataSet.sourceFileName : <Box display='inline-block' color='warn'>(Not Saved)</Box>}
+                                    </Grid>
+                                    <Grid marginLeft='2em' alignContent='center' gap={1}>
+                                        <IconButton
+                                            size="large"
+                                            aria-label='new'
+                                            id='datasource-new-btn'
+                                            title='Start New Data Source File'
+                                            onClick={() => handleClear()}>
+                                            <PostAddIcon />
+                                        </IconButton>
+                                        <IconButton
+                                            size="large"
+                                            aria-label='open'
+                                            id='datasource-open-btn'
+                                            title='Open Data Source File'
+                                            disabled={workspace.fileName.length == 0}
+                                            onClick={() => openDataFileFrom()}>
+                                            <FileOpenIcon />
+                                        </IconButton>
+                                        <IconButton
+                                            size="large"
+                                            aria-label='save'
+                                            id='datasource-save-as-btn'
+                                            title='Save Data Source File As'
+                                            disabled={workspace.fileName.length == 0}
+                                            onClick={() => saveDataFileAs()}>
+                                            <SaveAsIcon />
+                                        </IconButton>
+                                    </Grid>
+                                </Grid>)}
                             {
                                 sourceError
                                     ? <Grid display='inline-block' alignContent='center'><Typography color='error'>{sourceError}</Typography></Grid>
@@ -472,10 +475,7 @@ export const DataSetEditor = observer(({ dataSet, sx }: { dataSet: EditableDataS
                                         id='datasource-add-btn'
                                         title='Add New Row'
                                         onClick={() => runInAction(() => {
-                                            const csv = dataSet.addRow()
-                                            if (sourceFileActive) {
-                                                fileOps.queueSaveDataSetFile(dataSet.sourceFileName, csv)
-                                            }
+                                            dataSet.addRow()
                                         })}>
                                         <AddIcon />
                                     </IconButton>
@@ -486,9 +486,9 @@ export const DataSetEditor = observer(({ dataSet, sx }: { dataSet: EditableDataS
                     <Grid flexGrow={1}>
                         {
                             dataSet.editType === EditableDataSetType.JSON
-                                ? <JsonEditor dataSet={dataSet} feedback={feedback} fileOps={fileOps} sourceFileActive={sourceFileActive} settings={settings} workspace={workspace} />
+                                ? <JsonEditor dataSet={dataSet} feedback={feedback} settings={settings} workspace={workspace} />
                                 : dataSet.editType === EditableDataSetType.CSV
-                                    ? <CsvEditor dataSet={dataSet} feedback={feedback} fileOps={fileOps} sourceFileActive={sourceFileActive} csvColumnWidths={csvColumnWidths} />
+                                    ? <CsvEditor dataSet={dataSet} feedback={feedback} csvColumnWidths={csvColumnWidths} />
                                     : <></>
                         }
                     </Grid>

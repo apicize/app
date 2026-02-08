@@ -12,11 +12,12 @@ pub mod trace;
 pub mod updates;
 pub mod workspaces;
 use apicize_lib::{
-    ApicizeRunner, Authorization, CachedTokenInfo, DataSet, ExecutionResultSuccess,
+    ApicizeRunner, Authorization, CachedTokenInfo, DataSet, DataSourceType, ExecutionResultSuccess,
     ExecutionResultSummary, ExecutionState, Parameters, PkceTokenResult, RequestBody, RequestEntry,
-    TestRunnerContext, TokenResult, Validated, Workspace, clear_all_oauth2_tokens_from_cache,
-    clear_oauth2_token_from_cache, editing::indexed_entities::IndexedEntityPosition,
-    get_absolute_file_name, get_oauth2_client_credentials, store_oauth2_token_in_cache,
+    TestRunnerContext, TokenResult, Validated, Workspace, build_absolute_file_name,
+    clear_all_oauth2_tokens_from_cache, clear_oauth2_token_from_cache,
+    editing::indexed_entities::IndexedEntityPosition, get_existing_absolute_file_name,
+    get_oauth2_client_credentials, get_relative_file_name, store_oauth2_token_in_cache,
 };
 use dirs::home_dir;
 use dragdrop::DroppedFile;
@@ -33,8 +34,8 @@ use settings::{ApicizeSettings, ColorScheme};
 use std::{
     collections::{HashMap, HashSet},
     env,
-    fs::{self, exists},
-    io::{self},
+    fs::{self, File, exists},
+    io,
     path::{Path, PathBuf},
     sync::{Arc, Mutex, OnceLock},
 };
@@ -47,13 +48,16 @@ use tokio_util::sync::CancellationToken;
 use trace::{ReqwestEvent, ReqwestLogger};
 use workspaces::{
     BodyMimeInfo, ClipboardPayloadRequest, Entities, Entity, EntityType, ExecutionEvent,
-    OpenWorkspaceResult, PersistableData, RequestBodyInfo, RequestEntryInfo, RequestExecution,
-    WorkspaceInfo, WorkspaceInitialization, WorkspaceMode, WorkspaceSaveStatus, Workspaces,
+    OpenDataSetFileResponse, OpenWorkspaceResult, PersistableData, RequestBodyInfo,
+    RequestEntryInfo, RequestExecution, WorkspaceInfo, WorkspaceInitialization, WorkspaceMode,
+    WorkspaceSaveStatus, Workspaces,
 };
 
 use crate::{
     sessions::SessionEntity,
-    updates::{EntityUpdate, EntityUpdateNotification, RequestGroupUpdate, RequestUpdate},
+    updates::{
+        DataSetUpdate, EntityUpdate, EntityUpdateNotification, RequestGroupUpdate, RequestUpdate,
+    },
     workspaces::DataSetContent,
 };
 
@@ -249,7 +253,6 @@ async fn main() {
         // .plugin(tauri_plugin_window_state::Builder::default()
         //     .build())
         .invoke_handler(tauri::generate_handler![
-            // initialize_session,
             generate_settings_defaults,
             new_workspace,
             open_workspace,
@@ -303,6 +306,7 @@ async fn main() {
             find_descendant_groups,
             get_storage_information,
             open_data_set_file,
+            open_data_set_file_from,
             save_data_set_file,
         ])
         .run(tauri::generate_context!())
@@ -326,70 +330,6 @@ fn format_window_title(display_name: &str, dirty: bool) -> String {
 
     title
 }
-
-// #[tauri::command]
-// async fn initialize_session(
-//     app: AppHandle,
-//     session_state: State<'_, SessionsState>,
-//     workspaces_state: State<'_, WorkspacesState>,
-//     settings_state: State<'_, SettingsState>,
-//     session_id: &str,
-//     init_data: WorkspaceInitialization,
-// ) -> Result<(), ApicizeAppError> {
-//     let sessions = session_state.sessions.read().await;
-//     let workspaces = workspaces_state.workspaces.read().await;
-//     let settings = settings_state.settings.read().await;
-//     let session = sessions.get_session(session_id)?;
-
-//     let editor_count = sessions
-//         .get_workspace_session_ids(&session.workspace_id)
-//         .len();
-//     let info = workspaces.get_workspace_info(&session.workspace_id)?;
-
-//     let init = SessionInitialization {
-//         workspace_id: session.workspace_id.clone(),
-//         settings: settings.clone(),
-//         navigation: info.navigation.clone(),
-//         file_name: info.file_name.clone(),
-//         display_name: info.display_name.clone(),
-//         dirty: info.dirty,
-//         editor_count,
-//         defaults: info.workspace.defaults.clone(),
-//         error: None,
-//         active_entity: session.active_entity.clone(),
-//         expanded_items: session.expanded_items.clone(),
-//         mode: session.mode,
-//         executions: info
-//             .executions
-//             .iter()
-//             .filter_map(|(id, exec)| match exec.execution_state {
-//                 ExecutionState::RUNNING => Some((
-//                     id.to_string(),
-//                     ExecutionEvent::Start {
-//                         execution_state: ExecutionState::RUNNING,
-//                     },
-//                 )),
-//                 ExecutionState::ERROR => None,
-//                 _ => Some((
-//                     id.to_string(),
-//                     ExecutionEvent::Complete(RequestExecution {
-//                         menu: exec.menu.clone(),
-//                         execution_state: exec.execution_state.clone(),
-//                         active_summaries: exec.active_summaries.clone(),
-//                     }),
-//                 )),
-//             })
-//             .collect::<FxHashMap<String, ExecutionEvent>>(),
-//         help_topic: session.help_topic.clone(),
-//     };
-
-//     if let Some(window) = app.get_webview_window(session_id) {
-//         window.show().unwrap();
-//         window.set_focus().unwrap();
-//     }
-
-//     Ok(init)
-// }
 
 #[tauri::command]
 fn generate_settings_defaults(app: AppHandle) -> Result<ApicizeSettings, ApicizeAppError> {
@@ -476,14 +416,12 @@ fn create_workspace(
         Some(file_name) => {
             if let Some(existing_workspace_id) = &existing_workspace_id {
                 // If there is a workspace already open for this file, switch to that
+                let workspace = workspaces.workspaces.get(existing_workspace_id).unwrap();
+
                 Ok(OpenWorkspaceResult {
                     workspace_id: existing_workspace_id.to_string(),
-                    display_name: workspaces
-                        .workspaces
-                        .get(existing_workspace_id)
-                        .unwrap()
-                        .display_name
-                        .clone(),
+                    directory: workspace.directory.to_string(),
+                    display_name: workspace.display_name.to_string(),
                     error: None,
                 })
             } else {
@@ -589,6 +527,7 @@ fn create_workspace(
                 navigation: info.navigation.clone(),
                 save_state: SessionSaveState {
                     file_name: info.file_name.clone(),
+                    directory: info.directory.clone(),
                     display_name: info.display_name.clone(),
                     dirty: info.dirty,
                     editor_count: sessions
@@ -686,6 +625,7 @@ fn create_workspace(
                 navigation: info.navigation.clone(),
                 save_state: SessionSaveState {
                     file_name: info.file_name.clone(),
+                    directory: info.directory.clone(),
                     display_name: info.display_name.clone(),
                     dirty: info.dirty,
                     editor_count: sessions
@@ -965,6 +905,20 @@ async fn save_workspace(
                 app.emit("update_settings", settings.clone()).unwrap();
             }
 
+            let data_path = std::path::absolute(&save_as)?
+                .parent()
+                .ok_or(ApicizeAppError::InvalidOperation(
+                    "Unable to determine parent director".to_string(),
+                ))?
+                .to_path_buf();
+
+            for data_set in info.workspace.data.entities.values() {
+                let Some(content) = info.data_set_content.get_mut(&data_set.id) else {
+                    continue;
+                };
+                perform_save_data_set_file(data_set, content, &data_path, false)?;
+            }
+
             info.dirty = false;
             info.warn_on_workspace_creds = false;
             info.file_name = save_as.clone();
@@ -981,6 +935,79 @@ async fn save_workspace(
     }
 }
 
+fn perform_save_data_set_file(
+    data_set: &DataSet,
+    content: &mut DataSetContent,
+    data_path: &Path,
+    force_save: bool,
+) -> Result<(), ApicizeAppError> {
+    if !(force_save || content.dirty) {
+        return Ok(());
+    }
+
+    match data_set.source_type {
+        DataSourceType::JSON => {
+            // Content is stored directy in workbook
+            content.dirty = false;
+        }
+        DataSourceType::FileJSON => {
+            // Write JSON content directly to file
+            let save_to_file = build_absolute_file_name(&data_set.source, data_path)?;
+            fs::write(
+                save_to_file,
+                match &content.source_text {
+                    Some(txt) => txt,
+                    None => "",
+                },
+            )?;
+            content.dirty = false;
+        }
+        DataSourceType::FileCSV => {
+            write_csv_data(
+                &build_absolute_file_name(&data_set.source, data_path)?,
+                &content.csv_columns,
+                &content.csv_rows,
+            )?;
+            content.dirty = false;
+        }
+    }
+    Ok(())
+}
+
+/// Write CSV data out to a file
+fn write_csv_data(
+    file_name: &PathBuf,
+    csv_columns: &Option<Vec<String>>,
+    csv_rows: &Option<Vec<HashMap<String, String>>>,
+) -> Result<(), ApicizeAppError> {
+    let file = File::create(file_name)?;
+
+    let mut writer = csv::Writer::from_writer(file);
+
+    if let (Some(columns), Some(rows)) = (csv_columns, csv_rows) {
+        let columns_to_write = columns
+            .iter()
+            .filter(|c| *c != "_id")
+            .cloned()
+            .collect::<Vec<String>>();
+
+        // Write header row
+        writer.write_record(&columns_to_write)?;
+
+        // Write data rows
+        for row in rows {
+            let record: Vec<&str> = columns_to_write
+                .iter()
+                .map(|col| row.get(col).map(|s| s.as_str()).unwrap_or(""))
+                .collect();
+            writer.write_record(&record)?;
+        }
+    }
+
+    writer.flush()?;
+    Ok(())
+}
+
 fn dispatch_save_state(
     app: &AppHandle,
     sessions: &Sessions,
@@ -991,6 +1018,7 @@ fn dispatch_save_state(
     if let Some(session_ids) = get_workspace_sessions(workspace_id, sessions, None) {
         let state = SessionSaveState {
             file_name: info.file_name.clone(),
+            directory: info.directory.clone(),
             display_name: info.display_name.clone(),
             dirty: info.dirty,
             editor_count: sessions.get_workspace_session_ids(workspace_id).len(),
@@ -1097,6 +1125,7 @@ async fn get_workspace_save_status(
         warn_on_workspace_creds,
         any_invalid,
         file_name: info.file_name.clone(),
+        directory: info.directory.clone(),
         display_name: info.display_name.clone(),
     })
 }
@@ -2027,22 +2056,12 @@ async fn add(
             relative_position,
             clone_from_id,
         ),
-        EntityType::DataSet => {
-            let result = workspaces.add_data_set(
-                &workspace_id,
-                relative_to_id,
-                relative_position,
-                clone_from_id,
-            )?;
-            // TODO:  refresh parameter lists
-            // dispatch_data_list_notification(
-            //     &app,
-            //     &sessions,
-            //     &workspace_id,
-            //     workspaces.list_data(&workspace_id)?,
-            // );
-            Ok(result)
-        }
+        EntityType::DataSet => workspaces.add_data_set(
+            &workspace_id,
+            relative_to_id,
+            relative_position,
+            clone_from_id,
+        ),
         _ => Err(ApicizeAppError::InvalidOperation(format!(
             "Unable to add {entity_type}",
         ))),
@@ -2092,9 +2111,7 @@ async fn update(
         }
         EntityUpdate::Defaults(defaults) => {
             let response = workspaces.update_defaults(&session.workspace_id, defaults)?;
-
             // Trigger an update so that requests and groups will update their default screens
-            // todo:  make this "cleaner"
             let workspace_session_ids =
                 get_workspace_sessions(&session.workspace_id, &sessions, None);
             if let Some(session_ids) = workspace_session_ids {
@@ -2447,78 +2464,208 @@ async fn open_data_set_file(
     sessions_state: State<'_, SessionsState>,
     workspaces_state: State<'_, WorkspacesState>,
     session_id: &str,
-    file_name: &str,
-) -> Result<(String, String), ApicizeAppError> {
+    data_set_id: &str,
+) -> Result<OpenDataSetFileResponse, ApicizeAppError> {
     let sessions = sessions_state.sessions.read().await;
     let session = sessions.get_session(session_id)?;
-    let workspaces = workspaces_state.workspaces.write().await;
-    let info = workspaces.get_workspace_info(&session.workspace_id)?;
+    let mut workspaces = workspaces_state.workspaces.write().await;
+    let data_set = workspaces.get_data_set(&session.workspace_id, data_set_id)?;
+    let data_source_type = data_set.source_type;
+    let source = data_set.source;
 
-    let allowed_data_path: Option<PathBuf> = if info.file_name.is_empty() {
-        None
-    } else {
-        Some(
-            std::path::absolute(&info.file_name)
-                .unwrap()
-                .parent()
-                .unwrap()
-                .to_path_buf(),
-        )
-    };
-
-    let absolute_file_name = get_absolute_file_name(file_name, &allowed_data_path)?;
-
-    // Ensure the file is within the allowed data path (same directory or child)
-    if let Some(ref allowed_path) = allowed_data_path
-        && !absolute_file_name.starts_with(allowed_path)
-    {
-        return Err(ApicizeAppError::InvalidOperation(format!(
-            "{file_name} must be in same or child directory as the workspace"
-        )));
+    // If the data set is JSON, we probably shouldn't be calling this, but provide this as a backstop
+    if data_source_type == DataSourceType::JSON {
+        return Ok(OpenDataSetFileResponse {
+            relative_file_name: "".to_string(),
+            data_set_content: Some(DataSetContent {
+                csv_columns: None,
+                csv_rows: None,
+                source_text: Some(source.clone()),
+                dirty: false,
+            }),
+            validation_errors: data_set.validation_errors.clone(),
+        });
     }
 
-    let data = fs::read_to_string(&absolute_file_name)?;
-    let relative_file_name = diff_paths(absolute_file_name, allowed_data_path.unwrap());
+    let info = workspaces.get_workspace_info_mut(&session.workspace_id)?;
 
-    Ok((
-        data,
-        if let Some(relative_file_name) = relative_file_name {
+    // Return cached data set content if it exists
+    if let Some(content) = info.data_set_content.get(data_set_id) {
+        return Ok(OpenDataSetFileResponse {
+            relative_file_name: source.clone(),
+            data_set_content: Some(content.clone()),
+            validation_errors: data_set.validation_errors.clone(),
+        });
+    }
+
+    if data_source_type == DataSourceType::JSON {
+        return Err(ApicizeAppError::InvalidOperation(
+            "Cannot load external file for workbook data set".to_string(),
+        ));
+    }
+
+    if source.is_empty() {
+        return Err(ApicizeAppError::FileNameRequired());
+    }
+
+    let info = workspaces.get_workspace_info_mut(&session.workspace_id)?;
+
+    let allowed_data_path: PathBuf = if info.file_name.is_empty() {
+        return Err(ApicizeAppError::FileNameRequired());
+    } else {
+        std::path::absolute(&info.file_name)
+            .unwrap()
+            .parent()
+            .unwrap()
+            .to_path_buf()
+    };
+
+    let absolute_file_name =
+        get_existing_absolute_file_name(&source, &Some(allowed_data_path.clone()))?;
+
+    let relative_file_name =
+        if let Some(relative_file_name) = diff_paths(&absolute_file_name, &allowed_data_path) {
+            relative_file_name.to_string_lossy().to_string()
+        } else {
+            source.to_string()
+        };
+
+    workspaces.load_data_set_from_file(
+        &session.workspace_id,
+        data_set_id,
+        &absolute_file_name,
+        &relative_file_name,
+    )
+}
+
+#[tauri::command]
+async fn open_data_set_file_from(
+    sessions_state: State<'_, SessionsState>,
+    workspaces_state: State<'_, WorkspacesState>,
+    session_id: &str,
+    data_set_id: &str,
+    file_name: &str,
+) -> Result<Option<OpenDataSetFileResponse>, ApicizeAppError> {
+    let sessions = sessions_state.sessions.read().await;
+    let session = sessions.get_session(session_id)?;
+    let mut workspaces = workspaces_state.workspaces.write().await;
+    let info = workspaces.get_workspace_info_mut(&session.workspace_id)?;
+
+    let allowed_data_path: PathBuf = if info.file_name.is_empty() {
+        return Err(ApicizeAppError::FileNameRequired());
+    } else {
+        std::path::absolute(&info.file_name)
+            .unwrap()
+            .parent()
+            .unwrap()
+            .to_path_buf()
+    };
+
+    let absolute_file_name =
+        get_existing_absolute_file_name(file_name, &Some(allowed_data_path.clone()))?;
+
+    let relative_file_name =
+        if let Some(relative_file_name) = diff_paths(&absolute_file_name, &allowed_data_path) {
             relative_file_name.to_string_lossy().to_string()
         } else {
             file_name.to_string()
-        },
-    ))
+        };
+
+    info.check_for_conflicting_data_set_file(&relative_file_name, data_set_id)?;
+
+    Ok(Some(workspaces.load_data_set_from_file(
+        &session.workspace_id,
+        data_set_id,
+        &absolute_file_name,
+        &relative_file_name,
+    )?))
 }
 
 #[tauri::command]
 async fn save_data_set_file(
+    app: AppHandle,
     sessions_state: State<'_, SessionsState>,
     workspaces_state: State<'_, WorkspacesState>,
     session_id: &str,
+    data_set_id: &str,
     file_name: &str,
-    data: &str,
 ) -> Result<String, ApicizeAppError> {
-    let sessions = sessions_state.sessions.read().await;
-    let session = sessions.get_session(session_id)?;
-    let workspaces = workspaces_state.workspaces.write().await;
-    let info = workspaces.get_workspace_info(&session.workspace_id)?;
+    let relative_file_name: String;
+    let allowed_data_path: PathBuf;
 
-    let allowed_data_path: PathBuf = if info.file_name.is_empty() {
-        return Err(ApicizeAppError::InvalidOperation(
-            "Workbook must be saved before saving data set file".to_string(),
-        ));
-    } else {
-        std::path::absolute(&info.file_name)?
-            .parent()
-            .ok_or(ApicizeAppError::InvalidOperation(
-                "Unable to determine parent director".to_string(),
-            ))?
-            .to_path_buf()
-    };
+    // Confirm that the requested file name is valid
+    {
+        let sessions = sessions_state.sessions.read().await;
+        let session = sessions.get_session(session_id)?;
+        let workspaces = workspaces_state.workspaces.read().await;
+        let info = workspaces.get_workspace_info(&session.workspace_id)?;
 
-    let absolute_file_name = get_absolute_file_name(file_name, &Some(allowed_data_path))?;
-    fs::write(absolute_file_name, data)?;
-    Ok(file_name.to_string())
+        allowed_data_path = if info.file_name.is_empty() {
+            return Err(ApicizeAppError::FileNameRequired());
+        } else {
+            std::path::absolute(&info.file_name)
+                .unwrap()
+                .parent()
+                .unwrap()
+                .to_path_buf()
+        };
+
+        let file_path = PathBuf::from(file_name);
+        relative_file_name = get_relative_file_name(&file_path, &allowed_data_path)?;
+
+        info.check_for_conflicting_data_set_file(&relative_file_name, data_set_id)?;
+    }
+
+    // Carry on with the save...
+    {
+        let sessions = sessions_state.sessions.read().await;
+        let session = sessions.get_session(session_id)?;
+        let mut workspaces = workspaces_state.workspaces.write().await;
+        let info = workspaces.get_workspace_info_mut(&session.workspace_id)?;
+
+        let Some(data_set) = info.workspace.data.get_mut(data_set_id) else {
+            return Err(ApicizeAppError::InvalidDataSet(format!(
+                "Invalid data set ID {data_set_id}"
+            )));
+        };
+        let Some(content) = info.data_set_content.get_mut(data_set_id) else {
+            return Err(ApicizeAppError::InvalidDataSet(format!(
+                "No content for data set ID {data_set_id}"
+            )));
+        };
+
+        let old_source = data_set.source.to_string();
+        data_set.source = relative_file_name.to_string();
+
+        // Save the data to ensure that the file name is valid, if we can't save, revert
+        if let Err(err) = perform_save_data_set_file(data_set, content, &allowed_data_path, true) {
+            data_set.source = old_source;
+            return Err(err);
+        }
+    }
+
+    // Broadcast the update
+    let entity_update = EntityUpdate::DataSet(DataSetUpdate {
+        id: data_set_id.to_string(),
+        entity_type: EntityType::DataSet,
+        name: None,
+        source_type: None,
+        source_file_name: Some(relative_file_name.to_string()),
+        source_text: None,
+        csv_columns: None,
+        csv_rows: None,
+    });
+
+    update(
+        app,
+        sessions_state,
+        workspaces_state,
+        session_id,
+        entity_update,
+    )
+    .await?;
+
+    Ok(relative_file_name)
 }
 
 #[derive(Clone, Serialize, Deserialize)]

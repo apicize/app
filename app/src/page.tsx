@@ -2,7 +2,7 @@
 
 import * as core from '@tauri-apps/api/core'
 import {
-  EditableSettings, DragDropProvider,EntityType, FeedbackStore, IndexedEntityPosition, LogStore, MainPanel, Navigation, ReqwestEvent,
+  EditableSettings, DragDropProvider, EntityType, FeedbackStore, IndexedEntityPosition, LogStore, MainPanel, Navigation, ReqwestEvent,
   SessionSaveState, DataSetContent, UpdatedNavigationEntry, WorkspaceStore, ClipboardPaylodRequest, ExecutionEvent, SessionEntity, WorkspaceInitialization,
   WorkspaceMode,
   UpdateResponse,
@@ -10,6 +10,8 @@ import {
   EntityUpdateNotification,
   RequestBodyInfo,
   RequestBodyMimeInfo,
+  OpenDataSetFileResponse,
+  ToastSeverity,
 } from '@apicize/toolkit'
 import { useEffect, useState } from 'react'
 import "@fontsource/roboto-mono/latin.css"
@@ -26,9 +28,9 @@ import { LogProvider } from './providers/log.provider';
 import { CssBaseline } from '@mui/material'
 import { FileDragDropProvider } from './providers/file-dragdrop.provider'
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
-import { TokenResult } from '@apicize/lib-typescript'
+import { DataSourceType, TokenResult } from '@apicize/lib-typescript'
 import { openUrl } from '@tauri-apps/plugin-opener';
-import { runInAction } from 'mobx'
+import { runInAction, toJS } from 'mobx'
 
 // This is defined externally via Tauri main or other boostrap application
 const sessionId: string = (window as any).__TAURI_INTERNALS__.metadata.currentWindow.label
@@ -105,10 +107,12 @@ const workspaceStore = new WorkspaceStore(
       entityType,
       entityId
     }),
-    update: async (entityUpdate: EntityUpdate) => core.invoke<UpdateResponse>('update', {
-      sessionId,
-      entityUpdate,
-    }),
+    update: async (entityUpdate: EntityUpdate) => {
+      return core.invoke<UpdateResponse>('update', {
+        sessionId,
+        entityUpdate,
+      })
+    },
     move: async (entityType: EntityType, entityId: string, relativeToId: string, relativePosition: IndexedEntityPosition) => core.invoke('move_entity', {
       sessionId,
       entityType,
@@ -165,7 +169,7 @@ const workspaceStore = new WorkspaceStore(
     updateRequestBodyFromClipboard: (requestId) => core.invoke<RequestBodyInfo>(
       'update_request_body_from_clipboard', { sessionId, requestId }
     ),
-    openUrl: (url: string) => openUrl(url)
+    openUrl: (url: string) => openUrl(url),
   },
 )
 
@@ -182,6 +186,10 @@ export default function Home() {
     // Notification sent on entire navigation tree update
     let unlistenNavigation = w.listen<Navigation>('navigation', (data) => {
       workspaceStore.setNavigation(data.payload)
+    })
+    // Notification sent on entire navigation tree update
+    let unlistenToast = w.listen<{ message: string, severity: ToastSeverity }>('toast', (data) => {
+      feedbackStore.toast(data.payload.message, data.payload.severity)
     })
     // Notification sent on individual navigation entry update
     let unlistenNavigationEntry = w.listen<UpdatedNavigationEntry>('navigation_entry', (data) => {
@@ -221,6 +229,7 @@ export default function Home() {
     return () => {
       unlistenInitialize.then(() => { })
       unlistenNavigation.then(() => { })
+      unlistenToast.then(() => { })
       unlistenNavigationEntry.then(() => { })
       unlistenSaveState.then(() => { })
       unlistenUpdate.then(() => { })
@@ -239,18 +248,6 @@ export default function Home() {
             <FileOperationsProvider
               activeSessionId={sessionId}
               workspaceStore={workspaceStore}
-              callbacks={{
-                openDataSetFile: (fileName: string) => core.invoke<[string, string]>(
-                  'open_data_set_file',
-                  {
-                    sessionId, fileName
-                  }),
-                saveDataSetFile: (fileName: string, data: string) => core.invoke<string>(
-                  'save_data_set_file',
-                  {
-                    sessionId, fileName, data
-                  })
-              }}
             >
               <WorkspaceProvider store={workspaceStore}>
                 <DragDropProvider>

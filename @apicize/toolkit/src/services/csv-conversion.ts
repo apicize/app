@@ -48,36 +48,85 @@ export class CsvConversion {
     }
 
     public static toCsvString(data: Csv) {
-        const escapeCsv = (s: string | number | boolean) => {
-            const t = s.toString().replaceAll('\t', '\\t')
-                .replaceAll('\n', '\\n')
-                .replaceAll('\r', '\\r')
-            const hasComma = t.indexOf(',') >= 0
-            const hasQuotes = t.indexOf('"') >= 0
-            if (hasComma || hasQuotes) {
-                return `"${t.replaceAll('"', '""')}"`
-            } else {
-                return t
-            }
-        }
         return [
-            data.columns.map(c => escapeCsv(c)).join(','),
-            ...data.rows.map(d => data.columns.map(c => escapeCsv(d[c])).join(','))
+            data.columns.map(c => CsvConversion.escapeCsv(c)).join(','),
+            ...data.rows.map(d => data.columns.map(c => CsvConversion.escapeCsv(d[c])).join(','))
         ].join('\n')
     }
 
     /**
-     * Convert CSV data to an array of objects with name/value pairs
+     * Escape a value for CSV format
+     * - Escapes tabs, newlines, and carriage returns
+     * - Wraps in quotes and doubles internal quotes if value contains commas or quotes
+     * @param value - The value to escape
+     * @returns The escaped CSV field value
+     */
+    public static escapeCsv(value: string | number | boolean): string {
+        const t = value.toString()
+            .replaceAll('\t', '\\t')
+            .replaceAll('\n', '\\n')
+            .replaceAll('\r', '\\r')
+        const hasComma = t.indexOf(',') >= 0
+        const hasQuotes = t.indexOf('"') >= 0
+        if (hasComma || hasQuotes) {
+            return `"${t.replaceAll('"', '""')}"`
+        } else {
+            return t
+        }
+    }
+
+    /**
+     * Unescape a CSV field value (reverses escapeCsv)
+     * - Removes surrounding quotes and unescapes doubled quotes
+     * - Unescapes \\t, \\n, \\r back to their literal characters
+     * @param value - The escaped CSV field value
+     * @returns The unescaped value
+     */
+    public static unescapeCsv(value: string): string {
+        let result = value.trim()
+
+        // If wrapped in quotes, remove them and unescape doubled quotes
+        if (result.startsWith('"') && result.endsWith('"')) {
+            result = result.slice(1, -1).replaceAll('""', '"')
+        }
+
+        // Unescape special characters
+        return result
+            .replaceAll('\\t', '\t')
+            .replaceAll('\\n', '\n')
+            .replaceAll('\\r', '\r')
+    }
+
+    /**
+     * Convert CSV data to an array of plain objects
      * @param data - CSV data with columns and rows
-     * @returns Array of objects where each object has { name, value } properties for each column in the row
+     * @returns Array of objects where column names are keys and cell values are values
      */
     public static toObject(data: Csv): object[] {
-        return data.rows.map(row =>
-            Object.fromEntries(data.columns.map(column => ([
+        const checkForJson = (value: string) => {
+            if (!value) return ''
+            value = CsvConversion.unescapeCsv(value.trim())
+            try {
+                if (value.length >= 2) {
+                    const first = value[0]
+                    const last = value[value.length - 1]
+                    if ((first === '{' && last === '}') || (first === '[' && last === ']')) {
+                        return JSON.parse(value)
+                    }
+                }
+            } catch {
+                // ignore - return string value if JSON parsing fails
+            }
+            return value
+        }
+
+        return data.rows.map(row => {
+            const entries = data.columns.map(column => ([
                 column,
-                row[column] || ''
-            ])))
-        );
+                checkForJson(row[column])
+            ]))
+            return Object.fromEntries(entries)
+        });
     }
 
     /**

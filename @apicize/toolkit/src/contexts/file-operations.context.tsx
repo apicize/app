@@ -2,7 +2,8 @@ import { createContext, useContext } from "react";
 import { SshFileType } from "../models/workspace/ssh-file-type";
 import { HelpContents } from "../models/help-contents";
 import { EditableSettings } from "../models/editable-settings";
-import { DataSourceType } from "@apicize/lib-typescript";
+import { OpenDataSetFileResponse, UpdateResponse } from "./workspace.context";
+import { DataSet, DataSourceType } from "@apicize/lib-typescript";
 
 export class FileOperationsStore {
     public readonly newWorkbook: (openInNewWindow: boolean) => Promise<void>
@@ -17,11 +18,9 @@ export class FileOperationsStore {
     public readonly retrieveHelpContents: () => Promise<HelpContents>
     public readonly selectWorkbookDirectory: () => Promise<string | null>
     public readonly generateDefaultSettings: () => Promise<EditableSettings>
-    public readonly promptAndOpenDataSetFile: (type: DataSourceType) => Promise<[string, string] | null>
-    public readonly openDataSetFile: (fileName: string) => Promise<[string, string] | null>
-    public readonly promptAndSaveDataSetFile: (type: DataSourceType, data: string) => Promise<string | null>
-    public readonly saveDataSetFile: (fileName: string, data: string) => Promise<string | null>
-    public readonly queueSaveDataSetFile: (fileName: string, data: string) => void
+    public readonly openDataSetFile: (dataSetId: string) => Promise<OpenDataSetFileResponse>
+    public readonly openDataSetFileFrom: (dataSetId: string, sourceType: DataSourceType) => Promise<OpenDataSetFileResponse | null>
+    public readonly saveDataSetAs: (dataSetId: string, sourceType: DataSourceType) => Promise<string | null>
 
     constructor(callbacks: {
         onNewWorkbook: (openInNewWindow: boolean) => Promise<void>,
@@ -36,11 +35,9 @@ export class FileOperationsStore {
         onRetrieveHelpContents: () => Promise<HelpContents>,
         onSelectWorkbookDirectory: () => Promise<string | null>,
         onGenerateDefaultSettings: () => Promise<EditableSettings>,
-        onPromptAndOpenDataSetFile: (type: DataSourceType) => Promise<[string, string] | null>,
-        onOpenDataSetFile: (fileName: string) => Promise<[string, string] | null>,
-        onPromptAndSaveDataSetFile: (type: DataSourceType, data: string) => Promise<string | null>,
-        onSaveDataSetFile: (fileName: string, data: string) => Promise<string | null>,
-        onQueueSaveDataSetFile: (fileName: string, data: string) => void,
+        onOpenDataSetFile: (dataSetId: string) => Promise<OpenDataSetFileResponse>,
+        onOpenDataSetFileFrom: (dataSetId: string, sourceType: DataSourceType) => Promise<OpenDataSetFileResponse | null>,
+        onSaveDataSetAs: (dataSetId: string, sourceType: DataSourceType) => Promise<string | null>,
     }) {
         this.newWorkbook = callbacks.onNewWorkbook
         this.openWorkbook = callbacks.onOpenWorkbook
@@ -54,11 +51,9 @@ export class FileOperationsStore {
         this.retrieveHelpContents = callbacks.onRetrieveHelpContents
         this.selectWorkbookDirectory = callbacks.onSelectWorkbookDirectory
         this.generateDefaultSettings = callbacks.onGenerateDefaultSettings
-        this.promptAndOpenDataSetFile = callbacks.onPromptAndOpenDataSetFile
         this.openDataSetFile = callbacks.onOpenDataSetFile
-        this.promptAndSaveDataSetFile = callbacks.onPromptAndSaveDataSetFile
-        this.saveDataSetFile = callbacks.onSaveDataSetFile
-        this.queueSaveDataSetFile = callbacks.onQueueSaveDataSetFile
+        this.openDataSetFileFrom = callbacks.onOpenDataSetFileFrom
+        this.saveDataSetAs = callbacks.onSaveDataSetAs
     }
 }
 

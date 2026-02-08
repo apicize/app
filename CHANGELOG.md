@@ -1,5 +1,11 @@
 # Change Log
 
+# 0.29.8
+
+* Fix PATCH calls
+* Refine external file handling
+* Standardize data set source error handling
+
 # 0.29.7
 
 * Tune data set file persistence, update demo files
