@@ -490,7 +490,7 @@ export function FileOperationsProvider(
                 fileName += `.${ext}`
             }
 
-            return await core.invoke<string>('save_data_set_file_as', {
+            return await core.invoke<string>('save_data_set_file', {
                 sessionId: activeSessionId,
                 dataSetId,
                 fileName,
