@@ -1,5 +1,9 @@
 # Change Log
 
+# 0.29.10
+
+* Fix 'save data set as'
+
 # 0.29.9
 
 * Fix request test update/save
