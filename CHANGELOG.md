@@ -1,5 +1,9 @@
 # Change Log
 
+# 0.29.9
+
+* Fix request test update/save
+
 # 0.29.8
 
 * Fix PATCH calls

@@ -615,6 +615,14 @@ impl Workspaces {
             };
         }
 
+        if let Some(test) = &update.test {
+            request.test = if test.is_empty() {
+                None
+            } else {
+                Some(test.clone())
+            };
+        }
+
         if let Some(selected_scenario) = &update.selected_scenario {
             request.selected_scenario = if selected_scenario.id == DEFAULT_SELECTION_ID {
                 None
