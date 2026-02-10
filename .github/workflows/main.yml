@@ -21,6 +21,7 @@ jobs:
     runs-on: ubuntu-22.04
     outputs:
       version: ${{ steps.get-version.outputs.version }}
+      display_version: ${{ steps.get-version.outputs.display_version }}
       is_dev: ${{ steps.get-version.outputs.is_dev }}
     steps:
       - name: Checkout project
@@ -30,13 +31,17 @@ jobs:
         run: |
           VERSION=$(grep '^version = ' ./app/src-tauri/Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.build_type }}" == "dev" ]]; then
-            VERSION="${VERSION}-dev"
+            # Use numeric suffix for MSI compatibility (must be numeric-only, max 65535)
+            echo "version=${VERSION}-0" >> $GITHUB_OUTPUT
+            echo "display_version=${VERSION}-dev" >> $GITHUB_OUTPUT
             echo "is_dev=true" >> $GITHUB_OUTPUT
+            echo "Build version: ${VERSION}-0 (display: ${VERSION}-dev)"
           else
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "display_version=$VERSION" >> $GITHUB_OUTPUT
             echo "is_dev=false" >> $GITHUB_OUTPUT
+            echo "Build version: $VERSION"
           fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Build version: $VERSION"
 
   lint:
     name: Lint (Clippy)
@@ -79,9 +84,10 @@ jobs:
     runs-on: ${{ matrix.platform }}
     env:
       BUILD_VERSION: ${{ needs.setup.outputs.version }}
+      DISPLAY_VERSION: ${{ needs.setup.outputs.display_version }}
       IS_DEV_BUILD: ${{ needs.setup.outputs.is_dev }}
     outputs:
-      appVersion: ${{ needs.setup.outputs.version }}
+      appVersion: ${{ needs.setup.outputs.display_version }}
       releaseUploadUrl: ${{ steps.deploy-tauri.outputs.releaseUploadUrl }}
     
     steps:
@@ -213,8 +219,8 @@ jobs:
           APPLE_API_KEY_PATH: /tmp/.private-key
         with:
           updaterJsonPreferNsis: true
-          tagName: apicize-app-v${{ env.BUILD_VERSION }}
-          releaseName: 'Apicize App ${{ env.BUILD_VERSION }}'
+          tagName: apicize-app-v${{ env.DISPLAY_VERSION }}
+          releaseName: 'Apicize App ${{ env.DISPLAY_VERSION }}'
           releaseBody: 'Development build - for testing purposes only. See the assets to download this version and install (*.msi = Windows, *.deb = Debian/Ubuntu, *.rpm = RedHat/Fedora, *.dmg/*.tar.gz = MacOS).'
           releaseDraft: true
           prerelease: true
