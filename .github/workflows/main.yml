@@ -4,8 +4,40 @@ on:
   push:
     tags:
       - '*'
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - release
 
 jobs:
+  setup:
+    name: Setup Build
+    runs-on: ubuntu-22.04
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+      is_dev: ${{ steps.get-version.outputs.is_dev }}
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+      - name: Get version from Cargo.toml
+        id: get-version
+        run: |
+          VERSION=$(grep '^version = ' ./app/src-tauri/Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.build_type }}" == "dev" ]]; then
+            VERSION="${VERSION}-dev"
+            echo "is_dev=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_dev=false" >> $GITHUB_OUTPUT
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Build version: $VERSION"
+
   lint:
     name: Lint (Clippy)
     runs-on: ubuntu-22.04
@@ -26,7 +58,7 @@ jobs:
     name: Release Tauri app
     permissions:
       contents: write
-    needs: 'lint'
+    needs: ['setup', 'lint']
     strategy:
       fail-fast: false
       matrix:
@@ -45,8 +77,11 @@ jobs:
             rust_target: x86_64-pc-windows-msvc
   
     runs-on: ${{ matrix.platform }}
+    env:
+      BUILD_VERSION: ${{ needs.setup.outputs.version }}
+      IS_DEV_BUILD: ${{ needs.setup.outputs.is_dev }}
     outputs:
-      appVersion: ${{ steps.deploy-tauri.outputs.appVersion }}
+      appVersion: ${{ needs.setup.outputs.version }}
       releaseUploadUrl: ${{ steps.deploy-tauri.outputs.releaseUploadUrl }}
     
     steps:
@@ -108,7 +143,19 @@ jobs:
       - name: Install and Build Front-End Dependencies
         run: |
           yarn install # change this to npm, pnpm or bun depending on which one you use.
-          yarn run build-deps        
+          yarn run build-deps
+      - name: Update version for dev build
+        if: env.IS_DEV_BUILD == 'true'
+        shell: bash
+        run: |
+          echo "Updating Cargo.toml version to $BUILD_VERSION"
+          sed -i.bak "s/^version = \".*\"/version = \"$BUILD_VERSION\"/" ./app/src-tauri/Cargo.toml
+          echo "Updating tauri.conf.json version to $BUILD_VERSION"
+          sed -i.bak "s/\"version\": \"[^\"]*\"/\"version\": \"$BUILD_VERSION\"/" ./app/src-tauri/tauri.conf.json
+          echo "Cargo.toml:"
+          head -10 ./app/src-tauri/Cargo.toml
+          echo "tauri.conf.json version:"
+          grep '"version"' ./app/src-tauri/tauri.conf.json
       - name: Store Apple Certificate
         if: matrix.platform == 'macos-latest' || matrix.platform == 'macos-15-intel'
         env:
@@ -121,6 +168,7 @@ jobs:
         run: cargo install tauri-cli --git https://github.com/tauri-apps/tauri
       - id: deploy-tauri
         name: Build and Deploy Tauri
+        if: env.IS_DEV_BUILD != 'true'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -142,6 +190,34 @@ jobs:
           releaseBody: 'See the assets to download this version and install (*.msi = Windows, *.deb = Debian/Ubuntu, *.rpm = RedHat/Fedora, *.dmg/*.tar.gz = MacOS).'
           # releaseDraft: true
           prerelease: false
+          args: --verbose ${{ matrix.args }}
+          projectPath: ./app
+          tauriScript: cargo tauri
+
+      - id: build-tauri-dev
+        name: Build Tauri (Dev)
+        if: env.IS_DEV_BUILD == 'true'
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Azure Code Signing (Windows)
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          # Apple Code Signing (macOS)
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_ISSUER: ${{ vars.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ vars.APPLE_API_KEY }}
+          APPLE_API_KEY_PATH: /tmp/.private-key
+        with:
+          updaterJsonPreferNsis: true
+          tagName: apicize-app-v${{ env.BUILD_VERSION }}
+          releaseName: 'Apicize App ${{ env.BUILD_VERSION }}'
+          releaseBody: 'Development build - for testing purposes only. See the assets to download this version and install (*.msi = Windows, *.deb = Debian/Ubuntu, *.rpm = RedHat/Fedora, *.dmg/*.tar.gz = MacOS).'
+          releaseDraft: true
+          prerelease: true
           args: --verbose ${{ matrix.args }}
           projectPath: ./app
           tauriScript: cargo tauri

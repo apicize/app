@@ -1,5 +1,9 @@
 # Change Log
 
+# 0.29.11
+
+* Add stylized scroll bars
+
 # 0.29.10
 
 * Fix 'save data set as'
