@@ -1603,6 +1603,8 @@ async fn update_request_body(
         }
     }
 
+    let info = workspaces.get_workspace_info(&session.workspace_id)?;
+    dispatch_save_state(&app, &sessions, &session.workspace_id, info, true);
     Ok(response)
 }
 
@@ -1656,6 +1658,8 @@ async fn update_request_body_from_clipboard(
                     }
                 }
 
+                let info = workspaces.get_workspace_info(&session.workspace_id)?;
+                dispatch_save_state(&app, &sessions, &session.workspace_id, info, true);
                 Ok(response)
             } else {
                 Err(ApicizeAppError::ClipboardError(String::from(
