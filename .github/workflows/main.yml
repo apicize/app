@@ -1,9 +1,12 @@
 name: 'publish'
 
+permissions:
+  contents: read
+
 on:
   push:
     tags:
-      - '*'
+      - 'v*'
   workflow_dispatch:
     inputs:
       build_type:
@@ -13,6 +16,7 @@ on:
         type: choice
         options:
           - dev
+          - rc
           - release
 
 jobs:
@@ -22,25 +26,63 @@ jobs:
     outputs:
       version: ${{ steps.get-version.outputs.version }}
       display_version: ${{ steps.get-version.outputs.display_version }}
-      is_dev: ${{ steps.get-version.outputs.is_dev }}
+      build_type: ${{ steps.get-version.outputs.build_type }}
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
-      - name: Get version from Cargo.toml
+      - name: Setup NodeJS
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: 'yarn'
+      - name: Enable Corepack
+        run: corepack enable
+      - name: Install Dependencies
+        run: yarn install
+      - name: Determine version and build type
         id: get-version
         run: |
-          VERSION=$(grep '^version = ' ./app/src-tauri/Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.build_type }}" == "dev" ]]; then
+          if [[ "${{ github.event_name }}" == "push" ]]; then
+            # Tag push - extract version from tag name (format: v<major>.<minor>.<patch>)
+            TAG="${{ github.ref_name }}"
+            if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::Tag '$TAG' does not match expected format v<major>.<minor>.<patch>"
+              exit 1
+            fi
+            VERSION="${TAG#v}"
+            echo "Verifying all project versions match tag: ${VERSION}"
+            node version.mjs --check "${VERSION}"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "display_version=$VERSION" >> $GITHUB_OUTPUT
+            echo "build_type=release" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event.inputs.build_type }}" == "release" ]]; then
+            # Manual release dispatch - verify versions are consistent
+            VERSION=$(node -e "console.log(JSON.parse(require('fs').readFileSync('package.json')).version)")
+            echo "Verifying all project versions match: ${VERSION}"
+            node version.mjs --check
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "display_version=$VERSION" >> $GITHUB_OUTPUT
+            echo "build_type=release" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event.inputs.build_type }}" == "rc" ]]; then
+            # Release candidate - verify versions, use rc suffix
+            VERSION=$(node -e "console.log(JSON.parse(require('fs').readFileSync('package.json')).version)")
+            echo "Verifying all project versions match: ${VERSION}"
+            node version.mjs --check
+            # Use numeric suffix for MSI compatibility (must be numeric-only, max 65535)
+            echo "version=${VERSION}-1" >> $GITHUB_OUTPUT
+            echo "display_version=${VERSION}-rc" >> $GITHUB_OUTPUT
+            echo "build_type=rc" >> $GITHUB_OUTPUT
+            echo "Build version: ${VERSION}-1 (display: ${VERSION}-rc)"
+          else
+            # Dev build - verify versions, use dev suffix
+            VERSION=$(node -e "console.log(JSON.parse(require('fs').readFileSync('package.json')).version)")
+            echo "Verifying all project versions match: ${VERSION}"
+            node version.mjs --check
             # Use numeric suffix for MSI compatibility (must be numeric-only, max 65535)
             echo "version=${VERSION}-0" >> $GITHUB_OUTPUT
             echo "display_version=${VERSION}-dev" >> $GITHUB_OUTPUT
-            echo "is_dev=true" >> $GITHUB_OUTPUT
+            echo "build_type=dev" >> $GITHUB_OUTPUT
             echo "Build version: ${VERSION}-0 (display: ${VERSION}-dev)"
-          else
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
-            echo "display_version=$VERSION" >> $GITHUB_OUTPUT
-            echo "is_dev=false" >> $GITHUB_OUTPUT
-            echo "Build version: $VERSION"
           fi
 
   lint:
@@ -55,10 +97,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/src-tauri
       - name: Lint app
         working-directory: ./app/src-tauri
-        run: cargo clippy
-        
+        run: cargo clippy -- -D warnings
+
   publish-tauri:
     name: Release Tauri app
     permissions:
@@ -70,38 +115,27 @@ jobs:
         include:
           - platform: 'macos-latest' # for Arm based macs (M1 and above).
             args: '--target aarch64-apple-darwin'
-            rust_target: aarch64-apple-darwin            
+            rust_target: aarch64-apple-darwin
           - platform: 'macos-15-intel' # for Intel based macs.
             args: '--target x86_64-apple-darwin'
-            rust_target: x86_64-apple-darwin            
-          - platform: 'ubuntu-22.04' # for Tauri v1 you could replace this with ubuntu-20.04.
+            rust_target: x86_64-apple-darwin
+          - platform: 'ubuntu-22.04'
             args: ''
-            rust_target: x86_64-unknown-linux-gnu            
+            rust_target: x86_64-unknown-linux-gnu
           - platform: 'windows-latest'
             args: ''
             rust_target: x86_64-pc-windows-msvc
-  
+
     runs-on: ${{ matrix.platform }}
     env:
       BUILD_VERSION: ${{ needs.setup.outputs.version }}
       DISPLAY_VERSION: ${{ needs.setup.outputs.display_version }}
-      IS_DEV_BUILD: ${{ needs.setup.outputs.is_dev }}
+      BUILD_TYPE: ${{ needs.setup.outputs.build_type }}
     outputs:
       appVersion: ${{ needs.setup.outputs.display_version }}
       releaseUploadUrl: ${{ steps.deploy-tauri.outputs.releaseUploadUrl }}
-    
+
     steps:
-      # - name: Verify Azure Signing Access
-      #   if: matrix.platform == 'windows-latest'
-      #   shell: pwsh
-      #   env:
-      #     AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      #     AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
-      #     AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-      #   run: |
-      #     az login --service-principal -t $env:AZURE_TENANT_ID -u $env:AZURE_CLIENT_ID -p $env:AZURE_CLIENT_SECRET
-      #     az account show
-      #     az role assignment list --assignee $env:AZURE_CLIENT_ID --output table
       - name: Checkout Project
         uses: actions/checkout@v4
       - name: Setup NodeJS
@@ -110,18 +144,19 @@ jobs:
           node-version: lts/*
           cache: 'yarn'
       - name: Enable Corepack
-        run: corepack enable      
+        run: corepack enable
       - name: Install Rust and add target
         run: |
           curl https://sh.rustup.rs -sSf | sh -s -- -y
           rustup target add ${{ matrix.rust_target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/src-tauri
       - name: Install Linux Dependencies
-        if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
+        if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-        # webkitgtk 4.0 is for Tauri v1 - webkitgtk 4.1 is for Tauri v2.
-        # You can remove the one that doesn't apply to your app to speed up the workflow a bit.
       - name: Install Azure Trusted Signing CLI
         if: matrix.platform == 'windows-latest'
         run: cargo install trusted-signing-cli
@@ -148,10 +183,10 @@ jobs:
           Set-Content -Path $tauriConfJson -Value $tauriConfigDataAsJson
       - name: Install and Build Front-End Dependencies
         run: |
-          yarn install # change this to npm, pnpm or bun depending on which one you use.
+          yarn install
           yarn run build-deps
-      - name: Update version for dev build
-        if: env.IS_DEV_BUILD == 'true'
+      - name: Update version for non-release build
+        if: env.BUILD_TYPE == 'dev' || env.BUILD_TYPE == 'rc'
         shell: bash
         run: |
           echo "Updating Cargo.toml version to $BUILD_VERSION"
@@ -166,15 +201,12 @@ jobs:
         if: matrix.platform == 'macos-latest' || matrix.platform == 'macos-15-intel'
         env:
           APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
-        run: |
-          echo "Copying Apple private key to /tmp/.private-key"
-          printenv APPLE_API_PRIVATE_KEY > /tmp/.private-key
-          cat /tmp/.private-key
+        run: printenv APPLE_API_PRIVATE_KEY > /tmp/.private-key
       - name: Install Tauri CLI
-        run: cargo install tauri-cli --git https://github.com/tauri-apps/tauri
+        run: cargo install tauri-cli --version "^2.10"
       - id: deploy-tauri
         name: Build and Deploy Tauri
-        if: env.IS_DEV_BUILD != 'true'
+        if: env.BUILD_TYPE == 'release'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -191,8 +223,8 @@ jobs:
           APPLE_API_KEY_PATH: /tmp/.private-key
         with:
           updaterJsonPreferNsis: true
-          tagName: apicize-app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
-          releaseName: 'Apicize App __VERSION__'
+          tagName: v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
+          releaseName: 'Apicize v__VERSION__'
           releaseBody: 'See the assets to download this version and install (*.msi = Windows, *.deb = Debian/Ubuntu, *.rpm = RedHat/Fedora, *.dmg/*.tar.gz = MacOS).'
           # releaseDraft: true
           prerelease: false
@@ -200,9 +232,9 @@ jobs:
           projectPath: ./app
           tauriScript: cargo tauri
 
-      - id: build-tauri-dev
-        name: Build Tauri (Dev)
-        if: env.IS_DEV_BUILD == 'true'
+      - id: build-tauri-rc
+        name: Build Tauri (RC)
+        if: env.BUILD_TYPE == 'rc'
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -219,8 +251,36 @@ jobs:
           APPLE_API_KEY_PATH: /tmp/.private-key
         with:
           updaterJsonPreferNsis: true
-          tagName: apicize-app-v${{ env.DISPLAY_VERSION }}
-          releaseName: 'Apicize App ${{ env.DISPLAY_VERSION }}'
+          tagName: v${{ env.DISPLAY_VERSION }}
+          releaseName: 'Apicize v${{ env.DISPLAY_VERSION }}'
+          releaseBody: 'Release candidate - for testing purposes. See the assets to download this version and install (*.msi = Windows, *.deb = Debian/Ubuntu, *.rpm = RedHat/Fedora, *.dmg/*.tar.gz = MacOS).'
+          releaseDraft: true
+          prerelease: true
+          args: --verbose ${{ matrix.args }}
+          projectPath: ./app
+          tauriScript: cargo tauri
+
+      - id: build-tauri-dev
+        name: Build Tauri (Dev)
+        if: env.BUILD_TYPE == 'dev'
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Azure Code Signing (Windows)
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          # Apple Code Signing (macOS)
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ vars.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_ISSUER: ${{ vars.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ vars.APPLE_API_KEY }}
+          APPLE_API_KEY_PATH: /tmp/.private-key
+        with:
+          updaterJsonPreferNsis: true
+          tagName: v${{ env.DISPLAY_VERSION }}
+          releaseName: 'Apicize v${{ env.DISPLAY_VERSION }}'
           releaseBody: 'Development build - for testing purposes only. See the assets to download this version and install (*.msi = Windows, *.deb = Debian/Ubuntu, *.rpm = RedHat/Fedora, *.dmg/*.tar.gz = MacOS).'
           releaseDraft: true
           prerelease: true

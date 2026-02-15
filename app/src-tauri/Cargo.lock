@@ -278,7 +278,7 @@ checksum = "5f0e0fee31ef5ed1ba1316088939cea399010ed7731dba877ed44aeb407a75ea"
 
 [[package]]
 name = "apicize"
-version = "0.29.11"
+version = "0.29.12"
 dependencies = [
  "actix-web",
  "apicize_lib",
