@@ -1,8 +1,9 @@
 use apicize_lib::{
     Authorization, Certificate, DataSet, DataSourceType, ExecutionReportFormat,
-    ExecutionResultSuccess, ExecutionResultSummary, ExecutionState, Identifiable, IndexedEntities,
-    Proxy, Request, RequestBody, RequestEntry, RequestGroup, Scenario, SelectedParameters,
-    Selection, Validated, ValidationState, WorkbookDefaultParameters, Workspace,
+    ExecutionResultBuilder, ExecutionResultDetail, ExecutionResultSuccess, ExecutionResultSummary,
+    ExecutionState, Identifiable, IndexedEntities, Proxy, Request, RequestBody, RequestEntry,
+    RequestGroup, Scenario, SelectedParameters, Selection, Validated, ValidationState,
+    WorkbookDefaultParameters, Workspace,
     editing::indexed_entities::IndexedEntityPosition,
     identifiable::CloneIdentifiable,
     indexed_entities::NO_SELECTION_ID,
@@ -27,7 +28,6 @@ use crate::{
     navigation::{
         Navigation, NavigationRequestEntry, UpdateWithNavigationResponse, UpdatedNavigationEntry,
     },
-    results::{ExecutionResultBuilder, ExecutionResultDetail},
     sessions::{Session, SessionSaveState},
     settings::ApicizeSettings,
     updates::{
@@ -310,7 +310,28 @@ impl Workspaces {
         }
     }
 
-    pub fn get_result_detail(
+    pub fn get_execution(
+        &mut self,
+        workspace_id: &str,
+        request_or_group_id: &str,
+    ) -> Result<RequestExecution, ApicizeAppError> {
+        let info = self.get_workspace_info_mut(workspace_id)?;
+        Ok(info.get_execution_mut(request_or_group_id).clone())
+    }
+
+    pub fn clear_execution(
+        &mut self,
+        workspace_id: &str,
+        request_or_group_id: &str,
+    ) -> Result<(), ApicizeAppError> {
+        let info = self.get_workspace_info_mut(workspace_id)?;
+        info.executions.remove(request_or_group_id);
+        info.execution_results
+            .delete_indexed_request_results(request_or_group_id);
+        Ok(())
+    }
+
+    pub fn get_execution_result(
         &self,
         workspace_id: &str,
         exec_ctr: usize,
@@ -369,15 +390,6 @@ impl Workspaces {
             }
             _ => Err(ApicizeAppError::InvalidRequest(request_id.into())),
         }
-    }
-
-    pub fn get_execution(
-        &mut self,
-        workspace_id: &str,
-        request_or_group_id: &str,
-    ) -> Result<RequestExecution, ApicizeAppError> {
-        let info = self.get_workspace_info_mut(workspace_id)?;
-        Ok(info.get_execution_mut(request_or_group_id).clone())
     }
 
     pub fn add_request(
@@ -2085,13 +2097,16 @@ impl Workspaces {
                 });
         };
 
-        info.workspace.defaults.perform_validation();
         info.workspace.validate_selections();
 
         let validation_state = info.workspace.defaults.get_validation_state();
         let validation_warnings = info.workspace.defaults.validation_warnings.clone();
         let validation_errors = info.workspace.defaults.validation_errors.clone();
 
+        print!(
+            "Defaults validation state: {:?} versus updated {:?}",
+            &info.navigation.defaults.validation_state, &validation_state
+        );
         let requires_update = info.navigation.defaults.validation_state != validation_state;
 
         let response = UpdateWithNavigationResponse {
@@ -2754,6 +2769,36 @@ impl WorkspaceInfo {
         }
     }
 
+    /// Build a request execution struct
+    pub fn build_request_execution(
+        &self,
+        request_or_group_id: &str,
+    ) -> Result<RequestExecution, ApicizeAppError> {
+        let menu = self.build_result_menu_items(request_or_group_id)?;
+        let mut execution_state = ExecutionState::empty();
+        let active_summaries = self
+            .execution_results
+            .get_summaries(request_or_group_id, true)
+            .values()
+            .flatten()
+            .map(|s| {
+                let result_state = match s.success {
+                    ExecutionResultSuccess::Success => ExecutionState::SUCCESS,
+                    ExecutionResultSuccess::Failure => ExecutionState::FAILURE,
+                    ExecutionResultSuccess::Error => ExecutionState::ERROR,
+                };
+                execution_state |= result_state;
+                (s.exec_ctr, (*s).to_owned())
+            })
+            .collect::<IndexMap<usize, ExecutionResultSummary>>();
+
+        Ok(RequestExecution {
+            menu,
+            execution_state,
+            active_summaries,
+        })
+    }
+
     pub fn check_request_navigation_update(
         &mut self,
         id: &str,
@@ -3396,6 +3441,8 @@ pub enum ExecutionEvent {
     Cancel { execution_state: ExecutionState },
     #[serde(rename_all = "camelCase")]
     Complete(RequestExecution),
+    #[serde(rename_all = "camelCase")]
+    Clear(RequestExecution),
 }
 
 #[derive(Clone, Serialize, Deserialize)]

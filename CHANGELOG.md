@@ -3,6 +3,7 @@
 # 0.29.11
 
 * Add stylized scroll bars
+* Set "dirty" on request body change
 
 # 0.29.10
 

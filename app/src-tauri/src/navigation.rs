@@ -274,7 +274,7 @@ impl Navigation {
             defaults: NavigationEntry {
                 id: "defaults".to_string(),
                 name: "Defaults".to_string(),
-                validation_state: ValidationState::empty(),
+                validation_state: workspace.defaults.validation_state,
                 execution_state: ExecutionState::empty(),
             },
         }

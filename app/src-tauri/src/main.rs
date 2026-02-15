@@ -5,17 +5,16 @@ pub mod dragdrop;
 pub mod error;
 pub mod navigation;
 pub mod pkce;
-pub mod results;
 pub mod sessions;
 pub mod settings;
 pub mod trace;
 pub mod updates;
 pub mod workspaces;
 use apicize_lib::{
-    ApicizeRunner, Authorization, CachedTokenInfo, DataSet, DataSourceType, ExecutionResultSuccess,
-    ExecutionResultSummary, ExecutionState, Parameters, PkceTokenResult, RequestBody, RequestEntry,
-    TestRunnerContext, TokenResult, Validated, Workspace, build_absolute_file_name,
-    clear_all_oauth2_tokens_from_cache, clear_oauth2_token_from_cache,
+    ApicizeRunner, Authorization, CachedTokenInfo, DataSet, DataSourceType, ExecutionResultDetail,
+    ExecutionResultSuccess, ExecutionResultSummary, ExecutionState, Parameters, PkceTokenResult,
+    RequestBody, RequestEntry, TestRunnerContext, TokenResult, Validated, Workspace,
+    build_absolute_file_name, clear_all_oauth2_tokens_from_cache, clear_oauth2_token_from_cache,
     editing::indexed_entities::IndexedEntityPosition, get_existing_absolute_file_name,
     get_oauth2_client_credentials, get_relative_file_name, store_oauth2_token_in_cache,
 };
@@ -26,7 +25,6 @@ use indexmap::IndexMap;
 use navigation::{Navigation, UpdateResponse, UpdatedNavigationEntry};
 use pathdiff::diff_paths;
 use pkce::{OAuth2PkceInfo, OAuth2PkceRequest, OAuth2PkceService};
-use results::ExecutionResultDetail;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use sessions::{ExecutionResultViewState, Session, SessionSaveState, Sessions};
@@ -263,9 +261,11 @@ async fn main() {
             get_workspace_save_status,
             open_settings,
             save_settings,
-            execute_request,
-            cancel_request,
-            get_result_detail,
+            start_execution,
+            cancel_execution,
+            get_execution,
+            clear_execution,
+            get_execution_result,
             get_execution_result_view_state,
             update_execution_result_view_state,
             store_token,
@@ -290,7 +290,6 @@ async fn main() {
             update_mode,
             update_help_topic,
             get_title,
-            get_execution,
             get_dirty,
             get_request_active_authorization,
             get_request_active_data,
@@ -1164,7 +1163,7 @@ fn cancellation_tokens() -> &'static Mutex<FxHashMap<String, CancellationToken>>
 }
 
 #[tauri::command]
-async fn execute_request(
+async fn start_execution(
     app: AppHandle,
     sessions_state: State<'_, SessionsState>,
     workspaces_state: State<'_, WorkspacesState>,
@@ -1402,15 +1401,73 @@ async fn execute_request(
 }
 
 #[tauri::command]
-async fn cancel_request(request_id: String) {
+async fn cancel_execution(request_or_group_id: String) {
     let tokens = cancellation_tokens().lock().unwrap();
-    if let Some(token) = tokens.get(&request_id) {
+    if let Some(token) = tokens.get(&request_or_group_id) {
         token.cancel()
     }
 }
 
 #[tauri::command]
-async fn get_result_detail(
+async fn get_execution(
+    sessions_state: State<'_, SessionsState>,
+    workspaces_state: State<'_, WorkspacesState>,
+    session_id: &str,
+    request_or_group_id: &str,
+) -> Result<RequestExecution, ApicizeAppError> {
+    let sessions = sessions_state.sessions.read().await;
+    let session = sessions.get_session(session_id)?;
+    let mut workspaces = workspaces_state.workspaces.write().await;
+    workspaces.get_execution(&session.workspace_id, request_or_group_id)
+}
+
+#[tauri::command]
+async fn clear_execution(
+    app: AppHandle,
+    sessions_state: State<'_, SessionsState>,
+    workspaces_state: State<'_, WorkspacesState>,
+    session_id: &str,
+    request_or_group_id: &str,
+) -> Result<(), ApicizeAppError> {
+    let sessions = sessions_state.sessions.read().await;
+    let session = sessions.get_session(session_id)?;
+    let mut workspaces = workspaces_state.workspaces.write().await;
+    // Track of the request IDs associated with this execution (incl children) so we can trigger
+    // an update on them all
+    let all_request_ids = workspaces
+        .get_execution(&session.workspace_id, request_or_group_id)?
+        .active_summaries
+        .values()
+        .map(|s| s.request_or_group_id.to_string())
+        .collect::<HashSet<String>>();
+
+    // Clear the execution
+    workspaces.clear_execution(&session.workspace_id, request_or_group_id)?;
+
+    // Build clear events for all affected request and group IDs
+    let info = workspaces.get_workspace_info(&session.workspace_id)?;
+    let clear_event: HashMap<String, ExecutionEvent> = all_request_ids
+        .into_iter()
+        .map(|update_request_or_group_id| {
+            let exec = info.build_request_execution(&update_request_or_group_id)?;
+            Ok((update_request_or_group_id, ExecutionEvent::Clear(exec)))
+        })
+        .collect::<Result<_, ApicizeAppError>>()?;
+
+    let all_session_ids = get_workspace_sessions(&session.workspace_id, &sessions, None)
+        .unwrap_or_default()
+        .iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<String>>();
+    for session_id in &all_session_ids {
+        app.emit_to(session_id, "execution_event", &clear_event)
+            .unwrap();
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn get_execution_result(
     sessions_state: State<'_, SessionsState>,
     workspaces_state: State<'_, WorkspacesState>,
     session_id: &str,
@@ -1419,7 +1476,7 @@ async fn get_result_detail(
     let sessions = sessions_state.sessions.read().await;
     let session = sessions.get_session(session_id)?;
     let workspaces = workspaces_state.workspaces.read().await;
-    workspaces.get_result_detail(&session.workspace_id, exec_ctr)
+    workspaces.get_execution_result(&session.workspace_id, exec_ctr)
 }
 
 #[tauri::command]
@@ -1982,19 +2039,6 @@ async fn get_title(
 }
 
 #[tauri::command]
-async fn get_execution(
-    sessions_state: State<'_, SessionsState>,
-    workspaces_state: State<'_, WorkspacesState>,
-    session_id: &str,
-    request_or_group_id: &str,
-) -> Result<RequestExecution, ApicizeAppError> {
-    let sessions = sessions_state.sessions.read().await;
-    let session = sessions.get_session(session_id)?;
-    let mut workspaces = workspaces_state.workspaces.write().await;
-    workspaces.get_execution(&session.workspace_id, request_or_group_id)
-}
-
-#[tauri::command]
 async fn get_dirty(
     sessions_state: State<'_, SessionsState>,
     workspaces_state: State<'_, WorkspacesState>,
@@ -2189,6 +2233,11 @@ async fn update(
         };
 
         for other_session_id in other_session_ids {
+            println!(
+                "Sending update to {}: {}",
+                other_session_id,
+                serde_json::to_string_pretty(&notification.update).unwrap()
+            );
             app.emit_to(other_session_id, "update", &notification)
                 .unwrap();
         }
