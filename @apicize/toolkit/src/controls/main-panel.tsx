@@ -22,7 +22,7 @@ import { when } from "mobx";
 import { useApicizeSettings } from "../contexts/apicize-settings.context";
 import { useFileOperations } from "../contexts/file-operations.context";
 import useWindowSize from "../window-size";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { DataSetEditor } from "./editors/data-set-editor";
 import { DataSetList } from "./navigation/lists/data-set-list";
 
@@ -35,13 +35,16 @@ export const MainPanel = observer(() => {
     const mode = workspace.mode
     const activeSelection = workspace.activeSelection
 
-    when(
-        () => settings.readyToSave === true,
-        () => {
-            settings.clearChangeCtr()
-            fileOps.saveSettings()
-        }
-    )
+    useEffect(() => {
+        const disposer = when(
+            () => settings.readyToSave === true,
+            () => {
+                settings.clearChangeCtr()
+                fileOps.saveSettings()
+            }
+        )
+        return disposer
+    })
 
     const Pane = useMemo(() => {
         switch (mode) {

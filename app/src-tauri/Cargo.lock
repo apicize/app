@@ -278,7 +278,7 @@ checksum = "5f0e0fee31ef5ed1ba1316088939cea399010ed7731dba877ed44aeb407a75ea"
 
 [[package]]
 name = "apicize"
-version = "0.29.12"
+version = "0.39.13"
 dependencies = [
  "actix-web",
  "apicize_lib",
@@ -319,9 +319,9 @@ dependencies = [
 
 [[package]]
 name = "apicize_lib"
-version = "0.30.8"
+version = "0.30.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ea3a79d2e1bebf874a3c04b8458569eae02b3bf81ecde30e7131b41537402dc2"
+checksum = "a9a4208f709dcb7d6c1e29fbc42c7f7aba9065a87234c7ea4b8a4d03cc97a929"
 dependencies = [
  "async-recursion",
  "async-trait",

@@ -11,7 +11,7 @@ export function LogProvider({ store, children }: { store: LogStore, children?: R
         return () => {
             unlistenLog.then(f => f())
         }
-    })
+    }, [])
 
     return (
         <LogContext.Provider value={store}>

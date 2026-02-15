@@ -1,5 +1,9 @@
 # Change Log
 
+# 0.29.13
+
+* Performance improvements on result viewer, log viewer and theme processing
+
 # 0.29.12
 
 * Add erase per-request results

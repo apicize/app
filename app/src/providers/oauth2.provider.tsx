@@ -81,7 +81,7 @@ export const OAuth2Provider = observer(({ store, children }: { store: WorkspaceS
             unlistenPkceSuccess.then(f => f())
             unlistenPkceError.then(f => f())
         }
-    })
+    }, [])
 
     /**
      * Retrieve OAuth2 client token manually (as opposed to automatically during a test)

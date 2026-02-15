@@ -1,7 +1,7 @@
 import { useApicizeSettings } from "@apicize/toolkit"
 import { createTheme, ThemeProvider, TypographyVariantsOptions } from "@mui/material/styles"
 import { observer } from "mobx-react-lite"
-import { ReactNode } from "react"
+import { ReactNode, useMemo } from "react"
 import "@mui/x-tree-view/themeAugmentation"
 
 interface ExtendedTypographyOptions extends TypographyVariantsOptions {
@@ -14,16 +14,17 @@ export const ConfigurableTheme = observer(({ children }: {
 }) => {
   const settings = useApicizeSettings()
 
-  const palette = createTheme()
-  palette.palette.text.primary = settings.colorScheme === 'dark'
-    ? '#FFFFFF'
-    : '#000000'
-
   const isDark = settings.colorScheme === 'dark'
+  const fontSize = settings.fontSize
+  const navigationFontSize = settings.navigationFontSize
 
-  const theme = createTheme({
+  const theme = useMemo(() => {
+    const palette = createTheme()
+    palette.palette.text.primary = isDark ? '#FFFFFF' : '#000000'
+
+    return createTheme({
     palette: {
-      mode: settings.colorScheme,
+      mode: isDark ? 'dark' : 'light',
       navigation: palette.palette.augmentColor({
         color: {
           main: isDark ? '#202020' : '#F0F0F0',
@@ -112,24 +113,24 @@ export const ConfigurableTheme = observer(({ children }: {
     typography: {
       body: {
         fontFamily: "'Roboto Flex','sans'",
-        fontSize: settings.fontSize
+        fontSize: fontSize
       },
       body1: {
         fontFamily: "'Roboto Flex','sans'",
-        fontSize: settings.fontSize
+        fontSize: fontSize
       },
       body2: {
         fontFamily: "'Roboto Flex','sans'",
-        fontSize: settings.fontSize
+        fontSize: fontSize
       },
-      fontSize: settings.fontSize,
+      fontSize: fontSize,
       fontFamily: "'Roboto Flex','sans'",
       code: {
         fontFamily: "'Roboto Mono','monospace'"
       },
       navigation: {
         fontFamily: "'Roboto Flex','sans'",
-        fontSize: settings.navigationFontSize
+        fontSize: navigationFontSize
       },
     } as TypographyVariantsOptions,
     components: {
@@ -193,6 +194,7 @@ export const ConfigurableTheme = observer(({ children }: {
       }
     },
   })
+  }, [isDark, fontSize, navigationFontSize])
 
   return (
     <ThemeProvider theme={theme}>

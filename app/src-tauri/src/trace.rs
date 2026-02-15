@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::sync::{Arc, RwLock};
 
 use chrono::Local;
@@ -14,7 +15,7 @@ pub struct ReqwestLogger {
     regex_connect: Regex,
     app: AppHandle,
     event_sender: Sender<ReqwestEvent>,
-    stored_log: Arc<RwLock<Vec<ReqwestEvent>>>,
+    stored_log: Arc<RwLock<VecDeque<ReqwestEvent>>>,
 }
 
 #[derive(Serialize, Clone)]
@@ -50,7 +51,7 @@ impl ReqwestLogger {
     pub fn new(app: AppHandle) -> Self {
         let (event_sender, mut event_receiver) = mpsc::channel::<ReqwestEvent>(50);
 
-        let stored_log = Arc::new(RwLock::new(vec![]));
+        let stored_log = Arc::new(RwLock::new(VecDeque::new()));
         let cloned_stored_log = stored_log.clone();
         let cloned_app = app.clone();
 
@@ -60,9 +61,9 @@ impl ReqwestLogger {
                     cloned_app.emit("log", &event).unwrap();
                     let mut log = cloned_stored_log.write().unwrap();
                     while log.len() > 99 {
-                        log.remove(0);
+                        log.pop_front();
                     }
-                    log.push(event);
+                    log.push_back(event);
                 }
             }
         });
@@ -78,7 +79,7 @@ impl ReqwestLogger {
 
     pub fn get_logs(&self) -> Result<Vec<ReqwestEvent>, ApicizeAppError> {
         match self.stored_log.read() {
-            Ok(logs) => Ok(logs.to_vec()),
+            Ok(logs) => Ok(logs.iter().cloned().collect()),
             Err(e) => Err(ApicizeAppError::ConcurrencyError(e.to_string())),
         }
     }

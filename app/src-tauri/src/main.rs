@@ -1527,7 +1527,7 @@ async fn retrieve_oauth2_client_token(
 ) -> Result<TokenResult, ApicizeAppError> {
     let sessions = sessions_state.sessions.read().await;
     let session = sessions.get_session(session_id)?;
-    let workspaces = workspaces_state.workspaces.write().await;
+    let workspaces = workspaces_state.workspaces.read().await;
     let workspace = workspaces.get_workspace(&session.workspace_id)?;
 
     let auth = workspaces.get_authorization(&session.workspace_id, authorization_id)?;
@@ -1901,13 +1901,12 @@ async fn get(
 ) -> Result<Entity, ApicizeAppError> {
     let sessions = sessions_state.sessions.read().await;
     let session = sessions.get_session(session_id)?;
+    let workspaces = workspaces_state.workspaces.read().await;
     Ok(match entity_type {
         EntityType::RequestEntry => {
-            let workspaces = workspaces_state.workspaces.read().await;
             Entity::RequestEntry(workspaces.get_request_entry(&session.workspace_id, entity_id)?)
         }
         EntityType::Request => {
-            let workspaces = workspaces_state.workspaces.read().await;
             if let RequestEntryInfo::Request { request } =
                 workspaces.get_request_entry(&session.workspace_id, entity_id)?
             {
@@ -1917,7 +1916,6 @@ async fn get(
             }
         }
         EntityType::Group => {
-            let workspaces = workspaces_state.workspaces.read().await;
             if let RequestEntryInfo::Group { group } =
                 workspaces.get_request_entry(&session.workspace_id, entity_id)?
             {
@@ -1927,7 +1925,6 @@ async fn get(
             }
         }
         EntityType::Scenario => {
-            let workspaces = workspaces_state.workspaces.read().await;
             Entity::Scenario(
                 workspaces
                     .get_scenario(&session.workspace_id, entity_id)?
@@ -1935,15 +1932,12 @@ async fn get(
             )
         }
         EntityType::Authorization => {
-            let workspaces = workspaces_state.workspaces.read().await;
             Entity::Authorization(workspaces.get_authorization(&session.workspace_id, entity_id)?)
         }
         EntityType::Certificate => {
-            let workspaces = workspaces_state.workspaces.read().await;
             Entity::Certificate(workspaces.get_certificate(&session.workspace_id, entity_id)?)
         }
         EntityType::Proxy => {
-            let workspaces = workspaces_state.workspaces.read().await;
             Entity::Proxy(
                 workspaces
                     .get_proxy(&session.workspace_id, entity_id)?
@@ -1951,7 +1945,6 @@ async fn get(
             )
         }
         EntityType::DataSet => {
-            let workspaces = workspaces_state.workspaces.read().await;
             Entity::DataSet(workspaces.get_data_set(&session.workspace_id, entity_id)?)
         }
         _ => {
@@ -2233,11 +2226,6 @@ async fn update(
         };
 
         for other_session_id in other_session_ids {
-            println!(
-                "Sending update to {}: {}",
-                other_session_id,
-                serde_json::to_string_pretty(&notification.update).unwrap()
-            );
             app.emit_to(other_session_id, "update", &notification)
                 .unwrap();
         }

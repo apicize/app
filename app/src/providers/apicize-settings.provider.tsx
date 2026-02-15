@@ -1,7 +1,7 @@
 import * as app from '@tauri-apps/api/app'
 import * as core from '@tauri-apps/api/core'
 import * as os from '@tauri-apps/plugin-os'
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { ApicizeSettingsContext, EditableSettings, StorageInformation } from "@apicize/toolkit";
 
 export function ApicizeSettingsProvider({
@@ -11,8 +11,12 @@ export function ApicizeSettingsProvider({
     children?: ReactNode | null
 }) {
 
-    (async () => {
-        if (settings) {
+    useEffect(() => {
+        if (!settings) return
+
+        let contextMenuHandler: ((event: Event) => void) | null = null;
+
+        (async () => {
             const [name, version, isReleaseMode, storage] = await Promise.all([
                 app.getName(),
                 app.getVersion(),
@@ -21,7 +25,8 @@ export function ApicizeSettingsProvider({
             ])
 
             if (isReleaseMode) {
-                document.addEventListener('contextmenu', event => event.preventDefault())
+                contextMenuHandler = (event: Event) => event.preventDefault()
+                document.addEventListener('contextmenu', contextMenuHandler)
             }
 
             settings.changeApp(
@@ -32,10 +37,17 @@ export function ApicizeSettingsProvider({
             try {
                 settings.setOs(os.type())
             } catch (e) {
-                console.error("Uanble to detect OS", e)
+                console.error("Unable to detect OS", e)
+            }
+        })()
+
+        return () => {
+            if (contextMenuHandler) {
+                document.removeEventListener('contextmenu', contextMenuHandler)
             }
         }
-    })()
+    }, [settings])
+
     return (
         <ApicizeSettingsContext.Provider value={settings}>
             {children}

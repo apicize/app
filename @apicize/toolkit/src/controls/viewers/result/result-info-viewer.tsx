@@ -157,11 +157,6 @@ export const ResultInfoViewer = observer(({
         enableErrorFilter = false
     }
 
-
-
-
-    let idx = 0
-
     const executingTitle = request.selectedResultMenuItem.executingName
 
     const fmtMinSec = (value: number, subZero: string | null = null) => {
@@ -222,10 +217,7 @@ export const ResultInfoViewer = observer(({
                 break
         }
 
-        const isFirst = depth === 0
-        const key = isFirst ? 'first-result' : `result-${request.id}-${idx++}`
-
-        return <Box key={key} className='results-test-section'>
+        return <Box key={`exec-${result.execCtr}`} className='results-test-section'>
             <>
                 {
                     depth === 0 && executingTitle
@@ -264,9 +256,9 @@ export const ResultInfoViewer = observer(({
                                 copyToClipboard={copyToClipboard}
                             />
                             {
-                                isFirst
-                                    ? <></>
-                                    : <Link title='View Details' underline='hover' display='inline-flex' marginLeft='0.5rem' alignItems='center' onClick={e => changeResult(e, result.execCtr)}><SvgIcon><ViewIcon /></SvgIcon></Link>
+                                depth > 0
+                                    ? <Link title='View Details' underline='hover' display='inline-flex' marginLeft='0.5rem' alignItems='center' onClick={e => changeResult(e, result.execCtr)}><SvgIcon><ViewIcon /></SvgIcon></Link>
+                                    : null
                             }
                         </Grid>
                     </Grid >
@@ -282,7 +274,7 @@ export const ResultInfoViewer = observer(({
                     (result.testResults && result.testResults.length > 0)
                         ? <Box className='test-details'>
                             {
-                                result.testResults.map(testResult => <TestBehavior behavior={testResult} key={`result-${request.id}-${idx++}`} />)
+                                result.testResults.map((testResult, i) => <TestBehavior behavior={testResult} key={`behavior-${result.execCtr}-${i}`} />)
                             }
                         </Box>
                         : (null)
@@ -291,8 +283,7 @@ export const ResultInfoViewer = observer(({
                     (result.childExecCtrs ?? []).map(childExecCtr => {
                         try {
                             const child = request.getSummary(childExecCtr)
-                            const childKey = `result-${request.id}-${idx++}`
-                            return child ? <RenderExecution key={childKey} result={child} depth={depth + 1} /> : null
+                            return child ? <RenderExecution key={`child-${childExecCtr}`} result={child} depth={depth + 1} /> : null
                         } catch (e) {
                             feedback.toastError(e)
                             return null
@@ -310,51 +301,48 @@ export const ResultInfoViewer = observer(({
     }
 
     const TestInfo = ({ success, text }: { success: ExecutionResultSuccess, text: string }) => {
-        const key = `result-${request.id}-${idx++}`
         switch (success) {
             case ExecutionResultSuccess.Error:
-                return <Stack key={key} direction='row'>
+                return <Stack direction='row'>
                     <Box className='test-result-icon'><ErrorIcon color="error" fontSize='medium' /></Box>
                     <Typography className='test-result-detail' color='error'>{text}</Typography>
                 </Stack>
             case ExecutionResultSuccess.Failure:
-                return <Box key={key} color='warn' className='test-result-behavior'><Box className='test-result-text'></Box>{text}</Box>
+                return <Box color='warn' className='test-result-behavior'><Box className='test-result-text'></Box>{text}</Box>
             default:
-                return <Box key={key} className='test-result-behavior'>{text}</Box>
+                return <Box className='test-result-behavior'>{text}</Box>
         }
     }
 
     const TestBehavior = ({ behavior }: { behavior: ApicizeTestBehavior }) => {
-        const key = `result-${request.id}-${idx++}`
-
         const error = (behavior.error && behavior.error.length > 0) ? behavior.error : null
         const logs = (behavior.logs?.length ?? 0) > 0 ? behavior.logs : null
 
         const className = 'test-result-behavior'
 
         return (error || logs)
-            ? <Box key={key} className={className}>
-                <Stack direction='row' key={`result-${request.id}-${idx++}`}>
-                    <Box className='test-result-icon' key={`result-${idx++}`}>
+            ? <Box className={className}>
+                <Stack direction='row'>
+                    <Box className='test-result-icon'>
                         {behavior.success ? (<CheckIcon color='success' />) : (<BlockIcon color='warning' />)}
                     </Box>
-                    <Stack direction='column' key={`result-${request.id}-${idx++}`} className='test-result-detail'>
-                        <Box key={`result-${request.id}-${idx++}`}>
+                    <Stack direction='column' className='test-result-detail'>
+                        <Box>
                             {behavior.name}{behavior.tag ? <Typography className='tag'> [{behavior.tag}]</Typography> : null}
                         </Box>
                         <Box className='test-result-detail-info'>
                             {
                                 error
                                     ?
-                                    <Stack direction='column' key={`result-${request.id}-${idx++}`}>
-                                        <Typography key={`result-${request.id}-${idx++}`} className='test-result-error' color='warning'>{behavior.error}</Typography>
+                                    <Stack direction='column'>
+                                        <Typography className='test-result-error' color='warning'>{behavior.error}</Typography>
                                     </Stack>
                                     : null
                             }
                             {
-                                (behavior.logs ?? []).map((log) => (
-                                    <Stack direction='column' key={`result-${request.id}-${idx++}`}>
-                                        <code className='results-log' key={`result-${request.id}-${idx++}`}>{log}</code>
+                                (behavior.logs ?? []).map((log, i) => (
+                                    <Stack direction='column' key={`log-${i}`}>
+                                        <code className='results-log'>{log}</code>
                                     </Stack>
                                 ))
                             }
@@ -362,13 +350,13 @@ export const ResultInfoViewer = observer(({
                     </Stack>
                 </Stack>
             </Box >
-            : <Box key={key} className={className}>
-                <Stack direction='row' key={`result-${request.id}-${idx++}`} className='test-result-detail'>
-                    <Box className='test-result-icon' key={`result-${request.id}-${idx++}`}>
+            : <Box className={className}>
+                <Stack direction='row' className='test-result-detail'>
+                    <Box className='test-result-icon'>
                         {behavior.success ? (<CheckIcon color='success' />) : (<BlockIcon color='error' />)}
                     </Box>
-                    <Box key={`result-${request.id}-${idx++}`}>
-                        <Typography sx={{ marginTop: 0, marginBottom: 0, paddingTop: 0 }} component='div' key={`result-${request.id}-${idx++}`}>
+                    <Box>
+                        <Typography sx={{ marginTop: 0, marginBottom: 0, paddingTop: 0 }} component='div'>
                             {behavior.name} {behavior.tag ? <Typography className='tag'>[{behavior.tag}]</Typography> : null}
                         </Typography>
                     </Box>
