@@ -1,4 +1,4 @@
-import { ToggleButton, Box, Grid, SvgIcon } from "@mui/material";
+import { ToggleButton, Box, Grid, SvgIcon, IconButton } from "@mui/material";
 import { SxProps } from "@mui/material";
 import { observer } from "mobx-react-lite";
 import PlayCircleOutlined from '@mui/icons-material/PlayCircleOutlined'
@@ -7,6 +7,7 @@ import { EntityType } from "../models/workspace/entity-type";
 import { useWorkspace } from "../contexts/workspace.context";
 import { ToastSeverity, useFeedback } from "../contexts/feedback.context";
 import BlockIcon from '@mui/icons-material/Block';
+import ClearAllIcon from '@mui/icons-material/ClearAll';
 import { NO_SELECTION_ID } from "../models/store";
 import SeedIcon from "../icons/seed-icon";
 import { EditableRequestEntry } from "../models/workspace/editable-request-entry";
@@ -21,6 +22,7 @@ export const RunToolbar = observer(({ sx, requestEntry }: { sx?: SxProps, reques
 
     const requestId = requestEntry.id
     const running = requestEntry?.isRunning ?? false
+    const hasExecutions = requestEntry.hasExecutions
 
     if (seedingFrom == null) {
         workspace.getRequestActiveData(requestEntry)
@@ -30,11 +32,11 @@ export const RunToolbar = observer(({ sx, requestEntry }: { sx?: SxProps, reques
     }
 
     const handleRunClick = (singleRun: boolean = false) => () => {
-        workspace.launchExecution(requestId, singleRun)
+        workspace.startExecution(requestId, singleRun)
     }
 
     const handleCancel = () => {
-        workspace.cancelRequest(requestId)
+        workspace.cancelExecution(requestId)
     }
 
     const label = requestEntry.entityType === EntityType.Group ? 'group' : 'request'
@@ -56,7 +58,7 @@ export const RunToolbar = observer(({ sx, requestEntry }: { sx?: SxProps, reques
     let times = requestEntry.runs == 1 ? 'one time' : `${requestEntry.runs} times`
 
     return (
-        <Grid container direction={'row'} display='flex' flexGrow={1} marginLeft='2em' alignItems='center' justifyContent='space-between' sx={sx}>
+        <Grid container direction={'row'} display='flex' flexGrow={1} marginLeft='1em' alignItems='center' justifyContent='space-between' sx={sx}>
             <Box>
                 <ToggleButton value='Run' sx={{ display: runDisplay }} title={`Run selected ${label} once with maximum timeout (${settings.ctrlKey}-Enter)`} size='small' disabled={running} onClick={handleRunClick(true)}>
                     <PlayCircleOutlined color={running ? 'disabled' : 'success'} />
@@ -67,6 +69,11 @@ export const RunToolbar = observer(({ sx, requestEntry }: { sx?: SxProps, reques
                 <ToggleButton value='Cancel' sx={{ display: cancelDisplay }} title='Cancel' size='small' onClick={() => handleCancel()}>
                     <BlockIcon color='error' />
                 </ToggleButton>
+                {
+                    hasExecutions
+                        ? <ToggleButton value='Clear' title='Clear Execution Results' size='small' onClick={() => workspace.clearExecution(requestEntry.id)}><ClearAllIcon color='warning' /></ToggleButton>
+                        : null
+                }
             </Box>
             <ToggleButton value='Seed' size='small' title={seedingFrom === '' ? 'Not Seeding Data' : `Seeding from ${seedingFrom}`} onClick={() =>
                 requestEntry.entityType === EntityType.Group ? workspace.changeGroupPanel('Parameters') : workspace.changeRequestPanel('Parameters')

@@ -71,7 +71,7 @@ export const SettingsEditor = observer(({ sx }: { sx?: SxProps }) => {
     return <Stack direction={'column'} className='editor' sx={sx}>
         <Box className='editor-panel-header'>
             <EditorTitle icon={<SvgIcon><SettingsIcon /></SvgIcon>} name='Settings'>
-                <IconButton color='primary' size='medium' aria-label='Close' title='Close' sx={{ marginLeft: '1rem' }} onClick={() => workspace.returnToNormal()}><CloseIcon fontSize='inherit' /></IconButton>
+                <IconButton color='primary' size='medium' aria-label='Close' title='Close' sx={{ marginLeft: '1rem' }} onClick={() => workspace.returnToNormal()}><CloseIcon fontSize='inherit' color='error' /></IconButton>
             </EditorTitle>
         </Box>
         <Box className='editor-panel' sx={{ paddingTop: '2em' }}>

@@ -100,8 +100,8 @@ export const LogViewer = React.memo(observer(({
                         onClick={_ => clipboard.writeTextToClipboard(eventsToText())}>
                         <ContentCopyIcon />
                     </IconButton>
-                    <IconButton color='primary' size='medium' aria-label='Clear' title='Clear Entries' onClick={() => clear()}><ClearAllIcon fontSize='inherit' /></IconButton>
-                    <IconButton color='primary' size='medium' aria-label='Close' title='Close' onClick={() => workspace.returnToNormal()}><CloseIcon fontSize='inherit' /></IconButton>
+                    <IconButton color='primary' size='medium' aria-label='Clear' title='Clear Entries' onClick={() => clear()}><ClearAllIcon fontSize='inherit' color='warning' /></IconButton>
+                    <IconButton color='primary' size='medium' aria-label='Close' title='Close' onClick={() => workspace.returnToNormal()}><CloseIcon fontSize='inherit' color='error' /></IconButton>
                 </Box>
             </EditorTitle>
             <FormControl sx={{ justifySelf: 'end' }}>

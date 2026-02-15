@@ -80,6 +80,7 @@ export abstract class EditableRequestEntry extends Editable<Request | RequestGro
     applyExecution(execution: RequestExecution) {
         if (execution.menu.length < 1) {
             this.selectedResultMenuItem = null
+            this.resultMenuItems = []
             this.summaries = new Map()
             return
         }
@@ -115,15 +116,28 @@ export abstract class EditableRequestEntry extends Editable<Request | RequestGro
                 this.isRunning = false
                 break
             case 'complete':
+            case 'clear':
                 this.applyExecution(event)
                 this.isRunning = false
                 break
+            default:
+                throw event satisfies ExecutionEvent
         }
     }
 
     @action
     public stopExecution() {
         this.isRunning = false
+    }
+
+    @computed
+    public get hasExecutions(): boolean {
+        for (const menuItem of this.resultMenuItems.values()) {
+            if (menuItem.executingRequestOrGroupId === this.id) {
+                return true
+            }
+        }
+        return false
     }
 
     public getSummary(execCtr: number): ExecutionResultSummary {

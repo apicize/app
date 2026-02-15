@@ -198,7 +198,7 @@ export const DefaultsEditor = observer(({ sx }: { sx: SxProps }) => {
         if (newValue) setPanel(newValue)
     }
 
-    const hasWarnings = workspace.defaults.warnings.hasEntries
+    const hasWarnings = workspace.defaults.validationWarnings.hasEntries
     if (!hasWarnings && panel === 'Warnings') {
         setPanel('Parameters')
     }
@@ -221,7 +221,7 @@ export const DefaultsEditor = observer(({ sx }: { sx: SxProps }) => {
     return <Box marginBottom='1.5em' sx={sx} className='editor'>
         <Stack direction='row' className='editor-panel-header'>
             <EditorTitle icon={<SvgIcon color='defaults'><DefaultsIcon /></SvgIcon>} name={`Workbook Defaults - ${panel}`}>
-                <IconButton color='primary' size='medium' aria-label='Close' title='Close' sx={{ marginLeft: '1rem' }} onClick={() => workspace.returnToNormal()}><CloseIcon fontSize='inherit' /></IconButton>
+                <IconButton color='primary' size='medium' aria-label='Close' title='Close' sx={{ marginLeft: '1rem' }} onClick={() => workspace.returnToNormal()}><CloseIcon fontSize='inherit' color='error' /></IconButton>
             </EditorTitle>
         </Stack>
 
@@ -241,7 +241,7 @@ export const DefaultsEditor = observer(({ sx }: { sx: SxProps }) => {
                                 <ToggleButton value="External Data" title="Show External Data" aria-label='show test' size='small'><DatasetIcon /></ToggleButton>
                                 {
                                     hasWarnings
-                                        ? <ToggleButton hidden={true} value="Warnings" title="Request Warnings" aria-label='show warnings' size='small'><WarningAmberIcon sx={{ color: '#FFFF00' }} /></ToggleButton>
+                                        ? <ToggleButton hidden={true} value="Warnings" title="Request Warnings" aria-label='show warnings' size='small'><WarningAmberIcon color='warning' /></ToggleButton>
                                         : null
                                 }
 
@@ -251,7 +251,7 @@ export const DefaultsEditor = observer(({ sx }: { sx: SxProps }) => {
                                     panel == 'Parameters'
                                         ? <ParameterEditor {...parameterEditorProps} />
                                         : panel == 'Warnings'
-                                            ? <WarningsEditor warnings={workspace.defaults.warnings} onDelete={(id) => defaults.deleteWarning(id)} />
+                                            ? <WarningsEditor warnings={workspace.defaults.validationWarnings} onDelete={(id) => defaults.deleteWarning(id)} />
                                             : <></>
                                 }
                             </Box>

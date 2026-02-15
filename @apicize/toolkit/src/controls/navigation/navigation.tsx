@@ -170,7 +170,7 @@ export const NavigationControl = observer(() => {
                                         iconsFromState({
                                             id: 'defaults',
                                             name: '',
-                                            validationState: workspace.defaults.warnings.hasEntries ? ValidationState.warning : undefined,
+                                            validationState: workspace.defaults.validationState,
                                             executionState: undefined,
                                         })
                                     }

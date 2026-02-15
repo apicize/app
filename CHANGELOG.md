@@ -1,5 +1,11 @@
 # Change Log
 
+# 0.29.12
+
+* Add erase per-request results
+* Fix warning clearing on multiple windows
+* Hide _id from CSV editor
+
 # 0.29.11
 
 * Add stylized scroll bars

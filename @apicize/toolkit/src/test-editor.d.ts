@@ -248,7 +248,10 @@ declare const response: ApicizeResponse
  */
 declare const console: ApicizeConsole
 
-
+/**
+ * Variables (alias)
+ */
+declare const variables: KeyValuePairs
 
 /******************************************************************************
  * JSONPATH-PLUS DEFINITIONS

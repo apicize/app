@@ -222,6 +222,13 @@ const CsvEditor = observer(({ dataSet, feedback, csvColumnWidths }: {
         apiRef={dataGridRef}
         rows={dataSet.csvRows}
         columns={columnsWithActions}
+        initialState={{
+            columns: {
+                columnVisibilityModel: {
+                    _id: false
+                }
+            }
+        }}
         getRowId={(r) => r._id}
         sx={{ overflowX: 'scroll', overflow: 'auto', position: 'relative', display: 'grid', gridTemplateRows: 'auto 1f auto', }}
         autosizeOnMount={unsizedColumns.length > 0}

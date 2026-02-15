@@ -19,7 +19,7 @@ export const RequestList = observer(({
     return <Box sx={sx} className='editor'>
         <Stack direction='row' className='editor-panel-header' flexGrow={0}>
             <EditorTitle icon={<SvgIcon color='request'><RequestIcon /></SvgIcon>} name='Requests'>
-                <IconButton color='primary' size='medium' aria-label='Close' title='Close' sx={{ marginLeft: '1rem' }} onClick={() => workspace.returnToNormal()}><CloseIcon fontSize='inherit' /></IconButton>
+                <IconButton color='primary' size='medium' aria-label='Close' title='Close' sx={{ marginLeft: '1rem' }} onClick={() => workspace.returnToNormal()}><CloseIcon fontSize='inherit' color='error' /></IconButton>
             </EditorTitle>
         </Stack>
         <Box className='editor-list'>

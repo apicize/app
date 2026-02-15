@@ -1,4 +1,4 @@
-import { action, computed, makeObservable, observable, runInAction } from "mobx"
+import { action, computed, makeObservable, observable, runInAction, toJS } from "mobx"
 import { ExecutionEvent, ExecutionResultViewState } from "../models/workspace/execution"
 import { EditableRequest } from "../models/workspace/editable-request"
 import { EditableRequestGroup } from "../models/workspace/editable-request-group"
@@ -89,7 +89,7 @@ export class WorkspaceStore {
         dataSets: [],
         authorizations: { public: [], private: [], vault: [] },
         certificates: { public: [], private: [], vault: [] },
-        proxies: { public: [], private: [], vault: [] },
+        proxies: { public: [], private: [], vault: [] }
     } as Navigation
 
     @observable accessor activeSelection: ActiveSelection | null = null
@@ -151,8 +151,9 @@ export class WorkspaceStore {
             storeToken: (authorizationId: string, tokenInfo: CachedTokenInfo) => Promise<void>,
             clearToken: (authorizationId: string) => Promise<void>,
             clearAllTokens: () => Promise<void>,
-            executeRequest: (requestId: string, workbookFullName: string, singleRun: boolean) => Promise<{ [execuingRequestOrGroupId: string]: undefined }>,
-            cancelRequest: (requestId: string) => Promise<void>,
+            startExecution: (requestId: string, workbookFullName: string, singleRun: boolean) => Promise<{ [execuingRequestOrGroupId: string]: undefined }>,
+            cancelExecution: (requestId: string) => Promise<void>,
+            clearExecution: (requestOrGroupId: string) => Promise<void>,
             getExecutionResultViewState: (requestId: string) => Promise<ExecutionResultViewState>,
             updateExecutionResultViewState: (requestId: string, executionResultViewState: ExecutionResultViewState) => Promise<undefined>,
             getResultDetail: (execCtr: number) => Promise<ExecutionResultDetail>,
@@ -175,6 +176,7 @@ export class WorkspaceStore {
 
     @action
     initialize(initialization: WorkspaceInitialization) {
+        console.log('Initialization defaults', toJS(initialization.defaults))
         this.defaults = new EditableDefaults(initialization.defaults, this)
         this.fileName = initialization.saveState.fileName
         this.directory = initialization.saveState.directory
@@ -548,6 +550,7 @@ export class WorkspaceStore {
 
     @action
     updateNavigationState(entry: UpdatedNavigationEntry) {
+        console.log(`updated navigation state received`, toJS(entry))
         const match = this.findNavigationEntry(entry.id, entry.entityType)
         if (match) {
             match.name = entry.name
@@ -956,7 +959,7 @@ export class WorkspaceStore {
     }
 
     @action
-    async launchExecution(requestOrGroupId: string, singleRun: boolean = false) {
+    async startExecution(requestOrGroupId: string, singleRun: boolean = false) {
         let requestEntry: EditableRequestEntry | null = null
         try {
             try {
@@ -995,7 +998,7 @@ export class WorkspaceStore {
             if (idx === -1) {
                 this.executingRequestIDs.push(requestOrGroupId)
             }
-            await this.callbacks.executeRequest(
+            await this.callbacks.startExecution(
                 requestOrGroupId,
                 this.fileName,
                 singleRun)
@@ -1016,7 +1019,7 @@ export class WorkspaceStore {
     }
 
     @action
-    async cancelRequest(requestOrGroupId: string) {
+    async cancelExecution(requestOrGroupId: string) {
         const request = await this.getRequestEntry(requestOrGroupId)
         request.isRunning = false
 
@@ -1024,7 +1027,12 @@ export class WorkspaceStore {
         if (idx !== -1) {
             this.executingRequestIDs.splice(idx, 1)
         }
-        return this.callbacks.cancelRequest(requestOrGroupId)
+        return this.callbacks.cancelExecution(requestOrGroupId)
+    }
+
+    @action
+    clearExecution(requestOrGroupId: string) {
+        return this.callbacks.clearExecution(requestOrGroupId)
     }
 
     @action
@@ -1078,7 +1086,7 @@ export class WorkspaceStore {
 
         // Execute pending requests
         for (const [requestOrGroupId, singleRun] of pendingRequests) {
-            this.launchExecution(requestOrGroupId, singleRun)
+            this.startExecution(requestOrGroupId, singleRun)
         }
     }
 
@@ -1107,7 +1115,7 @@ export class WorkspaceStore {
         const pending = this.pendingPkceRequests.get(authorizationId)
         if (pending) {
             for (const requestOrGroupId of pending.keys()) {
-                this.cancelRequest(requestOrGroupId)
+                this.cancelExecution(requestOrGroupId)
                     .catch((e) => this.feedback.toastError(e))
             }
         }
@@ -1318,6 +1326,11 @@ export class WorkspaceStore {
 
     @action
     refreshFromExternalUpdate(notification: EntityUpdateNotification) {
+        if (notification.update.entityType === EntityType.Defaults && this.mode === WorkspaceMode.Defaults) {
+            this.defaults.refreshFromExternalSpecificUpdate(notification)
+            return
+        }
+
         let activeSelection = this.activeSelection
         if (activeSelection && activeSelection.entityType === notification.update.entityType &&
             (notification.update.entityType === EntityType.Defaults || activeSelection.id === notification.update.id)) {

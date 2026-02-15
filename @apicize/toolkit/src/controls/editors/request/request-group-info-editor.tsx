@@ -39,7 +39,7 @@ export const RequestGroupInfoEditor = observer(({ sx, group }: {
     const isUsingSeedData = workspace.defaults.selectedData.id !== NO_SELECTION_ID
 
     const handleRunClick = () => () => {
-        workspace.launchExecution(group.id)
+        workspace.startExecution(group.id)
     }
 
     let times = group.runs == 1 ? 'one time' : `${group.runs} times`

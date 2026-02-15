@@ -24,5 +24,5 @@ export interface Navigation {
     dataSets: NavigationEntry[]
     authorizations: ParamNavigationSection
     certificates: ParamNavigationSection
-    proxies: ParamNavigationSection
+    proxies: ParamNavigationSection    
 }

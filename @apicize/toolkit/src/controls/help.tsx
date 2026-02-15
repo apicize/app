@@ -308,7 +308,7 @@ export const HelpPanel = observer(({ sx }: { sx?: SxProps }) => {
                             ? <IconButton color='primary' size='medium' aria-label='Back' title='Back' onClick={() => workspace.helpBack()}><ArrowBackIcon fontSize='inherit' /></IconButton>
                             : <></>
                     }
-                    <IconButton id='close-button' color='primary' size='medium' aria-label='Close' title='Close' onClick={() => workspace.returnToNormal()}><CloseIcon fontSize='inherit' /></IconButton>
+                    <IconButton id='close-button' color='primary' size='medium' aria-label='Close' title='Close' onClick={() => workspace.returnToNormal()}><CloseIcon fontSize='inherit' color='error' /></IconButton>
                 </Box>
                 <Box className='help-toolbar-end'>
                     {

@@ -15,6 +15,8 @@ export interface ValidationErrors {
  */
 export interface ValidationWarnings {
     validationWarnings?: string[]
+        validationState?: ValidationState
+
 }
 
 /**

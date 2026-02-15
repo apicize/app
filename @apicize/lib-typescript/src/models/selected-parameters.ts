@@ -1,5 +1,5 @@
 import { Selection } from "./selection";
-import { ValidationWarnings } from "./validation";
+import { ValidationState, ValidationWarnings } from "./validation";
 
 export interface SelectedParameters {
     selectedScenario?: Selection,
@@ -10,5 +10,5 @@ export interface SelectedParameters {
 }
 
 export interface WorkspaceDefaultParameters extends SelectedParameters, ValidationWarnings {
-    selectedData?: Selection
+    validationState?: ValidationState
 }

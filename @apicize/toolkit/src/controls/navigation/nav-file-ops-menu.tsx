@@ -65,7 +65,7 @@ export const NavFileOpsMenu = observer(({ sx, orientation }: { sx?: SxProps, ori
                     if (!(workspace.activeSelection && (workspace.activeSelection.entityType === EntityType.Request || workspace.activeSelection.entityType === EntityType.Group))) {
                         return
                     }
-                    workspace.launchExecution(workspace.activeSelection.id, !e.shiftKey)
+                    workspace.startExecution(workspace.activeSelection.id, !e.shiftKey)
                     break
                 case 'n':
                     fileOps.newWorkbook(false)

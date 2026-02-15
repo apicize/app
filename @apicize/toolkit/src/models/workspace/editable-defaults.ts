@@ -14,7 +14,7 @@ export class EditableDefaults {
     @observable accessor selectedCertificate: Selection = NO_SELECTION
     @observable accessor selectedProxy: Selection = NO_SELECTION
     @observable accessor selectedData: Selection = NO_SELECTION
-    @observable accessor warnings = new EditableWarnings()
+    @observable accessor validationWarnings = new EditableWarnings()
 
     @observable accessor validationState: ValidationState | undefined
     @observable accessor executionState: ExecutionState | undefined
@@ -29,7 +29,8 @@ export class EditableDefaults {
         this.selectedCertificate = defaults.selectedCertificate ?? NO_SELECTION
         this.selectedProxy = defaults.selectedProxy ?? NO_SELECTION
         this.selectedData = defaults.selectedData ?? NO_SELECTION
-        this.warnings.set(defaults.validationWarnings)
+        this.validationWarnings.set(defaults.validationWarnings)
+        this.validationState = defaults.validationState
         makeObservable(this)
     }
 
@@ -40,9 +41,12 @@ export class EditableDefaults {
 
     @action
     deleteWarning(warningId: string) {
-        this.warnings.delete(warningId)
-        // TODO - MAKE WARNINGS WORK
-        // this.onUpdate()
+        this.validationWarnings.delete(warningId)
+        this.performUpdate({
+            type: EntityTypeName.Defaults, entityType: EntityType.Defaults,
+            validationWarnings: [...this.validationWarnings.entries.values()]
+        })
+
     }
 
     @action
@@ -87,6 +91,7 @@ export class EditableDefaults {
 
     @action
     refreshFromExternalSpecificUpdate(notification: EntityUpdateNotification) {
+        console.log('Received external defaults update', toJS(notification))
         if (notification.update.entityType !== EntityType.Defaults) {
             return
         }
@@ -106,6 +111,6 @@ export class EditableDefaults {
         if (updatedDefaults.selectedData !== undefined) {
             this.selectedData = updatedDefaults.selectedData
         }
-        this.warnings.set(notification.validationWarnings)
+        this.validationWarnings.set(notification.validationWarnings)
     }
 }

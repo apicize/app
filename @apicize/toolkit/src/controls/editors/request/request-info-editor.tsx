@@ -33,7 +33,7 @@ export const RequestInfoEditor = observer(({ request }: { request: EditableReque
     }
 
     const handleRunClick = () => () => {
-        workspace.launchExecution(request.id)
+        workspace.startExecution(request.id)
     }
 
     let times = request.runs == 1 ? 'one time' : `${request.runs} times`

@@ -10,4 +10,5 @@ export interface DefaultsUpdate {
     selectedCertificate?: Selection
     selectedProxy?: Selection
     selectedData?: Selection
+    validationWarnings?: string[]
 }

@@ -24,7 +24,7 @@
     "icons": "echo $PWD && yarn tauri icon -o $PWD/app/src-tauri/icons $PWD/app/artwork/apicize-logo-plain.svg"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.0.0",
+    "@tauri-apps/cli": "^2.10.0",
     "concurrently": "^8.2.2",
     "rimraf": "^5.0.5",
     "smol-toml": "^1.3.0",
