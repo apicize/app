@@ -17,7 +17,7 @@ export const ProxyEditor = observer(({ proxy, sx }: { proxy: EditableProxy, sx?:
     workspace.nextHelpTopic = 'proxies'
 
     return (
-        <Stack direction='column' className='editor proxy' sx={{ ...sx, backgroundColor: 'red' }}>
+        <Stack direction='column' className='editor proxy' sx={sx}>
             <Box className='editor-panel-header'>
                 <EditorTitle
                     icon={<AirlineStopsIcon color='proxy' />}
@@ -38,7 +38,7 @@ export const ProxyEditor = observer(({ proxy, sx }: { proxy: EditableProxy, sx?:
                             onChange={e => {
                                 proxy.setName(e.target.value)
                             }}
-                            error={!! proxy.nameError}
+                            error={!!proxy.nameError}
                             helperText={proxy.nameError ?? ''}
                             fullWidth
                         />
@@ -53,7 +53,7 @@ export const ProxyEditor = observer(({ proxy, sx }: { proxy: EditableProxy, sx?:
                             onChange={e => {
                                 proxy.setUrl(e.target.value)
                             }}
-                            error={!! proxy.urlError}
+                            error={!!proxy.urlError}
                             helperText={proxy.urlError ?? ''}
                             fullWidth
                         />

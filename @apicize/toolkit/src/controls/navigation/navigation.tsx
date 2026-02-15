@@ -25,7 +25,6 @@ import ScenarioIcon from "../../icons/scenario-icon"
 import DatasetIcon from '@mui/icons-material/Dataset';
 import { NavOpsMenu } from "./nav-ops-menu"
 import { iconsFromState } from "./nav-tree-item"
-import { ValidationState } from "@apicize/lib-typescript"
 import { DataSetSection } from "./sections/data-set-section"
 
 const PREFERRED_WIDTH = 1200

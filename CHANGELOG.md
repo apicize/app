@@ -1,5 +1,9 @@
 # Change Log
 
+# 0.30.1
+
+* Remove debug information
+
 # 0.30.0
 
 * Restore log viewer follow

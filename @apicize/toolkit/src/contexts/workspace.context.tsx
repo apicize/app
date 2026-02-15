@@ -176,7 +176,6 @@ export class WorkspaceStore {
 
     @action
     initialize(initialization: WorkspaceInitialization) {
-        console.log('Initialization defaults', toJS(initialization.defaults))
         this.defaults = new EditableDefaults(initialization.defaults, this)
         this.fileName = initialization.saveState.fileName
         this.directory = initialization.saveState.directory
@@ -550,7 +549,6 @@ export class WorkspaceStore {
 
     @action
     updateNavigationState(entry: UpdatedNavigationEntry) {
-        console.log(`updated navigation state received`, toJS(entry))
         const match = this.findNavigationEntry(entry.id, entry.entityType)
         if (match) {
             match.name = entry.name

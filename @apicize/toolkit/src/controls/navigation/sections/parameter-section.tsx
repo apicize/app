@@ -17,6 +17,7 @@ import { useApicizeSettings } from "../../../contexts/apicize-settings.context"
 import { NavigationEntry, ParamNavigationSection } from "../../../models/navigation"
 import { IndexedEntityPosition } from "../../../models/workspace/indexed-entity-position"
 import { useDragDrop } from "../../../contexts/dragdrop.context"
+import { useState } from "react"
 
 const ParameterSubsection = observer(({
     type,
@@ -44,6 +45,7 @@ const ParameterSubsection = observer(({
     const settings = useApicizeSettings()
     const workspace = useWorkspace()
     const dragDrop = useDragDrop()
+    const [focused, setFocused] = useState(false)
 
     const { isOver, setNodeRef: setDropRef } = useDroppable({
         id: `hdr-${type}-${persistence}`,
@@ -74,12 +76,14 @@ const ParameterSubsection = observer(({
                     e.stopPropagation()
                     onSelectHeader(headerId, 'parameter-storage')
                 }}
+                onMouseEnter={() => setFocused(true)}
+                onMouseLeave={() => setFocused(false)}
             >
                 {icon}
                 <Box className='nav-node-text' typography='navigation' sx={{ flexGrow: 1, minHeight: '1em' }}>
                     {label}
                 </Box>
-                <IconButton sx={{ flexGrow: 0, minHeight: '1em', padding: 0, margin: 0 }}
+                <IconButton sx={{ flexGrow: 0, minHeight: '1em', padding: 0, margin: 0, visibility: focused ? 'normal' : 'hidden' }}
                     onClick={(e) => {
                         e.preventDefault()
                         e.stopPropagation()
