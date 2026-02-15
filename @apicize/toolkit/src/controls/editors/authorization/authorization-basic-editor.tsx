@@ -1,6 +1,7 @@
 import { Grid, TextField } from "@mui/material"
 import { observer } from "mobx-react-lite"
 import { EditableAuthorization } from "../../../models/workspace/editable-authorization"
+import { PasswordTextField } from "../../password-text-field"
 
 export const AuthorizationBasicEditor = observer(({ authorization }: { authorization: EditableAuthorization }) => {
     return <Grid container direction={'column'} spacing={3} className='authorization-editor-subpanel'>
@@ -18,7 +19,7 @@ export const AuthorizationBasicEditor = observer(({ authorization }: { authoriza
             />
         </Grid>
         <Grid>
-            <TextField
+            <PasswordTextField
                 id='auth-password'
                 label="Password"
                 aria-label='authorization password'

@@ -1,5 +1,10 @@
 # Change Log
 
+# 0.30.0
+
+* Restore log viewer follow
+* Use Password mask on sensitive text inputs
+
 # 0.29.13
 
 * Performance improvements on result viewer, log viewer and theme processing

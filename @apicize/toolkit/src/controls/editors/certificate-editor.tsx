@@ -24,6 +24,7 @@ import { SshFileType } from '../../models/workspace/ssh-file-type';
 import { useApicizeSettings } from '../../contexts/apicize-settings.context';
 import { EditableCertificate } from '../../models/workspace/editable-certificate'
 import { useState, useEffect } from 'react'
+import { PasswordTextField } from '../password-text-field'
 
 export const CertificateEditor = observer(({ certificate, sx }: { certificate: EditableCertificate, sx: SxProps }) => {
     const settings = useApicizeSettings()
@@ -183,7 +184,7 @@ export const CertificateEditor = observer(({ certificate, sx }: { certificate: E
                                             <IconButton color='primary' disabled={!clipboard.hasText} size='medium' aria-label='paste-key' title='Paste Key from Clipboard'
                                                 onClick={() => pasteDataFromClipboard(SshFileType.Key)}><ContentPasteGoIcon fontSize='inherit' /></IconButton>
                                         </Stack>
-                                        <TextField
+                                        <PasswordTextField
                                             id='cert-key'
                                             label='Certificate Key'
                                             aria-label='certificate key file contents'
@@ -227,7 +228,7 @@ export const CertificateEditor = observer(({ certificate, sx }: { certificate: E
                                                 fullWidth
                                             />
                                         </Stack>
-                                        <TextField
+                                        <PasswordTextField
                                             id='cert-key'
                                             label='Certificate Key'
                                             aria-label='certificate pfx file contents'

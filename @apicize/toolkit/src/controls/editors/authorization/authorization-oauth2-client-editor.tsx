@@ -7,6 +7,7 @@ import { ToastSeverity, useFeedback } from "../../../contexts/feedback.context"
 import { Selection } from "@apicize/lib-typescript"
 import { WorkspaceParameters } from "../../../models/workspace/workspace-parameters"
 import { useState, useEffect } from "react"
+import { PasswordTextField } from "../../password-text-field"
 
 export const AuthorizationOAuth2ClientEditor = observer(({ authorization, parameters: parametersProps }: { authorization: EditableAuthorization, parameters: WorkspaceParameters | null }) => {
     const workspace = useWorkspace()
@@ -83,7 +84,7 @@ export const AuthorizationOAuth2ClientEditor = observer(({ authorization, parame
             />
         </Grid>
         <Grid>
-            <TextField
+            <PasswordTextField
                 id='auth-oauth2-client-secret'
                 label='Client Secret'
                 aria-label='oauth client secret'

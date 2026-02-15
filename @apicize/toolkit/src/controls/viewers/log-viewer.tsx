@@ -34,19 +34,19 @@ export const LogViewer = React.memo(observer(({
                 .catch(e => feedback.toastError(e))
         })
 
-        // const disposer = reaction(
-        //     () => ({ follow: log.follow, _length: log.events.length }),
-        //     ({ follow }) => {
-        //         // bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-        //         setTimeout(() => {
-        //             if (follow && bottomRef.current) {
-        //                 bottomRef.current.scrollTop = bottomRef.current.scrollHeight
-        //             }
-        //         }, 10)
-        //     }
-        // )
+        const disposer = reaction(
+            () => ({ follow: log.follow, _length: log.events.length }),
+            ({ follow }) => {
+                // bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+                setTimeout(() => {
+                    if (follow && bottomRef.current) {
+                        bottomRef.current.scrollTop = bottomRef.current.scrollHeight
+                    }
+                }, 10)
+            }
+        )
 
-        // return () => disposer()
+        return () => disposer()
     }, [])
 
 

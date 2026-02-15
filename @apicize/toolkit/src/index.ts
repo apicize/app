@@ -12,6 +12,7 @@ export { NavigationControl } from './controls/navigation/navigation'
 export { HelpPanel } from './controls/help'
 export { MainPanel } from './controls/main-panel'
 export { HelpContents } from './models/help-contents'
+export { PasswordTextField } from './controls/password-text-field'
 
 export * from './theme'
 export * from './services/base64'
