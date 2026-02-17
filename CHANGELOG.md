@@ -1,5 +1,9 @@
 # Change Log
 
+# 0.30.2
+
+* Fix Scenario type dropdown
+
 # 0.30.1
 
 * Remove debug information

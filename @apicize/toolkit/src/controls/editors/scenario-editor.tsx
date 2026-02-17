@@ -21,9 +21,9 @@ export const ScenarioEditor = observer(({ scenario, sx }: { scenario: EditableSc
     workspace.nextHelpTopic = 'workspace/scenarios'
 
     // Register dropdowns so they can be hidden on modal dialogs
-    const [showVariableTypeMenu, setShowVariableTypeMenu] = useState(false)
+    const [openVariableTypeMenuId, setOpenVariableTypeMenuId] = useState<string | null>(null)
     useEffect(() => {
-        const disposer = feedback.registerModalBlocker(() => setShowVariableTypeMenu(false))
+        const disposer = feedback.registerModalBlocker(() => setOpenVariableTypeMenuId(null))
         return (() => {
             disposer()
         })
@@ -101,9 +101,9 @@ export const ScenarioEditor = observer(({ scenario, sx }: { scenario: EditableSc
                                                     arial-label='variable-type'
                                                     size='small'
                                                     value={variable.type}
-                                                    open={showVariableTypeMenu}
-                                                    onClose={() => setShowVariableTypeMenu(false)}
-                                                    onOpen={() => setShowVariableTypeMenu(true)}
+                                                    open={openVariableTypeMenuId === variable.id}
+                                                    onClose={() => setOpenVariableTypeMenuId(null)}
+                                                    onOpen={() => setOpenVariableTypeMenuId(variable.id)}
                                                     onChange={e => {
                                                         variable.updateSourceType(e.target.value as VariableSourceType)
                                                         scenario.setVariables(scenario.variables)

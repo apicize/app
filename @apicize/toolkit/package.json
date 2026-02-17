@@ -1,7 +1,7 @@
 {
   "name": "@apicize/toolkit",
   "private": true,
-  "version": "0.30.1",
+  "version": "0.30.2",
   "description": "UI toolkit for Apicize applications",
   "keywords": [],
   "license": "MIT",
