@@ -1,5 +1,9 @@
 # Change Log
 
+# 0.30.3
+
+* Add disabled flag to requests/groups
+
 # 0.30.2
 
 * Fix Scenario type dropdown

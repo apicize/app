@@ -31,26 +31,24 @@ export const iconsFromState = (entry: NavigationEntry) => {
     if (entry.executionState) {
         if ((entry.executionState & ExecutionState.running) === ExecutionState.running) {
             icons.push(<PlayArrowIcon color="success" fontSize='medium' key={`play-${entry.id}`} />)
-        } else {
-            if ((entry.executionState & (ExecutionState.success | ExecutionState.failure | ExecutionState.error)) ===
-                (ExecutionState.success | ExecutionState.failure | ExecutionState.error)) {
-                icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultSuccessFailureErrorIcon /></SvgIcon>)
-            } else if ((entry.executionState & (ExecutionState.success | ExecutionState.failure)) ===
-                (ExecutionState.success | ExecutionState.failure)) {
-                icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultSuccessFailureIcon /></SvgIcon>)
-            } else if ((entry.executionState & (ExecutionState.success | ExecutionState.error)) ===
-                (ExecutionState.success | ExecutionState.error)) {
-                icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultSuccessErrorIcon /></SvgIcon>)
-            } else if ((entry.executionState & (ExecutionState.failure | ExecutionState.error)) ===
-                (ExecutionState.failure | ExecutionState.error)) {
-                icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultFailureErrorIcon /></SvgIcon>)
-            } else if ((entry.executionState & ExecutionState.success) === ExecutionState.success) {
-                icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultSuccessIcon /></SvgIcon>)
-            } else if ((entry.executionState & ExecutionState.failure) === ExecutionState.failure) {
-                icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultFailureIcon /></SvgIcon>)
-            } else if ((entry.executionState & ExecutionState.error) === ExecutionState.error) {
-                icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultErrorIcon /></SvgIcon>)
-            }
+        } else if ((entry.executionState & (ExecutionState.success | ExecutionState.failure | ExecutionState.error)) ===
+            (ExecutionState.success | ExecutionState.failure | ExecutionState.error)) {
+            icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultSuccessFailureErrorIcon /></SvgIcon>)
+        } else if ((entry.executionState & (ExecutionState.success | ExecutionState.failure)) ===
+            (ExecutionState.success | ExecutionState.failure)) {
+            icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultSuccessFailureIcon /></SvgIcon>)
+        } else if ((entry.executionState & (ExecutionState.success | ExecutionState.error)) ===
+            (ExecutionState.success | ExecutionState.error)) {
+            icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultSuccessErrorIcon /></SvgIcon>)
+        } else if ((entry.executionState & (ExecutionState.failure | ExecutionState.error)) ===
+            (ExecutionState.failure | ExecutionState.error)) {
+            icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultFailureErrorIcon /></SvgIcon>)
+        } else if ((entry.executionState & ExecutionState.success) === ExecutionState.success) {
+            icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultSuccessIcon /></SvgIcon>)
+        } else if ((entry.executionState & ExecutionState.failure) === ExecutionState.failure) {
+            icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultFailureIcon /></SvgIcon>)
+        } else if ((entry.executionState & ExecutionState.error) === ExecutionState.error) {
+            icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultErrorIcon /></SvgIcon>)
         }
     }
 
@@ -196,7 +194,7 @@ export const NavTreeItem = React.memo(observer(({
                         : null
                 }
                 <Box
-                    className='nav-node-text'
+                    className={entry.disabled ? 'disabled nav-node-text' : 'nav-node-text'}
                     justifyContent='left'
                     alignItems='center'
                     display='flex'
@@ -229,5 +227,5 @@ export const NavTreeItem = React.memo(observer(({
         {
             children
         }
-    </TreeItem>
+    </TreeItem >
 }))

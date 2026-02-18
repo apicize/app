@@ -171,6 +171,7 @@ export const NavigationControl = observer(() => {
                                             name: '',
                                             validationState: workspace.defaults.validationState,
                                             executionState: undefined,
+                                            disabled: false,
                                         })
                                     }
                                 </Box>

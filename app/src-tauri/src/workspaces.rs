@@ -218,6 +218,7 @@ impl Workspaces {
                 children: None,
                 validation_state: ValidationState::empty(),
                 execution_state: ExecutionState::empty(),
+                disabled: false,
             });
 
             info.workspace
@@ -570,6 +571,10 @@ impl Workspaces {
             request.validate_name();
         }
 
+        if let Some(disabled) = &update.disabled {
+            request.disabled = *disabled;
+        }
+
         if let Some(key) = &update.key {
             request.key = if key.trim().is_empty() {
                 None
@@ -692,6 +697,7 @@ impl Workspaces {
         } else {
             ExecutionState::empty()
         };
+        let updated_disabled = request.disabled;
 
         let response = UpdateWithNavigationResponse {
             navigation: info.check_request_navigation_update(
@@ -699,6 +705,7 @@ impl Workspaces {
                 &updated_name,
                 updated_validation_state,
                 execution_state,
+                updated_disabled,
             )?,
             validation_warnings: updated_validation_warnings.clone(),
             validation_errors: updated_validation_errors.clone(),
@@ -727,6 +734,10 @@ impl Workspaces {
         if let Some(name) = &update.name {
             group.name = name.to_string();
             group.validate_name();
+        }
+
+        if let Some(disabled) = &update.disabled {
+            group.disabled = *disabled;
         }
 
         if let Some(key) = &update.key {
@@ -806,6 +817,7 @@ impl Workspaces {
         } else {
             ExecutionState::empty()
         };
+        let updated_disabled = group.disabled;
 
         let response = UpdateWithNavigationResponse {
             navigation: info.check_request_navigation_update(
@@ -813,6 +825,7 @@ impl Workspaces {
                 &updated_name,
                 updated_validation_state,
                 execution_state,
+                updated_disabled,
             )?,
             validation_warnings: updated_validation_warnings.clone(),
             validation_errors: updated_validation_errors.clone(),
@@ -975,6 +988,7 @@ impl Workspaces {
                     entity_type: EntityType::RequestEntry,
                     validation_state: request.validation_state,
                     execution_state,
+                    disabled: request.disabled,
                 };
 
                 Ok((notification, navigation))
@@ -992,6 +1006,7 @@ impl Workspaces {
                     entity_type: EntityType::RequestEntry,
                     validation_state: group.validation_state,
                     execution_state,
+                    disabled: group.disabled,
                 };
 
                 Ok((notification, navigation))
@@ -1043,6 +1058,7 @@ impl Workspaces {
             entity_type: EntityType::Authorization,
             validation_state: authorization.get_validation_state(),
             execution_state: ExecutionState::empty(),
+            disabled: false,
         };
 
         Ok((notification, navigation))
@@ -2117,6 +2133,7 @@ impl Workspaces {
                     entity_type: EntityType::Defaults,
                     validation_state,
                     execution_state: ExecutionState::empty(),
+                    disabled: false,
                 })
             } else {
                 None
@@ -2760,6 +2777,7 @@ impl WorkspaceInfo {
                     entity_type,
                     validation_state: updated_validation_state,
                     execution_state: entry.execution_state,
+                    disabled: false,
                 })
             } else {
                 None
@@ -2805,12 +2823,14 @@ impl WorkspaceInfo {
         updated_name: &str,
         updated_validation_state: ValidationState,
         updated_execution_state: ExecutionState,
+        updated_disabled: bool,
     ) -> Result<Option<UpdatedNavigationEntry>, ApicizeAppError> {
         Self::check_request_navigation_update_int(
             id,
             updated_name,
             updated_validation_state,
             updated_execution_state,
+            updated_disabled,
             &mut self.navigation.requests,
         )
     }
@@ -2821,24 +2841,28 @@ impl WorkspaceInfo {
         updated_name: &str,
         updated_validation_state: ValidationState,
         updated_execution_state: ExecutionState,
+        updated_disabled: bool,
         entries: &mut Vec<NavigationRequestEntry>,
     ) -> Result<Option<UpdatedNavigationEntry>, ApicizeAppError> {
         for entry in entries {
             if id == entry.id {
                 let requires_update = entry.name != updated_name
                     || entry.validation_state != updated_validation_state
-                    || entry.execution_state != updated_execution_state;
+                    || entry.execution_state != updated_execution_state
+                    || entry.disabled != updated_disabled;
 
                 return if requires_update {
                     entry.name = updated_name.to_string();
                     entry.validation_state = updated_validation_state;
                     entry.execution_state = updated_execution_state;
+                    entry.disabled = updated_disabled;
                     Ok(Some(UpdatedNavigationEntry {
                         id: id.to_string(),
                         name: updated_name.to_string(),
                         entity_type: EntityType::RequestEntry,
                         validation_state: updated_validation_state,
                         execution_state: updated_execution_state,
+                        disabled: entry.disabled,
                     }))
                 } else {
                     Ok(None)
@@ -2851,6 +2875,7 @@ impl WorkspaceInfo {
                     updated_name,
                     updated_validation_state,
                     updated_execution_state,
+                    updated_disabled,
                     children,
                 )?;
                 if result.is_some() {

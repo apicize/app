@@ -7,6 +7,7 @@ import { ExecutionEvent, ExecutionMenuItem, ExecutionResultViewState } from "./e
 import { RequestExecution } from "../request-execution"
 
 export abstract class EditableRequestEntry extends Editable<Request | RequestGroup> {
+    @observable accessor disabled = false
     @observable accessor runs = 0
     @observable public accessor multiRunExecution = ExecutionConcurrency.Sequential
 

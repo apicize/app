@@ -7,6 +7,7 @@ export interface RequestUpdate {
     entityType: EntityType.Request
     id: string
     name?: string
+    disabled?: boolean
     key?: string
     url?: string
     method?: Method

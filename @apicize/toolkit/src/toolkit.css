@@ -296,6 +296,11 @@ pre.log {
   align-content: center;
 }
 
+.nav-node-text.disabled {
+  color: #808080;
+}
+
+
 .nav-node-text-state {
   display: flex;
   flex-direction: row;

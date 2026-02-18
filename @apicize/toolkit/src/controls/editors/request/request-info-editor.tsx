@@ -153,6 +153,12 @@ export const RequestInfoEditor = observer(({ request }: { request: EditableReque
                         </Select>
                     </FormControl>
                 </Grid>
+                <Grid>
+                    <FormControlLabel control={<Checkbox checked={request.disabled}
+                        onChange={(e) => request.setDisabled(e.target.checked)} />}
+                        title="Disable request when run as a child"
+                        label="Disable" />
+                </Grid>
             </Grid>
             <Grid container direction='row' spacing={2}>
                 <Grid>

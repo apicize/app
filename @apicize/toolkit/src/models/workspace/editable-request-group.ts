@@ -25,6 +25,7 @@ export class EditableRequestGroup extends EditableRequestEntry {
 
         this.id = entry.id
         this.name = entry.name ?? ''
+        this.disabled = entry.disabled ?? false
         this.key = entry.key ?? ''
         this.runs = entry.runs
         this.multiRunExecution = entry.multiRunExecution
@@ -53,6 +54,12 @@ export class EditableRequestGroup extends EditableRequestEntry {
     setName(value: string) {
         this.name = value
         this.performUpdate({ type: EntityTypeName.Group, entityType: EntityType.Group, id: this.id, name: value })
+    }
+
+    @action
+    setDisabled(value: boolean) {
+        this.disabled = value
+        this.performUpdate({ type: EntityTypeName.Group, entityType: EntityType.Group, id: this.id, disabled: value })
     }
 
     @action
@@ -151,6 +158,9 @@ export class EditableRequestGroup extends EditableRequestEntry {
         }
         if (notification.update.name !== undefined) {
             this.name = notification.update.name
+        }
+        if (notification.update.disabled !== undefined) {
+            this.disabled = notification.update.disabled
         }
         if (notification.update.key !== undefined) {
             this.key = notification.update.key

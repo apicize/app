@@ -7,6 +7,7 @@ export interface RequestGroupUpdate {
     entityType: EntityType.Group
     id: string
     name?: string
+    disabled?: boolean
     key?: string
     runs?: number
     multiRunExecution?: ExecutionConcurrency

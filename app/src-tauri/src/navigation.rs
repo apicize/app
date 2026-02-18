@@ -1,6 +1,6 @@
 use apicize_lib::{
-    Executable, ExecutionState, Identifiable, IndexedEntities, RequestEntry, Selection, Validated,
-    ValidationState, Workspace, indexed_entities::NO_SELECTION_ID,
+    Disabled, Executable, ExecutionState, Identifiable, IndexedEntities, RequestEntry, Selection,
+    Validated, ValidationState, Workspace, indexed_entities::NO_SELECTION_ID,
 };
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -13,6 +13,7 @@ use crate::workspaces::{EntityType, RequestExecution};
 pub struct NavigationRequestEntry {
     pub id: String,
     pub name: String,
+    pub disabled: bool,
     pub children: Option<Vec<NavigationRequestEntry>>,
     pub validation_state: ValidationState,
     pub execution_state: ExecutionState,
@@ -48,6 +49,7 @@ pub struct UpdatedNavigationEntry {
     pub entity_type: EntityType,
     pub validation_state: ValidationState,
     pub execution_state: ExecutionState,
+    pub disabled: bool,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -185,6 +187,7 @@ impl NavigationRequestEntry {
                     children,
                     validation_state: entity.get_validation_state(),
                     execution_state,
+                    disabled: entity.get_disabled(),
                 });
             }
         }
@@ -241,6 +244,7 @@ impl NavigationRequestEntry {
                     children,
                     validation_state,
                     execution_state,
+                    disabled: entity.get_disabled(),
                 });
             }
         }
@@ -312,7 +316,9 @@ impl Navigation {
         };
 
         match entity_type {
-            EntityType::RequestEntry => Self::delete_navigation_request(entity_id, &mut self.requests),
+            EntityType::RequestEntry => {
+                Self::delete_navigation_request(entity_id, &mut self.requests)
+            }
             EntityType::Request => Self::delete_navigation_request(entity_id, &mut self.requests),
             EntityType::Group => Self::delete_navigation_request(entity_id, &mut self.requests),
             EntityType::Scenario => delete_parameter(entity_id, &mut self.scenarios),

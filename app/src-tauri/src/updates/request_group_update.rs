@@ -11,6 +11,8 @@ pub struct RequestGroupUpdate {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub disabled: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub runs: Option<usize>,
@@ -38,6 +40,7 @@ impl RequestGroupUpdate {
             id: group.id.to_string(),
             entity_type: EntityType::Group,
             name: None,
+            disabled: None,
             key: None,
             runs: None,
             multi_run_execution: None,

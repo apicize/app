@@ -1,4 +1,4 @@
-import { TextField, SxProps, Grid, FormControl, InputLabel, MenuItem, Select, ToggleButton } from '@mui/material'
+import { TextField, SxProps, Grid, FormControl, InputLabel, MenuItem, Select, ToggleButton, Checkbox, FormControlLabel } from '@mui/material'
 import { ExecutionConcurrency } from '@apicize/lib-typescript';
 import { EditableRequestGroup } from '../../../models/workspace/editable-request-group';
 import { observer } from 'mobx-react-lite';
@@ -146,6 +146,13 @@ export const RequestGroupInfoEditor = observer(({ sx, group }: {
                         </Select>
                     </FormControl>
                 </Grid>
+                <Grid>
+                    <FormControlLabel control={<Checkbox checked={group.disabled}
+                        onChange={(e) => group.setDisabled(e.target.checked)} />}
+                        title="Disable group when run as a child"
+                        label="Disable" />
+                </Grid>
+
             </Grid>
         </Grid >
     )

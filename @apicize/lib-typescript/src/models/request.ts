@@ -76,6 +76,7 @@ export interface BodyRaw {
 }
 
 export interface RequestEntry extends Identifiable, Named, SelectedParameters, Executable, ValidationErrors, ValidationWarnings {
+    disabled?: boolean
     key?: string
     validationState?: ValidationState
 }

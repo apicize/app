@@ -13,6 +13,8 @@ pub struct RequestUpdate {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub disabled: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
@@ -65,6 +67,7 @@ impl RequestUpdate {
             body_mime_type: body_info.body_mime_type,
             body_length: body_info.body_length,
             name: None,
+            disabled: None,
             key: None,
             url: None,
             method: None,
@@ -91,6 +94,7 @@ impl RequestUpdate {
             id: request.id.to_string(),
             entity_type: EntityType::Request,
             name: None,
+            disabled: None,
             key: None,
             url: None,
             method: None,

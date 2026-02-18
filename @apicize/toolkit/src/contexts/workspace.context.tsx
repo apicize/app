@@ -551,9 +551,10 @@ export class WorkspaceStore {
     updateNavigationState(entry: UpdatedNavigationEntry) {
         const match = this.findNavigationEntry(entry.id, entry.entityType)
         if (match) {
-            match.name = entry.name
+            match.name = entry.disabled ? entry.name + ' (disabled)' : entry.name
             match.validationState = entry.validationState
             match.executionState = entry.executionState
+            match.disabled = entry.disabled
         }
     }
 
@@ -1436,6 +1437,7 @@ export interface UpdatedNavigationEntry {
     entityType: EntityType
     validationState?: ValidationState
     executionState?: ExecutionState
+    disabled: boolean
 }
 
 export interface Session {

@@ -21,6 +21,9 @@ export class EditableDefaults {
 
     @observable accessor id = 'Defaults'
     @observable accessor name = 'Defaults'
+
+    public disabled = false
+    
     public dirty = false;
 
     public constructor(defaults: WorkspaceDefaultParameters, private readonly workspace: WorkspaceStore) {
