@@ -21,6 +21,7 @@ import { IndexedEntityPosition } from "../../../models/workspace/indexed-entity-
 interface RequestTreeItemProps {
     entry: NavigationRequestEntry
     depth: number
+    parentDisabled?: boolean,
     onSelectRequest: (id: string) => void
     onSelectGroup: (id: string) => void
     onShowMenu: (event: React.MouseEvent, id: string, type: EntityType) => void
@@ -31,16 +32,19 @@ interface RequestTreeItemProps {
 const RequestTreeItem = observer(({
     entry,
     depth,
+    parentDisabled,
     onSelectRequest,
     onSelectGroup,
     onShowMenu,
     onMoveRequest,
     onMoveGroup
 }: RequestTreeItemProps) => {
+    const isDisabled = parentDisabled || entry.disabled
     return entry.children
         ? <NavTreeItem
             entry={entry}
             depth={depth}
+            isDisabled={isDisabled}
             type={EntityType.Group}
             acceptDropTypes={[EntityType.Request, EntityType.Group]}
             acceptDropAppends={true}
@@ -56,6 +60,7 @@ const RequestTreeItem = observer(({
                     <RequestTreeItem
                         entry={child}
                         depth={depth + 1}
+                        parentDisabled={isDisabled}
                         key={child.id}
                         onSelectRequest={onSelectRequest}
                         onSelectGroup={onSelectGroup}
@@ -69,6 +74,7 @@ const RequestTreeItem = observer(({
         : <NavTreeItem
             entry={entry}
             depth={depth}
+            isDisabled={isDisabled}
             type={EntityType.Request}
             acceptDropTypes={[EntityType.Request, EntityType.Group]}
             onSelect={() => onSelectRequest(entry.id)}

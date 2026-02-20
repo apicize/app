@@ -1,6 +1,7 @@
 export enum RequestEditSessionType {
     Body = 'b',
-    Test = 't'
+    Test = 't',
+    Setup = 's',
 }
 
 export enum ResultEditSessionType {

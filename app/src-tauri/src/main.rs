@@ -274,6 +274,7 @@ async fn main() {
             copy_to_clipboard,
             // get_environment_variables,
             is_release_mode,
+            set_debug_window_size,
             get_request_body,
             update_request_body,
             update_request_body_from_clipboard,
@@ -1804,6 +1805,17 @@ fn is_release_mode() -> bool {
     !cfg!(debug_assertions)
 }
 
+#[tauri::command]
+fn set_debug_window_size(window: tauri::WebviewWindow) -> Result<(), String> {
+    if cfg!(debug_assertions) {
+        window
+            .set_size(LogicalSize::new(1100.0, 700.0))
+            .map_err(|e| e.to_string())
+    } else {
+        Ok(())
+    }
+}
+
 /// Retrieve other sessions for the updated workspace
 fn get_workspace_sessions<'a>(
     workspace_id: &str,
@@ -1924,26 +1936,22 @@ async fn get(
                 return Err(ApicizeAppError::InvalidGroup(entity_id.to_string()));
             }
         }
-        EntityType::Scenario => {
-            Entity::Scenario(
-                workspaces
-                    .get_scenario(&session.workspace_id, entity_id)?
-                    .clone(),
-            )
-        }
+        EntityType::Scenario => Entity::Scenario(
+            workspaces
+                .get_scenario(&session.workspace_id, entity_id)?
+                .clone(),
+        ),
         EntityType::Authorization => {
             Entity::Authorization(workspaces.get_authorization(&session.workspace_id, entity_id)?)
         }
         EntityType::Certificate => {
             Entity::Certificate(workspaces.get_certificate(&session.workspace_id, entity_id)?)
         }
-        EntityType::Proxy => {
-            Entity::Proxy(
-                workspaces
-                    .get_proxy(&session.workspace_id, entity_id)?
-                    .clone(),
-            )
-        }
+        EntityType::Proxy => Entity::Proxy(
+            workspaces
+                .get_proxy(&session.workspace_id, entity_id)?
+                .clone(),
+        ),
         EntityType::DataSet => {
             Entity::DataSet(workspaces.get_data_set(&session.workspace_id, entity_id)?)
         }

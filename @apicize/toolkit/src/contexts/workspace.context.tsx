@@ -68,7 +68,7 @@ export enum WorkspaceMode {
 
 export type ResultsPanel = 'Info' | 'Headers' | 'Preview' | 'Text' | 'Details'
 export type RequestPanel = 'Info' | 'Headers' | 'Query String' | 'Body' | 'Test' | 'Parameters' | 'Warnings'
-export type GroupPanel = 'Info' | 'Parameters' | 'Warnings'
+export type GroupPanel = 'Info' | 'Setup' | 'Parameters' | 'Warnings'
 
 export type ActiveSelection = EditableRequest | EditableRequestGroup | EditableScenario |
     EditableAuthorization | EditableCertificate | EditableProxy | EditableDataSet |
@@ -551,7 +551,7 @@ export class WorkspaceStore {
     updateNavigationState(entry: UpdatedNavigationEntry) {
         const match = this.findNavigationEntry(entry.id, entry.entityType)
         if (match) {
-            match.name = entry.disabled ? entry.name + ' (disabled)' : entry.name
+            match.name = entry.disabled ? entry.name : entry.name
             match.validationState = entry.validationState
             match.executionState = entry.executionState
             match.disabled = entry.disabled
@@ -1128,7 +1128,7 @@ export class WorkspaceStore {
      * @param type 
      * @returns 
      */
-    async getRequestEditModel(request: EditableRequest, type: RequestEditSessionType, mode: EditorMode): Promise<IRequestEditorTextModel> {
+    async getRequestEditModel(request: EditableRequest | EditableRequestGroup, type: RequestEditSessionType, mode: EditorMode): Promise<IRequestEditorTextModel> {
         const requestId = request.id
 
         const models = this.requestModels.get(requestId)
@@ -1141,24 +1141,22 @@ export class WorkspaceStore {
             }
         }
 
-        if (!request.isBodyInitialized) {
-            throw new Error('Body is not yet initialized')
-        }
-
         let text: string
-        switch (type) {
-            case RequestEditSessionType.Test:
-                text = request.test
-                break
-            case RequestEditSessionType.Body:
-                if (request.body && typeof request.body.data === 'string') {
-                    text = request.body.data
-                } else {
-                    text = ''
-                }
-                break
-            default:
-                throw new Error(`Invalid edit model type "${type}"`)
+        if (type === RequestEditSessionType.Test && request.entityType === EntityType.Request) {
+            text = request.test
+        } else if (type === RequestEditSessionType.Body && request.entityType === EntityType.Request) {
+            if (!request.isBodyInitialized) {
+                throw new Error('Body is not yet initialized')
+            }
+            if (request.body && typeof request.body.data === 'string') {
+                text = request.body.data
+            } else {
+                text = ''
+            }
+        } else if (type === RequestEditSessionType.Setup && request.entityType === EntityType.Group) {
+            text = request.setup
+        } else {
+            throw new Error(`Invalid edit model type "${type}"`)
         }
 
         const model = editor.createModel(text, mode) as IRequestEditorTextModel

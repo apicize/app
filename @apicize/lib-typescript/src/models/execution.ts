@@ -143,6 +143,7 @@ export interface ApicizeExecution {
     testContext: ApicizeExecutionTestContext,
     outputVariables?: Map<string, JsonValue>
 
+    logs?: string[]
     tests?: ApicizeTestResult[]
     error?: ApicizeError
 

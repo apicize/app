@@ -8,7 +8,8 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { useFeedback } from "../../../contexts/feedback.context";
 import MonacoEditor, { monaco } from 'react-monaco-editor';
 
-import DEFS_RAW from '../../../test-editor.d.ts?raw'
+import EDITOR_DEFS_RAW from '../../../typings/test-editor.d.ts?raw'
+import CHAI_RAW from '../../../typings/chai.d.ts?raw'
 import ES5_RAW from '../../../../../../node_modules/typescript/lib/lib.es5.d.ts?raw'
 import ES2015_CORE from '../../../../../../node_modules/typescript/lib/lib.es2015.core.d.ts?raw'
 import ES2015_COLLECTION_RAW from '../../../../../../node_modules/typescript/lib/lib.es2015.collection.d.ts?raw'
@@ -35,15 +36,14 @@ export const RequestTestEditor = observer(({ request }: { request: EditableReque
     const [isDragging, setIsDragging] = useState(false)
     const [isDragingValid, setIsDraggingValid] = useState(false)
 
-    const initalialized = useRef(false)
+    const initialized = useRef(false)
     const [model, setModel] = useState<IRequestEditorTextModel | null>(null)
-    const editor = useRef<editor.IStandaloneCodeEditor | null>(null)
+    const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
 
     workspace.nextHelpTopic = 'requests/test'
 
     useEffect(() => {
         if (refContainer.current) {
-            const id = refContainer.current.id
             const unregisterDragDrop = fileDragDrop.register(refContainer, {
                 onEnter: (_x, _y, extensions) => {
                     setIsDraggingValid(extensions.includes('js'))
@@ -75,19 +75,15 @@ export const RequestTestEditor = observer(({ request }: { request: EditableReque
     }, [refContainer])
 
     function performBeautify() {
-        if (editor.current) {
+        if (editorRef.current) {
             try {
-                const action = editor.current.getAction('editor.action.formatDocument')
+                const action = editorRef.current.getAction('editor.action.formatDocument')
                 if (!action) throw new Error('Format action not found')
                 action.run()
             } catch (e) {
                 feedback.toastError(e)
             }
         }
-    }
-
-    if (!request.isBodyInitialized) {
-        return null
     }
 
     // Make sure we have the editor test model
@@ -115,6 +111,7 @@ export const RequestTestEditor = observer(({ request }: { request: EditableReque
                 <Box flexGrow={1} minWidth={0} />
                 <Button variant='outlined' size='small' onClick={performBeautify}>Beautify Test Code</Button>
             </Stack>
+
             <Box top={0}
                 left={0}
                 width='100%'
@@ -129,9 +126,7 @@ export const RequestTestEditor = observer(({ request }: { request: EditableReque
                     language='javascript'
                     theme={settings.colorScheme === "dark" ? 'vs-dark' : 'vs-light'}
                     value={request.test}
-                    onChange={(text: string) => {
-                        request.setTest(text)
-                    }}
+                    onChange={(value) => request.setTest(value)}
                     options={{
                         automaticLayout: true,
                         minimap: { enabled: false },
@@ -144,15 +139,16 @@ export const RequestTestEditor = observer(({ request }: { request: EditableReque
                         fontSize: settings.fontSize
                     }}
                     editorDidMount={(me) => {
-                        editor.current = me
+                        editorRef.current = me
 
-                        if (!initalialized.current) {
+                        if (!initialized.current) {
                             monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
                                 noLib: true,
                                 target: monaco.languages.typescript.ScriptTarget.ESNext,
                                 allowNonTsExtensions: true,
                                 moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
                                 module: monaco.languages.typescript.ModuleKind.CommonJS,
+                                moduleDetection: 3, // Force - treat all files as modules to isolate scopes
                                 typeRoots: ['node_modules/@types'],
                                 noEmit: true,
                             });
@@ -163,38 +159,23 @@ export const RequestTestEditor = observer(({ request }: { request: EditableReque
                                 noSyntaxValidation: !settings.editorCheckJsSyntax,
                             });
 
-                            // const es5Uri = monaco.Uri.parse('file://node_modules/typescript/lib/lib.es5.d.ts')
-                            // if (!monaco.editor.getModel(es5Uri)) {
-                            //     monaco.languages.typescript.javascriptDefaults.addExtraLib(ES5_RAW)
-                            //     monaco.editor.createModel(ES5_RAW, 'typescript', es5Uri)
-                            // }
+                            // Dispose stale setup type-definition models
+                            monaco.editor.getModel(monaco.Uri.parse('ts:filename/setup-defs.d.ts'))?.dispose()
 
-                            // const esNextUri = monaco.Uri.parse('file://node_modules/typescript/lib/lib.esnext.d.ts')
-                            // if (!monaco.editor.getModel(esNextUri)) {
-                            //     monaco.languages.typescript.javascriptDefaults.addExtraLib(ESNEXT_RAW)
-                            //     monaco.editor.createModel(ESNEXT_RAW, 'typescript', esNextUri)
-                            // }
+                            monaco.languages.typescript.javascriptDefaults.setExtraLibs([
+                                { content: EDITOR_DEFS_RAW, filePath: 'ts:filename/editor-defs.d.ts' },
+                                { content: CHAI_RAW, filePath: 'ts:filename/chai.d.ts' },
+                                { content: ES5_RAW, filePath: 'file://node_modules/typescript/lib/lib.es5.d.ts' },
+                                { content: ES2015_COLLECTION_RAW, filePath: 'file://node_modules/typescript/lib/lib.es2015.collection.d.ts' },
+                                { content: ES2015_CORE, filePath: 'file://node_modules/typescript/lib/lib.es2015.core.d.ts' },
+                                { content: ES2015_ITERATE_RAW, filePath: 'file://node_modules/typescript/lib/lib.es2015.iterable.d.ts' },
+                                { content: ES2015_SYMBOL_RAW, filePath: 'file://node_modules/typescript/lib/lib.es2015.symbol.d.ts' },
+                                { content: ES2016_ARRAY_INCLUDE_RAW, filePath: 'file://node_modules/typescript/lib/lib.es2016.array.include.d.ts' },
+                                { content: ES2017_ARRAYBUFFER_RAW, filePath: 'file://node_modules/typescript/lib/lib.es2017.arraybuffer.d.ts' },
+                                { content: ES2017_DATE_RAW, filePath: 'file://node_modules/typescript/lib/lib.es2017.date.d.ts' },
+                            ])
 
-
-                            for (const [location, raw] of [
-                                ['ts:filename/editor-defs.d.ts', DEFS_RAW],
-                                ['file://node_modules/typescript/lib/lib.es5.d.ts', ES5_RAW],
-                                ['file://node_modules/typescript/lib/lib.es2015.collection.d.ts', ES2015_COLLECTION_RAW],
-                                ['file://node_modules/typescript/lib/lib.es2015.core.d.ts', ES2015_CORE],
-                                ['file://node_modules/typescript/lib/lib.es2015.iterable.d.ts', ES2015_ITERATE_RAW],
-                                ['file://node_modules/typescript/lib/lib.es2015.symbol.d.ts?raw', ES2015_SYMBOL_RAW],
-                                ['file://node_modules/typescript/lib/lib.es2016.array.include.d.ts', ES2016_ARRAY_INCLUDE_RAW],
-                                ['file://node_modules/typescript/lib/lib.es2017.arraybuffer.d.ts?raw', ES2017_ARRAYBUFFER_RAW],
-                                ['file://node_modules/typescript/lib/lib.es2017.date.d.ts', ES2017_DATE_RAW],
-                            ]) {
-                                const uri = monaco.Uri.parse(location)
-                                if (!monaco.editor.getModel(uri)) {
-                                    monaco.languages.typescript.javascriptDefaults.addExtraLib(raw)
-                                    monaco.editor.createModel(raw, 'typescript', uri)
-                                }
-                            }
-
-                            initalialized.current = true
+                            initialized.current = true
                         }
                     }
                     }

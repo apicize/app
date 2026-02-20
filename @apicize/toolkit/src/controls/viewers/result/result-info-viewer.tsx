@@ -185,7 +185,7 @@ export const ResultInfoViewer = observer(({
         }, format === ExecutionReportFormat.CSV ? 'Summary as CSV' : 'Summary as JSON')
     }
 
-    const RenderExecution = ({ result: result, depth }: { result: ExecutionResultSummary, depth: number }) => {
+    const RenderExecution = ({ result, depth }: { result: ExecutionResultSummary, depth: number }) => {
         // const rowSuffix = props.result.info.rowNumber && props.result.info.rowCount ? ` Row ${props.result.info.rowNumber} of ${props.result.info.rowCount}` : ''
         let subtitle: string
         let color: string
@@ -233,7 +233,7 @@ export const ResultInfoViewer = observer(({
                                     <Box component='span' marginLeft='1rem' marginRight='0.5rem' sx={{ color }}> ({subtitle}) </Box>
                                 </Box>
                             </Box>
-                            <Box display='block' alignContent='start' marginLeft='1.5rem' className='results-test-timing'>
+                            <Box display='block' alignContent='start' marginLeft='1.0rem' className='results-test-timing'>
                                 <Box>
                                     {result.executedAt > 0 ? `@${fmtMinSec(result.executedAt)}` : '@Start'}{result.duration > 0 ? ` for ${result.duration.toLocaleString()} ms` : ''}
                                 </Box>
@@ -246,6 +246,15 @@ export const ResultInfoViewer = observer(({
                                     result.status
                                         ? (<Box>{`Status: ${result.status} ${result.statusText}`}</Box>)
                                         : (null)
+                                }
+                                {
+                                    (result.logs && result.logs.length > 0)
+                                        ? result.logs.map((log, i) => (
+                                            <Stack direction='column' key={`grp-log-${i}`}>
+                                                <code className='results-log'>{log}</code>
+                                            </Stack>
+                                        ))
+                                        : null
                                 }
                             </Box>
                         </Grid>

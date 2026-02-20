@@ -15,6 +15,7 @@ export function ApicizeSettingsProvider({
         if (!settings) return
 
         let contextMenuHandler: ((event: Event) => void) | null = null;
+        let keydownHandler: ((event: KeyboardEvent) => void) | null = null;
 
         (async () => {
             const [name, version, isReleaseMode, storage] = await Promise.all([
@@ -27,6 +28,15 @@ export function ApicizeSettingsProvider({
             if (isReleaseMode) {
                 contextMenuHandler = (event: Event) => event.preventDefault()
                 document.addEventListener('contextmenu', contextMenuHandler)
+            } else {
+                // Debug mode: Ctrl+Shift+R resizes window to 1200x800
+                keydownHandler = (event: KeyboardEvent) => {
+                    if (event.ctrlKey && event.shiftKey && event.key === 'R') {
+                        event.preventDefault()
+                        core.invoke('set_debug_window_size')
+                    }
+                }
+                document.addEventListener('keydown', keydownHandler)
             }
 
             settings.changeApp(
@@ -45,6 +55,9 @@ export function ApicizeSettingsProvider({
             if (contextMenuHandler) {
                 document.removeEventListener('contextmenu', contextMenuHandler)
             }
+            if (keydownHandler) {
+                document.removeEventListener('keydown', keydownHandler)
+            }
         }
     }, [settings])
 
@@ -54,4 +67,3 @@ export function ApicizeSettingsProvider({
         </ApicizeSettingsContext.Provider>
     )
 }
-

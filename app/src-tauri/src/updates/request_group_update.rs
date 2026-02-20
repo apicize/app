@@ -19,6 +19,8 @@ pub struct RequestGroupUpdate {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub multi_run_execution: Option<ExecutionConcurrency>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub setup: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub execution: Option<ExecutionConcurrency>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub selected_scenario: Option<Selection>,
@@ -45,6 +47,7 @@ impl RequestGroupUpdate {
             runs: None,
             multi_run_execution: None,
             execution: None,
+            setup: None,
             selected_scenario: if let Some(selection) = &group.selected_scenario {
                 Some(selection.clone())
             } else {

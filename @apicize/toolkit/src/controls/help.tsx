@@ -15,7 +15,6 @@ import AltRouteIcon from '@mui/icons-material/AltRoute'
 import MenuIcon from '@mui/icons-material/Menu';
 import { createElement, Fragment, HTMLAttributes, useRef, useState } from 'react'
 import { jsx, jsxs } from 'react/jsx-runtime'
-import { visit } from 'unist-util-visit';
 import SettingsIcon from '@mui/icons-material/Settings';
 import DisplaySettingsIcon from '@mui/icons-material/DisplaySettings'
 import ViewListIcon from '@mui/icons-material/ViewList'
@@ -28,7 +27,6 @@ import remarkParse from 'remark-parse'
 import remarkRehype from 'remark-rehype'
 import rehypeReact from 'rehype-react'
 import remarkGfm from 'remark-gfm'
-import { LeafDirective } from 'mdast-util-directive'
 import { Element } from 'hast';
 import { OverridableStringUnion } from '@mui/types'
 import { unified } from 'unified';
@@ -57,16 +55,11 @@ import FileOpenIcon from '@mui/icons-material/FileOpen'
 import SaveIcon from '@mui/icons-material/Save'
 import SaveAsIcon from '@mui/icons-material/SaveAs'
 
-import { Parent } from 'unist';
 import { useApicizeSettings } from '../contexts/apicize-settings.context';
 import { useWorkspace } from '../contexts/workspace.context';
 import { DropdownMenu } from './navigation/dropdown-menu';
 import { HelpContents } from '../models/help-contents';
-
-// Register `hName`, `hProperties` types, used when turning markdown to HTML:
-/// <reference types="mdast-util-to-hast" />
-// Register directive nodes in mdast:
-/// <reference types="mdast-util-directive" />
+import { createRemarkApicizeDirectives } from '../services/help-formatter';
 
 export const HelpPanel = observer(({ sx }: { sx?: SxProps }) => {
     const settings = useApicizeSettings()
@@ -105,88 +98,13 @@ export const HelpPanel = observer(({ sx }: { sx?: SxProps }) => {
 
     const handleContentsMenuClose = () => {
         setContentsMenu(null);
-    };
+    }; 
 
-    function remarkApicizeDirectives() {
-        const handleLogo = (node: LeafDirective) => {
-            if (node.name === 'logo') {
-                const data: any = node.data || (node.data = {})
-                data.hName = 'logo'
-                return true
-            } else {
-                return false
-            }
-        }
-
-        const handleToolbar = (node: LeafDirective) => {
-            if (node.name === 'toolbar') {
-                const data: any = node.data || (node.data = {})
-                data.hName = 'toolbar'
-                return true
-            } else if (node.name === 'toolbar-top') {
-                const data: any = node.data || (node.data = {})
-                data.hName = 'toolbarTop'
-                return true
-            } else {
-                return false
-            }
-        }
-
-        const handleInfo = (node: LeafDirective) => {
-            if (node.name !== 'info' || node.children.length === 0) return false
-            const child = node.children[0]
-            if (child.type !== 'text') return false
-
-            const data: any = node.data || (node.data = {})
-
-            let replaceWith
-            switch (child.value) {
-                case 'name':
-                    replaceWith = name
-                    break
-                case 'version':
-                    replaceWith = version
-                    break
-                case 'ctrlkey':
-                    replaceWith = settings.ctrlKey
-                    break
-                default:
-                    // if not an information item that we know about, ignore it
-                    return false
-            }
-            data.hName = 'span'
-            data.hChildren = [
-                {
-                    type: 'text',
-                    value: replaceWith
-                }
-            ]
-            return true
-        }
-
-        const handleIcon = (node: LeafDirective) => {
-            if (node.name !== 'icon' || node.children.length === 0) return false
-            const child = node.children[0]
-            if (child.type !== 'text') return false
-
-            const data: any = node.data || (node.data = {})
-
-            data.hName = 'icon'
-            data.hProperties = { name: child.value }
-            data.hChildren = []
-            return true
-        }
-
-        return (tree: Parent) => {
-            visit(tree, 'leafDirective', function (node: LeafDirective) {
-                handleLogo(node) || handleToolbar(node)
-
-            })
-            visit(tree, 'textDirective', function (node: LeafDirective) {
-                handleLogo(node) || handleToolbar(node) || handleInfo(node) || handleIcon(node)
-            })
-        }
-    }
+    const remarkApicizeDirectives = createRemarkApicizeDirectives({
+        appName: name,
+        appVersion: version,
+        ctrlKey: settings.ctrlKey,
+    })
 
     const rehypeTransformHeader = (attrs: JSX.IntrinsicElements['h1'] & TypographyProps & ExtraProps): React.ReactNode => {
         let id

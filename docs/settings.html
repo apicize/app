@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Settings - Apicize Documentation</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="doc-layout">
+    <nav class="doc-nav">
+      <div class="nav-header">
+        <a href="./home.html"><img src="./images/logo.svg" alt="Apicize" /><span>Apicize Docs</span></a>
+      </div>
+      <ul><li><a href="./home.html">Workspaces</a></li><li><span class="nav-section">Workspace Entities</span><ul><li><span class="nav-section">Requests</span><ul><li><a href="./workspace/requests.html">Overview</a></li><li><a href="./requests/info.html">Information</a></li><li><a href="./requests/headers.html">Headers</a></li><li><a href="./requests/query.html">Query String</a></li><li><a href="./requests/body.html">Body</a></li><li><a href="./requests/test.html">Testing</a></li><li><a href="./requests/parameters.html">Parameters</a></li></ul></li><li><a href="./workspace/groups.html">Groups</a></li><li><a href="./workspace/scenarios.html">Scenarios</a></li><li><span class="nav-section">Authorizations</span><ul><li><a href="./workspace/authorizations.html">Overview</a></li><li><a href="./authorization/basic.html">Basic Auth</a></li><li><a href="./authorization/api-key.html">API Key</a></li><li><a href="./authorization/oauth2-client.html">OAuth2 Client Flow</a></li><li><a href="./authorization/oauth2-pkce.html">OAuth2 PKCE Flow</a></li></ul></li><li><a href="./workspace/certificates.html">Certificates</a></li><li><a href="./workspace/proxies.html">Proxies</a></li><li><a href="./workspace/defaults.html">Workspace Defaults</a></li></ul></li><li><span class="nav-section">Testing</span><ul><li><a href="./authoring-tests.html">Authoriing Tests</a></li><li><a href="./running-tests.html">Running Tests</a></li><li><a href="./logs.html">View Communication Logs</a></li></ul></li><li><a href="./parameter-storage.html">Storing Parameters</a></li><li><a href="./settings.html">Settings</a></li><li><a href="./about.html">About Apicize</a></li></ul>
+    </nav>
+    <main class="doc-main help">
+      <h1><span class="help-icon"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6"/></svg></span> Settings </h1>
+<h2>Overview</h2>
+<p>Settings are saved as they are updated.</p>
+<h2>Available Settings</h2>
+<ul>
+<li><strong>Main Text Size</strong>:  This is the base text size for everything that is not the Navigation menu</li>
+<li><strong>Navigation Text Size</strong>:  This is the base text size for item sin the Navigation menu</li>
+<li><strong>Always Hide Nav Menu</strong>:  Set this to "Yes" if you don't want to see the persistent navigation menu, and would rather have the minimized toolbar shown at all times</li>
+<li><strong>Color Mode</strong>:  Currently Dark and Light modes are available.  Don't select Light unless you want your retinas stabbed with a thousand needles (it needs work)</li>
+<li><strong>Workbook Directory</strong>:  Sets the default directory to for the Workbook file/save dialogs</li>
+<li><strong>PKCE Listener Port</strong>:  Sets the port which will be used to monitor PKCE callbacks on <a href="http://localhost">http://localhost</a></li>
+<li><strong>Show Diagnostic Info</strong>:  Setting this to "Yes" will display information like entity IDs that are only intersting to the Apicize developer</li>
+</ul>
+<h2>Reset to Default</h2>
+<p>You can use the Reset to Defaults button to revert settings back to installed values.</p>
+<p><img src="./images/settings.webp" class="help-image"></p>
+    </main>
+  </div>
+</body>
+</html>

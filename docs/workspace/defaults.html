@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Settings - Apicize Documentation</title>
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body>
+  <div class="doc-layout">
+    <nav class="doc-nav">
+      <div class="nav-header">
+        <a href="../home.html"><img src="../images/logo.svg" alt="Apicize" /><span>Apicize Docs</span></a>
+      </div>
+      <ul><li><a href="../home.html">Workspaces</a></li><li><span class="nav-section">Workspace Entities</span><ul><li><span class="nav-section">Requests</span><ul><li><a href="../workspace/requests.html">Overview</a></li><li><a href="../requests/info.html">Information</a></li><li><a href="../requests/headers.html">Headers</a></li><li><a href="../requests/query.html">Query String</a></li><li><a href="../requests/body.html">Body</a></li><li><a href="../requests/test.html">Testing</a></li><li><a href="../requests/parameters.html">Parameters</a></li></ul></li><li><a href="../workspace/groups.html">Groups</a></li><li><a href="../workspace/scenarios.html">Scenarios</a></li><li><span class="nav-section">Authorizations</span><ul><li><a href="../workspace/authorizations.html">Overview</a></li><li><a href="../authorization/basic.html">Basic Auth</a></li><li><a href="../authorization/api-key.html">API Key</a></li><li><a href="../authorization/oauth2-client.html">OAuth2 Client Flow</a></li><li><a href="../authorization/oauth2-pkce.html">OAuth2 PKCE Flow</a></li></ul></li><li><a href="../workspace/certificates.html">Certificates</a></li><li><a href="../workspace/proxies.html">Proxies</a></li><li><a href="../workspace/defaults.html">Workspace Defaults</a></li></ul></li><li><span class="nav-section">Testing</span><ul><li><a href="../authoring-tests.html">Authoriing Tests</a></li><li><a href="../running-tests.html">Running Tests</a></li><li><a href="../logs.html">View Communication Logs</a></li></ul></li><li><a href="../parameter-storage.html">Storing Parameters</a></li><li><a href="../settings.html">Settings</a></li><li><a href="../about.html">About Apicize</a></li></ul>
+    </nav>
+    <main class="doc-main help">
+      <h1><span class="help-icon"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6"/></svg></span> Settings </h1>
+<h2>Workbook Defaults <span class="help-icon" style="color: #86b300;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+            <path d="M8 6.00067L21 6.00139M8 12.0007L21 12.0015M8 18.0007L21 18.0015M3.5 6H3.51M3.5 12H3.51M3.5 18H3.51M4 6C4 6.27614 3.77614 6.5 3.5 6.5C3.22386 6.5 3 6.27614 3 6C3 5.72386 3.22386 5.5 3.5 5.5C3.77614 5.5 4 5.72386 4 6ZM4 12C4 12.2761 3.77614 12.5 3.5 12.5C3.22386 12.5 3 12.2761 3 12C3 11.7239 3.22386 11.5 3.5 11.5C3.77614 11.5 4 11.7239 4 12ZM4 18C4 18.2761 3.77614 18.5 3.5 18.5C3.22386 18.5 3 18.2761 3 18C3 17.7239 3.22386 17.5 3.5 17.5C3.77614 17.5 4 17.7239 4 18Z" stroke-linecap="round" stroke-linejoin="round" />
+        </svg></span></h2>
+<h3>Parameters</h3>
+<p>This pane is to set default parameters when testing Requests and Groups.  When a Request or Group defines
+a value (including "Off") it will override these defaults.  These parameters include:</p>
+<ul>
+<li><a href="../scenarios.html"><strong>Scenario</strong></a>: Name/value pairs injected in place of <code>{{handlebars}}</code> text</li>
+<li><a href="../authorizations.html"><strong>Authorization</strong></a>: Authorization sent with request</li>
+<li><a href="../certificates.html"><strong>Certificate</strong></a>:  Client certificate sent with request</li>
+<li><a href="../proxies.html"><strong>Proxy</strong></a>:  Proxy used to send request</li>
+</ul>
+<blockquote>
+<p>Note:  These settings are defaults for the currently open workbook</p>
+</blockquote>
+<p><img src="../images/workspace/parameters.webp" class="help-image"></p>
+<p>If you want to use an external CSV or JSON file to populate multiple test cases, you can define a Data Set file (see below).  When
+a Data Set is active, the properties of each row (CSV) or item (JSON) will be populated along with the active Scenario's variables (if set).</p>
+<h3>See Also</h3>
+<ul>
+<li><a href="../running-tests.html"><strong>Running Tests</strong></a></li>
+</ul>
+    </main>
+  </div>
+</body>
+</html>

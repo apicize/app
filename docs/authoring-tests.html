@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Authoring Apicize Tests - Apicize Documentation</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="doc-layout">
+    <nav class="doc-nav">
+      <div class="nav-header">
+        <a href="./home.html"><img src="./images/logo.svg" alt="Apicize" /><span>Apicize Docs</span></a>
+      </div>
+      <ul><li><a href="./home.html">Workspaces</a></li><li><span class="nav-section">Workspace Entities</span><ul><li><span class="nav-section">Requests</span><ul><li><a href="./workspace/requests.html">Overview</a></li><li><a href="./requests/info.html">Information</a></li><li><a href="./requests/headers.html">Headers</a></li><li><a href="./requests/query.html">Query String</a></li><li><a href="./requests/body.html">Body</a></li><li><a href="./requests/test.html">Testing</a></li><li><a href="./requests/parameters.html">Parameters</a></li></ul></li><li><a href="./workspace/groups.html">Groups</a></li><li><a href="./workspace/scenarios.html">Scenarios</a></li><li><span class="nav-section">Authorizations</span><ul><li><a href="./workspace/authorizations.html">Overview</a></li><li><a href="./authorization/basic.html">Basic Auth</a></li><li><a href="./authorization/api-key.html">API Key</a></li><li><a href="./authorization/oauth2-client.html">OAuth2 Client Flow</a></li><li><a href="./authorization/oauth2-pkce.html">OAuth2 PKCE Flow</a></li></ul></li><li><a href="./workspace/certificates.html">Certificates</a></li><li><a href="./workspace/proxies.html">Proxies</a></li><li><a href="./workspace/defaults.html">Workspace Defaults</a></li></ul></li><li><span class="nav-section">Testing</span><ul><li><a href="./authoring-tests.html">Authoriing Tests</a></li><li><a href="./running-tests.html">Running Tests</a></li><li><a href="./logs.html">View Communication Logs</a></li></ul></li><li><a href="./parameter-storage.html">Storing Parameters</a></li><li><a href="./settings.html">Settings</a></li><li><a href="./about.html">About Apicize</a></li></ul>
+    </nav>
+    <main class="doc-main help">
+      <h1>Authoring Apicize Tests </h1>
+<h2>Overview</h2>
+<p>Once a response is received for a request, Apicize can execute a script to validate the response.  It may be as simple as checking the HTTP status code, or it
+may be as sophisticated as parsing the response and checking against values based upon previous responses.</p>
+<p>Tests are writting in Javascript using BDD-style syntax.  A simple test to make sure the API returned with a 200 status code would look like:</p>
+<pre><code class="language-js">describe('status', () => {
+    it('equals 200', () => {
+        expect(response.status).to.equal(200)
+    })
+})
+</code></pre>
+<p>Generally speaking, you should structure your tests to <strong>describe</strong> something and how <strong>it</strong> should behave.  By default, Apicize will create a test
+like the one shown above for every request.  In most cases, you will want to enhance this testing.</p>
+<p>The <code>expect</code> assertion is imported from the <a href="https://www.chaijs.com/api/bdd/">Chai</a> library.  You can consult that library for information on how to write more complex assertions.</p>
+<h2>Values Available to Tests</h2>
+<p>When authoring a test, the following global variables will be available for use in JavaScript:</p>
+<ul>
+<li><code>scenario</code>:  A list of variables defined in the currently active Scenario (if any)</li>
+<li><code>output</code>: A list of values output from previous requests in the group</li>
+<li><code>data</code>:  When a data seed is defined, this will hold the values for the current data row</li>
+<li><code>$</code>: A merged list of previously scenario variables, output variables and data row variables.  These values, as defined, are used
+to populate handlebars values in the request URL, headers, body, etc.</li>
+<li><code>request</code>: Properties describing an HTTP request</li>
+<li><code>resposne</code>: Properties describe an HTTP response</li>
+</ul>
+<p>After executing a request, you can view the response details and examine <code>textContext</code> to see all global variables available for use in your testing.</p>
+<p><strong>request</strong> properties include:</p>
+<ul>
+<li><code>url</code> (including query string parameters)</li>
+<li><code>method</code></li>
+<li><code>headers</code></li>
+<li><code>body</code>
+<ul>
+<li><code>type</code>: Type of body data (JSON, XML, Form, Raw, Text)</li>
+<li><code>text</code>: UTF-8 text of response (when not raw/binary)</li>
+<li><code>data</code>: For JSON and XML data, this will be a JSON object of the data; for Form, it will be name-value pairs;
+for Raw, it will be a Base64 representation of the binary data</li>
+</ul>
+</li>
+</ul>
+<p><strong>response</strong> properties include:</p>
+<ul>
+<li><code>status</code></li>
+<li><code>status_text</code></li>
+<li><code>headers</code></li>
+<li><code>body</code>
+<ul>
+<li><code>type</code>: Type of body data (JSON, XML, Form, Raw, Text)</li>
+<li><code>text</code>: UTF-8 text of response (when not raw/binary)</li>
+<li><code>data</code>: For JSON and XML data, this will be a JSON object of the data; for Form, it will be name-value pairs;
+for Raw, it will be a Base64 representation of the binary data</li>
+</ul>
+</li>
+<li><code>auth_token_cached</code> (set to true if previously generated OAuth token was used)</li>
+</ul>
+<h2>Passing Values Between Requests</h2>
+<p>You may have chains of requests that rely upon values from a previous request.  You can accomplish this by organizing the requests in a group,
+and be sure to set the group's <strong>Group Item Execution</strong> setting to "Sequential", since running them concurrently could cause some requests
+to be run out of order.</p>
+<p>For example, assume you have a RESTful API with CRUD operations, like in the <strong>demo</strong> project.  The first rquest in your group creates a record,
+and returns the new <code>id</code> in the response.</p>
+<p>Your test after the create could look like this:</p>
+<pre><code class="language-js">describe('status', () => {
+    it('equals 200', () => {
+        expect(response.status).to.equal(200)
+        const data = response.body.data
+        output('id', data.id)
+        console.log(`New record ID is ${data.id}`)
+    })
+})
+</code></pre>
+<p>This makes the value <strong>id</strong> available to subsequent requests for data injection or testing (in the <code>output</code> or <code>$</code> global variables).  For example,
+you could include <code>{{id}}</code> in the URL of the next request to retrieve the record from a RESTful API.</p>
+<h2>Using JSONPath to Navigate Data</h2>
+<p>Apicize includes <a href="https://www.rfc-editor.org/rfc/rfc9535.html">JSONPath</a> support to assist in navigating data.  If a request or response is idnetified
+as JSON or XML via its Content-Type header, <code>response.body.data</code> and/or ``response.body.data` will be a JSON object if the body is valid JSON or XML.</p>
+<p>You can use the function <code>.jp</code> to execute a JSONPath query.  By default, the function takes a JSONPath expression and returns the results.  The library
+used to implement this function <a href="https://www.npmjs.com/package/jsonpath-plus">jsonpath-plus</a>, has a number of extensions and options available, and
+you can pass an object of parameters to access this additional functionality which you can read about <a href="https://www.npmjs.com/package/jsonpath-plus">here</a>.</p>
+<p>For example, assume your response includes JSON data like this:</p>
+<pre><code class="language-json">{
+   "orders": [{
+        "id": "100",
+        "lines": [
+            { "id": "100-1", "color": "blue" },
+            { "id": "100-2", "color": "red" }
+        ]
+    }, {
+        "id": "101",
+        "lines": [
+            { "id": "101-1", "color": "blue" }
+        ]
+    }]
+}
+</code></pre>
+<p>You can use JSONPath or "normal" JavaScript to get a list of line IDs with the color blue.<br>
+Both return the same result: <code>['100-1', '101-1']</code>.</p>
+<pre><code class="language-js">    /// Using JSONPath
+    let blues_with_jp = response.body.data.jp('$..lines[?(@.color=="blue")].id')
+    /// or with JavaScript
+    let blues_with_js = response.body.orders.reduce((ids, o) => {
+        return [...ids, ...o.lines.reduce((ids1, l) => {
+            if (l.color == 'blue') { ids1.push(l.id) } return ids1
+        }, [])]
+    }, [])
+</code></pre>
+<h2>How Apicize Tests are Run</h2>
+<p>Apicize uses an embedded version of the <a href="https://v8.dev/">V8</a> engine to execute your JavaScript tests.  It does <em>not</em> include NodeJS or any other JavaScript library functionality,
+except for the <a href="https://www.chaijs.com/">Chai JS Assertion Library</a> and the <a href="https://www.npmjs.com/package/jsonpath-plus">jsonpath-plus</a>.  This approach is meant to mitigate security
+risks that could materialize if somebody were to send out a malicious Apicize test suite.</p>
+<h3>See Also</h3>
+<ul>
+<li><a href="./running-tests.html"><strong>Running Tests</strong></a></li>
+<li><a href="./requests.html"><strong>Requests</strong></a></li>
+<li><a href="./home.html"><strong>Workspace</strong></a></li>
+</ul>
+    </main>
+  </div>
+</body>
+</html>

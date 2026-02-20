@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Apicize - Apicize Documentation</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="doc-layout">
+    <nav class="doc-nav">
+      <div class="nav-header">
+        <a href="./home.html"><img src="./images/logo.svg" alt="Apicize" /><span>Apicize Docs</span></a>
+      </div>
+      <ul><li><a href="./home.html">Workspaces</a></li><li><span class="nav-section">Workspace Entities</span><ul><li><span class="nav-section">Requests</span><ul><li><a href="./workspace/requests.html">Overview</a></li><li><a href="./requests/info.html">Information</a></li><li><a href="./requests/headers.html">Headers</a></li><li><a href="./requests/query.html">Query String</a></li><li><a href="./requests/body.html">Body</a></li><li><a href="./requests/test.html">Testing</a></li><li><a href="./requests/parameters.html">Parameters</a></li></ul></li><li><a href="./workspace/groups.html">Groups</a></li><li><a href="./workspace/scenarios.html">Scenarios</a></li><li><span class="nav-section">Authorizations</span><ul><li><a href="./workspace/authorizations.html">Overview</a></li><li><a href="./authorization/basic.html">Basic Auth</a></li><li><a href="./authorization/api-key.html">API Key</a></li><li><a href="./authorization/oauth2-client.html">OAuth2 Client Flow</a></li><li><a href="./authorization/oauth2-pkce.html">OAuth2 PKCE Flow</a></li></ul></li><li><a href="./workspace/certificates.html">Certificates</a></li><li><a href="./workspace/proxies.html">Proxies</a></li><li><a href="./workspace/defaults.html">Workspace Defaults</a></li></ul></li><li><span class="nav-section">Testing</span><ul><li><a href="./authoring-tests.html">Authoriing Tests</a></li><li><a href="./running-tests.html">Running Tests</a></li><li><a href="./logs.html">View Communication Logs</a></li></ul></li><li><a href="./parameter-storage.html">Storing Parameters</a></li><li><a href="./settings.html">Settings</a></li><li><a href="./about.html">About Apicize</a></li></ul>
+    </nav>
+    <main class="doc-main help">
+      <h1><div class="logo"><div class="logo-icon"><img src="./images/logo.svg" alt="Apicize" width="200" height="200" /></div><div class="logo-header"><h1 class="logo-title">Apicize</h1><h2 class="logo-version">0.30.3</h2></div></div> </h1>
+<h1>What is Apicize?</h1>
+<p>Apicize is yet another application to test HTTP calls.  Its <em>raison d'être</em> is to lower the friction between interactively
+testing in development and leveraging that testing in an automated fashion during deployment, post-deployment health checks,
+etc.</p>
+<h2>What differentiates Apicize?</h2>
+<h3>Test-Driven</h3>
+<p>Whenever you set up a Request, you get a default <a href="./requests/test.html">test</a> created which checks for an HTTP status 200.  Obviously,
+meaningful testing will often require more than this.  You may want to inspect the response and validate data.  You may want to test for known
+error conditions.  Apicize accomodates <a href="https://en.wikipedia.org/wiki/Behavior-driven_development">BDD style testing</a> using the
+<a href="https://www.chaijs.com/">Chai</a> library.  Apicize supports running Groups of Requests either in Sequence or Concurrently.  This lets
+you test chains of dependent requests, or to ensure idempotency by making multiple calls in parallel.</p>
+<h3>"All Local" Application</h3>
+<p>This application runs on your computer and the only external connection it makes are to the APIs you configure in your tests.  It does not store
+information anywhere other than your drive.  It does not bombard you with marketing requests to upsell you on collaboration features,
+cloud storage, etc.</p>
+<h3>Secure</h3>
+<p>When you execute tests in Apicize, the test code is executed in a <a href="https://v8.dev/">JavaScript V8 engine</a> that is isolated
+from your application and your system.  It does <em>not</em> include a NodeJS, Deno, Web Browser or any other supporting runtime,
+which means that your tests cannot access your file system or other resources.</p>
+<p>Apicize runs on the <a href="https://tauri.app/">Tauri platform</a> constructed with Rust.  This mitigates a lot of risk associated with
+buffer overruns and other security vulnerabilities.</p>
+<h3>CI/CD Friendly</h3>
+<p>A <a href="https://github.com/apicize/cli">command-line test runner</a> for Apicize workbooks, with minimal dependencies,
+can be used to execute without a GUI during CI/CD or other automated context.</p>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Scenarios - Apicize Documentation</title>
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body>
+  <div class="doc-layout">
+    <nav class="doc-nav">
+      <div class="nav-header">
+        <a href="../home.html"><img src="../images/logo.svg" alt="Apicize" /><span>Apicize Docs</span></a>
+      </div>
+      <ul><li><a href="../home.html">Workspaces</a></li><li><span class="nav-section">Workspace Entities</span><ul><li><span class="nav-section">Requests</span><ul><li><a href="../workspace/requests.html">Overview</a></li><li><a href="../requests/info.html">Information</a></li><li><a href="../requests/headers.html">Headers</a></li><li><a href="../requests/query.html">Query String</a></li><li><a href="../requests/body.html">Body</a></li><li><a href="../requests/test.html">Testing</a></li><li><a href="../requests/parameters.html">Parameters</a></li></ul></li><li><a href="../workspace/groups.html">Groups</a></li><li><a href="../workspace/scenarios.html">Scenarios</a></li><li><span class="nav-section">Authorizations</span><ul><li><a href="../workspace/authorizations.html">Overview</a></li><li><a href="../authorization/basic.html">Basic Auth</a></li><li><a href="../authorization/api-key.html">API Key</a></li><li><a href="../authorization/oauth2-client.html">OAuth2 Client Flow</a></li><li><a href="../authorization/oauth2-pkce.html">OAuth2 PKCE Flow</a></li></ul></li><li><a href="../workspace/certificates.html">Certificates</a></li><li><a href="../workspace/proxies.html">Proxies</a></li><li><a href="../workspace/defaults.html">Workspace Defaults</a></li></ul></li><li><span class="nav-section">Testing</span><ul><li><a href="../authoring-tests.html">Authoriing Tests</a></li><li><a href="../running-tests.html">Running Tests</a></li><li><a href="../logs.html">View Communication Logs</a></li></ul></li><li><a href="../parameter-storage.html">Storing Parameters</a></li><li><a href="../settings.html">Settings</a></li><li><a href="../about.html">About Apicize</a></li></ul>
+    </nav>
+    <main class="doc-main help">
+      <h1><span class="help-icon" style="color: #0073e6;"><svg viewBox="0 0 48 48" stroke-width="2" stroke="currentColor">
+            <g id="Layer_2" data-name="Layer 2">
+                <g id="Q3_icons" data-name="Q3 icons">
+                    <path d="M44,34H29L17,18H4a2,2,0,0,1,0-4H19L31,30H44a2,2,0,0,1,0,4Z" />
+                    <path d="M44,18H31a2,2,0,0,1,0-4H44a2,2,0,0,1,0,4Z" />
+                </g>
+            </g>
+        </svg></span> Scenarios </h1>
+<p>A Scenario is a set of variables that are available when testing <a href="../requests.html">requests</a>.  These can be set for any <a href="../requests.html">Request</a> or Group.  If they are set for a Group, they will apply to call child Requests or Groups.  At the simplest level, you can use this capability to inject different values into the same Request(s), without having to modify them.</p>
+<p>Scenario variables can be used to dynamically set URLs and posted body content.  Assume you have a Scenario variables called <code>author</code> and <code>quote</code>.  You can inject those into a <a href="../requests/body.html">Requests's body</a> by using handlebar syntax:</p>
+<pre><code class="language-json">{
+    "author":"{{author}}",
+    "quote":"{{quote}}"
+}
+</code></pre>
+<p>Scenario values can be substituted into request names, URLs, headers, query string parameters and body content.  To access a scenario variable in a test, use the global variables <code>variables</code> or</p>
+<p>A scenario value can be text, JSON value, JSON fille or CSV file.  The entire data set will be merged in with each call.  If you want to execute Requests or Groups for each row or entry in the external
+file, you can set up a Data Set (see <a href="../running-tests.html"><strong>Running Tests</strong></a>)</p>
+<p><img src="../images/scenarios.webp" class="help-image"></p>
+<h3>See Also</h3>
+<ul>
+<li><a href="../authoring-tests.html"><strong>Authoring Tests</strong></a></li>
+<li><a href="../running-tests.html"><strong>Running Tests</strong></a></li>
+</ul>
+    </main>
+  </div>
+</body>
+</html>

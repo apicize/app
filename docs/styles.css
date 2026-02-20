@@ -1,0 +1,292 @@
+
+/* Apicize Documentation Styles */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  color-scheme: light dark;
+  --light-text: #000;
+  --dark-text: #FFF;
+  --light-bkgd: #FFF;
+  --dark-bkgd: #000;
+  --light-anchor: rgb(0, 0, 160);
+  --dark-anchor: rgb(142, 142, 250);
+  --quote-bkgd: #066;
+  --quote-text: #FFF;
+}
+
+body {
+  font-family: "Roboto Flex", "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: light-dark(var(--light-text), var(--dark-text));
+  background-color: light-dark(var(--light-bkgd), var(--dark-bkgd));
+  line-height: 1.6;
+}
+
+.doc-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* Navigation sidebar */
+.doc-nav {
+  width: 280px;
+  min-width: 280px;
+  border-right: 1px solid #888;
+  padding: 1em;
+  overflow-y: auto;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+.nav-header {
+  margin-bottom: 1.5em;
+  padding-bottom: 1em;
+}
+
+.nav-header a {
+  color: light-dark(#000, #FFF);
+  text-decoration: none;
+  font-size: 1.1em;
+  font-weight: 600;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.nav-header a img {
+  display: block;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  max-width: 32px;
+  max-height: 32px;
+}
+
+.nav-header a span {
+  flex: 1;
+  white-space: nowrap;
+}
+
+.doc-nav ul {
+  list-style: none;
+  padding-left: 0;
+  color: light-dark(#222, #888);
+}
+
+.doc-nav ul ul {
+  padding-left: 1.2em;
+  color: light-dark(#222, #888);
+}
+
+.doc-nav li {
+  margin: 0.2em 0;
+}
+
+.doc-nav ul a {
+  color: light-dark(var(--light-text), var(--dark-text));
+  text-decoration: none;
+  display: block;
+  padding: 0.25em 0.5em;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.doc-nav ul a:hover {
+  color: light-dark(var(--light-bkgd), var(--dark-bkgd));
+  background-color: light-dark(var(--light-anchor), var(--dark-anchor));
+}
+
+.nav-section {
+  display: block;
+  font-weight: 600;
+  font-size: 0.9em;
+  padding: 0.5em 0.5em 0.2em;
+  margin-top: 0.5em;
+}
+
+/* Main content */
+.doc-main {
+  flex: 1;
+  padding: 2em 3em;
+  max-width: 900px;
+  overflow-y: auto;
+}
+
+.help h1 {
+  font-size: 1.8em;
+  margin: 0 0 1.0em 0;
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+}
+
+.help h1:first-child {
+  margin-top: 0;
+}
+
+.help h2 {
+  font-size: 1.4em;
+  margin: 1.5rem 0 0.75rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+}
+
+.help h3 {
+  font-size: 1.15em;
+  margin: 1.2rem 0 0.5rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+}
+
+.help h4, .help h5, .help h6 {
+  margin: 1rem 0 0.5rem 0;
+}
+
+.help p {
+  margin: 0 0 0.75rem 0;
+}
+
+.help a {
+  color: light-dark(var(--light-anchor), var(--dark-anchor));
+  text-decoration: none;
+}
+
+.help a:hover {
+  text-decoration: underline;
+}
+
+.help ul, .help ol {
+  margin: 0 0 0.75rem 1.5em;
+}
+
+.help li {
+  margin: 0.25em 0;
+}
+
+.help blockquote {
+  margin: 1em 0;
+  padding: 1em;
+  color: var(--quote-text);
+  background-color: var(--quote-bkgd);
+  border-radius: 4px;
+}
+
+.help blockquote p {
+  margin: 0;
+}
+
+.help pre {
+  color: var(--code-text);
+  background-color: var(--code-bkgd);
+  padding: 1em;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin: 0 0 0.75rem 0;
+  font-family: "Roboto Mono", monospace;
+  font-size: 0.9em;
+}
+
+.help code {
+  font-family: "Roboto Mono", monospace;
+  font-size: 0.9em;
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+}
+
+.help pre code {
+  background: none;
+  padding: 0;
+}
+
+.help table {
+  border-collapse: collapse;
+  margin: 0 0 0.75rem 0;
+  width: 100%;
+}
+
+.help thead {
+  border-bottom: 2px solid #4a4a7a;
+}
+
+.help td, .help th {
+  padding: 0.5em 0.75em;
+  text-align: left;
+}
+
+.help th {
+  font-weight: 600;
+}
+
+.help img, .help .help-image {
+  max-width: 80%;
+  margin: 1em 0;
+  border-radius: 4px;
+}
+
+/* Icon styles */
+.help-icon {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  margin-right: 0.3em;
+}
+
+.help-icon svg {
+  width: 1.2em;
+  height: 1.2em;
+  vertical-align: middle;
+}
+
+.help-icon .icon-apicize {
+  width: 4em;
+  height: 4em;
+  margin: 0.1em 0;
+  vertical-align: middle;
+}
+
+/* Logo styles - reset parent h1 margin when it wraps .logo */
+h1:has(.logo) {
+  margin: 0;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  margin: 0 0 1em 0;
+  gap: 1.5em;
+}
+
+.logo-icon img {
+  display: block;
+}
+
+.logo-header .logo-title {
+  font-size: 3em;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.logo-header .logo-version {
+  font-size: 1.2em;
+  margin: 0;
+  color: #a0a0d0;
+  font-weight: normal;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .doc-layout { flex-direction: column; }
+  .doc-nav {
+    width: 100%;
+    min-width: 100%;
+    height: auto;
+    position: static;
+    border-right: none;
+    border-bottom: 1px solid #2a2a4a;
+  }
+  .doc-main { padding: 1.5em; }
+}

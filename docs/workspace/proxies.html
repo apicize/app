@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Proxies - Apicize Documentation</title>
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body>
+  <div class="doc-layout">
+    <nav class="doc-nav">
+      <div class="nav-header">
+        <a href="../home.html"><img src="../images/logo.svg" alt="Apicize" /><span>Apicize Docs</span></a>
+      </div>
+      <ul><li><a href="../home.html">Workspaces</a></li><li><span class="nav-section">Workspace Entities</span><ul><li><span class="nav-section">Requests</span><ul><li><a href="../workspace/requests.html">Overview</a></li><li><a href="../requests/info.html">Information</a></li><li><a href="../requests/headers.html">Headers</a></li><li><a href="../requests/query.html">Query String</a></li><li><a href="../requests/body.html">Body</a></li><li><a href="../requests/test.html">Testing</a></li><li><a href="../requests/parameters.html">Parameters</a></li></ul></li><li><a href="../workspace/groups.html">Groups</a></li><li><a href="../workspace/scenarios.html">Scenarios</a></li><li><span class="nav-section">Authorizations</span><ul><li><a href="../workspace/authorizations.html">Overview</a></li><li><a href="../authorization/basic.html">Basic Auth</a></li><li><a href="../authorization/api-key.html">API Key</a></li><li><a href="../authorization/oauth2-client.html">OAuth2 Client Flow</a></li><li><a href="../authorization/oauth2-pkce.html">OAuth2 PKCE Flow</a></li></ul></li><li><a href="../workspace/certificates.html">Certificates</a></li><li><a href="../workspace/proxies.html">Proxies</a></li><li><a href="../workspace/defaults.html">Workspace Defaults</a></li></ul></li><li><span class="nav-section">Testing</span><ul><li><a href="../authoring-tests.html">Authoriing Tests</a></li><li><a href="../running-tests.html">Running Tests</a></li><li><a href="../logs.html">View Communication Logs</a></li></ul></li><li><a href="../parameter-storage.html">Storing Parameters</a></li><li><a href="../settings.html">Settings</a></li><li><a href="../about.html">About Apicize</a></li></ul>
+    </nav>
+    <main class="doc-main help">
+      <h1><span class="help-icon" style="color: #cc0099;"><svg width="24" height="24" viewBox="0 0 18 18" fill="currentColor">
+            <path d="m 12 1 c -0.265625 0 -0.519531 0.105469 -0.707031 0.292969 c -0.390625 0.390625 -0.390625 1.023437 0 1.414062 l 1.292969 1.292969 h -7.585938 c -0.550781 0 -1 0.449219 -1 1 s 0.449219 1 1 1 h 7.585938 l -1.292969 1.292969 c -0.390625 0.390625 -0.390625 1.023437 0 1.414062 s 1.023437 0.390625 1.414062 0 l 3 -3 c 0.390625 -0.390625 0.390625 -1.023437 0 -1.414062 l -3 -3 c -0.1875 -0.1875 -0.441406 -0.292969 -0.707031 -0.292969 z m -8 6 c -0.257812 0 -0.511719 0.097656 -0.707031 0.292969 l -3 3 c -0.3906252 0.390625 -0.3906252 1.023437 0 1.414062 l 3 3 c 0.1875 0.1875 0.441406 0.292969 0.707031 0.292969 s 0.519531 -0.105469 0.707031 -0.292969 c 0.390625 -0.390625 0.390625 -1.023437 0 -1.414062 l -1.292969 -1.292969 h 7.585938 c 0.550781 0 1 -0.449219 1 -1 s -0.449219 -1 -1 -1 h -7.585938 l 1.292969 -1.292969 c 0.390625 -0.390625 0.390625 -1.023437 0 -1.414062 c -0.195312 -0.195313 -0.449219 -0.292969 -0.707031 -0.292969 z m 0 0" />
+        </svg></span> Proxies </h1>
+<p>Apicize supports http/s and SOCKS 5 proxies when executing tests.  To add a new Proxy parameter, click on the Plus sign
+next to Proxies in the navigation panel.  Select a name for your proxy and its location. Click
+<a href="../parameter-storage.html">here</a> for information on how parameters are stored in Apicize.</p>
+<p>To delete a Proxy parameter, select it in the navigation pane, and in its context menu, select "Delete Proxy".</p>
+<p>Proxies can be set for <a href="../requests.html">Requests</a>, <a href="../groups.html">Request Groups</a> or <a href="../authorizations/oauth2-client.html">OAuth2 Authorizations</a>.</p>
+<h2>Configuration</h2>
+<p>Configure the proxy using URLs such as:</p>
+<ul>
+<li><code>socks5://192.168.1.1:9000</code></li>
+<li><code>https://myproxy.com</code></li>
+<li><code>https://myproxy.com:8443</code></li>
+</ul>
+<p><img src="../images/proxies.webp" class="help-image"></p>
+<h3>See Also</h3>
+<ul>
+<li><a href="../parameter-storage.html"><strong>Parameter Storage</strong></a></li>
+</ul>
+    </main>
+  </div>
+</body>
+</html>

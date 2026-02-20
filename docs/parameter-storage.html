@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Parameter Storage in Apicize - Apicize Documentation</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="doc-layout">
+    <nav class="doc-nav">
+      <div class="nav-header">
+        <a href="./home.html"><img src="./images/logo.svg" alt="Apicize" /><span>Apicize Docs</span></a>
+      </div>
+      <ul><li><a href="./home.html">Workspaces</a></li><li><span class="nav-section">Workspace Entities</span><ul><li><span class="nav-section">Requests</span><ul><li><a href="./workspace/requests.html">Overview</a></li><li><a href="./requests/info.html">Information</a></li><li><a href="./requests/headers.html">Headers</a></li><li><a href="./requests/query.html">Query String</a></li><li><a href="./requests/body.html">Body</a></li><li><a href="./requests/test.html">Testing</a></li><li><a href="./requests/parameters.html">Parameters</a></li></ul></li><li><a href="./workspace/groups.html">Groups</a></li><li><a href="./workspace/scenarios.html">Scenarios</a></li><li><span class="nav-section">Authorizations</span><ul><li><a href="./workspace/authorizations.html">Overview</a></li><li><a href="./authorization/basic.html">Basic Auth</a></li><li><a href="./authorization/api-key.html">API Key</a></li><li><a href="./authorization/oauth2-client.html">OAuth2 Client Flow</a></li><li><a href="./authorization/oauth2-pkce.html">OAuth2 PKCE Flow</a></li></ul></li><li><a href="./workspace/certificates.html">Certificates</a></li><li><a href="./workspace/proxies.html">Proxies</a></li><li><a href="./workspace/defaults.html">Workspace Defaults</a></li></ul></li><li><span class="nav-section">Testing</span><ul><li><a href="./authoring-tests.html">Authoriing Tests</a></li><li><a href="./running-tests.html">Running Tests</a></li><li><a href="./logs.html">View Communication Logs</a></li></ul></li><li><a href="./parameter-storage.html">Storing Parameters</a></li><li><a href="./settings.html">Settings</a></li><li><a href="./about.html">About Apicize</a></li></ul>
+    </nav>
+    <main class="doc-main help">
+      <h1>Parameter Storage in Apicize </h1>
+<p><a href="./requests.html">Requests</a> and <a href="./groups.html">Groups</a> are always stored in Workbooks.  Parameters including
+<a href="./authorizations.html">Authorizations</a>, <a href="./scenarios.html">Scenarios</a>, <a href="./certificates.html">Certificates</a> and <a href="./proxies.html">Proxies</a>
+can be stored in Workbooks but also in Workbook private parameter files or the Local Vault.</p>
+<p>Where you store Parameters depends upon how you want to use these values and who you want to share them with, if anybody.</p>
+<h2>Types of Storage</h2>
+<h3><span class="help-icon" style="color: #009933;"><svg width="24" height="24" fill="currentColor" viewBox="0 0 96 96">
+            <g>
+                <path d="M94.9936,44.6718C83.6788,27.7025,70.155,11.9989,48,11.9989S12.3212,27.7025,1.0064,44.6718a6.0063,6.0063,0,0,0,0,6.6564C12.3212,68.2975,25.845,84.0011,48,84.0011S83.6788,68.2975,94.9936,51.3282A6.0063,6.0063,0,0,0,94.9936,44.6718ZM48,72.0007C35.2672,72.0007,25.3294,65.21,13.2646,48,25.3294,30.7905,35.2672,23.9993,48,23.9993S70.6706,30.7905,82.7354,48C70.6706,65.21,60.7328,72.0007,48,72.0007Z" />
+                <path d="M48,36A12,12,0,1,0,60,48,12.0161,12.0161,0,0,0,48,36Z" />
+            </g>
+        </svg></span> Workbook Files</h3>
+<p>Store parameters in Workbooks along with your Requests when you want to share those values with other developers.  When you distribute
+your Workbook, the parameters will be included.  This is useful for demonstration or test values.  You should <em>not</em> store production
+credentials or sensitive information in Workbooks.  You should use one of the following two methods.</p>
+<h3><span class="help-icon" style="color: #cfb53b;"><svg width="24" height="24" fill="currentColor" viewBox="0 0 96 96">
+            <g>
+                <path d="M82.24,22.2438A5.999,5.999,0,1,0,73.7562,13.76L69.455,18.0612A41.15,41.15,0,0,0,48,12.0022c-22.1588,0-35.6814,15.7022-46.9893,32.67a5.9842,5.9842,0,0,0,0,6.6558,110.6522,110.6522,0,0,0,15.8105,19.367L13.76,73.7562A5.999,5.999,0,1,0,22.2438,82.24ZM13.2677,48C25.3256,30.7921,35.2742,24.0015,48,24.0015a29.3537,29.3537,0,0,1,12.6716,2.8431l-9.5927,9.5926A11.1546,11.1546,0,0,0,48,36.0007,12.0112,12.0112,0,0,0,36.0007,48a11.1589,11.1589,0,0,0,.4365,3.0789L25.3014,62.2147A88.0132,88.0132,0,0,1,13.2677,48Z" />
+                <path d="M94.9893,44.6721c-2.4234-3.6363-4.9809-7.1751-7.6709-10.5528l-8.5461,8.5461c1.3007,1.6669,2.6131,3.4128,3.96,5.3346C71.1761,64.4924,61.5307,71.3423,49.5475,71.89L38.5714,82.8663A42.5472,42.5472,0,0,0,48,83.9978c22.1588,0,35.6814-15.7022,46.9893-32.67A5.9842,5.9842,0,0,0,94.9893,44.6721Z" />
+            </g>
+        </svg></span> Workbook Private Parameter Files</h3>
+<p>These files are stored along with Workbook files with the extension <code>.apicize-priv</code>.   These files can be used to store parameters
+that you want to keep with your Workbooks but you do not want to share with others.</p>
+<blockquote>
+<p>Note: You should exclude <code>*.apicize-priv</code> in your source control configuration (such as <code>.gitignore</code>) to ensure they do not end up in
+shared code repositories.</p>
+</blockquote>
+<h3><span class="help-icon" style="color: #cc2900;"><svg
+            version="1.1"
+            viewBox="0 0 60 60"
+            stroke="currentColor"
+            fill="currentColor"
+            stroke-width="1.25"
+        >
+            <defs
+                id="defs5" />
+            <g
+                id="g5">
+                <path
+                    d="M 55.944,3 H 6.056 C 3.819,3 2,4.819 2,7.056 v 6.993 c -1.139,0.227 -2,1.233 -2,2.438 v 9.026 c 0,1.205 0.861,2.211 2,2.438 v 4.098 c -1.139,0.227 -2,1.233 -2,2.438 v 9.026 c 0,1.205 0.861,2.211 2,2.438 v 6.993 C 2,55.181 3.819,57 6.056,57 H 55.945 C 58.181,57 60,55.181 60,52.944 V 7.056 C 60,4.819 58.181,3 55.944,3 Z M 2,16.487 C 2,16.218 2.218,16 2.486,16 H 7 8 c 0.552,0 1,0.449 1,1 v 8 c 0,0.551 -0.448,1 -1,1 H 7 2.486 C 2.218,26 2,25.782 2,25.513 Z M 4,28 h 3 v 4 H 4 Z m 5,17.951 c 1.139,-0.227 2,-1.233 2,-2.438 V 43 35 34.487 c 0,-1.205 -0.861,-2.211 -2,-2.438 v -4.098 c 1.139,-0.227 2,-1.233 2,-2.438 V 25 17 16.487 C 11,15.282 10.139,14.276 9,14.049 V 10 H 53 V 50 H 9 Z M 2,34.487 C 2,34.218 2.218,34 2.486,34 H 7 8 c 0.552,0 1,0.449 1,1 v 8 c 0,0.551 -0.448,1 -1,1 H 7 2.486 C 2.218,44 2,43.782 2,43.513 Z M 58,52.944 C 58,54.078 57.078,55 55.944,55 H 6.056 C 4.922,55 4,54.078 4,52.944 V 46 h 3 v 6 H 55 V 8 H 7 v 6 H 4 V 7.056 C 4,5.922 4.922,5 6.056,5 H 55.945 C 57.078,5 58,5.922 58,7.056 Z"
+                    id="path1" />
+                <path
+                    d="M 35.506,21.546 C 35.497,21.537 35.494,21.524 35.485,21.515 35.476,21.506 35.463,21.503 35.454,21.494 33.283,19.336 30.295,18 27,18 c -3.295,0 -6.283,1.336 -8.454,3.494 -0.009,0.009 -0.022,0.012 -0.031,0.021 -0.009,0.009 -0.012,0.022 -0.021,0.031 C 16.336,23.717 15,26.705 15,30 c 0,3.295 1.336,6.283 3.494,8.454 0.009,0.009 0.012,0.022 0.021,0.031 0.009,0.009 0.022,0.012 0.031,0.021 C 20.717,40.664 23.705,42 27,42 c 3.295,0 6.283,-1.336 8.454,-3.494 0.009,-0.009 0.022,-0.012 0.031,-0.021 0.009,-0.009 0.012,-0.022 0.021,-0.031 C 37.664,36.283 39,33.295 39,30 39,26.705 37.664,23.717 35.506,21.546 Z M 35,31 h 1.949 c -0.2,2.008 -0.998,3.842 -2.211,5.324 L 33.364,34.95 c -0.391,-0.391 -1.023,-0.391 -1.414,0 -0.391,0.39 -0.391,1.023 0,1.414 l 1.374,1.374 C 31.842,38.951 30.008,39.749 28,39.949 V 38 c 0,-0.552 -0.447,-1 -1,-1 -0.553,0 -1,0.448 -1,1 v 1.949 c -2.008,-0.2 -3.843,-0.998 -5.324,-2.211 l 1.374,-1.374 c 0.391,-0.391 0.391,-1.024 0,-1.414 -0.391,-0.391 -1.023,-0.391 -1.414,0 l -1.374,1.374 C 18.049,34.842 17.251,33.008 17.051,31 H 19 c 0.553,0 1,-0.448 1,-1 0,-0.552 -0.447,-1 -1,-1 h -1.949 c 0.2,-2.008 0.998,-3.842 2.211,-5.324 l 1.374,1.374 c 0.195,0.195 0.451,0.293 0.707,0.293 0.256,0 0.512,-0.098 0.707,-0.293 0.391,-0.39 0.391,-1.023 0,-1.414 L 20.676,22.262 C 22.158,21.049 23.992,20.251 26,20.051 V 22 c 0,0.552 0.447,1 1,1 0.553,0 1,-0.448 1,-1 v -1.949 c 2.008,0.2 3.843,0.998 5.324,2.211 l -1.374,1.374 c -0.391,0.391 -0.391,1.024 0,1.414 0.195,0.195 0.451,0.293 0.707,0.293 0.256,0 0.512,-0.098 0.707,-0.293 l 1.374,-1.374 c 1.213,1.482 2.011,3.316 2.211,5.324 H 35 c -0.553,0 -1,0.448 -1,1 0,0.552 0.447,1 1,1 z"
+                    id="path2" />
+                <path
+                    d="m 27,25 c -2.757,0 -5,2.243 -5,5 0,2.757 2.243,5 5,5 2.757,0 5,-2.243 5,-5 0,-2.757 -2.243,-5 -5,-5 z m 0,8 c -1.654,0 -3,-1.346 -3,-3 0,-1.654 1.346,-3 3,-3 1.654,0 3,1.346 3,3 0,1.654 -1.346,3 -3,3 z"
+                    id="path3" />
+                <path
+                    d="m 51,18 c 0,-0.552 -0.447,-1 -1,-1 H 47.5 C 45.57,17 44,18.57 44,20.5 v 19 c 0,1.93 1.57,3.5 3.5,3.5 H 50 c 0.553,0 1,-0.448 1,-1 0,-0.552 -0.447,-1 -1,-1 H 47.5 C 46.673,41 46,40.327 46,39.5 v -19 C 46,19.673 46.673,19 47.5,19 H 50 c 0.553,0 1,-0.448 1,-1 z"
+                    id="path4" />
+            </g>
+        </svg></span> Local Vault Parameter Storage</h3>
+<p>Any parameters stored in the Local Vault will be available for use by any Apicize workbook loaded into a workspace.  This storage
+is tied to the user logged into the operating system, and is located user's home directory under <code>.config/apicize</code>.  This is a useful
+mechanism if you work in an enterprise and need to share credentials amongst multiple workbook.</p>
+<p>Workbooks include both IDs and Names of parameters configured for Requests and Groups.  If you open a Workbook copied from another system,
+Apicize will look for parameters with matching names in the Local Vault for any configured paraemters, and select them if they match.</p>
+    </main>
+  </div>
+</body>
+</html>

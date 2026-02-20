@@ -45,6 +45,8 @@ export * from './contexts/dragdrop.context'
 export * from './contexts/file-dragdrop.context'
 export * from './models/editable-settings'
 export * from './models/clipboard_payload_request'
+export * from './models/palette-colors'
+export * from './models/icon-color-map'
 
 import { monaco } from 'react-monaco-editor'
 import "./toolkit.css"

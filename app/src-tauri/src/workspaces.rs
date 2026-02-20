@@ -760,6 +760,14 @@ impl Workspaces {
             group.execution = execution.clone();
         }
 
+        if let Some(setup) = &update.setup {
+            group.setup = if setup.is_empty() {
+                None
+            } else {
+                Some(setup.clone())
+            };
+        }
+
         if let Some(selected_scenario) = &update.selected_scenario {
             group.selected_scenario = if selected_scenario.id == DEFAULT_SELECTION_ID {
                 None

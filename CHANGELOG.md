@@ -1,5 +1,9 @@
 # Change Log
 
+# 0.31.0
+
+* Add group setup scripts
+
 # 0.30.3
 
 * Add disabled flag to requests/groups

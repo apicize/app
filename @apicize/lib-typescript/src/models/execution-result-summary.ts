@@ -16,6 +16,7 @@ export interface ExecutionResultSummary {
     duration: number
     method?: string
     url?: string
+    logs?: string[]
     status?: number
     statusText: string
     hasResponseHeaders: boolean

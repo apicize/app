@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Requests - Apicize Documentation</title>
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body>
+  <div class="doc-layout">
+    <nav class="doc-nav">
+      <div class="nav-header">
+        <a href="../home.html"><img src="../images/logo.svg" alt="Apicize" /><span>Apicize Docs</span></a>
+      </div>
+      <ul><li><a href="../home.html">Workspaces</a></li><li><span class="nav-section">Workspace Entities</span><ul><li><span class="nav-section">Requests</span><ul><li><a href="../workspace/requests.html">Overview</a></li><li><a href="../requests/info.html">Information</a></li><li><a href="../requests/headers.html">Headers</a></li><li><a href="../requests/query.html">Query String</a></li><li><a href="../requests/body.html">Body</a></li><li><a href="../requests/test.html">Testing</a></li><li><a href="../requests/parameters.html">Parameters</a></li></ul></li><li><a href="../workspace/groups.html">Groups</a></li><li><a href="../workspace/scenarios.html">Scenarios</a></li><li><span class="nav-section">Authorizations</span><ul><li><a href="../workspace/authorizations.html">Overview</a></li><li><a href="../authorization/basic.html">Basic Auth</a></li><li><a href="../authorization/api-key.html">API Key</a></li><li><a href="../authorization/oauth2-client.html">OAuth2 Client Flow</a></li><li><a href="../authorization/oauth2-pkce.html">OAuth2 PKCE Flow</a></li></ul></li><li><a href="../workspace/certificates.html">Certificates</a></li><li><a href="../workspace/proxies.html">Proxies</a></li><li><a href="../workspace/defaults.html">Workspace Defaults</a></li></ul></li><li><span class="nav-section">Testing</span><ul><li><a href="../authoring-tests.html">Authoriing Tests</a></li><li><a href="../running-tests.html">Running Tests</a></li><li><a href="../logs.html">View Communication Logs</a></li></ul></li><li><a href="../parameter-storage.html">Storing Parameters</a></li><li><a href="../settings.html">Settings</a></li><li><a href="../about.html">About Apicize</a></li></ul>
+    </nav>
+    <main class="doc-main help">
+      <h1><span class="help-icon" style="color: #00ace6;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" >
+            <path d="M10.5004 11.9998H5.00043M4.91577 12.2913L2.58085 19.266C2.39742 19.8139 2.3057 20.0879 2.37152 20.2566C2.42868 20.4031 2.55144 20.5142 2.70292 20.5565C2.87736 20.6052 3.14083 20.4866 3.66776 20.2495L20.3792 12.7293C20.8936 12.4979 21.1507 12.3822 21.2302 12.2214C21.2993 12.0817 21.2993 11.9179 21.2302 11.7782C21.1507 11.6174 20.8936 11.5017 20.3792 11.2703L3.66193 3.74751C3.13659 3.51111 2.87392 3.39291 2.69966 3.4414C2.54832 3.48351 2.42556 3.59429 2.36821 3.74054C2.30216 3.90893 2.3929 4.18231 2.57437 4.72906L4.91642 11.7853C4.94759 11.8792 4.96317 11.9262 4.96933 11.9742C4.97479 12.0168 4.97473 12.0599 4.96916 12.1025C4.96289 12.1506 4.94718 12.1975 4.91577 12.2913Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg></span> Requests </h1>
+<h2>Parameters Pane <span class="help-icon" style="color: #00ace6;"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="m9.78 11.16-1.42 1.42c-.68-.69-1.34-1.58-1.79-2.94l1.94-.49c.32.89.77 1.5 1.27 2.01M11 6 7 2 3 6h3.02c.02.81.08 1.54.19 2.17l1.94-.49C8.08 7.2 8.03 6.63 8.02 6zm10 0-4-4-4 4h2.99c-.1 3.68-1.28 4.75-2.54 5.88-.5.44-1.01.92-1.45 1.55-.34-.49-.73-.88-1.13-1.24L9.46 13.6c.93.85 1.54 1.54 1.54 3.4v5h2v-5c0-2.02.71-2.66 1.79-3.63 1.38-1.24 3.08-2.78 3.2-7.37z"/></svg></span></h2>
+<p>This is pane to set parameters when testing your Request or Group.  These parameters include:</p>
+<ul>
+<li><a href="../scenarios.html"><strong>Scenario</strong></a>: Name/value pairs injected in place of <code>{{handlebars}}</code> text</li>
+<li><a href="../authorizations.html"><strong>Authorization</strong></a>: Authorization sent with request</li>
+<li><a href="../certificates.html"><strong>Certificate</strong></a>:  Client certificate sent with request</li>
+<li><a href="../proxies.html"><strong>Proxy</strong></a>:  Proxy used to send request</li>
+</ul>
+<p>These parameters are set hierchically, and default to the level above them, all the way "up" to the workbook's <a href="../defaults-and-settings.html">defaults</a>.
+If you set any of these to a value, that value will be used regardless of any parent values set.  If you set any of these to "Off", then
+no value will be used for that parameter, regardless of parent values.</p>
+<p><img src="../images/requests/parameters.webp" class="help-image"></p>
+<p>If you want to run your tests by seeding external data, set that in workbook's <a href="../defaults-and-settings.html">defaults</a>.</p>
+<h3>See Also</h3>
+<ul>
+<li><a href="../running-tests.html"><strong>Running Tests</strong></a></li>
+<li><a href="../requests.html"><strong>Requests</strong></a></li>
+<li><a href="../home.html"><strong>Workspace</strong></a></li>
+</ul>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,7 +1,7 @@
 {
   "name": "@apicize/toolkit",
   "private": true,
-  "version": "0.30.3",
+  "version": "0.31.0",
   "description": "UI toolkit for Apicize applications",
   "keywords": [],
   "license": "MIT",
@@ -11,11 +11,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
-    "css": "shx cp ./src/toolkit.css ./dist/toolkit.css && shx cp ./src/test-editor.d.ts ./dist/test-editor.d.ts",
-    "build": "tsc --build && npm run css",
-    "watch-css": "nodemon --watch src/toolkit.css --exec npm run css",
+    "dependencies": "shx cp ./src/toolkit.css ./dist/toolkit.css && shx mkdir -p ./dist/typings && shx cp ./src/typings/*.d.ts ./dist/typings",
+    "build": "tsc --build && npm run dependencies",
+    "watch-dependencies": "nodemon --watch src/toolkit.css --watch src/typings/*.d.ts --exec npm run dependencies",
     "watch": "tsc --watch",
-    "rebuild": "rm -rf dist && rm ./tsconfig.tsbuildinfo && npm run css",
+    "rebuild": "rm -rf dist && rm ./tsconfig.tsbuildinfo && npm run dependencies",
     "typeface-roboto-mono": "^1.1.13"
   },
   "devDependencies": {

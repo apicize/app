@@ -1,4 +1,4 @@
-import { useApicizeSettings } from "@apicize/toolkit"
+import { useApicizeSettings, PALETTE_COLORS } from "@apicize/toolkit"
 import { createTheme, ThemeProvider, TypographyVariantsOptions } from "@mui/material/styles"
 import { observer } from "mobx-react-lite"
 import { ReactNode, useMemo } from "react"
@@ -27,85 +27,85 @@ export const ConfigurableTheme = observer(({ children }: {
       mode: isDark ? 'dark' : 'light',
       navigation: palette.palette.augmentColor({
         color: {
-          main: isDark ? '#202020' : '#F0F0F0',
+          main: isDark ? PALETTE_COLORS.navigation.dark : PALETTE_COLORS.navigation.light,
         },
         name: 'navigation'
       }),
       toolbar: palette.palette.augmentColor({
         color: {
-          main: isDark ? '#404040' : '#E0E0E0',
+          main: isDark ? PALETTE_COLORS.toolbar.dark : PALETTE_COLORS.toolbar.light,
         },
         name: 'toolbar'
       }),
       folder: palette.palette.augmentColor({
         color: {
-          main: isDark ? '#FFD700' : '#e6c300'
+          main: isDark ? PALETTE_COLORS.folder.dark : PALETTE_COLORS.folder.light,
         },
         name: 'folder'
       }),
       request: palette.palette.augmentColor({
         color: {
-          main: '#00ace6'
+          main: PALETTE_COLORS.request,
         },
         name: 'request'
       }),
       scenario: palette.palette.augmentColor({
         color: {
-          main: '#0073e6'
+          main: PALETTE_COLORS.scenario,
         },
         name: 'scenario'
       }),
       authorization: palette.palette.augmentColor({
         color: {
-          main: '#daa520'
+          main: PALETTE_COLORS.authorization,
         },
         name: 'authorization'
       }),
       certificate: palette.palette.augmentColor({
         color: {
-          main: '#FF8C00'
+          main: PALETTE_COLORS.certificate,
         },
         name: 'certificate'
       }),
       data: palette.palette.augmentColor({
         color: {
-          main: '#663399'
+          main: PALETTE_COLORS.data,
         },
         name: 'proxy'
       }),
       proxy: palette.palette.augmentColor({
         color: {
-          main: '#cc0099'
+          main: PALETTE_COLORS.proxy,
         },
         name: 'proxy'
       }),
       defaults: palette.palette.augmentColor({
         color: {
-          main: '#86b300'
+          main: PALETTE_COLORS.defaults,
         },
         name: 'defaults'
       }),
       public: palette.palette.augmentColor({
         color: {
-          main: '#009933'
+          main: PALETTE_COLORS.public,
         },
         name: 'public'
       }),
       private: palette.palette.augmentColor({
         color: {
-          main: '#cfb53b'
+          main: PALETTE_COLORS.private,
         },
         name: 'private'
       }),
       vault: palette.palette.augmentColor({
         color: {
-          main: '#cc2900'
+          main: PALETTE_COLORS.vault,
         },
         name: 'vault'
       }),
       unselected: palette.palette.augmentColor({
         color: {
-          main: isDark ? '#808080' : '#404040',
+          main: isDark ? PALETTE_COLORS.unselected.dark : PALETTE_COLORS.unselected.light,
         },
         name: 'toolbar'
       }),

@@ -16,6 +16,7 @@ export class EditableRequestGroup extends EditableRequestEntry {
     @observable public accessor key = ''
     @observable accessor timeout = 0
     @observable accessor execution: ExecutionConcurrency = ExecutionConcurrency.Sequential
+    @observable public accessor setup = ''
 
     @observable accessor validationWarnings = new EditableWarnings()
     @observable accessor validationErrors: ValidationErrorList = {}
@@ -30,12 +31,14 @@ export class EditableRequestGroup extends EditableRequestEntry {
         this.runs = entry.runs
         this.multiRunExecution = entry.multiRunExecution
         this.execution = entry.execution
+        this.setup = entry.setup ?? ''
 
         this.selectedScenario = entry.selectedScenario ?? undefined
         this.selectedAuthorization = entry.selectedAuthorization ?? undefined
         this.selectedCertificate = entry.selectedCertificate ?? undefined
         this.selectedProxy = entry.selectedProxy ?? undefined
         this.selectedDataSet = entry.selectedData ?? undefined
+
         this.validationWarnings.set(entry.validationWarnings)
         this.validationErrors = entry.validationErrors ?? {}
     }
@@ -84,6 +87,12 @@ export class EditableRequestGroup extends EditableRequestEntry {
     setGroupConcurrency(value: ExecutionConcurrency) {
         this.execution = value
         this.performUpdate({ type: EntityTypeName.Group, entityType: EntityType.Group, id: this.id, execution: value })
+    }
+    
+    @action
+    setSetup(value: string | undefined) {
+        this.setup = value ?? ''
+        this.performUpdate({ type: EntityTypeName.Group, entityType: EntityType.Group, id: this.id, setup: value })
     }
 
     @action
@@ -174,7 +183,9 @@ export class EditableRequestGroup extends EditableRequestEntry {
         if (notification.update.multiRunExecution !== undefined) {
             this.multiRunExecution = notification.update.multiRunExecution
         }
-
+        if (notification.update.setup !== undefined) {
+            this.setup = notification.update.setup
+        }
         let clearParameters = false
         if (notification.update.selectedScenario !== undefined) {
             this.selectedScenario = notification.update.selectedScenario.id === DEFAULT_SELECTION_ID

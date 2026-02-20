@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Authorizations - Apicize Documentation</title>
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body>
+  <div class="doc-layout">
+    <nav class="doc-nav">
+      <div class="nav-header">
+        <a href="../home.html"><img src="../images/logo.svg" alt="Apicize" /><span>Apicize Docs</span></a>
+      </div>
+      <ul><li><a href="../home.html">Workspaces</a></li><li><span class="nav-section">Workspace Entities</span><ul><li><span class="nav-section">Requests</span><ul><li><a href="../workspace/requests.html">Overview</a></li><li><a href="../requests/info.html">Information</a></li><li><a href="../requests/headers.html">Headers</a></li><li><a href="../requests/query.html">Query String</a></li><li><a href="../requests/body.html">Body</a></li><li><a href="../requests/test.html">Testing</a></li><li><a href="../requests/parameters.html">Parameters</a></li></ul></li><li><a href="../workspace/groups.html">Groups</a></li><li><a href="../workspace/scenarios.html">Scenarios</a></li><li><span class="nav-section">Authorizations</span><ul><li><a href="../workspace/authorizations.html">Overview</a></li><li><a href="../authorization/basic.html">Basic Auth</a></li><li><a href="../authorization/api-key.html">API Key</a></li><li><a href="../authorization/oauth2-client.html">OAuth2 Client Flow</a></li><li><a href="../authorization/oauth2-pkce.html">OAuth2 PKCE Flow</a></li></ul></li><li><a href="../workspace/certificates.html">Certificates</a></li><li><a href="../workspace/proxies.html">Proxies</a></li><li><a href="../workspace/defaults.html">Workspace Defaults</a></li></ul></li><li><span class="nav-section">Testing</span><ul><li><a href="../authoring-tests.html">Authoriing Tests</a></li><li><a href="../running-tests.html">Running Tests</a></li><li><a href="../logs.html">View Communication Logs</a></li></ul></li><li><a href="../parameter-storage.html">Storing Parameters</a></li><li><a href="../settings.html">Settings</a></li><li><a href="../about.html">About Apicize</a></li></ul>
+    </nav>
+    <main class="doc-main help">
+      <h1><span class="help-icon" style="color: #daa520;"><svg width="24" height="24" viewBox="0 0 512 512" fill="currentColor">
+            <g>
+                <path d="M390.234,171.594v-37.375c0.016-36.969-15.078-70.719-39.328-94.906C326.719,15.063,292.969-0.016,256,0
+		c-36.969-0.016-70.719,15.063-94.906,39.313c-24.25,24.188-39.344,57.938-39.313,94.906v37.375H24.906V512h462.188v-29.063V171.594
+		H390.234z M179.891,134.219c0.016-21.094,8.469-39.938,22.297-53.813C216.047,66.594,234.891,58.125,256,58.125
+		s39.953,8.469,53.813,22.281c13.828,13.875,22.281,32.719,22.297,53.813v37.375H179.891V134.219z M83.031,229.719h345.938v224.156
+		H83.031V229.719z"/>
+                <path d="M297.859,321.844c0-23.125-18.75-41.875-41.859-41.875c-23.125,0-41.859,18.75-41.859,41.875
+		c0,17.031,10.219,31.625,24.828,38.156l-9.25,60.094H256h26.281L273.016,360C287.625,353.469,297.859,338.875,297.859,321.844z"/>
+            </g>
+        </svg></span> Authorizations </h1>
+<h2>OAuth2 PKCE Flow Authorization</h2>
+<p>When authorizing using OAuth2 PKCE Flow, a browser window is displayed for the Authorization URL.  Once the user
+successfully enters in their credentials and other two-factor authentication information (when applicable),
+Apicize can use that result to retrieve access and refresh tokens using the specified Access Token URL with the Client ID and Secret.</p>
+<p>Optionally, you can specify a Scope.  When associating a OAuth2 Client Authorization parameter, Apicize will automatically retrieve the token,
+and reuse it until either it expires, or you click on "CLEAR ANY CACHED TOKEN" in the Authorization's configuration.</p>
+<p>The PKCE token flow will be initiatiated when executing tests on a Request or Group with a PKCE Authorization.  Alternatively,
+you can click on "REQUEST TOKEN" to manually trigger the process.</p>
+<h2>Limitations</h2>
+<h3>PKCE Authorization Only Works in the UI</h3>
+<p>Because PKCE authorization may require two-factor information that can only be known at runtime, user interaction is required.  As a result,
+tests with PKCE Authorization will fail when using the CLI runner.</p>
+<h3>No HTTPS</h3>
+<p>This mechanism does not support HTTPS.  Most OAuth2 providers will be okay with this as long as the callback is <a href="http://localhost">http://localhost</a>,
+which this is.</p>
+<p><img src="../images/authorization/oauth2-pkce.webp" class="help-image"></p>
+<h3>See Also</h3>
+<ul>
+<li><a href="../authorizations.html"><strong>Authorizations</strong></a></li>
+<li><a href="../certificates.html"><strong>Certificates</strong></a></li>
+<li><a href="../proxies.html"><strong>Proxies</strong></a></li>
+</ul>
+    </main>
+  </div>
+</body>
+</html>

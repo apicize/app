@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Running Tests - Apicize Documentation</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="doc-layout">
+    <nav class="doc-nav">
+      <div class="nav-header">
+        <a href="./home.html"><img src="./images/logo.svg" alt="Apicize" /><span>Apicize Docs</span></a>
+      </div>
+      <ul><li><a href="./home.html">Workspaces</a></li><li><span class="nav-section">Workspace Entities</span><ul><li><span class="nav-section">Requests</span><ul><li><a href="./workspace/requests.html">Overview</a></li><li><a href="./requests/info.html">Information</a></li><li><a href="./requests/headers.html">Headers</a></li><li><a href="./requests/query.html">Query String</a></li><li><a href="./requests/body.html">Body</a></li><li><a href="./requests/test.html">Testing</a></li><li><a href="./requests/parameters.html">Parameters</a></li></ul></li><li><a href="./workspace/groups.html">Groups</a></li><li><a href="./workspace/scenarios.html">Scenarios</a></li><li><span class="nav-section">Authorizations</span><ul><li><a href="./workspace/authorizations.html">Overview</a></li><li><a href="./authorization/basic.html">Basic Auth</a></li><li><a href="./authorization/api-key.html">API Key</a></li><li><a href="./authorization/oauth2-client.html">OAuth2 Client Flow</a></li><li><a href="./authorization/oauth2-pkce.html">OAuth2 PKCE Flow</a></li></ul></li><li><a href="./workspace/certificates.html">Certificates</a></li><li><a href="./workspace/proxies.html">Proxies</a></li><li><a href="./workspace/defaults.html">Workspace Defaults</a></li></ul></li><li><span class="nav-section">Testing</span><ul><li><a href="./authoring-tests.html">Authoriing Tests</a></li><li><a href="./running-tests.html">Running Tests</a></li><li><a href="./logs.html">View Communication Logs</a></li></ul></li><li><a href="./parameter-storage.html">Storing Parameters</a></li><li><a href="./settings.html">Settings</a></li><li><a href="./about.html">About Apicize</a></li></ul>
+    </nav>
+    <main class="doc-main help">
+      <h1>Running Tests </h1>
+<p>To dispatch <a href="./requests.html">Request</a> or <a href="./groups.html">Group</a> request and execute its tests, first select it.</p>
+<p><span class="help-icon" style="color: #2e7d32;"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="m10 16.5 6-4.5-6-4.5zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2m0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8"/></svg></span> To execute the Request or Group once, with no timeout, click the Single Run button (outlined "play") next to the name at the top of the screen, or press <strong><span>Ctrl</span> + Enter</strong>.<br>
+Runnig a request without a timeout can be useful when interactively debugging a local API.</p>
+<p><span class="help-icon" style="color: #2e7d32;"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2m-2 14.5v-9l6 4.5z"/></svg></span> If you want to execute the Request or Group with for the specified number of groups, click on the Test button (filled "play"), or press <strong><span>Ctrl</span> + Shift + Enter</strong> .</p>
+<p>Apicize will dispatch your request, execute test scripts (if any) and display the results.</p>
+<h2>Multiple Runs and Execution</h2>
+<p>Apicize can execute your Request or Group multiple times, and tests tests can be executed Concurrently or Sequentially.  Conccurent attempts are dispatched
+at the same time, and can be useful to test scalability and making sure your API returns consistent results when concurrent calls are made.  Sequential
+attempts are dispatched one after the other.</p>
+<p>If you are testing a Group, there are two Execution settings:</p>
+<ul>
+<li><strong>Group Execution</strong> controls how multiple runs are dispatched at the group level.  If you select Concurrent, all runs of the Group (and its children) will be dispatched at the same time.</li>
+<li><strong>Group Item Execution</strong> controls how each of the children in a group are dispatched.  If you select Concurrent, all children of the Group will be dispatched at the same time.  If you
+have Requests in a group that rely upon variables set in a previous Request (see <a href="./authoring-tests.html"><strong>Authoring Tests</strong></a>), then Concurrent Group Item Execution will likely break these tests.</li>
+</ul>
+<blockquote>
+<p>Use <strong>Sequential</strong> Group Item Execution for a Group when outputing values from a Request's test to be used by subsequent Requests</p>
+</blockquote>
+<h2>Data Sets</h2>
+<p>You can maintain them in a JSON or CSV file separate from your workbook.  This may be useful if you have a large set of test cases
+that you want to maintain outside of Apicize.  Data Sets can be used from the Apicize CLI runner.</p>
+<p>Some things to keep in mind when using Seeded data:</p>
+<ol>
+<li>Each row will be executed sequentially for Requests and Groups being tested.  The specified number of runs, concurrency, etc. will all be applied</li>
+<li>As a security measure, the Seed file <strong>must</strong> be in the same directory or child directory as the workbook.</li>
+<li>When using a JSON file, if the file contains a scalar value (string, number, etc.) or ab array of scalar values, a variable named <strong>data</strong> will be set.</li>
+<li>Although you can set a Seeded file for any request or group (as well as the Workspace itself), only one Seed file can be active at any time.  There is no support for "nested"
+seed files.  This means that once a Seed file is loaded for a workbook or group, any Data Set configured for child groups or requests will be ignored.</li>
+</ol>
+<h2>Viewing Results</h2>
+<p>After a request is processed, the test flask icon will be colored:</p>
+<ul>
+<li>Green:  A response was received for request(s) and all tests pass</li>
+<li>Yellow:  A response was received for request(s) but one or more tests failed</li>
+<li>Red:  A response was not received</li>
+</ul>
+<h3>Group Results</h3>
+<p>If you are testing from a group, the Test panel will include up to two drop downs after the group's requests and tests are run.  If your group specified a multiple number of runs, you can specify which
+run sequence to view.  By default, a summary of all request and test results in the group will is displayed.  You can see the details of a specific request and its test by selecting the test from the
+<strong>Results</strong> dropdown.</p>
+<p><img src="./images/requests/summary-results.webp" class="help-image"></p>
+<h3>Request Results</h3>
+<p>Each request includes the following information panels:</p>
+<ul>
+<li><strong>Headers</strong>: displays the headers returned with the response</li>
+<li><strong>Raw</strong>:  Displays the response body (if any) as text if the content type does not appear to be binary.  If the content type does appear to be binary, then the body's
+content encoded as Base64 will be displayed</li>
+<li><strong>Preview</strong>:  For recognized content types, textual will be displayed "pretty-fied" and images will be displayed as images</li>
+<li><strong>Request</strong>:  Information about how the request was dispatched, including any values substituted based upon the selected scenario</li>
+</ul>
+<p><img src="./images/requests/request-results.webp" class="help-image"></p>
+<p><img src="./images/requests/request-results-preview.webp" class="help-image"></p>
+<h3>See Also</h3>
+<ul>
+<li><a href="./authoring-tests.html"><strong>Authoring Tests</strong></a></li>
+<li><a href="./requests.html"><strong>Requests</strong></a></li>
+<li><a href="./home.html"><strong>Workspace</strong></a></li>
+</ul>
+    </main>
+  </div>
+</body>
+</html>

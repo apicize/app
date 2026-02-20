@@ -70,6 +70,7 @@ export const NavTreeItem = React.memo(observer(({
     entry,
     type,
     depth,
+    isDisabled,
     isDraggable,
     acceptDropTypes,
     acceptDropAppends,
@@ -83,6 +84,7 @@ export const NavTreeItem = React.memo(observer(({
     entry: NavigationEntry,
     type: EntityType,
     depth: number,
+    isDisabled?: boolean,
     isDraggable: boolean,
     acceptDropTypes?: EntityType[],
     acceptDropAppends?: boolean,
@@ -194,7 +196,7 @@ export const NavTreeItem = React.memo(observer(({
                         : null
                 }
                 <Box
-                    className={entry.disabled ? 'disabled nav-node-text' : 'nav-node-text'}
+                    className={isDisabled === true ? 'disabled nav-node-text' : 'nav-node-text'}
                     justifyContent='left'
                     alignItems='center'
                     display='flex'

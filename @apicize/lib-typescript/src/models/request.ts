@@ -105,4 +105,5 @@ export interface RequestGroup extends RequestEntry {
      * Group-level concurrency
      */
     execution: ExecutionConcurrency
+    setup?: string,
 }

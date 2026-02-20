@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Welcome to Apicize! - Apicize Documentation</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="doc-layout">
+    <nav class="doc-nav">
+      <div class="nav-header">
+        <a href="./home.html"><img src="./images/logo.svg" alt="Apicize" /><span>Apicize Docs</span></a>
+      </div>
+      <ul><li><a href="./home.html">Workspaces</a></li><li><span class="nav-section">Workspace Entities</span><ul><li><span class="nav-section">Requests</span><ul><li><a href="./workspace/requests.html">Overview</a></li><li><a href="./requests/info.html">Information</a></li><li><a href="./requests/headers.html">Headers</a></li><li><a href="./requests/query.html">Query String</a></li><li><a href="./requests/body.html">Body</a></li><li><a href="./requests/test.html">Testing</a></li><li><a href="./requests/parameters.html">Parameters</a></li></ul></li><li><a href="./workspace/groups.html">Groups</a></li><li><a href="./workspace/scenarios.html">Scenarios</a></li><li><span class="nav-section">Authorizations</span><ul><li><a href="./workspace/authorizations.html">Overview</a></li><li><a href="./authorization/basic.html">Basic Auth</a></li><li><a href="./authorization/api-key.html">API Key</a></li><li><a href="./authorization/oauth2-client.html">OAuth2 Client Flow</a></li><li><a href="./authorization/oauth2-pkce.html">OAuth2 PKCE Flow</a></li></ul></li><li><a href="./workspace/certificates.html">Certificates</a></li><li><a href="./workspace/proxies.html">Proxies</a></li><li><a href="./workspace/defaults.html">Workspace Defaults</a></li></ul></li><li><span class="nav-section">Testing</span><ul><li><a href="./authoring-tests.html">Authoriing Tests</a></li><li><a href="./running-tests.html">Running Tests</a></li><li><a href="./logs.html">View Communication Logs</a></li></ul></li><li><a href="./parameter-storage.html">Storing Parameters</a></li><li><a href="./settings.html">Settings</a></li><li><a href="./about.html">About Apicize</a></li></ul>
+    </nav>
+    <main class="doc-main help">
+      <h1><span class="help-icon help-icon-apicize"><img src="./images/logo.svg" alt="Apicize" class="icon-apicize" /></span> Welcome to Apicize! </h1>
+<h1>Workspaces and Workbooks</h1>
+<p>An Apicize Workspace is where you set up your HTTP requests to test.  You can also configure ways to populate
+data used by those requests, facilitate authentication, and set up other security measures.</p>
+<p>Workspaces are saved to Workbooks.  You can control how information is saved to workbooks to lower the risk
+of unintentionally sharing sensitive authorization credentials or certificates. See the section on
+<a href="./parameter-storage.html">parameter storage</a> for more information.</p>
+<h2>Workspace Elements</h2>
+<h3><span class="help-icon" style="color: #00ace6;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" >
+            <path d="M10.5004 11.9998H5.00043M4.91577 12.2913L2.58085 19.266C2.39742 19.8139 2.3057 20.0879 2.37152 20.2566C2.42868 20.4031 2.55144 20.5142 2.70292 20.5565C2.87736 20.6052 3.14083 20.4866 3.66776 20.2495L20.3792 12.7293C20.8936 12.4979 21.1507 12.3822 21.2302 12.2214C21.2993 12.0817 21.2993 11.9179 21.2302 11.7782C21.1507 11.6174 20.8936 11.5017 20.3792 11.2703L3.66193 3.74751C3.13659 3.51111 2.87392 3.39291 2.69966 3.4414C2.54832 3.48351 2.42556 3.59429 2.36821 3.74054C2.30216 3.90893 2.3929 4.18231 2.57437 4.72906L4.91642 11.7853C4.94759 11.8792 4.96317 11.9262 4.96933 11.9742C4.97479 12.0168 4.97473 12.0599 4.96916 12.1025C4.96289 12.1506 4.94718 12.1975 4.91577 12.2913Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg></span> <a href="./workspace/requests.html">Requests</a> and <a href="workspace/groups">Groups</a></h3>
+<p>Information about HTTP calls to send and how to test them</p>
+<h3><span class="help-icon" style="color: #0073e6;"><svg viewBox="0 0 48 48" stroke-width="2" stroke="currentColor">
+            <g id="Layer_2" data-name="Layer 2">
+                <g id="Q3_icons" data-name="Q3 icons">
+                    <path d="M44,34H29L17,18H4a2,2,0,0,1,0-4H19L31,30H44a2,2,0,0,1,0,4Z" />
+                    <path d="M44,18H31a2,2,0,0,1,0-4H44a2,2,0,0,1,0,4Z" />
+                </g>
+            </g>
+        </svg></span> <a href="./workspace/scenarios.html">Scenarios</a></h3>
+<p>Key-value pairs that can be substituted for Request URLs, headers, body content, etc. using <code>{{handlebars}}</code> placeholders for Keys</p>
+<h3><span class="help-icon" style="color: #663399;"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2m-8 14H7v-4h4zm0-6H7V7h4zm6 6h-4v-4h4zm0-6h-4V7h4z"/></svg></span> <a href="./workspace/data-sets.html">Data Sets</a></h3>
+<p>Blocks of data to inject into Requests during testing.</p>
+<h3><span class="help-icon" style="color: #daa520;"><svg width="24" height="24" viewBox="0 0 512 512" fill="currentColor">
+            <g>
+                <path d="M390.234,171.594v-37.375c0.016-36.969-15.078-70.719-39.328-94.906C326.719,15.063,292.969-0.016,256,0
+		c-36.969-0.016-70.719,15.063-94.906,39.313c-24.25,24.188-39.344,57.938-39.313,94.906v37.375H24.906V512h462.188v-29.063V171.594
+		H390.234z M179.891,134.219c0.016-21.094,8.469-39.938,22.297-53.813C216.047,66.594,234.891,58.125,256,58.125
+		s39.953,8.469,53.813,22.281c13.828,13.875,22.281,32.719,22.297,53.813v37.375H179.891V134.219z M83.031,229.719h345.938v224.156
+		H83.031V229.719z"/>
+                <path d="M297.859,321.844c0-23.125-18.75-41.875-41.859-41.875c-23.125,0-41.859,18.75-41.859,41.875
+		c0,17.031,10.219,31.625,24.828,38.156l-9.25,60.094H256h26.281L273.016,360C287.625,353.469,297.859,338.875,297.859,321.844z"/>
+            </g>
+        </svg></span> <a href="./workspace/authorizations.html">Authorizations</a></h3>
+<p>Information required to enable authorization based upon API keys, Basic Authentication, OAuth2 Client and OAuth2 PKCE flows</p>
+<h3><span class="help-icon" style="color: #FF8C00;"><svg viewBox="0 0 14 14" version="1.1" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2">
+            <polyline points="11.25 1.75,2.75 1.75,2.75 13.25,5.25 13.25" />
+            <polyline points="8.75 9.75,8.25 14.25,10.50 13.25,12.75 14.25,12.25 9.75" />
+            <circle cx="10.5" cy="7.5" r="2.75" />
+        </svg></span> <a href="./workspace/certificates.html">Certificates</a></h3>
+<p>Client SSL certificates used for authentication</p>
+<h3><span class="help-icon" style="color: #cc0099;"><svg width="24" height="24" viewBox="0 0 18 18" fill="currentColor">
+            <path d="m 12 1 c -0.265625 0 -0.519531 0.105469 -0.707031 0.292969 c -0.390625 0.390625 -0.390625 1.023437 0 1.414062 l 1.292969 1.292969 h -7.585938 c -0.550781 0 -1 0.449219 -1 1 s 0.449219 1 1 1 h 7.585938 l -1.292969 1.292969 c -0.390625 0.390625 -0.390625 1.023437 0 1.414062 s 1.023437 0.390625 1.414062 0 l 3 -3 c 0.390625 -0.390625 0.390625 -1.023437 0 -1.414062 l -3 -3 c -0.1875 -0.1875 -0.441406 -0.292969 -0.707031 -0.292969 z m -8 6 c -0.257812 0 -0.511719 0.097656 -0.707031 0.292969 l -3 3 c -0.3906252 0.390625 -0.3906252 1.023437 0 1.414062 l 3 3 c 0.1875 0.1875 0.441406 0.292969 0.707031 0.292969 s 0.519531 -0.105469 0.707031 -0.292969 c 0.390625 -0.390625 0.390625 -1.023437 0 -1.414062 l -1.292969 -1.292969 h 7.585938 c 0.550781 0 1 -0.449219 1 -1 s -0.449219 -1 -1 -1 h -7.585938 l 1.292969 -1.292969 c 0.390625 -0.390625 0.390625 -1.023437 0 -1.414062 c -0.195312 -0.195313 -0.449219 -0.292969 -0.707031 -0.292969 z m 0 0" />
+        </svg></span> <a href="./workspace/proxies.html">Proxies</a></h3>
+<p>SOCKS5 or HTTP proxies used to connect to HTTP resources</p>
+<h3><span class="help-icon" style="color: #86b300;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+            <path d="M8 6.00067L21 6.00139M8 12.0007L21 12.0015M8 18.0007L21 18.0015M3.5 6H3.51M3.5 12H3.51M3.5 18H3.51M4 6C4 6.27614 3.77614 6.5 3.5 6.5C3.22386 6.5 3 6.27614 3 6C3 5.72386 3.22386 5.5 3.5 5.5C3.77614 5.5 4 5.72386 4 6ZM4 12C4 12.2761 3.77614 12.5 3.5 12.5C3.22386 12.5 3 12.2761 3 12C3 11.7239 3.22386 11.5 3.5 11.5C3.77614 11.5 4 11.7239 4 12ZM4 18C4 18.2761 3.77614 18.5 3.5 18.5C3.22386 18.5 3 18.2761 3 18C3 17.7239 3.22386 17.5 3.5 17.5C3.77614 17.5 4 17.7239 4 18Z" stroke-linecap="round" stroke-linejoin="round" />
+        </svg></span> <a href="./workspace/defaults.html">Defaults</a></h3>
+<p>Default Parameter values to use when testing Requests (which can be overriden on individual Requests or Groups)</p>
+<h1>Toolbar</h1>
+<p>The toolbar at the top left (or left side if hiding navigation) supports the following functionality</p>
+<h2>File Operations</h2>
+<ul>
+<li><span class="help-icon"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M17 19.22H5V7h7V5H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-7h-2z"/><path d="M19 2h-2v3h-3c.01.01 0 2 0 2h3v2.99c.01.01 2 0 2 0V7h3V5h-3zM7 9h8v2H7zm0 3v2h8v-2h-3zm0 3h8v2H7z"/></svg></span> Open new Workbook</li>
+<li><span class="help-icon"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.89 2 1.99 2H15v-8h5V8zm-1 7V3.5L18.5 9zm4 12.66V16h5.66v2h-2.24l2.95 2.95-1.41 1.41L19 19.41v2.24h-2z"/></svg></span> Open existing Workbook</li>
+<li><span class="help-icon"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3m3-10H5V5h10z"/></svg></span> Save Workspace changes to opened Workbook</li>
+<li><span class="help-icon"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M21 12.4V7l-4-4H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h7.4zM15 15c0 1.66-1.34 3-3 3s-3-1.34-3-3 1.34-3 3-3 3 1.34 3 3M6 6h9v4H6zm13.99 10.25 1.77 1.77L16.77 23H15v-1.77zm3.26.26-.85.85-1.77-1.77.85-.85c.2-.2.51-.2.71 0l1.06 1.06c.2.2.2.52 0 .71"/></svg></span> Save Workspace changes to different Workbook</li>
+</ul>
+<h2>Other Operations</h2>
+<ul>
+<li><span class="help-icon"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6"/></svg></span> <a href="./settings.html">Settings</a></li>
+<li><span class="help-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M7 21H17M6.2 17H17.8C18.9201 17 19.4802 17 19.908 16.782C20.2843 16.5903 20.5903 16.2843 20.782 15.908C21 15.4802 21 14.9201 21 13.8V6.2C21 5.0799 21 4.51984 20.782 4.09202C20.5903 3.71569 20.2843 3.40973 19.908 3.21799C19.4802 3 18.9201 3 17.8 3H6.2C5.0799 3 4.51984 3 4.09202 3.21799C3.71569 3.40973 3.40973 3.71569 3.21799 4.09202C3 4.51984 3 5.07989 3 6.2V13.8C3 14.9201 3 15.4802 3.21799 15.908C3.40973 16.2843 3.71569 16.5903 4.09202 16.782C4.51984 17 5.07989 17 6.2 17Z" />
+        </svg></span> <a href="./logs.html">Communication Logs</a></li>
+</ul>
+    </main>
+  </div>
+</body>
+</html>

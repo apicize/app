@@ -12,6 +12,7 @@ export interface RequestGroupUpdate {
     runs?: number
     multiRunExecution?: ExecutionConcurrency
     execution?: ExecutionConcurrency
+    setup?: string
     selectedScenario?: Selection
     selectedAuthorization?: Selection
     selectedCertificate?: Selection

@@ -4,7 +4,7 @@ import DisplaySettingsIcon from '@mui/icons-material/DisplaySettings'
 import FolderIcon from '../../icons/folder-icon'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import AltRouteIcon from '@mui/icons-material/AltRoute'
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import { ScienceIcon, WarningAmberIcon } from '../../icons';
 import { ResultsViewer } from '../viewers/results-viewer'
 import { EditorTitle } from '../editor-title';
 import { RequestParametersEditor } from './request/request-parameters-editor';
@@ -19,6 +19,7 @@ import { WarningsEditor } from './warnings-editor';
 import { EditableRequestGroup } from '../../models/workspace/editable-request-group';
 import { runInAction } from 'mobx';
 import { EditableSettings } from '../../models/editable-settings';
+import { RequestSetupEditor } from './request/request-setup-editor';
 
 interface GroupPanelViewProps {
     group: EditableRequestGroup
@@ -29,6 +30,10 @@ interface GroupPanelViewProps {
 }
 
 const GroupPanelView = observer(({ group, settings, usePanel, hasWarnings, onPanelChanged }: GroupPanelViewProps) => {
+    const panelsClass = React.useMemo(() =>
+        (usePanel === 'Setup') ? 'panels full-width' : 'panels',
+        [usePanel]
+    )
     return <>
         <Stack direction='row' className='editor-panel-header'>
             <EditorTitle
@@ -41,7 +46,7 @@ const GroupPanelView = observer(({ group, settings, usePanel, hasWarnings, onPan
             <RunToolbar requestEntry={group} />
         </Stack>
         <Box className='editor-panel'>
-            <Stack direction='row' className='editor-content' flexGrow={1}>
+            <Stack direction='row' flexGrow={1} className='editor-content' overflow='hidden'>
                 <ToggleButtonGroup
                     className='button-column'
                     orientation='vertical'
@@ -51,6 +56,7 @@ const GroupPanelView = observer(({ group, settings, usePanel, hasWarnings, onPan
                     sx={{ marginRight: '12px', zIndex: 100 }}
                     aria-label="text alignment">
                     <ToggleButton value="Info" title="Show Group Info" aria-label='show info' size='small'><DisplaySettingsIcon /></ToggleButton>
+                    <ToggleButton value="Setup" title="Show Group Setup" aria-label='show testsetup' size='small'><ScienceIcon /></ToggleButton>
                     <ToggleButton value="Parameters" title="Show Group Parameters" aria-label='show test' size='small'><AltRouteIcon /></ToggleButton>
                     {
                         hasWarnings
@@ -58,13 +64,12 @@ const GroupPanelView = observer(({ group, settings, usePanel, hasWarnings, onPan
                             : null
                     }
                 </ToggleButtonGroup>
-                <Box className='panels' flexGrow={1}>
-                    <Box>
-                        {usePanel === 'Info' ? <RequestGroupInfoEditor group={group} />
+                <Box flexGrow={1} className={panelsClass}>
+                    {usePanel === 'Info' ? <RequestGroupInfoEditor group={group} />
+                        : usePanel === 'Setup' ? <RequestSetupEditor group={group} />
                             : usePanel === 'Parameters' ? <RequestParametersEditor requestOrGroup={group} />
                                 : usePanel === 'Warnings' ? <WarningsEditor warnings={group.validationWarnings} onDelete={(id) => group.deleteWarning(id)} />
                                     : null}
-                    </Box>
                 </Box>
             </Stack>
         </Box>
@@ -101,8 +106,8 @@ const GroupEditorLayout = observer(({ group, settings, workspace, usePanel, hasW
     });
 
     return group.resultMenuItems.length > 0 && group.selectedResultMenuItem
-        ? <Box sx={{ ...sx }} >
-            <PanelGroup orientation='horizontal' className='editor split' defaultLayout={defaultLayout} onLayoutChange={onLayoutChanged}>
+        ? <Box sx={sx} >
+            <PanelGroup defaultLayout={defaultLayout} onLayoutChange={onLayoutChanged} orientation='horizontal' className='editor split'>
                 <Panel id='request-editor' defaultSize={50} minSize={400} className='split-left'>
                     <GroupPanelView group={group} settings={settings} usePanel={usePanel} hasWarnings={hasWarnings} onPanelChanged={onPanelChanged} />
                 </Panel>
