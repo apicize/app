@@ -1,5 +1,10 @@
 # Change Log
 
+# 0.31.1
+
+* Remove duplicate query paramter when updating from URL
+* Fix run button on request redisplay
+
 # 0.31.0
 
 * Add group setup scripts

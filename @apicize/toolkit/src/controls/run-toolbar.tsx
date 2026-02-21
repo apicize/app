@@ -21,7 +21,7 @@ export const RunToolbar = observer(({ sx, requestEntry }: { sx?: SxProps, reques
     const [seedingFrom, setSeedingFrom] = useState<string | null>(null)
 
     const requestId = requestEntry.id
-    const running = requestEntry?.isRunning ?? false
+    const running = requestEntry.isRunning
     const hasExecutions = requestEntry.hasExecutions
 
     if (seedingFrom == null) {
@@ -44,15 +44,18 @@ export const RunToolbar = observer(({ sx, requestEntry }: { sx?: SxProps, reques
     let runDisplay: string
     let multiDisplay: string
     let cancelDisplay: string
+    let clearDisplay: string
 
     if (running) {
         runDisplay = 'none'
         multiDisplay = 'none'
         cancelDisplay = 'inline-flex'
+        clearDisplay = 'none'
     } else {
         runDisplay = 'inline-flex'
         multiDisplay = 'inline-flex'
         cancelDisplay = 'none'
+        clearDisplay = hasExecutions ? 'inline-flex' : 'none'
     }
 
     let times = requestEntry.runs == 1 ? 'one time' : `${requestEntry.runs} times`
@@ -69,11 +72,9 @@ export const RunToolbar = observer(({ sx, requestEntry }: { sx?: SxProps, reques
                 <ToggleButton value='Cancel' sx={{ display: cancelDisplay }} title='Cancel' size='small' onClick={() => handleCancel()}>
                     <BlockIcon color='error' />
                 </ToggleButton>
-                {
-                    hasExecutions
-                        ? <ToggleButton value='Clear' title='Clear Execution Results' size='small' onClick={() => workspace.clearExecution(requestEntry.id)}><ClearAllIcon color='warning' /></ToggleButton>
-                        : null
-                }
+                <ToggleButton value='Clear' sx={{ display: clearDisplay }} title='Clear Execution Results' size='small' onClick={() => workspace.clearExecution(requestEntry.id)}>
+                    <ClearAllIcon color='warning' />
+                </ToggleButton>
             </Box>
             <ToggleButton value='Seed' size='small' title={seedingFrom === '' ? 'Not Seeding Data' : `Seeding from ${seedingFrom}`} onClick={() =>
                 requestEntry.entityType === EntityType.Group ? workspace.changeGroupPanel('Parameters') : workspace.changeRequestPanel('Parameters')

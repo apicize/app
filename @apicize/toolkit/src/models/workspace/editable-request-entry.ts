@@ -1,4 +1,4 @@
-import { Selection, ExecutionConcurrency, Request, RequestGroup, ExecutionResultSummary } from "@apicize/lib-typescript"
+import { Selection, ExecutionConcurrency, Request, RequestGroup, ExecutionResultSummary, ExecutionState } from "@apicize/lib-typescript"
 import { Editable } from "../editable"
 import { action, computed, observable, reaction, runInAction, toJS } from "mobx"
 import { WorkspaceParameters } from "./workspace-parameters"
@@ -40,6 +40,7 @@ export abstract class EditableRequestEntry extends Editable<Request | RequestGro
         this.hideSuccess = executionResultViewState.hideSuccess
         this.hideFailure = executionResultViewState.hideFailure
         this.hideError = executionResultViewState.hideError
+        this.isRunning = requestExecution.executionState === ExecutionState.running
 
         this.applyExecution(requestExecution)
 

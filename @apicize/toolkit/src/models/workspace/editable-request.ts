@@ -86,11 +86,13 @@ export class EditableRequest extends EditableRequestEntry {
         if (idxQuery !== -1) {
             const params = new URLSearchParams(this.url.substring(idxQuery + 1))
             for (const [name, value] of params) {
-                this.queryStringParams.push({
-                    id: GenerateIdentifier(),
-                    name,
-                    value
-                })
+                if (!this.queryStringParams.find(p => p.name === name)) {
+                    this.queryStringParams.push({
+                        id: GenerateIdentifier(),
+                        name,
+                        value
+                    })
+                }
             }
             this.url = this.url.substring(0, idxQuery)
         }

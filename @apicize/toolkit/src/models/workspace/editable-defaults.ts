@@ -94,7 +94,6 @@ export class EditableDefaults {
 
     @action
     refreshFromExternalSpecificUpdate(notification: EntityUpdateNotification) {
-        console.log('Received external defaults update', toJS(notification))
         if (notification.update.entityType !== EntityType.Defaults) {
             return
         }
