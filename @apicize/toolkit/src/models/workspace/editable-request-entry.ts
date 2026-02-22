@@ -40,7 +40,6 @@ export abstract class EditableRequestEntry extends Editable<Request | RequestGro
         this.hideSuccess = executionResultViewState.hideSuccess
         this.hideFailure = executionResultViewState.hideFailure
         this.hideError = executionResultViewState.hideError
-        this.isRunning = requestExecution.executionState === ExecutionState.running
 
         this.applyExecution(requestExecution)
 
@@ -80,6 +79,7 @@ export abstract class EditableRequestEntry extends Editable<Request | RequestGro
     }
 
     applyExecution(execution: RequestExecution) {
+        this.isRunning = execution.executionState === ExecutionState.running
         if (execution.menu.length < 1) {
             this.selectedResultMenuItem = null
             this.resultMenuItems = []

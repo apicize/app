@@ -10,7 +10,7 @@ import { EntityType } from "../../../models/workspace/entity-type"
 import { NavTreeItem } from "../nav-tree-item"
 import { Persistence } from "@apicize/lib-typescript"
 import { MenuPosition } from "../../../models/menu-position"
-import { useState } from "react"
+import React, { useCallback, useMemo, useState } from "react"
 import { useWorkspace, WorkspaceMode } from "../../../contexts/workspace.context"
 import { useFeedback } from "../../../contexts/feedback.context"
 import { observer } from "mobx-react-lite"
@@ -29,7 +29,7 @@ interface RequestTreeItemProps {
     onMoveGroup: (id: string, relativeToId: string, relativePosition: IndexedEntityPosition) => void
 }
 
-const RequestTreeItem = observer(({
+const RequestTreeItem = React.memo(observer(({
     entry,
     depth,
     parentDisabled,
@@ -82,7 +82,7 @@ const RequestTreeItem = observer(({
             onMove={onMoveRequest}
             isDraggable={true}
         />
-})
+}))
 
 export const RequestSection = observer(({ includeHeader }: { includeHeader?: boolean }) => {
     const workspace = useWorkspace()
@@ -113,7 +113,7 @@ export const RequestSection = observer(({ includeHeader }: { includeHeader?: boo
         )
     }
 
-    const showRequestMenu = (event: React.MouseEvent, id: string, type: EntityType) => {
+    const showRequestMenu = useCallback((event: React.MouseEvent, id: string, type: EntityType) => {
         setRequestMenu(
             {
                 id,
@@ -123,7 +123,7 @@ export const RequestSection = observer(({ includeHeader }: { includeHeader?: boo
                 persistence: Persistence.Workbook,
             }
         )
-    }
+    }, [])
 
     const handleSelectHeader = (headerId: string, helpTopic?: string) => {
         // closeAllMenus()
@@ -180,15 +180,15 @@ export const RequestSection = observer(({ includeHeader }: { includeHeader?: boo
         }
     }
 
-    const handleMoveRequest = (id: string, relativeToId: string, relativePosition: IndexedEntityPosition) => {
+    const handleMoveRequest = useCallback((id: string, relativeToId: string, relativePosition: IndexedEntityPosition) => {
         workspace.changeActive(EntityType.Request, id)
         workspace.moveRequest(id, relativeToId, relativePosition)
-    }
+    }, [workspace])
 
-    const handleMoveRequestGroup = (id: string, relativeToId: string, relativePosition: IndexedEntityPosition) => {
+    const handleMoveRequestGroup = useCallback((id: string, relativeToId: string, relativePosition: IndexedEntityPosition) => {
         workspace.changeActive(EntityType.Group, id)
         workspace.moveGroup(id, relativeToId, relativePosition)
-    }
+    }, [workspace])
 
     const handleDupeRequest = (id: string, type: EntityType) => {
         closeRequestMenu()
@@ -296,13 +296,16 @@ export const RequestSection = observer(({ includeHeader }: { includeHeader?: boo
         </Menu>
     }
 
-    const requestTreeItemProps = {
-        onSelectRequest: (id: string) => workspace.changeActive(EntityType.Request, id),
-        onSelectGroup: (id: string) => workspace.changeActive(EntityType.Group, id),
+    const onSelectRequest = useCallback((id: string) => workspace.changeActive(EntityType.Request, id), [workspace])
+    const onSelectGroup = useCallback((id: string) => workspace.changeActive(EntityType.Group, id), [workspace])
+
+    const requestTreeItemProps = useMemo(() => ({
+        onSelectRequest,
+        onSelectGroup,
         onShowMenu: showRequestMenu,
         onMoveRequest: handleMoveRequest,
         onMoveGroup: handleMoveRequestGroup
-    }
+    }), [onSelectRequest, onSelectGroup, showRequestMenu, handleMoveRequest, handleMoveRequestGroup])
 
     const renderRequestTreeItems = () => workspace.navigation.requests.map(r =>
         <RequestTreeItem entry={r} depth={1} key={r.id} {...requestTreeItemProps} />

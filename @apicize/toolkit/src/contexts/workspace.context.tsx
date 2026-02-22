@@ -34,7 +34,7 @@ import { createContext, useContext } from "react"
 import { EditableDefaults } from "../models/workspace/editable-defaults"
 import { EditableDataSet } from "../models/workspace/editable-data-set"
 import { EditableRequestEntry } from "../models/workspace/editable-request-entry"
-import { Navigation, NavigationRequestEntry, ParamNavigationSection } from "../models/navigation"
+import { Navigation, NavigationEntry, NavigationRequestEntry, ParamNavigationSection } from "../models/navigation"
 import { WorkspaceParameters } from "../models/workspace/workspace-parameters"
 import { CachedTokenInfo } from "../models/workspace/cached-token-info"
 import { RequestEditSessionType, ResultEditSessionType } from "../controls/editors/editor-types"
@@ -76,6 +76,7 @@ export type ActiveSelection = EditableRequest | EditableRequestGroup | EditableS
 export class WorkspaceStore {
     private pkceTokens = new Map<string, CachedTokenInfo>()
     private indexedNavigationNames = new Map<string, string>()
+    private indexedNavigationEntries = new Map<string, NavigationEntry>()
     private indexedDataNames = new Map<string, string>()
 
     @observable accessor dirty = false
@@ -454,9 +455,11 @@ export class WorkspaceStore {
 
     private updateIndexedNames() {
         this.indexedNavigationNames.clear()
+        this.indexedNavigationEntries.clear()
 
         const updateFromRequest = (entry: NavigationRequestEntry) => {
             this.indexedNavigationNames.set(entry.id, entry.name)
+            this.indexedNavigationEntries.set(entry.id, entry)
             if (entry.children) {
                 for (const child of entry.children) {
                     updateFromRequest(child)
@@ -467,12 +470,15 @@ export class WorkspaceStore {
         const updateFromSection = (section: ParamNavigationSection) => {
             for (const entry of section.public) {
                 this.indexedNavigationNames.set(entry.id, entry.name)
+                this.indexedNavigationEntries.set(entry.id, entry)
             }
             for (const entry of section.private) {
                 this.indexedNavigationNames.set(entry.id, entry.name)
+                this.indexedNavigationEntries.set(entry.id, entry)
             }
             for (const entry of section.vault) {
                 this.indexedNavigationNames.set(entry.id, entry.name)
+                this.indexedNavigationEntries.set(entry.id, entry)
             }
         }
 
@@ -485,6 +491,7 @@ export class WorkspaceStore {
         updateFromSection(this.navigation.proxies)
         for (const entry of this.navigation.dataSets) {
             this.indexedNavigationNames.set(entry.id, entry.name)
+            this.indexedNavigationEntries.set(entry.id, entry)
         }
     }
 
@@ -504,47 +511,10 @@ export class WorkspaceStore {
     }
 
     findNavigationEntry(id: string, entityType: EntityType) {
-        const findMatchingRequest = (entries: NavigationRequestEntry[]): NavigationRequestEntry | null => {
-            for (const entry of entries) {
-                if (entry.id === id) {
-                    return entry
-                }
-                if (entry.children) {
-                    const match = findMatchingRequest(entry.children)
-                    if (match) {
-                        return match
-                    }
-                }
-            }
-            return null
+        if (entityType === EntityType.Defaults) {
+            return this.defaults
         }
-
-        const findMatchingParameter = (section: ParamNavigationSection) => {
-            return section.public.find(e => e.id === id)
-                || section.private.find(e => e.id === id)
-                || section.vault.find(e => e.id === id)
-        }
-
-        switch (entityType) {
-            case EntityType.RequestEntry:
-            case EntityType.Request:
-            case EntityType.Group:
-                return findMatchingRequest(this.navigation.requests)
-            case EntityType.Scenario:
-                return findMatchingParameter(this.navigation.scenarios)
-            case EntityType.Authorization:
-                return findMatchingParameter(this.navigation.authorizations)
-            case EntityType.Certificate:
-                return findMatchingParameter(this.navigation.certificates)
-            case EntityType.Proxy:
-                return findMatchingParameter(this.navigation.proxies)
-            case EntityType.DataSet:
-                return this.navigation.dataSets.find(e => e.id === id)
-            case EntityType.Defaults:
-                return this.defaults
-            default:
-                throw entityType satisfies never
-        }
+        return this.indexedNavigationEntries.get(id) ?? null
     }
 
     @action
@@ -628,7 +598,7 @@ export class WorkspaceStore {
         this.callbacks.add(EntityType.Request, relativeToId, relativePosition, cloneFromId)
             .then(id => {
                 if (relativeToId && relativePosition === IndexedEntityPosition.Under) {
-                    this.updateExpanded(`g-${relativeToId}`, true)
+                    this.updateExpanded(`${EntityType.Group}-${relativeToId}`, true)
                 }
                 this.changeActive(EntityType.Request, id)
             })
@@ -646,9 +616,12 @@ export class WorkspaceStore {
 
     @action
     moveRequest(requestId: string, relativeToId: string, relativePosition: IndexedEntityPosition) {
+        if (relativePosition === IndexedEntityPosition.Under) {
+            this.updateExpanded(`${EntityType.Group}-${relativeToId}`, true)
+        }
         this.callbacks.move(EntityType.Request, requestId, relativeToId, relativePosition)
             .then(parentIds => {
-                this.updateExpanded(parentIds.map(pid => `g-${pid}`), true)
+                this.updateExpanded(parentIds.map(pid => `${EntityType.Group}-${pid}`), true)
             })
             .catch(e => this.feedback.toastError(e))
     }
@@ -670,7 +643,7 @@ export class WorkspaceStore {
         this.callbacks.add(EntityType.Group, relativeToId, relativePosition, cloneFromId)
             .then(id => {
                 if (relativeToId && relativePosition === IndexedEntityPosition.Under) {
-                    this.updateExpanded(`g-${relativeToId}`, true)
+                    this.updateExpanded(`${EntityType.Group}-${relativeToId}`, true)
                 }
                 this.changeActive(EntityType.Group, id)
             })
@@ -684,9 +657,12 @@ export class WorkspaceStore {
 
     @action
     moveGroup(groupId: string, relativeToId: string, relativePosition: IndexedEntityPosition) {
+        if (relativePosition === IndexedEntityPosition.Under) {
+            this.updateExpanded(`${EntityType.Group}-${relativeToId}`, true)
+        }
         this.callbacks.move(EntityType.Group, groupId, relativeToId, relativePosition)
             .then(parentIds => {
-                this.updateExpanded(parentIds.map(pid => `g-${pid}`), true)
+                this.updateExpanded(parentIds.map(pid => `${EntityType.Group}-${pid}`), true)
             })
             .catch(e => this.feedback.toastError(e))
     }
@@ -853,7 +829,7 @@ export class WorkspaceStore {
         this.callbacks.add(EntityType.DataSet, relativeToId, relativePosition, cloneFromId)
             .then(id => {
                 if (relativeToId && relativePosition === IndexedEntityPosition.Under) {
-                    this.updateExpanded(`g-${relativeToId}`, true)
+                    this.updateExpanded(`${EntityType.Group}-${relativeToId}`, true)
                 }
                 this.changeActive(EntityType.DataSet, id)
             })
@@ -873,7 +849,7 @@ export class WorkspaceStore {
     moveDataSet(id: string, relativeToId: string, relativePosition: IndexedEntityPosition) {
         this.callbacks.move(EntityType.DataSet, id, relativeToId, relativePosition)
             .then(parentIds => {
-                this.updateExpanded(parentIds.map(pid => `g-${pid}`), true)
+                this.updateExpanded(parentIds.map(pid => `${EntityType.Group}-${pid}`), true)
             })
             .catch(e => this.feedback.toastError(e))
     }

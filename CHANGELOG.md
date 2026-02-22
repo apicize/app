@@ -1,5 +1,9 @@
 # Change Log
 
+# 0.31.2
+
+* Performance optimizatin
+
 # 0.31.1
 
 * Remove duplicate query paramter when updating from URL
