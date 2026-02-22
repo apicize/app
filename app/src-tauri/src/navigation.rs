@@ -1,6 +1,7 @@
 use apicize_lib::{
     Disabled, Executable, ExecutionState, Identifiable, IndexedEntities, RequestEntry, Selection,
-    Validated, ValidationState, Workspace, indexed_entities::NO_SELECTION_ID,
+    Validated, ValidationState, Workspace, editing::indexed_entities::IndexedEntityPosition,
+    indexed_entities::NO_SELECTION_ID,
 };
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -391,5 +392,168 @@ impl Navigation {
             }
             _ => {}
         };
+    }
+
+    /// Remove a NavigationRequestEntry from the tree, returning it if found
+    fn remove_request_entry(
+        entity_id: &str,
+        entries: &mut Vec<NavigationRequestEntry>,
+    ) -> Option<NavigationRequestEntry> {
+        if let Some(idx) = entries.iter().position(|e| e.id == entity_id) {
+            return Some(entries.remove(idx));
+        }
+        for entry in entries.iter_mut() {
+            if let Some(children) = &mut entry.children
+                && let Some(found) = Self::remove_request_entry(entity_id, children)
+            {
+                return Some(found);
+            }
+        }
+        None
+    }
+
+    /// Insert a NavigationRequestEntry relative to another entry
+    fn insert_request_entry(
+        node: NavigationRequestEntry,
+        relative_to_id: &str,
+        position: &IndexedEntityPosition,
+        entries: &mut Vec<NavigationRequestEntry>,
+    ) -> bool {
+        if *position == IndexedEntityPosition::Under {
+            // Insert as child of relative_to_id
+            for entry in entries.iter_mut() {
+                if entry.id == relative_to_id {
+                    match &mut entry.children {
+                        Some(children) => children.push(node),
+                        None => entry.children = Some(vec![node]),
+                    }
+                    return true;
+                }
+                if let Some(children) = &mut entry.children
+                    && Self::insert_request_entry(node.clone(), relative_to_id, position, children)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Before or After
+        if let Some(idx) = entries.iter().position(|e| e.id == relative_to_id) {
+            let insert_idx = match position {
+                IndexedEntityPosition::Before => idx,
+                _ => idx + 1,
+            };
+            entries.insert(insert_idx, node);
+            return true;
+        }
+
+        for entry in entries.iter_mut() {
+            if let Some(children) = &mut entry.children
+                && Self::insert_request_entry(node.clone(), relative_to_id, position, children)
+            {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Move a parameter entry within a ParamNavigationSection
+    fn move_param_entry(
+        entity_id: &str,
+        relative_to_id: &str,
+        position: &IndexedEntityPosition,
+        section: &mut ParamNavigationSection,
+    ) -> bool {
+        // Remove from current position
+        let mut removed: Option<NavigationEntry> = None;
+        for list in [
+            &mut section.public,
+            &mut section.private,
+            &mut section.vault,
+        ] {
+            if let Some(idx) = list.iter().position(|e| e.id == entity_id) {
+                removed = Some(list.remove(idx));
+                break;
+            }
+        }
+
+        let entry = match removed {
+            Some(e) => e,
+            None => return false,
+        };
+
+        // Insert at new position
+        for list in [
+            &mut section.public,
+            &mut section.private,
+            &mut section.vault,
+        ] {
+            if let Some(idx) = list.iter().position(|e| e.id == relative_to_id) {
+                let insert_idx = match position {
+                    IndexedEntityPosition::Before => idx,
+                    _ => idx + 1,
+                };
+                list.insert(insert_idx, entry);
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Incrementally move an entity within the navigation tree
+    pub fn move_navigation_entity(
+        &mut self,
+        entity_id: &str,
+        relative_to_id: &str,
+        position: &IndexedEntityPosition,
+        entity_type: EntityType,
+    ) -> bool {
+        match entity_type {
+            EntityType::RequestEntry | EntityType::Request | EntityType::Group => {
+                if let Some(node) = Self::remove_request_entry(entity_id, &mut self.requests) {
+                    Self::insert_request_entry(node, relative_to_id, position, &mut self.requests)
+                } else {
+                    false
+                }
+            }
+            EntityType::Scenario => {
+                Self::move_param_entry(entity_id, relative_to_id, position, &mut self.scenarios)
+            }
+            EntityType::Authorization => Self::move_param_entry(
+                entity_id,
+                relative_to_id,
+                position,
+                &mut self.authorizations,
+            ),
+            EntityType::Certificate => {
+                Self::move_param_entry(entity_id, relative_to_id, position, &mut self.certificates)
+            }
+            EntityType::Proxy => {
+                Self::move_param_entry(entity_id, relative_to_id, position, &mut self.proxies)
+            }
+            EntityType::DataSet => {
+                if let Some(idx) = self.data_sets.iter().position(|e| e.id == entity_id) {
+                    let entry = self.data_sets.remove(idx);
+                    if let Some(rel_idx) =
+                        self.data_sets.iter().position(|e| e.id == relative_to_id)
+                    {
+                        let insert_idx = match position {
+                            IndexedEntityPosition::Before => rel_idx,
+                            _ => rel_idx + 1,
+                        };
+                        self.data_sets.insert(insert_idx, entry);
+                        true
+                    } else {
+                        self.data_sets.push(entry);
+                        false
+                    }
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        }
     }
 }

@@ -513,11 +513,19 @@ impl Workspaces {
                     .insert(entry.get_id().to_string(), entry);
             }
 
-            // Batch insert child mappings
+            // Batch insert child mappings and update parent reverse index
             info.workspace
                 .requests
                 .child_ids
                 .reserve(new_child_mappings.len());
+            for (parent_id, children) in &new_child_mappings {
+                for child_id in children {
+                    info.workspace
+                        .requests
+                        .parent_ids
+                        .insert(child_id.clone(), parent_id.clone());
+                }
+            }
             info.workspace.requests.child_ids.extend(new_child_mappings);
         }
         Ok(id)

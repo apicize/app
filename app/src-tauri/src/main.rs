@@ -2380,6 +2380,7 @@ async fn move_entity(
     let workspace_id = session.workspace_id.clone();
     let mut workspaces = workspaces_state.workspaces.write().await;
 
+    let nav_position = relative_position.clone();
     let was_moved = match entity_type {
         EntityType::RequestEntry => workspaces.move_request_entry(
             &workspace_id,
@@ -2424,7 +2425,12 @@ async fn move_entity(
 
     let results = if was_moved {
         let info = workspaces.get_workspace_info_mut(&workspace_id)?;
-        info.navigation = Navigation::new(&info.workspace, &info.executions);
+        info.navigation.move_navigation_entity(
+            entity_id,
+            relative_to_id,
+            &nav_position,
+            entity_type,
+        );
 
         dispatch_save_state(&app, &sessions, &workspace_id, info, true);
 
