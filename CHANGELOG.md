@@ -1,8 +1,12 @@
 # Change Log
 
+# 0.32.0
+
+* Performance optimization
+
 # 0.31.2
 
-* Performance optimizatin
+* Performance optimization
 
 # 0.31.1
 

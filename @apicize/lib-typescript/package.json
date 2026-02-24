@@ -1,7 +1,7 @@
 {
   "name": "@apicize/lib-typescript",
   "private": true,
-  "version": "0.31.2",
+  "version": "0.32.0",
   "description": "TypeScript model definitions for Apicize",
   "scripts": {
     "build": "tsc --build",
