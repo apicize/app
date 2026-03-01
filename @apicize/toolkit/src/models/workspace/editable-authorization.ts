@@ -1,14 +1,16 @@
 import {
     Authorization, AuthorizationType,
+    NO_SELECTION,
+    NO_SELECTION_ID,
     Selection,
     ValidationErrorList
 } from "@apicize/lib-typescript"
-import { Editable } from "../editable"
+import { Editable, EditableEntityContext } from "../editable"
 import { action, computed, observable, runInAction } from "mobx"
-import { NO_SELECTION, NO_SELECTION_ID } from "../store"
 import { EntityType } from "./entity-type"
-import { EntityTypeName, EntityUpdateNotification, WorkspaceStore } from "../../contexts/workspace.context"
+import { EntityTypeName, EntityUpdateNotification } from "../../contexts/workspace.context"
 import { AuthorizationUpdate } from "../updates/authorization-update"
+import { EditableWarnings } from "./editable-warnings"
 
 export class EditableAuthorization extends Editable<Authorization> {
     public readonly entityType = EntityType.Authorization
@@ -35,9 +37,10 @@ export class EditableAuthorization extends Editable<Authorization> {
     @observable accessor expiration: number | undefined = undefined
     @observable accessor sendCredentialsInBody: boolean = false
 
+    @observable accessor validationWarnings = new EditableWarnings()
     @observable accessor validationErrors: ValidationErrorList
 
-    public constructor(authorization: Authorization, workspace: WorkspaceStore) {
+    public constructor(authorization: Authorization, workspace: EditableEntityContext) {
         super(workspace)
         this.id = authorization.id
         this.name = authorization.name ?? ''
@@ -87,8 +90,20 @@ export class EditableAuthorization extends Editable<Authorization> {
             .then(updates => runInAction(() => {
                 if (updates) {
                     this.validationErrors = updates.validationErrors || {}
+                    this.validationWarnings.set(updates.validationWarnings)
                 }
             }))
+    }
+
+    @action
+    deleteWarning(warningId: string) {
+        this.validationWarnings.delete(warningId)
+        this.performUpdate({
+            id: this.id,
+            type: EntityTypeName.Authorization,
+            entityType: EntityType.Authorization,
+            validationWarnings: [...this.validationWarnings.entries.values()]
+        })
     }
 
     @action
@@ -287,7 +302,7 @@ export class EditableAuthorization extends Editable<Authorization> {
             this.sendCredentialsInBody = notification.update.sendCredentialsInBody === true
         }
 
-        // this.validationWarnings = notification.validationWarnings ?? []
+        this.validationWarnings.set(notification.validationWarnings)
         this.validationErrors = notification.validationErrors ?? {}
     }
 

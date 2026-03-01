@@ -2,7 +2,8 @@ import { createContext, useContext } from "react";
 import { SshFileType } from "../models/workspace/ssh-file-type";
 import { HelpContents } from "../models/help-contents";
 import { EditableSettings } from "../models/editable-settings";
-import { OpenDataSetFileResponse, UpdateResponse } from "./workspace.context";
+import { UpdateResponse } from "../models/editable";
+import { OpenDataSetFileResponse } from "./workspace.context";
 import { DataSet, DataSourceType } from "@apicize/lib-typescript";
 
 export class FileOperationsStore {

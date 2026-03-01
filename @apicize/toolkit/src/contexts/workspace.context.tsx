@@ -28,6 +28,7 @@ import {
     Body,
     TokenResult,
     DataSourceType,
+    NO_SELECTION,
 } from "@apicize/lib-typescript"
 import { EntityType } from "../models/workspace/entity-type"
 import { createContext, useContext } from "react"
@@ -47,6 +48,7 @@ import { EditorMode } from "../models/editor-mode"
 import { ClipboardPaylodRequest } from "../models/clipboard_payload_request"
 import { RequestExecution } from "../models/request-execution"
 import { IDataSetEditorTextModel, IRequestEditorTextModel, IResultEditorTextModel } from "../models/editor-text-model"
+import { EditableEntityContext, UpdateResponse } from "../models/editable"
 import { EntityUpdate } from "../models/updates/entity-update"
 import { RequestBodyInfo, RequestBodyMimeInfo } from "../models/workspace/request-body-info"
 import { DataSetContent } from "../models/updates/data-set-update"
@@ -73,7 +75,7 @@ export type GroupPanel = 'Info' | 'Setup' | 'Parameters' | 'Warnings'
 export type ActiveSelection = EditableRequest | EditableRequestGroup | EditableScenario |
     EditableAuthorization | EditableCertificate | EditableProxy | EditableDataSet |
     EditableDefaults
-export class WorkspaceStore {
+export class WorkspaceStore implements EditableEntityContext {
     private pkceTokens = new Map<string, CachedTokenInfo>()
     private indexedNavigationNames = new Map<string, string>()
     private indexedNavigationEntries = new Map<string, NavigationEntry>()
@@ -94,9 +96,15 @@ export class WorkspaceStore {
     } as Navigation
 
     @observable accessor activeSelection: ActiveSelection | null = null
-    @observable accessor activeParameters: WorkspaceParameters | null = null
+    @observable accessor activeParameters: ActiveParameters | null = null
 
-    @observable accessor defaults = new EditableDefaults({}, this)
+    @observable accessor defaults = new EditableDefaults({
+        selectedScenario: NO_SELECTION,
+        selectedAuthorization: NO_SELECTION,
+        selectedCertificate: NO_SELECTION,
+        selectedProxy: NO_SELECTION,
+        selectedData: NO_SELECTION,
+    }, this)
 
     @observable accessor warnOnWorkspaceCreds: boolean = true
     // @updateActiveobservable accessor invalidItems = new Set<string>()
@@ -500,6 +508,13 @@ export class WorkspaceStore {
         this.navigation = navigation
         this.updateIndexedNames()
 
+        // When updating all of navigation, we should just redraw parameter lists being displayed
+        if (this.mode === WorkspaceMode.Defaults || (
+            this.activeSelection && [EntityType.RequestEntry, EntityType.Request, EntityType.Group].includes(this.activeSelection.entityType)
+        )) {
+            this.clearParameterList()
+        }
+
         // Ensure the currently active entry still exists
         if (this.activeSelection) {
             const entityType = this.activeSelection.entityType
@@ -634,10 +649,6 @@ export class WorkspaceStore {
         return this.callbacks.getRequestActiveData(request.id)
     }
 
-    getRequestParameterList(requestOrGroupId: string): Promise<WorkspaceParameters> {
-        return this.callbacks.listParameters(requestOrGroupId)
-    }
-
     @action
     addGroup(relativeToId: string | null, relativePosition: IndexedEntityPosition, cloneFromId: string | null) {
         this.callbacks.add(EntityType.Group, relativeToId, relativePosition, cloneFromId)
@@ -686,14 +697,20 @@ export class WorkspaceStore {
             relativeToId,
             relativePosition,
             cloneFromId)
-            .then(id => this.changeActive(EntityType.Scenario, id))
+            .then(id => {
+                this.changeActive(EntityType.Scenario, id)
+                this.clearParameterList()
+            })
             .catch(e => this.feedback.toastError(e))
     }
 
     @action
     deleteScenario(id: string) {
         this.callbacks.delete(EntityType.Scenario, id)
-            .then(() => this.clearActiveConditionally(EntityType.Scenario, id))
+            .then(() => {
+                this.clearActiveConditionally(EntityType.Scenario, id)
+                this.clearParameterList()
+            })
             .catch(e => this.feedback.toastError(e))
     }
 
@@ -702,6 +719,7 @@ export class WorkspaceStore {
         this.callbacks.move(EntityType.Scenario, scenarioId, relativeToId, relativePosition)
             .then(parentIds => {
                 this.updateExpanded(parentIds.map(parentId => `hdr-${EntityType.Scenario}-${parentId}`), true)
+                this.clearParameterList()
             })
             .catch(e => this.feedback.toastError(e))
     }
@@ -725,14 +743,20 @@ export class WorkspaceStore {
             relativeToId,
             relativePosition,
             cloneFromId)
-            .then(id => this.changeActive(EntityType.Authorization, id))
+            .then(id => {
+                this.changeActive(EntityType.Authorization, id)
+                this.clearParameterList()
+            })
             .catch(e => this.feedback.toastError(e))
     }
 
     @action
     deleteAuthorization(id: string) {
         this.callbacks.delete(EntityType.Authorization, id)
-            .then(() => this.clearActiveConditionally(EntityType.Authorization, id))
+            .then(() => {
+                this.clearActiveConditionally(EntityType.Authorization, id)
+                this.clearParameterList()
+            })
             .catch(e => this.feedback.toastError(e))
     }
 
@@ -741,6 +765,7 @@ export class WorkspaceStore {
         this.callbacks.move(EntityType.Authorization, authorizationId, relativeToId, relativePosition)
             .then(parentIds => {
                 this.updateExpanded(parentIds.map(parentId => `hdr-${EntityType.Authorization}-${parentId}`), true)
+                this.clearParameterList()
             })
             .catch(e => this.feedback.toastError(e))
     }
@@ -765,14 +790,20 @@ export class WorkspaceStore {
             relativePosition,
             cloneFromId
         )
-            .then(id => this.changeActive(EntityType.Certificate, id))
+            .then(id => {
+                this.changeActive(EntityType.Certificate, id)
+                this.clearParameterList()
+            })
             .catch(e => this.feedback.toastError(e))
     }
 
     @action
     deleteCertificate(id: string) {
         this.callbacks.delete(EntityType.Certificate, id)
-            .then(() => this.clearActiveConditionally(EntityType.Certificate, id))
+            .then(() => {
+                this.clearActiveConditionally(EntityType.Certificate, id)
+                this.clearParameterList()
+            })
             .catch(e => this.feedback.toastError(e))
     }
 
@@ -781,6 +812,7 @@ export class WorkspaceStore {
         this.callbacks.move(EntityType.Certificate, certifiateId, relativeToId, relativePosition)
             .then(parentIds => {
                 this.updateExpanded(parentIds.map(parentId => `hdr-${EntityType.Certificate}-${parentId}`), true)
+                this.clearParameterList()
             })
             .catch(e => this.feedback.toastError(e))
     }
@@ -804,14 +836,20 @@ export class WorkspaceStore {
             relativeToId,
             relativePosition,
             cloneFromId)
-            .then(id => this.changeActive(EntityType.Proxy, id))
+            .then(id => {
+                this.changeActive(EntityType.Proxy, id)
+                this.clearParameterList()
+            })
             .catch(e => this.feedback.toastError(e))
     }
 
     @action
     async deleteProxy(id: string) {
         this.callbacks.delete(EntityType.Proxy, id)
-            .then(() => this.clearActiveConditionally(EntityType.Proxy, id))
+            .then(() => {
+                this.clearActiveConditionally(EntityType.Proxy, id)
+                this.clearParameterList()
+            })
             .catch(e => this.feedback.toastError(e))
     }
 
@@ -820,6 +858,7 @@ export class WorkspaceStore {
         this.callbacks.move(EntityType.Proxy, proxyId, relativeToId, relativePosition)
             .then(parentIds => {
                 this.updateExpanded(parentIds.map(parentId => `hdr-${EntityType.Proxy}-${parentId}`), true)
+                this.clearParameterList()
             })
             .catch(e => this.feedback.toastError(e))
     }
@@ -832,6 +871,7 @@ export class WorkspaceStore {
                     this.updateExpanded(`${EntityType.Group}-${relativeToId}`, true)
                 }
                 this.changeActive(EntityType.DataSet, id)
+                this.clearParameterList()
             })
             .catch(e => this.feedback.toastError(e))
     }
@@ -841,6 +881,7 @@ export class WorkspaceStore {
         this.callbacks.delete(EntityType.DataSet, id)
             .then(() => {
                 this.clearActiveConditionally(EntityType.DataSet, id)
+                this.clearParameterList()
             })
             .catch(e => this.feedback.toastError(e))
     }
@@ -850,6 +891,7 @@ export class WorkspaceStore {
         this.callbacks.move(EntityType.DataSet, id, relativeToId, relativePosition)
             .then(parentIds => {
                 this.updateExpanded(parentIds.map(pid => `${EntityType.Group}-${pid}`), true)
+                this.clearParameterList()
             })
             .catch(e => this.feedback.toastError(e))
     }
@@ -870,12 +912,24 @@ export class WorkspaceStore {
      * Initialize the parameters list
      * @returns 
      */
-    initializeParameterList() {
-        this.callbacks.listParameters()
-            .then(results => runInAction(() => {
-                this.activeParameters = results
+    initializeParameterList(requestOrGroupId: string | null) {
+        this.callbacks.listParameters(requestOrGroupId ?? undefined)
+            .then(parameters => runInAction(() => {
+                console.log(`Initializing parameter list for ${requestOrGroupId}`, toJS(parameters))
+                this.activeParameters = {
+                    requestOrGroupId,
+                    parameters
+                }
             }))
             .catch(e => this.feedback.toastError(e))
+    }
+
+    /**
+     * Reset parameter list to force a re-render
+     */
+    clearParameterList() {
+        console.log('clearing paramter list')
+        this.activeParameters = null
     }
 
     /**
@@ -1294,20 +1348,40 @@ export class WorkspaceStore {
     }
 
     public update(update: EntityUpdate) {
+        switch (update.entityType) {
+            case EntityType.Scenario:
+            case EntityType.DataSet:
+            case EntityType.Authorization:
+            case EntityType.Certificate:
+            case EntityType.Proxy:
+                if (update.name !== undefined) {
+                    this.clearParameterList()
+                }
+                break
+        }
         return this.callbacks.update(update)
     }
 
     @action
     refreshFromExternalUpdate(notification: EntityUpdateNotification) {
-        if (notification.update.entityType === EntityType.Defaults && this.mode === WorkspaceMode.Defaults) {
-            this.defaults.refreshFromExternalSpecificUpdate(notification)
-            return
+        const update = notification.update
+        switch (update.entityType) {
+            case EntityType.Scenario:
+            case EntityType.DataSet:
+            case EntityType.Authorization:
+            case EntityType.Certificate:
+            case EntityType.Proxy:
+                this.activeParameters = null
+                break
         }
 
-        let activeSelection = this.activeSelection
-        if (activeSelection && activeSelection.entityType === notification.update.entityType &&
-            (notification.update.entityType === EntityType.Defaults || activeSelection.id === notification.update.id)) {
-            activeSelection.refreshFromExternalSpecificUpdate(notification)
+        if (notification.update.entityType === EntityType.Defaults) {
+            this.defaults.refreshFromExternalSpecificUpdate(notification)
+        } else {
+            let activeSelection = this.activeSelection
+            if (activeSelection && activeSelection.entityType === notification.update.entityType && activeSelection.id === notification.update.id) {
+                activeSelection.refreshFromExternalSpecificUpdate(notification)
+            }
         }
     }
 }
@@ -1469,10 +1543,7 @@ export interface SessionEntity {
     entityId: string
 }
 
-export interface UpdateResponse {
-    validationWarnings?: string[]
-    validationErrors?: { [name: string]: string },
-}
+// UpdateResponse is exported from ../models/editable.ts
 
 export interface EntityUpdateNotification {
     update: EntityUpdate
@@ -1483,4 +1554,9 @@ export interface EntityUpdateNotification {
 export interface OpenDataSetFileResponse {
     relativeFileName: string
     dataSetContent?: DataSetContent
+}
+
+export interface ActiveParameters {
+    requestOrGroupId: string | null
+    parameters: WorkspaceParameters
 }

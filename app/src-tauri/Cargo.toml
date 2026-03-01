@@ -1,6 +1,6 @@
 [package]
 name = "apicize"
-version = "0.32.0"
+version = "0.33.1"
 description = "Apicize HTTP call testing application"
 authors = ["Jason Terando"]
 license = "MIT"
@@ -17,7 +17,7 @@ tauri-build = { version = "2.0.0", features = [] }
 [dependencies]
 serde_json = "^1.0"
 serde = { version = "^1.0", features = ["derive"] }
-apicize_lib = { version = "~0.33.0", features = ["editing"] }
+apicize_lib = { version = "~0.34.1", features = ["editing"] }
 # apicize_lib = { path = "../../../lib-rust", features = ["editing"] }
 tauri = { version = "^2", features = ["image-png", "unstable"] }
 tokio-util = "^0.7.11"
@@ -57,6 +57,9 @@ csv = "1.4.0"
 # If you use cargo directly instead of tauri's cli you can use this feature flag to switch between tauri's `dev` and `build` modes.
 # DO NOT REMOVE!!
 custom-protocol = [ "tauri/custom-protocol" ]
+
+[profile.dev]
+debug = 2
 
 [profile.release]
 panic = "abort" # Strip expensive panic clean-up logic

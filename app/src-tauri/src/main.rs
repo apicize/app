@@ -45,16 +45,17 @@ use tauri_plugin_clipboard::Clipboard;
 use tokio_util::sync::CancellationToken;
 use trace::{ReqwestEvent, ReqwestLogger};
 use workspaces::{
-    BodyMimeInfo, ClipboardPayloadRequest, Entities, Entity, EntityType, ExecutionEvent,
+    BodyMimeInfo, ClipboardPayloadRequest, Entity, EntityType, ExecutionEvent,
     OpenDataSetFileResponse, OpenWorkspaceResult, PersistableData, RequestBodyInfo,
     RequestEntryInfo, RequestExecution, WorkspaceInfo, WorkspaceInitialization, WorkspaceMode,
-    WorkspaceSaveStatus, Workspaces,
+    WorkspaceParameters, WorkspaceSaveStatus, Workspaces,
 };
 
 use crate::{
     sessions::SessionEntity,
     updates::{
-        DataSetUpdate, EntityUpdate, EntityUpdateNotification, RequestGroupUpdate, RequestUpdate,
+        DataSetUpdate, DefaultsUpdate, EntityUpdate, EntityUpdateNotification, RequestGroupUpdate,
+        RequestUpdate,
     },
     workspaces::DataSetContent,
 };
@@ -309,8 +310,16 @@ async fn main() {
             open_data_set_file_from,
             save_data_set_file,
         ])
-        .run(tauri::generate_context!())
-        .expect("error running Apicize");
+        .build(tauri::generate_context!())
+        .expect("error building Apicize")
+        .run(|_app_handle, event| {
+            if let tauri::RunEvent::Exit = event {
+                let tokens = cancellation_tokens().lock().unwrap();
+                for token in tokens.values() {
+                    token.cancel();
+                }
+            }
+        });
 }
 
 fn format_window_title(display_name: &str, dirty: bool) -> String {
@@ -1548,10 +1557,8 @@ async fn retrieve_oauth2_client_token(
         } => {
             let certificate = workspace
                 .certificates
-                .get_optional(&selected_certificate.map(|c| c.id));
-            let proxy = workspace
-                .proxies
-                .get_optional(&selected_proxy.map(|p| p.id));
+                .get_optional(&selected_certificate.id);
+            let proxy = workspace.proxies.get_optional(&selected_proxy.id);
 
             clear_oauth2_token_from_cache(&id).await;
             Ok(get_oauth2_client_credentials(
@@ -1894,13 +1901,12 @@ async fn list_parameters(
     workspaces_state: State<'_, WorkspacesState>,
     session_id: &str,
     request_id: Option<&str>,
-) -> Result<Entities, ApicizeAppError> {
+) -> Result<WorkspaceParameters, ApicizeAppError> {
     let sessions = sessions_state.sessions.read().await;
     let session = sessions.get_session(session_id)?;
     let workspaces = workspaces_state.workspaces.read().await;
-    Ok(Entities::Parameters(
-        workspaces.list_parameters(&session.workspace_id, request_id)?,
-    ))
+    let params = workspaces.list_parameters(&session.workspace_id, request_id)?;
+    Ok(params)
 }
 
 #[tauri::command]
@@ -2288,7 +2294,8 @@ async fn delete(
 
     // Collect notifications of requests/groups that had their selections updated
     let notifications = if let Some(entities) = entities_with_invalid_selections {
-        entities
+        // Set up update notifications for requests and authorizations
+        let mut notifications = entities
             .request_or_group_ids
             .iter()
             .filter_map(|id| {
@@ -2296,28 +2303,49 @@ async fn delete(
                     .generate_request_selection_update(&workspace_id, id)
                     .ok()
             })
-            .collect::<Vec<(EntityUpdateNotification, UpdatedNavigationEntry)>>()
+            .chain(entities.authorization_ids.iter().filter_map(|id| {
+                workspaces
+                    .generate_authorization_selection_update(&workspace_id, id)
+                    .ok()
+            }))
+            .collect::<Vec<(EntityUpdateNotification, UpdatedNavigationEntry)>>();
 
-        // request_ids_requiring_update
-        //         .into_iter()
-        //         .filter_map(|entity_id| {
+        // Set up update notifications for workspace defaults
+        if entities.defaults {
+            let defaults = workspaces.get_defaults(&workspace_id)?;
+            notifications.push((
+                EntityUpdateNotification {
+                    update: EntityUpdate::Defaults(DefaultsUpdate {
+                        entity_type: EntityType::Defaults,
+                        selected_scenario: Some(defaults.selected_scenario),
+                        selected_authorization: Some(defaults.selected_authorization),
+                        selected_certificate: Some(defaults.selected_certificate),
+                        selected_proxy: Some(defaults.selected_proxy),
+                        selected_data: Some(defaults.selected_data),
+                        validation_warnings: defaults.validation_warnings.clone(),
+                    }),
+                    validation_warnings: defaults.validation_warnings,
+                    validation_errors: None,
+                },
+                UpdatedNavigationEntry {
+                    entity_type: EntityType::Defaults,
+                    execution_state: ExecutionState::empty(),
+                    disabled: false,
+                    id: Navigation::DEFAULTS_ID.to_string(),
+                    name: Navigation::DEFAULTS_NAME.to_string(),
+                    validation_state: defaults.validation_state,
+                },
+            ))
+        }
 
-        //             if entity_id != "Defaults"
-        //                 && let Ok(notifications) =
-        //                     workspaces.generate_request_selection_update(&workspace_id, &entity_id)
-        //             {
-        //                 Some(notifications)
-        //             } else {
-        //                 None
-        //             }
-        //         })
-        //         .collect::<Vec<(EntityUpdateNotification, UpdatedNavigationEntry)>>();
+        notifications
     } else {
         Vec::default()
     };
 
-    // Clear execution state for deleted requests/groups
     let info = workspaces.get_workspace_info_mut(&workspace_id)?;
+
+    // Clear execution state for deleted requests/groups
     let deleted_executed_request_ids = if deleted_request {
         Some(info.delete_executions(entity_id))
     } else {
@@ -2679,14 +2707,10 @@ async fn save_data_set_file(
         let info = workspaces.get_workspace_info_mut(&session.workspace_id)?;
 
         let Some(data_set) = info.workspace.data.get_mut(data_set_id) else {
-            return Err(ApicizeAppError::InvalidDataSet(format!(
-                "Invalid data set ID {data_set_id}"
-            )));
+            return Err(ApicizeAppError::InvalidDataSet(data_set_id.to_string()));
         };
         let Some(content) = info.data_set_content.get_mut(data_set_id) else {
-            return Err(ApicizeAppError::InvalidDataSet(format!(
-                "No content for data set ID {data_set_id}"
-            )));
+            return Err(ApicizeAppError::InvalidDataSet(data_set_id.to_string()));
         };
 
         let old_source = data_set.source.to_string();

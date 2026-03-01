@@ -2,7 +2,8 @@ import { CertificateType, Certificate, ValidationErrorList } from "@apicize/lib-
 import { Editable } from "../editable"
 import { action, computed, observable, runInAction } from "mobx"
 import { EntityType } from "./entity-type"
-import { EntityTypeName, EntityUpdateNotification, WorkspaceStore } from "../../contexts/workspace.context"
+import { EditableEntityContext } from "../editable"
+import { EntityTypeName, EntityUpdateNotification } from "../../contexts/workspace.context"
 import { CertificateUpdate } from "../updates/certificate-update"
 
 export class EditableCertificate extends Editable<Certificate> {
@@ -16,7 +17,7 @@ export class EditableCertificate extends Editable<Certificate> {
 
     @observable accessor validationErrors: ValidationErrorList
 
-    public constructor(certificate: Certificate, workspace: WorkspaceStore) {
+    public constructor(certificate: Certificate, workspace: EditableEntityContext) {
         super(workspace)
         this.id = certificate.id
         this.name = certificate.name ?? ''

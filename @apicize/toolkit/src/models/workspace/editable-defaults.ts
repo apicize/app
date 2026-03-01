@@ -1,7 +1,7 @@
-import { Selection, WorkspaceDefaultParameters, GetTitle, ExecutionState, ValidationState } from "@apicize/lib-typescript"
+import { Selection, WorkspaceDefaultParameters, ExecutionState, ValidationState, NO_SELECTION, NO_SELECTION_ID } from "@apicize/lib-typescript"
 import { action, makeObservable, observable, toJS } from "mobx"
-import { NO_SELECTION, NO_SELECTION_ID } from "../store"
-import { EntityDefaults, EntityTypeName, EntityUpdateNotification, WorkspaceStore } from "../../contexts/workspace.context"
+import { EditableEntityContext } from "../editable"
+import { EntityDefaults, EntityTypeName, EntityUpdateNotification } from "../../contexts/workspace.context"
 import { EditableWarnings } from "./editable-warnings"
 import { EntityType } from "./entity-type"
 import { DefaultsUpdate } from "../updates/defaults-update"
@@ -23,10 +23,10 @@ export class EditableDefaults {
     @observable accessor name = 'Defaults'
 
     public disabled = false
-    
+
     public dirty = false;
 
-    public constructor(defaults: WorkspaceDefaultParameters, private readonly workspace: WorkspaceStore) {
+    public constructor(defaults: WorkspaceDefaultParameters, private readonly workspace: EditableEntityContext) {
         this.selectedScenario = defaults.selectedScenario ?? NO_SELECTION
         this.selectedAuthorization = defaults.selectedAuthorization ?? NO_SELECTION
         this.selectedCertificate = defaults.selectedCertificate ?? NO_SELECTION

@@ -5,31 +5,23 @@ import PlayCircleOutlined from '@mui/icons-material/PlayCircleOutlined'
 import PlayCircleFilledIcon from '@mui/icons-material/PlayCircleFilled'
 import { EntityType } from "../models/workspace/entity-type";
 import { useWorkspace } from "../contexts/workspace.context";
-import { ToastSeverity, useFeedback } from "../contexts/feedback.context";
 import BlockIcon from '@mui/icons-material/Block';
 import ClearAllIcon from '@mui/icons-material/ClearAll';
-import { NO_SELECTION_ID } from "../models/store";
 import SeedIcon from "../icons/seed-icon";
 import { EditableRequestEntry } from "../models/workspace/editable-request-entry";
 import { useApicizeSettings } from "../contexts/apicize-settings.context";
-import { useState } from "react";
+import { NO_SELECTION_ID } from "@apicize/lib-typescript";
+import { toJS } from "mobx";
 
 export const RunToolbar = observer(({ sx, requestEntry }: { sx?: SxProps, requestEntry: EditableRequestEntry }) => {
     const settings = useApicizeSettings()
     const workspace = useWorkspace()
-    const feedback = useFeedback()
-    const [seedingFrom, setSeedingFrom] = useState<string | null>(null)
 
     const requestId = requestEntry.id
     const running = requestEntry.isRunning
     const hasExecutions = requestEntry.hasExecutions
 
-    if (seedingFrom == null) {
-        workspace.getRequestActiveData(requestEntry)
-            .then(d => setSeedingFrom((d && d.id !== NO_SELECTION_ID) ? d.name : ''))
-            .catch(e => feedback.toastError(e))
-        return null
-    }
+    const seedingFromData = requestEntry.selectedDataSet.id === NO_SELECTION_ID ? null : requestEntry.selectedDataSet.name
 
     const handleRunClick = (singleRun: boolean = false) => () => {
         workspace.startExecution(requestId, singleRun)
@@ -76,10 +68,10 @@ export const RunToolbar = observer(({ sx, requestEntry }: { sx?: SxProps, reques
                     <ClearAllIcon color='warning' />
                 </ToggleButton>
             </Box>
-            <ToggleButton value='Seed' size='small' title={seedingFrom === '' ? 'Not Seeding Data' : `Seeding from ${seedingFrom}`} onClick={() =>
+            <ToggleButton value='Seed' size='small' title={seedingFromData ? `Seeding from ${seedingFromData}` : 'Not Seeding Data'} onClick={() =>
                 requestEntry.entityType === EntityType.Group ? workspace.changeGroupPanel('Parameters') : workspace.changeRequestPanel('Parameters')
             }>
-                <SvgIcon className='seed-icon' color={seedingFrom === '' ? 'primary' : 'success'}><SeedIcon /></SvgIcon>
+                <SvgIcon className='seed-icon' color={seedingFromData ? 'success' : 'primary'}><SeedIcon /></SvgIcon>
             </ToggleButton>
         </Grid>
     )

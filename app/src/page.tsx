@@ -189,7 +189,7 @@ export default function Home() {
     let unlistenNavigation = w.listen<Navigation>('navigation', (data) => {
       workspaceStore.setNavigation(data.payload)
     })
-    // Notification sent on entire navigation tree update
+    // Toast provider
     let unlistenToast = w.listen<{ message: string, severity: ToastSeverity }>('toast', (data) => {
       feedbackStore.toast(data.payload.message, data.payload.severity)
     })

@@ -2,7 +2,8 @@ import { Proxy, ValidationErrorList } from "@apicize/lib-typescript"
 import { Editable } from "../editable"
 import { action, computed, observable, runInAction } from "mobx"
 import { EntityType } from "./entity-type"
-import { EntityTypeName, EntityUpdateNotification, WorkspaceStore } from "../../contexts/workspace.context"
+import { EditableEntityContext } from "../editable"
+import { EntityTypeName, EntityUpdateNotification } from "../../contexts/workspace.context"
 import { ProxyUpdate } from "../updates/proxy-update"
 
 export class EditableProxy extends Editable<Proxy> {
@@ -11,7 +12,7 @@ export class EditableProxy extends Editable<Proxy> {
 
     @observable accessor validationErrors: ValidationErrorList
 
-    public constructor(entry: Proxy, workspace: WorkspaceStore) {
+    public constructor(entry: Proxy, workspace: EditableEntityContext) {
         super(workspace)
         this.id = entry.id
         this.name = entry.name ?? ''

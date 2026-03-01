@@ -1,13 +1,11 @@
 import { MenuItem, FormControl, InputLabel, Select } from '@mui/material'
 import { Stack } from '@mui/material'
-import { DEFAULT_SELECTION_ID } from '../../../models/store'
 import { observer } from 'mobx-react-lite'
 import { useWorkspace } from '../../../contexts/workspace.context'
 import { EditableRequestGroup } from '../../../models/workspace/editable-request-group'
-import { Selection } from '@apicize/lib-typescript'
+import { DEFAULT_SELECTION_ID, Selection } from '@apicize/lib-typescript'
 import { EditableRequest } from '../../../models/workspace/editable-request'
 import { useFeedback } from '../../../contexts/feedback.context'
-import { reaction } from 'mobx'
 import { useState, useEffect } from 'react'
 
 export const RequestParametersEditor = observer(({
@@ -40,13 +38,11 @@ export const RequestParametersEditor = observer(({
         })
     })
 
-    if (!requestOrGroup.parameters) {
-        workspace.getRequestParameterList(requestOrGroup.id)
-            .then(p => requestOrGroup.setParameters(p))
-            .catch(e => feedback.toastError(e))
-
+    if ((!workspace.activeParameters) || workspace.activeParameters.requestOrGroupId !== requestOrGroup.id) {
+        workspace.initializeParameterList(requestOrGroup.id)
         return null
     }
+    const parameters = workspace.activeParameters.parameters
 
     let credIndex = 0
     const itemsFromSelections = (selections: Selection[]) => {
@@ -72,7 +68,7 @@ export const RequestParametersEditor = observer(({
                     fullWidth
                     size='small'
                 >
-                    {itemsFromSelections(requestOrGroup.parameters.scenarios)}
+                    {itemsFromSelections(parameters.scenarios)}
                 </Select>
             </FormControl>
             <FormControl>
@@ -90,7 +86,7 @@ export const RequestParametersEditor = observer(({
                     fullWidth
                     size='small'
                 >
-                    {itemsFromSelections(requestOrGroup.parameters.authorizations)}
+                    {itemsFromSelections(parameters.authorizations)}
                 </Select>
             </FormControl>
             <FormControl>
@@ -108,7 +104,7 @@ export const RequestParametersEditor = observer(({
                     fullWidth
                     size='small'
                 >
-                    {itemsFromSelections(requestOrGroup.parameters.certificates)}
+                    {itemsFromSelections(parameters.certificates)}
                 </Select>
             </FormControl>
             <FormControl>
@@ -126,7 +122,7 @@ export const RequestParametersEditor = observer(({
                     fullWidth
                     size='small'
                 >
-                    {itemsFromSelections(requestOrGroup.parameters.proxies)}
+                    {itemsFromSelections(parameters.proxies)}
                 </Select>
             </FormControl>
             <FormControl>
@@ -144,7 +140,7 @@ export const RequestParametersEditor = observer(({
                     fullWidth
                     size='small'
                 >
-                    {itemsFromSelections(requestOrGroup.parameters.data)}
+                    {itemsFromSelections(parameters.data)}
                 </Select>
             </FormControl>
         </Stack>

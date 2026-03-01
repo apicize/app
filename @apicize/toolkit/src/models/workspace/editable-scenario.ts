@@ -3,7 +3,8 @@ import { Editable } from "../editable"
 import { action, computed, observable, runInAction, toJS } from "mobx"
 import { GenerateIdentifier } from "../../services/random-identifier-generator"
 import { EntityType } from "./entity-type"
-import { EntityScenario, EntityTypeName, EntityUpdateNotification, WorkspaceStore } from "../../contexts/workspace.context"
+import { EditableEntityContext } from "../editable"
+import { EntityScenario, EntityTypeName, EntityUpdateNotification } from "../../contexts/workspace.context"
 import { ScenarioUpdate } from "../updates/scenario-update"
 
 export class EditableScenario extends Editable<Scenario> {
@@ -11,7 +12,7 @@ export class EditableScenario extends Editable<Scenario> {
     @observable accessor variables: EditableVariable[] = []
     @observable accessor validationErrors: ValidationErrorList = {}
 
-    public constructor(entry: Scenario, workspace: WorkspaceStore) {
+    public constructor(entry: Scenario, workspace: EditableEntityContext) {
         super(workspace)
         this.id = entry.id
         this.name = entry.name ?? ''

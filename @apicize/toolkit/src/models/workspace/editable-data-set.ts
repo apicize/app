@@ -2,7 +2,8 @@ import { DataSet, DataSourceType, ValidationErrorList } from "@apicize/lib-types
 import { Editable } from "../editable"
 import { action, computed, observable, runInAction, toJS } from "mobx"
 import { EntityType } from "./entity-type"
-import { EntityTypeName, EntityUpdateNotification, WorkspaceStore } from "../../contexts/workspace.context"
+import { EditableEntityContext } from "../editable"
+import { EntityTypeName, EntityUpdateNotification } from "../../contexts/workspace.context"
 import { CsvConversion, CsvRow } from "../../services/csv-conversion"
 import { GenerateIdentifier } from "../../services/random-identifier-generator"
 import { DataSetContent, DataSetUpdate } from "../updates/data-set-update"
@@ -26,7 +27,7 @@ export class EditableDataSet extends Editable<DataSet> {
 
     @observable accessor validationErrors: ValidationErrorList
 
-    public constructor(entry: DataSet, workspace: WorkspaceStore, content?: DataSetContent) {
+    public constructor(entry: DataSet, workspace: EditableEntityContext, content?: DataSetContent) {
         super(workspace)
         this.id = entry.id
         this.name = entry.name ?? ''

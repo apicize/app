@@ -2,14 +2,13 @@ import { Button, FormControl, FormControlLabel, FormLabel, Grid, InputLabel, Men
 import { observer } from "mobx-react-lite"
 import { useWorkspace } from "../../../contexts/workspace.context"
 import { EditableAuthorization } from "../../../models/workspace/editable-authorization"
-import { DEFAULT_SELECTION_ID, NO_SELECTION, NO_SELECTION_ID } from "../../../models/store"
 import { ToastSeverity, useFeedback } from "../../../contexts/feedback.context"
-import { Selection } from "@apicize/lib-typescript"
+import { DEFAULT_SELECTION_ID, NO_SELECTION, NO_SELECTION_ID, Selection } from "@apicize/lib-typescript"
 import { WorkspaceParameters } from "../../../models/workspace/workspace-parameters"
 import { useState, useEffect } from "react"
 import { PasswordTextField } from "../../password-text-field"
 
-export const AuthorizationOAuth2ClientEditor = observer(({ authorization, parameters: parametersProps }: { authorization: EditableAuthorization, parameters: WorkspaceParameters | null }) => {
+export const AuthorizationOAuth2ClientEditor = observer(({ authorization }: { authorization: EditableAuthorization }) => {
     const workspace = useWorkspace()
     const feedback = useFeedback()
 
@@ -50,13 +49,13 @@ export const AuthorizationOAuth2ClientEditor = observer(({ authorization, parame
         }
     }
 
-    const parameters = parametersProps
-    if (!parameters) {
-        workspace.initializeParameterList()
+    if ((!workspace.activeParameters) || workspace.activeParameters.requestOrGroupId !== null) {
+        workspace.initializeParameterList(null)
         return null
     }
+    const parameters = workspace.activeParameters.parameters
 
-    return parameters ? <Grid container direction={'column'} spacing={3} className='authorization-editor-subpanel'>
+    return <Grid container direction={'column'} spacing={3} className='authorization-editor-subpanel'>
         <Grid>
             <TextField
                 id='auth-oauth2-access-token-url'
@@ -205,5 +204,4 @@ export const AuthorizationOAuth2ClientEditor = observer(({ authorization, parame
             </Button>
         </Grid>
     </Grid>
-        : null
 })

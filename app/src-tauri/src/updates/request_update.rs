@@ -3,7 +3,7 @@ use apicize_lib::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::workspaces::{DEFAULT_SELECTION_ID, EntityType, RequestBodyInfo};
+use crate::workspaces::{EntityType, RequestBodyInfo};
 
 #[derive(Serialize, Deserialize, PartialEq, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -110,46 +110,11 @@ impl RequestUpdate {
             body: None,
             body_mime_type: None,
             body_length: None,
-            selected_scenario: if let Some(selection) = &request.selected_scenario {
-                Some(selection.clone())
-            } else {
-                Some(Selection {
-                    id: DEFAULT_SELECTION_ID.to_string(),
-                    name: "".to_string(),
-                })
-            },
-            selected_authorization: if let Some(selection) = &request.selected_authorization {
-                Some(selection.clone())
-            } else {
-                Some(Selection {
-                    id: DEFAULT_SELECTION_ID.to_string(),
-                    name: "".to_string(),
-                })
-            },
-            selected_certificate: if let Some(selection) = &request.selected_certificate {
-                Some(selection.clone())
-            } else {
-                Some(Selection {
-                    id: DEFAULT_SELECTION_ID.to_string(),
-                    name: "".to_string(),
-                })
-            },
-            selected_proxy: if let Some(selection) = &request.selected_proxy {
-                Some(selection.clone())
-            } else {
-                Some(Selection {
-                    id: DEFAULT_SELECTION_ID.to_string(),
-                    name: "".to_string(),
-                })
-            },
-            selected_data: if let Some(selection) = &request.selected_data {
-                Some(selection.clone())
-            } else {
-                Some(Selection {
-                    id: DEFAULT_SELECTION_ID.to_string(),
-                    name: "".to_string(),
-                })
-            },
+            selected_scenario: Some(request.selected_scenario.clone()),
+            selected_authorization: Some(request.selected_authorization.clone()),
+            selected_certificate: Some(request.selected_certificate.clone()),
+            selected_proxy: Some(request.selected_proxy.clone()),
+            selected_data: Some(request.selected_data.clone()),
             validation_warnings: None,
         }
     }

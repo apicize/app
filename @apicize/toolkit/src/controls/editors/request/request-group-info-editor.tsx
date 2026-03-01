@@ -1,10 +1,9 @@
 import { TextField, SxProps, Grid, FormControl, InputLabel, MenuItem, Select, ToggleButton, Checkbox, FormControlLabel } from '@mui/material'
-import { ExecutionConcurrency } from '@apicize/lib-typescript';
+import { ExecutionConcurrency, NO_SELECTION_ID } from '@apicize/lib-typescript';
 import { EditableRequestGroup } from '../../../models/workspace/editable-request-group';
 import { observer } from 'mobx-react-lite';
 import { useWorkspace } from '../../../contexts/workspace.context';
 import PlayCircleFilledIcon from '@mui/icons-material/PlayCircleFilled'
-import { NO_SELECTION_ID } from '../../../models/store';
 import { useFeedback } from '../../../contexts/feedback.context';
 import { useState, useEffect } from 'react';
 

@@ -1,5 +1,11 @@
 # Change Log
 
+# 0.33.0
+
+* Update loaded parameters to be explicitly default instead of using Option
+* Fix parameter updates on global changes
+* Abstract workspace context to EditableEntityContext interface
+
 # 0.32.0
 
 * Performance optimization

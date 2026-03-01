@@ -14,6 +14,7 @@ import ErrorIcon from '@mui/icons-material/Error';
 import { EditableRequestEntry } from "../../../models/workspace/editable-request-entry"
 import { ResultErrorIcon, ResultFailureIcon, ResultSuccessIcon } from "../../../icons"
 import { useFeedback } from "../../../contexts/feedback.context"
+import { toJS } from "mobx"
 
 const ApicizeErrorToString = (error?: ApicizeError): string => {
     const desc = error?.description ? ` ${error.description}` : ''
@@ -189,6 +190,8 @@ export const ResultInfoViewer = observer(({
         // const rowSuffix = props.result.info.rowNumber && props.result.info.rowCount ? ` Row ${props.result.info.rowNumber} of ${props.result.info.rowCount}` : ''
         let subtitle: string
         let color: string
+
+        console.log('Result', toJS(result))
 
         const totalToShow = (
             hideSuccess ? 0 : result.requestSuccessCount

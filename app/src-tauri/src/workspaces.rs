@@ -6,7 +6,6 @@ use apicize_lib::{
     WorkbookDefaultParameters, Workspace,
     editing::indexed_entities::IndexedEntityPosition,
     identifiable::CloneIdentifiable,
-    indexed_entities::NO_SELECTION_ID,
     workspace::{InvalidSelections, SelectedOption},
 };
 use file_type::FileType;
@@ -539,6 +538,7 @@ impl Workspaces {
         let info = self.get_workspace_info_mut(workspace_id)?;
         info.dirty = true;
         info.workspace.requests.remove_entity(request_or_group_id)?;
+        info.executions.remove(request_or_group_id);
         info.navigation
             .delete_navigation_entity(request_or_group_id, EntityType::RequestEntry);
         Ok(None)
@@ -649,43 +649,23 @@ impl Workspaces {
         }
 
         if let Some(selected_scenario) = &update.selected_scenario {
-            request.selected_scenario = if selected_scenario.id == DEFAULT_SELECTION_ID {
-                None
-            } else {
-                Some(selected_scenario.clone())
-            };
+            request.selected_scenario = selected_scenario.clone();
         }
 
         if let Some(selected_authorization) = &update.selected_authorization {
-            request.selected_authorization = if selected_authorization.id == DEFAULT_SELECTION_ID {
-                None
-            } else {
-                Some(selected_authorization.clone())
-            };
+            request.selected_authorization = selected_authorization.clone();
         }
 
         if let Some(selected_certificate) = &update.selected_certificate {
-            request.selected_certificate = if selected_certificate.id == DEFAULT_SELECTION_ID {
-                None
-            } else {
-                Some(selected_certificate.clone())
-            };
+            request.selected_certificate = selected_certificate.clone();
         }
 
         if let Some(selected_proxy) = &update.selected_proxy {
-            request.selected_proxy = if selected_proxy.id == DEFAULT_SELECTION_ID {
-                None
-            } else {
-                Some(selected_proxy.clone())
-            };
+            request.selected_proxy = selected_proxy.clone();
         }
 
         if let Some(selected_data_set) = &update.selected_data {
-            request.selected_data = if selected_data_set.id == DEFAULT_SELECTION_ID {
-                None
-            } else {
-                Some(selected_data_set.clone())
-            };
+            request.selected_data = selected_data_set.clone();
         }
 
         if let Some(validation_warnings) = &update.validation_warnings {
@@ -777,43 +757,23 @@ impl Workspaces {
         }
 
         if let Some(selected_scenario) = &update.selected_scenario {
-            group.selected_scenario = if selected_scenario.id == DEFAULT_SELECTION_ID {
-                None
-            } else {
-                Some(selected_scenario.clone())
-            };
+            group.selected_scenario = selected_scenario.clone();
         }
 
         if let Some(selected_authorization) = &update.selected_authorization {
-            group.selected_authorization = if selected_authorization.id == DEFAULT_SELECTION_ID {
-                None
-            } else {
-                Some(selected_authorization.clone())
-            };
+            group.selected_authorization = selected_authorization.clone();
         }
 
         if let Some(selected_certificate) = &update.selected_certificate {
-            group.selected_certificate = if selected_certificate.id == DEFAULT_SELECTION_ID {
-                None
-            } else {
-                Some(selected_certificate.clone())
-            };
+            group.selected_certificate = selected_certificate.clone();
         }
 
         if let Some(selected_proxy) = &update.selected_proxy {
-            group.selected_proxy = if selected_proxy.id == DEFAULT_SELECTION_ID {
-                None
-            } else {
-                Some(selected_proxy.clone())
-            };
+            group.selected_proxy = selected_proxy.clone();
         }
 
         if let Some(selected_data_set) = &update.selected_data {
-            group.selected_data = if selected_data_set.id == DEFAULT_SELECTION_ID {
-                None
-            } else {
-                Some(selected_data_set.clone())
-            };
+            group.selected_data = selected_data_set.clone();
         }
 
         if let Some(validation_warnings) = &update.validation_warnings {
@@ -873,8 +833,10 @@ impl Workspaces {
         let mut id_to_check = request_id.to_string();
 
         while let Some(entry) = workspace.requests.entities.get(&id_to_check) {
-            if let Some(auth) = entry.selected_authorization() {
-                if auth.id == NO_SELECTION_ID {
+            let auth = entry.selected_authorization();
+
+            if !auth.is_default() {
+                if auth.id == Selection::NO_SELECTION_ID {
                     result = None;
                     break;
                 } else {
@@ -899,9 +861,8 @@ impl Workspaces {
             }
         }
 
-        if result.is_none()
-            && let Some(selection) = &workspace.defaults.selected_authorization
-        {
+        if result.is_none() {
+            let selection = &workspace.defaults.selected_authorization;
             match workspace.authorizations.get(selection.id.as_str()) {
                 Some(auth) => {
                     result = Some(auth.clone());
@@ -924,48 +885,17 @@ impl Workspaces {
     ) -> Result<Option<DataSet>, ApicizeAppError> {
         let workspace = self.get_workspace(workspace_id)?;
 
-        let mut result: Option<DataSet> = None;
-        let mut id_to_check = request_id.to_string();
-
-        while let Some(entry) = workspace.requests.entities.get(&id_to_check) {
-            match workspace.data.find(entry.selected_data()) {
-                SelectedOption::Off => {
-                    result = None;
-                    break;
-                }
-                SelectedOption::UseDefault => {
-                    // use parent data
-                }
-                SelectedOption::Some(data) => {
-                    result = Some(data.clone());
-                    break;
-                }
-            }
-
-            match Self::get_request_parent_id(entry.get_id(), workspace) {
-                Some(parent_id) => {
-                    id_to_check = parent_id.to_string();
-                }
-                None => {
-                    break;
-                }
+        if let Some(entry) = workspace.requests.entities.get(request_id) {
+            let data = entry.selected_data();
+            if !data.is_default_or_none() {
+                return Ok(match workspace.data.find(data)? {
+                    SelectedOption::Some(m) => Some(m.clone()),
+                    _ => None,
+                });
             }
         }
 
-        if result.is_none()
-            && let Some(selection) = &workspace.defaults.selected_data
-        {
-            match workspace.data.entities.get(&selection.id) {
-                Some(ed) => {
-                    result = Some(ed.clone());
-                }
-                None => {
-                    return Err(ApicizeAppError::InvalidDataSet(selection.id.to_owned()));
-                }
-            }
-        }
-
-        Ok(result)
+        Ok(None)
     }
 
     /// Return a list of entity and navigation update notifications to reflect changes
@@ -1326,18 +1256,16 @@ impl Workspaces {
 
         // Update request entry selections
         for request_entry in info.workspace.requests.entities.values_mut() {
-            if let Some(s) = request_entry.selected_scenario_as_mut()
-                && s.id == id
-            {
-                s.name = updated_name.clone();
+            let scenario = request_entry.selected_scenario_as_mut();
+            if scenario.id == id {
+                scenario.name = updated_name.clone();
             }
         }
 
         // Update workspace default entry selection
-        if let Some(s) = info.workspace.defaults.selected_scenario_as_mut()
-            && s.id == id
-        {
-            s.name = updated_name;
+        let scenario = info.workspace.defaults.selected_scenario_as_mut();
+        if scenario.id == id {
+            scenario.name = updated_name;
         }
 
         Ok(response)
@@ -1466,8 +1394,8 @@ impl Workspaces {
                         client_secret: "".to_string(),
                         audience: None,
                         scope: None,
-                        selected_certificate: None,
-                        selected_proxy: None,
+                        selected_certificate: Selection::new_none(),
+                        selected_proxy: Selection::new_none(),
                         send_credentials_in_body: None,
                         validation_state: ValidationState::empty(),
                         validation_warnings: None,
@@ -1618,21 +1546,13 @@ impl Workspaces {
                 ..
             } = auth
         {
-            *selected_certificate = if updated_selected_certificate.id == DEFAULT_SELECTION_ID {
-                None
-            } else {
-                Some(updated_selected_certificate.clone())
-            };
+            *selected_certificate = updated_selected_certificate.clone();
         }
 
         if let Some(updated_selected_proxy) = &update.selected_proxy
             && let Authorization::OAuth2Client { selected_proxy, .. } = auth
         {
-            *selected_proxy = if updated_selected_proxy.id == DEFAULT_SELECTION_ID {
-                None
-            } else {
-                Some(updated_selected_proxy.clone())
-            };
+            *selected_proxy = updated_selected_proxy.clone();
         }
 
         if let Some(updated_send_credentials_in_body) = &update.send_credentials_in_body {
@@ -1679,18 +1599,16 @@ impl Workspaces {
 
         // Update request entry selections
         for request_entry in info.workspace.requests.entities.values_mut() {
-            if let Some(s) = request_entry.selected_authorization_as_mut()
-                && s.id == update.id
-            {
-                s.name = updated_name.clone();
+            let auth = request_entry.selected_authorization_as_mut();
+            if auth.id == update.id {
+                auth.name = updated_name.clone();
             }
         }
 
         // Update workspace default entry selection
-        if let Some(s) = info.workspace.defaults.selected_authorization_as_mut()
-            && s.id == update.id
-        {
-            s.name = updated_name;
+        let auth = info.workspace.defaults.selected_authorization_as_mut();
+        if auth.id == update.id {
+            auth.name = updated_name;
         }
 
         Ok(response)
@@ -1918,18 +1836,16 @@ impl Workspaces {
 
         // Update request entry selections
         for request_entry in info.workspace.requests.entities.values_mut() {
-            if let Some(s) = request_entry.selected_certificate_as_mut()
-                && s.id == update.id
-            {
-                s.name = updated_name.clone();
+            let cert = request_entry.selected_certificate_as_mut();
+            if cert.id == update.id {
+                cert.name = updated_name.clone();
             }
         }
 
         // Update workspace default entry selection
-        if let Some(s) = info.workspace.defaults.selected_certificate_as_mut()
-            && s.id == update.id
-        {
-            s.name = updated_name;
+        let cert = info.workspace.defaults.selected_certificate_as_mut();
+        if cert.id == update.id {
+            cert.name = updated_name;
         }
 
         Ok(response)
@@ -2050,21 +1966,27 @@ impl Workspaces {
 
         // Update request entry selections
         for request_entry in info.workspace.requests.entities.values_mut() {
-            if let Some(s) = request_entry.selected_proxy_as_mut()
-                && s.id == id
-            {
-                s.name = updated_name.clone();
+            let proxy = request_entry.selected_proxy_as_mut();
+            if proxy.id == id {
+                proxy.name = updated_name.clone();
             }
         }
 
         // Update workspace default entry selection
-        if let Some(s) = info.workspace.defaults.selected_proxy_as_mut()
-            && s.id == id
-        {
-            s.name = updated_name;
+        let proxy = info.workspace.defaults.selected_proxy_as_mut();
+        if proxy.id == id {
+            proxy.name = updated_name;
         }
 
         Ok(response)
+    }
+
+    pub fn get_defaults(
+        &self,
+        workspace_id: &str,
+    ) -> Result<WorkbookDefaultParameters, ApicizeAppError> {
+        let workspace = self.get_workspace(workspace_id)?;
+        Ok(workspace.defaults.clone())
     }
 
     pub fn update_defaults(
@@ -2076,78 +1998,45 @@ impl Workspaces {
         info.dirty = true;
 
         if let Some(selected_scenario) = &update.selected_scenario {
-            info.workspace.defaults.selected_scenario =
-                if selected_scenario.id == DEFAULT_SELECTION_ID {
-                    None
-                } else {
-                    Some(selected_scenario.clone())
-                };
+            info.workspace.defaults.selected_scenario = selected_scenario.clone();
         }
 
         if let Some(selected_authorization) = &update.selected_authorization {
-            info.workspace.defaults.selected_authorization =
-                if selected_authorization.id == DEFAULT_SELECTION_ID {
-                    None
-                } else {
-                    Some(selected_authorization.clone())
-                };
+            info.workspace.defaults.selected_authorization = selected_authorization.clone();
         }
 
         if let Some(selected_certificate) = &update.selected_certificate {
-            info.workspace.defaults.selected_certificate =
-                if selected_certificate.id == DEFAULT_SELECTION_ID {
-                    None
-                } else {
-                    Some(selected_certificate.clone())
-                };
+            info.workspace.defaults.selected_certificate = selected_certificate.clone();
         }
 
         if let Some(selected_proxy) = &update.selected_proxy {
-            info.workspace.defaults.selected_proxy = if selected_proxy.id == DEFAULT_SELECTION_ID {
-                None
-            } else {
-                Some(selected_proxy.clone())
-            };
+            info.workspace.defaults.selected_proxy = selected_proxy.clone();
         }
 
         if let Some(selected_data_set) = &update.selected_data {
-            info.workspace.defaults.selected_data = if selected_data_set.id == DEFAULT_SELECTION_ID
-            {
-                None
-            } else {
-                Some(selected_data_set.clone())
-            };
+            info.workspace.defaults.selected_data = selected_data_set.clone();
         }
 
+        let old_validation_state = info.workspace.defaults.validation_state;
         if let Some(validation_warnings) = &update.validation_warnings {
             info.workspace
                 .defaults
-                .set_validation_warnings(if validation_warnings.is_empty() {
-                    None
-                } else {
-                    Some(validation_warnings.clone())
-                });
+                .set_validation_warnings(Some(validation_warnings.clone()));
         };
 
         info.workspace.validate_selections();
 
-        let validation_state = info.workspace.defaults.get_validation_state();
         let validation_warnings = info.workspace.defaults.validation_warnings.clone();
         let validation_errors = info.workspace.defaults.validation_errors.clone();
-
-        print!(
-            "Defaults validation state: {:?} versus updated {:?}",
-            &info.navigation.defaults.validation_state, &validation_state
-        );
-        let requires_update = info.navigation.defaults.validation_state != validation_state;
+        let updated_validation_state = info.workspace.defaults.validation_state;
 
         let response = UpdateWithNavigationResponse {
-            navigation: if requires_update {
+            navigation: if updated_validation_state != old_validation_state {
                 Some(UpdatedNavigationEntry {
                     id: info.navigation.defaults.id.clone(),
                     name: info.navigation.defaults.name.clone(),
                     entity_type: EntityType::Defaults,
-                    validation_state,
+                    validation_state: updated_validation_state,
                     execution_state: ExecutionState::empty(),
                     disabled: false,
                 })
@@ -2165,10 +2054,10 @@ impl Workspaces {
         results.insert(
             0,
             Selection {
-                id: "\tDEFAULT\t".to_string(),
+                id: Selection::DEFAULT_SELECTION_ID.to_string(),
                 name: match selection {
                     Some(s) => {
-                        if s.id == NO_SELECTION_ID {
+                        if s.id == Selection::NO_SELECTION_ID {
                             "Default (None Configured)".to_string()
                         } else {
                             format!("Default ({})", s.name)
@@ -2372,18 +2261,16 @@ impl Workspaces {
 
         // Update request entry selections
         for request_entry in info.workspace.requests.entities.values_mut() {
-            if let Some(s) = request_entry.selected_data_as_mut()
-                && s.id == id
-            {
-                s.name = updated_name.clone();
+            let data = request_entry.selected_data_as_mut();
+            if data.id == id {
+                data.name = updated_name.clone();
             }
         }
 
         // Update workspace default entry selection
-        if let Some(s) = info.workspace.defaults.selected_data_as_mut()
-            && s.id == id
-        {
-            s.name = updated_name;
+        let data = info.workspace.defaults.selected_data_as_mut();
+        if data.id == id {
+            data.name = updated_name;
         }
 
         Ok(response)
@@ -2535,38 +2422,14 @@ impl Workspaces {
     ) -> Result<WorkspaceParameters, ApicizeAppError> {
         let info = self.get_workspace_info(workspace_id)?;
 
-        let include_off = true; // active_request_id.is_some();
-
-        let mut scenarios = info
-            .navigation
-            .scenarios
-            .generate_selection_list(include_off);
-        let mut authorizations = info
-            .navigation
-            .authorizations
-            .generate_selection_list(include_off);
-        let mut certificates = info
-            .navigation
-            .certificates
-            .generate_selection_list(include_off);
-        let mut proxies = info.navigation.proxies.generate_selection_list(include_off);
-
-        let mut data: Vec<Selection> = if include_off {
-            vec![Selection {
-                id: NO_SELECTION_ID.to_string(),
-                name: "Off".to_string(),
-            }]
-        } else {
-            vec![]
-        };
-
+        let mut scenarios = info.navigation.scenarios.generate_selection_list();
+        let mut authorizations = info.navigation.authorizations.generate_selection_list();
+        let mut certificates = info.navigation.certificates.generate_selection_list();
+        let mut proxies = info.navigation.proxies.generate_selection_list();
+        let mut data: Vec<Selection> = vec![Selection::new_none()];
         data.extend(info.navigation.data_sets.iter().map(|d| Selection {
             id: d.id.clone(),
-            name: if d.name.is_empty() {
-                "(Unnamed)".to_string()
-            } else {
-                d.name.to_string()
-            },
+            name: d.name.clone(),
         }));
 
         if let Some(request_id) = active_request_id {
@@ -2585,58 +2448,74 @@ impl Workspaces {
                         if is_self {
                             is_self = false;
                         } else {
-                            if default_scenario.is_none()
-                                && let Some(e) = request.selected_scenario()
-                            {
-                                default_scenario =
-                                    if let Some(m) = scenarios.iter().find(|s| s.id == e.id) {
-                                        Some(m.clone())
-                                    } else {
-                                        Some(e.clone())
-                                    };
+                            if default_scenario.is_none() {
+                                let scenario = request.selected_scenario();
+                                if !scenario.is_default() {
+                                    default_scenario = Some(
+                                        if let Some(m) =
+                                            scenarios.iter().find(|s| s.id == scenario.id)
+                                        {
+                                            m.clone()
+                                        } else {
+                                            scenario.clone()
+                                        },
+                                    );
+                                }
                             }
 
-                            if default_authorization.is_none()
-                                && let Some(e) = request.selected_authorization()
-                            {
-                                default_authorization =
-                                    if let Some(m) = authorizations.iter().find(|s| s.id == e.id) {
-                                        Some(m.clone())
-                                    } else {
-                                        Some(e.clone())
-                                    };
+                            if default_authorization.is_none() {
+                                let auth = request.selected_authorization();
+                                if !auth.is_default() {
+                                    default_authorization = Some(
+                                        if let Some(m) =
+                                            authorizations.iter().find(|s| s.id == auth.id)
+                                        {
+                                            m.clone()
+                                        } else {
+                                            auth.clone()
+                                        },
+                                    );
+                                }
                             }
 
-                            if default_certificate.is_none()
-                                && let Some(e) = request.selected_certificate()
-                            {
-                                default_certificate =
-                                    if let Some(m) = certificates.iter().find(|s| s.id == e.id) {
-                                        Some(m.clone())
-                                    } else {
-                                        Some(e.clone())
-                                    };
+                            if default_certificate.is_none() {
+                                let cert = request.selected_certificate();
+                                if !cert.is_default() {
+                                    default_certificate = Some(
+                                        if let Some(m) =
+                                            certificates.iter().find(|s| s.id == cert.id)
+                                        {
+                                            m.clone()
+                                        } else {
+                                            cert.clone()
+                                        },
+                                    );
+                                }
                             }
 
-                            if default_proxy.is_none()
-                                && let Some(e) = request.selected_proxy()
-                            {
-                                default_proxy =
-                                    if let Some(m) = proxies.iter().find(|s| s.id == e.id) {
-                                        Some(m.clone())
-                                    } else {
-                                        Some(e.clone())
-                                    };
+                            if default_proxy.is_none() {
+                                let proxy = request.selected_proxy();
+                                if !proxy.is_default() {
+                                    default_proxy = Some(
+                                        if let Some(m) = proxies.iter().find(|s| s.id == proxy.id) {
+                                            m.clone()
+                                        } else {
+                                            proxy.clone()
+                                        },
+                                    );
+                                }
                             }
 
-                            if default_data.is_none()
-                                && let Some(e) = request.selected_data()
-                            {
-                                default_data = if let Some(m) = data.iter().find(|s| s.id == e.id) {
-                                    Some(m.clone())
-                                } else {
-                                    Some(e.clone())
-                                };
+                            if default_data.is_none() {
+                                let d = request.selected_data();
+                                if !d.is_default() {
+                                    default_data =
+                                        Some(if let Some(m) = data.iter().find(|s| s.id == d.id) {
+                                            m.clone()
+                                        } else {
+                                            d.clone()
+                                        });
+                                }
                             }
                         }
                     }
@@ -2662,73 +2541,41 @@ impl Workspaces {
                 }
             }
 
-            if default_scenario.is_none() {
-                default_scenario = match &info.workspace.defaults.selected_scenario {
-                    Some(s) => info
-                        .workspace
-                        .scenarios
-                        .entities
-                        .get(&s.id)
-                        .map(|e| Selection {
-                            id: e.id.to_string(),
-                            name: e.name.to_string(),
-                        }),
-                    None => None,
-                }
+            if default_scenario.is_none()
+                && let Some(m) = scenarios
+                    .iter()
+                    .find(|s| s.id == info.workspace.defaults.selected_scenario.id)
+            {
+                default_scenario = Some(m.clone());
             }
-            if default_authorization.is_none() {
-                default_authorization = match &info.workspace.defaults.selected_authorization {
-                    Some(s) => {
-                        info.workspace
-                            .authorizations
-                            .entities
-                            .get(&s.id)
-                            .map(|e| Selection {
-                                id: e.get_id().to_string(),
-                                name: e.get_name().to_string(),
-                            })
-                    }
-                    None => None,
-                }
+            if default_authorization.is_none()
+                && let Some(m) = authorizations
+                    .iter()
+                    .find(|s| s.id == info.workspace.defaults.selected_authorization.id)
+            {
+                default_authorization = Some(m.clone());
             }
-            if default_certificate.is_none() {
-                default_certificate = match &info.workspace.defaults.selected_certificate {
-                    Some(s) => info
-                        .workspace
-                        .certificates
-                        .entities
-                        .get(&s.id)
-                        .map(|e| Selection {
-                            id: e.get_id().to_string(),
-                            name: e.get_name().to_string(),
-                        }),
-                    None => None,
-                }
+            if default_certificate.is_none()
+                && let Some(m) = certificates
+                    .iter()
+                    .find(|s| s.id == info.workspace.defaults.selected_certificate.id)
+            {
+                default_certificate = Some(m.clone());
             }
-            if default_proxy.is_none() {
-                default_proxy = match &info.workspace.defaults.selected_proxy {
-                    Some(s) => info
-                        .workspace
-                        .proxies
-                        .entities
-                        .get(&s.id)
-                        .map(|e| Selection {
-                            id: e.get_id().to_string(),
-                            name: e.name.to_string(),
-                        }),
-                    None => None,
-                }
+            if default_proxy.is_none()
+                && let Some(m) = proxies
+                    .iter()
+                    .find(|s| s.id == info.workspace.defaults.selected_proxy.id)
+            {
+                default_proxy = Some(m.clone());
             }
-            if default_data.is_none() {
-                default_data = match &info.workspace.defaults.selected_data {
-                    Some(s) => info.workspace.data.entities.get(&s.id).map(|e| Selection {
-                        id: e.get_id().to_string(),
-                        name: e.name.to_string(),
-                    }),
-                    None => None,
-                }
+            if default_data.is_none()
+                && let Some(m) = data
+                    .iter()
+                    .find(|s| s.id == info.workspace.defaults.selected_data.id)
+            {
+                default_data = Some(m.clone());
             }
-
             Self::insert_default_selection(&default_scenario, &mut scenarios);
             Self::insert_default_selection(&default_authorization, &mut authorizations);
             Self::insert_default_selection(&default_certificate, &mut certificates);
@@ -3391,13 +3238,6 @@ pub enum Entity {
     Certificate(Certificate),
     Proxy(Proxy),
     DataSet(DataSet),
-    Defaults(WorkbookDefaultParameters),
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Clone)]
-#[serde(tag = "entityTypeName")]
-pub enum Entities {
-    Parameters(WorkspaceParameters),
     Defaults(WorkbookDefaultParameters),
 }
 

@@ -1,7 +1,7 @@
 use apicize_lib::Selection;
 use serde::{Deserialize, Serialize};
 
-use crate::workspaces::{DEFAULT_SELECTION_ID, EntityType};
+use crate::workspaces::EntityType;
 
 #[derive(Serialize, Deserialize, PartialEq, Clone)]
 pub enum AuthorizationUpdateType {
@@ -53,8 +53,8 @@ pub struct AuthorizationUpdate {
 impl AuthorizationUpdate {
     pub fn from_selections(
         id: &str,
-        selected_certificate: &Option<Selection>,
-        selected_proxy: &Option<Selection>,
+        selected_certificate: &Selection,
+        selected_proxy: &Selection,
     ) -> Self {
         AuthorizationUpdate {
             id: id.to_string(),
@@ -72,22 +72,8 @@ impl AuthorizationUpdate {
             audience: None,
             scope: None,
             send_credentials_in_body: None,
-            selected_certificate: if let Some(selection) = selected_certificate {
-                Some(selection.clone())
-            } else {
-                Some(Selection {
-                    id: DEFAULT_SELECTION_ID.to_string(),
-                    name: "".to_string(),
-                })
-            },
-            selected_proxy: if let Some(selection) = selected_proxy {
-                Some(selection.clone())
-            } else {
-                Some(Selection {
-                    id: DEFAULT_SELECTION_ID.to_string(),
-                    name: "".to_string(),
-                })
-            },
+            selected_certificate: Some(selected_certificate.clone()),
+            selected_proxy: Some(selected_proxy.clone()),
             validation_warnings: None,
         }
     }

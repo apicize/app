@@ -1,8 +1,8 @@
-import { Selection, ExecutionConcurrency, Request, RequestGroup, ExecutionResultSummary, ExecutionState } from "@apicize/lib-typescript"
-import { Editable } from "../editable"
+import { Selection, ExecutionConcurrency, Request, RequestGroup, ExecutionResultSummary, ExecutionState, DEFAULT_SELECTION, NO_SELECTION } from "@apicize/lib-typescript"
+import { Editable, EditableEntityContext } from "../editable"
 import { action, computed, observable, reaction, runInAction, toJS } from "mobx"
 import { WorkspaceParameters } from "./workspace-parameters"
-import { ResultsPanel, WorkspaceStore } from "../../contexts/workspace.context"
+import { ResultsPanel } from "../../contexts/workspace.context"
 import { ExecutionEvent, ExecutionMenuItem, ExecutionResultViewState } from "./execution"
 import { RequestExecution } from "../request-execution"
 
@@ -16,13 +16,11 @@ export abstract class EditableRequestEntry extends Editable<Request | RequestGro
     @observable public accessor isRunning: boolean = false
     @observable public accessor resultsPanel: ResultsPanel = 'Info'
 
-    @observable accessor selectedScenario: Selection | undefined = undefined
-    @observable accessor selectedAuthorization: Selection | undefined = undefined
-    @observable accessor selectedCertificate: Selection | undefined = undefined
-    @observable accessor selectedDataSet: Selection | undefined = undefined
-    @observable accessor selectedProxy: Selection | undefined = undefined
-
-    @observable public accessor parameters: WorkspaceParameters | undefined = undefined
+    @observable accessor selectedScenario: Selection = DEFAULT_SELECTION
+    @observable accessor selectedAuthorization: Selection = DEFAULT_SELECTION
+    @observable accessor selectedCertificate: Selection = DEFAULT_SELECTION
+    @observable accessor selectedDataSet: Selection = NO_SELECTION
+    @observable accessor selectedProxy: Selection = DEFAULT_SELECTION
 
     @observable public accessor hideSuccess = false
     @observable public accessor hideFailure = false
@@ -31,7 +29,7 @@ export abstract class EditableRequestEntry extends Editable<Request | RequestGro
     private summaries = new Map<number, ExecutionResultSummary>
 
     constructor(
-        workspace: WorkspaceStore,
+        workspace: EditableEntityContext,
         executionResultViewState: ExecutionResultViewState,
         requestExecution: RequestExecution
     ) {
@@ -61,11 +59,6 @@ export abstract class EditableRequestEntry extends Editable<Request | RequestGro
         this.workspace.updateExecutionDetail(execCtr)
         this.selectedResultMenuItem = match
         this.updateExecutionResulltViewState()
-    }
-
-    @action
-    setParameters(parameters: WorkspaceParameters) {
-        this.parameters = parameters
     }
 
     @action

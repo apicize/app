@@ -1,7 +1,6 @@
 use apicize_lib::{
     Disabled, Executable, ExecutionState, Identifiable, IndexedEntities, RequestEntry, Selection,
     Validated, ValidationState, Workspace, editing::indexed_entities::IndexedEntityPosition,
-    indexed_entities::NO_SELECTION_ID,
 };
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -126,15 +125,8 @@ impl ParamNavigationSection {
             .collect()
     }
 
-    pub fn generate_selection_list(&self, include_off: bool) -> Vec<Selection> {
-        let mut results: Vec<Selection> = if include_off {
-            vec![Selection {
-                id: NO_SELECTION_ID.to_string(),
-                name: "Off".to_string(),
-            }]
-        } else {
-            vec![]
-        };
+    pub fn generate_selection_list(&self) -> Vec<Selection> {
+        let mut results: Vec<Selection> = vec![Selection::new_none()];
         let create_selection = |entry: &NavigationEntry| Selection {
             id: entry.id.clone(),
             name: entry.name.clone(),
@@ -262,6 +254,9 @@ impl NavigationRequestEntry {
 }
 
 impl Navigation {
+    pub const DEFAULTS_ID: &str = "defaults";
+    pub const DEFAULTS_NAME: &str = "Defaults";
+
     pub fn new(
         workspace: &Workspace,
         executions: &FxHashMap<String, RequestExecution>,
@@ -277,8 +272,8 @@ impl Navigation {
                 &workspace.data.top_level_ids,
             ),
             defaults: NavigationEntry {
-                id: "defaults".to_string(),
-                name: "Defaults".to_string(),
+                id: Self::DEFAULTS_ID.to_string(),
+                name: Self::DEFAULTS_NAME.to_string(),
                 validation_state: workspace.defaults.validation_state,
                 execution_state: ExecutionState::empty(),
             },

@@ -23,6 +23,7 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { WarningsEditor } from './warnings-editor';
 import { EditableDefaults } from '../../models/workspace/editable-defaults';
 import { WorkspaceParameters } from '../../models/workspace/workspace-parameters';
+import { toJS } from 'mobx'
 
 type DefaultsPanels = 'Parameters' | 'Warnings'
 
@@ -164,7 +165,6 @@ export const DefaultsEditor = observer(({ sx }: { sx: SxProps }) => {
     workspace.nextHelpTopic = 'workspace/defaults'
 
     const defaults = workspace.defaults
-    const parameters = workspace.activeParameters
 
     const [panel, setPanel] = useState<DefaultsPanels>('Parameters')
 
@@ -189,10 +189,11 @@ export const DefaultsEditor = observer(({ sx }: { sx: SxProps }) => {
         })
     })
 
-    if (!parameters) {
-        workspace.initializeParameterList()
+    if ((!workspace.activeParameters) || workspace.activeParameters.requestOrGroupId !== null) {
+        workspace.initializeParameterList(null)
         return null
     }
+    const parameters = workspace.activeParameters.parameters
 
     const handlePanelChanged = (_: React.SyntheticEvent, newValue: DefaultsPanels) => {
         if (newValue) setPanel(newValue)
@@ -238,7 +239,6 @@ export const DefaultsEditor = observer(({ sx }: { sx: SxProps }) => {
                                 sx={{ marginRight: '24px' }}
                                 aria-label="text alignment">
                                 <ToggleButton value="Parameters" title="Show Default Parameters" aria-label='show test' size='small'><AltRouteIcon /></ToggleButton>
-                                <ToggleButton value="External Data" title="Show External Data" aria-label='show test' size='small'><DatasetIcon /></ToggleButton>
                                 {
                                     hasWarnings
                                         ? <ToggleButton hidden={true} value="Warnings" title="Request Warnings" aria-label='show warnings' size='small'><WarningAmberIcon color='warning' /></ToggleButton>

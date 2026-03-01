@@ -43,6 +43,7 @@ export * from './contexts/log.context'
 export * from './models/trace';
 export * from './contexts/dragdrop.context'
 export * from './contexts/file-dragdrop.context'
+export * from './models/editable'
 export * from './models/editable-settings'
 export * from './models/clipboard_payload_request'
 export * from './models/palette-colors'

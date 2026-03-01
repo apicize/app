@@ -1,9 +1,14 @@
-import { Selection, Body, BodyType, ExecutionConcurrency, Method, NameValuePair, Request, ValidationWarnings, ValidationErrors, BodyJSON, BodyNone, BodyRaw, BodyText, BodyXML, ValidationErrorList } from "@apicize/lib-typescript"
+import {
+    Selection, Body, BodyType, ExecutionConcurrency, Method, NameValuePair, Request, ValidationWarnings, ValidationErrors,
+    BodyJSON, BodyNone, BodyRaw, BodyText, BodyXML, ValidationErrorList, DEFAULT_SELECTION_ID, NO_SELECTION_ID, NO_SELECTION,
+    DEFAULT_SELECTION
+} from "@apicize/lib-typescript"
 import { action, computed, observable, runInAction, toJS } from "mobx"
 import { EditableNameValuePair } from "./editable-name-value-pair"
 import { GenerateIdentifier } from "../../services/random-identifier-generator"
 import { EntityType } from "./entity-type"
-import { EntityRequest, EntityTypeName, EntityUpdateNotification, WorkspaceStore } from "../../contexts/workspace.context"
+import { EditableEntityContext } from "../editable"
+import { EntityRequest, EntityTypeName, EntityUpdateNotification } from "../../contexts/workspace.context"
 import { EditableRequestEntry } from "./editable-request-entry"
 import { RequestDuplex } from "undici-types"
 import { EditableWarnings } from "./editable-warnings"
@@ -14,7 +19,6 @@ import { ExecutionResultViewState } from "./execution"
 import { base64Encode } from "../../services/base64"
 import { BodyConversion } from "../../services/body-conversion"
 import { RequestUpdate } from "../updates/request-update"
-import { DEFAULT_SELECTION_ID, NO_SELECTION_ID, NO_SELECTION } from "../store"
 import { RequestBodyInfo } from "./request-body-info"
 
 export class EditableRequest extends EditableRequestEntry {
@@ -48,7 +52,7 @@ export class EditableRequest extends EditableRequestEntry {
     @observable accessor validationErrors: ValidationErrorList = {}
     @observable accessor validationWarnings = new EditableWarnings()
 
-    public constructor(entry: Request, workspace: WorkspaceStore, executionResultViewState: ExecutionResultViewState, requestExecution: RequestExecution) {
+    public constructor(entry: Request, workspace: EditableEntityContext, executionResultViewState: ExecutionResultViewState, requestExecution: RequestExecution) {
         super(workspace, executionResultViewState, requestExecution)
 
         this.id = entry.id
@@ -265,7 +269,7 @@ export class EditableRequest extends EditableRequestEntry {
     @action
     setSelectedScenarioId(entityId: string) {
         this.selectedScenario = entityId === DEFAULT_SELECTION_ID
-            ? undefined
+            ? DEFAULT_SELECTION
             : entityId == NO_SELECTION_ID
                 ? NO_SELECTION
                 : { id: entityId, name: this.workspace.getNavigationName(entityId) }
@@ -278,7 +282,7 @@ export class EditableRequest extends EditableRequestEntry {
     @action
     setSelectedAuthorizationId(entityId: string) {
         this.selectedAuthorization = entityId === DEFAULT_SELECTION_ID
-            ? undefined
+            ? DEFAULT_SELECTION
             : entityId == NO_SELECTION_ID
                 ? NO_SELECTION
                 : { id: entityId, name: this.workspace.getNavigationName(entityId) }
@@ -291,7 +295,7 @@ export class EditableRequest extends EditableRequestEntry {
     @action
     setSelectedCertificateId(entityId: string) {
         this.selectedCertificate = entityId === DEFAULT_SELECTION_ID
-            ? undefined
+            ? DEFAULT_SELECTION
             : entityId == NO_SELECTION_ID
                 ? NO_SELECTION
                 : { id: entityId, name: this.workspace.getNavigationName(entityId) }
@@ -304,7 +308,7 @@ export class EditableRequest extends EditableRequestEntry {
     @action
     setSelectedProxyId(entityId: string) {
         this.selectedProxy = entityId === DEFAULT_SELECTION_ID
-            ? undefined
+            ? DEFAULT_SELECTION
             : entityId == NO_SELECTION_ID
                 ? NO_SELECTION
                 : { id: entityId, name: this.workspace.getNavigationName(entityId) }
@@ -316,11 +320,9 @@ export class EditableRequest extends EditableRequestEntry {
 
     @action
     setSelectedDataId(entityId: string) {
-        this.selectedDataSet = entityId === DEFAULT_SELECTION_ID
-            ? undefined
-            : entityId == NO_SELECTION_ID
-                ? NO_SELECTION
-                : { id: entityId, name: this.workspace.getNavigationName(entityId) }
+        this.selectedDataSet = entityId == NO_SELECTION_ID
+            ? NO_SELECTION
+            : { id: entityId, name: this.workspace.getNavigationName(entityId) }
         this.performUpdate({
             type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id,
             selecteData: this.selectedDataSet ?? { id: DEFAULT_SELECTION_ID, name: '(Default)' }
@@ -415,37 +417,21 @@ export class EditableRequest extends EditableRequestEntry {
             }
         }
 
-        let clearParameters = false
         if (notification.update.selectedScenario !== undefined) {
-            this.selectedScenario = notification.update.selectedScenario.id === DEFAULT_SELECTION_ID
-                ? undefined : notification.update.selectedScenario
-            clearParameters = true
+            this.selectedScenario = notification.update.selectedScenario
         }
         if (notification.update.selectedAuthorization !== undefined) {
-            this.selectedAuthorization = notification.update.selectedAuthorization.id === DEFAULT_SELECTION_ID
-                ? undefined : notification.update.selectedAuthorization
-            clearParameters = true
+            this.selectedAuthorization = notification.update.selectedAuthorization
         }
         if (notification.update.selectedCertificate !== undefined) {
-            this.selectedCertificate = notification.update.selectedCertificate.id === DEFAULT_SELECTION_ID
-                ? undefined : notification.update.selectedCertificate
-            clearParameters = true
+            this.selectedCertificate = notification.update.selectedCertificate
         }
         if (notification.update.selectedProxy !== undefined) {
-            this.selectedProxy = notification.update.selectedProxy.id === DEFAULT_SELECTION_ID
-                ? undefined : notification.update.selectedProxy
-            clearParameters = true
+            this.selectedProxy = notification.update.selectedProxy
         }
         if (notification.update.selecteData !== undefined) {
-            this.selectedDataSet = notification.update.selecteData.id === DEFAULT_SELECTION_ID
-                ? undefined : notification.update.selecteData
-            clearParameters = true
+            this.selectedDataSet = notification.update.selecteData
         }
-        if (clearParameters) {
-            // If any selections were updated, clear parameters so that they get re-rendered
-            this.parameters = undefined
-        }
-
         this.validationWarnings.set(notification.validationWarnings)
         this.validationErrors = notification.validationErrors ?? {}
     }
