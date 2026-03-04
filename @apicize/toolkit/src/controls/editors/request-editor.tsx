@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { useMemo } from 'react'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import ToggleButton from '@mui/material/ToggleButton'
@@ -26,6 +25,7 @@ import { WarningsEditor } from './warnings-editor'
 import { RequestParametersEditor } from './request/request-parameters-editor'
 import { EditableRequest } from '../../models/workspace/editable-request'
 import { reaction, runInAction } from 'mobx'
+import { useFeedback } from '../../contexts/feedback.context'
 
 const RequestPanel = observer(({
     request,
@@ -33,10 +33,11 @@ const RequestPanel = observer(({
     request: EditableRequest,
 }) => {
     const workspace = useWorkspace()
+    const feedback = useFeedback()
     const settings = useApicizeSettings()
 
     let selectedPanel = workspace.requestPanel
-    let hasWarnings = request.validationWarnings.hasEntries
+    const hasWarnings = request.validationWarnings.hasEntries
 
     const handlePanelChanged = (_: React.SyntheticEvent, newValue: RequestPanel) => {
         if (newValue) {
@@ -96,7 +97,9 @@ const RequestPanel = observer(({
                                 : selectedPanel === 'Body' ? <RequestBodyEditor request={request} />
                                     : selectedPanel === 'Test' ? <RequestTestEditor request={request} />
                                         : selectedPanel === 'Parameters' ? <RequestParametersEditor requestOrGroup={request} />
-                                            : selectedPanel === 'Warnings' ? <WarningsEditor warnings={request.validationWarnings} onDelete={(id) => request.deleteWarning(id)} />
+                                            : selectedPanel === 'Warnings' ? <WarningsEditor warnings={request.validationWarnings} onDelete={(id) => {
+                                                request.deleteWarning(id).catch(err => feedback.toastError(err))
+                                            }} />
                                                 : null}
                 </Box>
             </Stack>

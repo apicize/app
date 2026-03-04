@@ -2,8 +2,10 @@ import { Grid, TextField } from "@mui/material"
 import { observer } from "mobx-react-lite"
 import { EditableAuthorization } from "../../../models/workspace/editable-authorization"
 import { PasswordTextField } from "../../password-text-field"
+import { useFeedback } from "../../../contexts/feedback.context"
 
 export const AuthorizationApiKeyEditor = observer(({ authorization }: { authorization: EditableAuthorization }) => {
+    const feedback = useFeedback()
     return <Grid container direction={'column'} spacing={3} className='authorization-editor-subpanel'>
         <Grid>
             <TextField
@@ -13,7 +15,9 @@ export const AuthorizationApiKeyEditor = observer(({ authorization }: { authoriz
                 value={authorization.header}
                 error={!!authorization.headerError}
                 helperText={authorization.headerError ?? ''}
-                onChange={e => authorization.setHeader(e.target.value)}
+                onChange={e => {
+                    authorization.setHeader(e.target.value).catch(err => feedback.toastError(err))
+                }}
                 size='small'
                 fullWidth
             />
@@ -26,7 +30,9 @@ export const AuthorizationApiKeyEditor = observer(({ authorization }: { authoriz
                 value={authorization.value}
                 // error={authorization.valueInvalid}
                 // helperText={authorization.valueInvalid ? 'Value is required' : ''}
-                onChange={e => authorization.setValue(e.target.value)}
+                onChange={e => {
+                    authorization.setValue(e.target.value).catch(err => feedback.toastError(err))
+                }}
                 size='small'
                 fullWidth
             />

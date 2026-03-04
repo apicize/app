@@ -1,9 +1,12 @@
+// Note:  disabling *any* checks for this because of CSV and JSON editing
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import TextField from '@mui/material/TextField'
 import { SxProps } from '@mui/material/styles'
 import Grid from '@mui/material/Grid'
 import DatasetIcon from '@mui/icons-material/Dataset';
 import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
+import DeleteIcon from '@mui/icons-material/RemoveCircleOutline';
 import { EditorTitle } from '../editor-title';
 import { observer } from 'mobx-react-lite';
 import { useWorkspace, WorkspaceStore } from '../../contexts/workspace.context';
@@ -15,7 +18,7 @@ import { FeedbackStore, ToastSeverity, useFeedback } from '../../contexts/feedba
 import { useState, useEffect, useRef, useMemo } from 'react'
 import MonacoEditor from 'react-monaco-editor';
 import { IDataSetEditorTextModel } from '../../models/editor-text-model'
-import { FileOperationsStore, useFileOperations } from '../../contexts/file-operations.context'
+import { useFileOperations } from '../../contexts/file-operations.context'
 import { runInAction } from 'mobx'
 import { DataGrid, GridColDef, GridColumnMenuProps, GridColumnMenu } from '@mui/x-data-grid'
 import { GridApiCommunity } from '@mui/x-data-grid/internals'
@@ -35,10 +38,11 @@ const JsonEditor = observer(({ dataSet, feedback, settings, workspace }: {
 
     // Make sure we have the editor test model
     if (!model || model.dataSetId !== dataSet.id) {
-        workspace.getDataSetEditModel(dataSet)
-            .then(setModel)
-            .catch(e => feedback.toastError(e))
-        return null
+        try {
+            setModel(workspace.getDataSetEditModel(dataSet))
+        } catch (e) {
+            feedback.toastError(e)
+        }
     }
 
     return <MonacoEditor
@@ -46,7 +50,7 @@ const JsonEditor = observer(({ dataSet, feedback, settings, workspace }: {
         theme={settings.colorScheme === "dark" ? 'vs-dark' : 'vs-light'}
         value={dataSet.text}
         onChange={(text: string) => {
-            dataSet.setJson(text, true)
+            dataSet.setJson(text, true).catch(err => feedback.toastError(err))
         }}
         options={{
             automaticLayout: true,
@@ -81,6 +85,7 @@ const CsvEditor = observer(({ dataSet, feedback, csvColumnWidths }: {
             const handleAddColumn = (event: React.SyntheticEvent) => {
                 if (newColumnName.trim().length > 0) {
                     dataSet.addColumnAfter(props.colDef.field, newColumnName.trim())
+                        .catch(err => feedback.toastError(err))
                     setNewColumnName('')
                     setShowAddColumnDialog(false)
                     props.hideMenu?.(event)
@@ -98,7 +103,8 @@ const CsvEditor = observer(({ dataSet, feedback, csvColumnWidths }: {
                 }).then(ok => {
                     if (!ok) return
                     dataSet.deleteColumn(props.colDef.field)
-                })
+                        .catch(err => feedback.toastError(err))
+                }).catch(err => feedback.toastError(err))
             }
 
             return (
@@ -207,8 +213,8 @@ const CsvEditor = observer(({ dataSet, feedback, csvColumnWidths }: {
                             defaultToCancel: true
                         }).then(ok => {
                             if (!ok) return
-                            dataSet.deleteRow(params.row._id)
-                        })
+                            dataSet.deleteRow(params.row._id).catch(err => feedback.toastError(err))
+                        }).catch(err => feedback.toastError(err))
                     }}
                     sx={{ minWidth: 'auto', padding: '4px' }}
                 >
@@ -229,6 +235,7 @@ const CsvEditor = observer(({ dataSet, feedback, csvColumnWidths }: {
                 }
             }
         }}
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
         getRowId={(r) => r._id}
         sx={{ overflowX: 'scroll', overflow: 'auto', position: 'relative', display: 'grid', gridTemplateRows: 'auto 1f auto', }}
         autosizeOnMount={unsizedColumns.length > 0}
@@ -246,11 +253,12 @@ const CsvEditor = observer(({ dataSet, feedback, csvColumnWidths }: {
         }}
         processRowUpdate={(updatedRow) => {
             try {
-                dataSet.updateRow(updatedRow)
+                dataSet.updateRow(updatedRow).catch(err => feedback.toastError(err))
             } catch (e) {
                 feedback.toastError(e)
             }
 
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-return
             return updatedRow
         }}
         onProcessRowUpdateError={(e) => feedback.toastError(e)}
@@ -293,16 +301,18 @@ export const DataSetEditor = observer(({ dataSet, sx }: { dataSet: EditableDataS
                         if (dataSet.type === DataSourceType.FileCSV) {
                             if (results.dataSetContent?.csvColumns && results.dataSetContent?.csvRows) {
                                 dataSet.setCsv(results.dataSetContent.csvColumns, results.dataSetContent.csvRows, false)
+                                    .catch(err => feedback.toastError(err))
                             }
                         } else if (results.dataSetContent?.sourceText) {
                             dataSet.setJson(results.dataSetContent.sourceText, true)
+                                .catch(err => feedback.toastError(err))
                         }
 
                     } catch (e) {
                         feedback.toastError(e)
                     }
                     if (dataSet.type !== DataSourceType.JSON) {
-                        dataSet.setFileName(results.relativeFileName, true)
+                        dataSet.setFileName(results.relativeFileName, true).catch(err => feedback.toastError(err))
                     }
                 })
             })
@@ -330,18 +340,20 @@ export const DataSetEditor = observer(({ dataSet, sx }: { dataSet: EditableDataS
                     try {
                         if (dataSet.type === DataSourceType.FileCSV) {
                             dataSet.setCsv(results.dataSetContent?.csvColumns ?? [], results.dataSetContent?.csvRows ?? [], false)
+                                .catch(err => feedback.toastError(err))
                         } else {
                             dataSet.setJson(results.dataSetContent?.sourceText ?? '', false)
+                                .catch(err => feedback.toastError(err))
                         }
                     } catch (e) {
                         feedback.toastError(e)
                     }
-                    dataSet.setFileName(results.relativeFileName, false)
+                    dataSet.setFileName(results.relativeFileName, false).catch(err => feedback.toastError(err))
                 })
             })
             .catch(e => {
-                dataSet.setSourceType(DataSourceType.JSON)
-                dataSet.setJson('', false)
+                dataSet.setSourceType(DataSourceType.JSON).catch(err => feedback.toastError(err))
+                dataSet.setJson('', false).catch(err => feedback.toastError(err))
                 feedback.toastError(e)
             })
         return null
@@ -357,10 +369,10 @@ export const DataSetEditor = observer(({ dataSet, sx }: { dataSet: EditableDataS
         }).then(ok => {
             if (ok) {
                 runInAction(() => {
-                    dataSet.clearDataSet()
+                    dataSet.clearDataSet().catch(err => feedback.toastError(err))
                 })
             }
-        })
+        }).catch(err => feedback.toastError(err))
     }
 
     return (
@@ -383,7 +395,7 @@ export const DataSetEditor = observer(({ dataSet, sx }: { dataSet: EditableDataS
                             value={dataSet.name}
                             autoFocus={dataSet.name === ''}
                             onChange={e => {
-                                dataSet.setName(e.target.value)
+                                dataSet.setName(e.target.value).catch(err => feedback.toastError(err))
                             }}
                             error={!!dataSet.nameError}
                             helperText={dataSet.nameError ?? ''}
@@ -405,7 +417,9 @@ export const DataSetEditor = observer(({ dataSet, sx }: { dataSet: EditableDataS
                                     open={showDataTypeMenu}
                                     onClose={() => setShowDataTypeMenu(false)}
                                     onOpen={() => setShowDataTypeMenu(true)}
-                                    onChange={e => dataSet.setSourceType(e.target.value as DataSourceType)}
+                                    onChange={e => {
+                                        dataSet.setSourceType(e.target.value as DataSourceType).catch(err => feedback.toastError(err))
+                                    }}
                                 >
                                     <MenuItem key='data-type-json' value={DataSourceType.JSON}>JSON (Workbook)</MenuItem>
                                     <MenuItem key='data-type-file-json' value={DataSourceType.FileJSON}>JSON (External File)</MenuItem>
@@ -482,7 +496,7 @@ export const DataSetEditor = observer(({ dataSet, sx }: { dataSet: EditableDataS
                                         id='datasource-add-btn'
                                         title='Add New Row'
                                         onClick={() => runInAction(() => {
-                                            dataSet.addRow()
+                                            dataSet.addRow().catch(err => feedback.toastError(err))
                                         })}>
                                         <AddIcon />
                                     </IconButton>

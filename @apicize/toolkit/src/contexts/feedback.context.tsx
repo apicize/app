@@ -11,6 +11,7 @@ export class FeedbackStore {
     @observable accessor toastOpen = false
     @observable accessor toastMessage = ''
     @observable accessor toastSeverity = ToastSeverity.Info
+    @observable accessor toastSessionId = ''
 
     @observable accessor confirmOpen = false
     @observable accessor confirmOptions: ConfirmationOptions = {}
@@ -28,10 +29,11 @@ export class FeedbackStore {
     private confirmResolve: (ok: boolean) => void = () => { };
 
     @action
-    toast(message: string, severity: ToastSeverity) {
+    toast(message: string, severity: ToastSeverity, toastSessionId = '') {
         this.toastMessage = message
         this.toastSeverity = severity
         this.toastOpen = true
+        this.toastSessionId = toastSessionId
     }
 
     @action
@@ -93,6 +95,13 @@ export class FeedbackStore {
     @action
     setModal(onOff: boolean) {
         this.modalInProgress = onOff
+    }
+
+    @action
+    closeSessionToast(sessionId: string) {
+        if (this.toastSessionId === sessionId && this.toastOpen) {
+            this.toastOpen = false
+        }
     }
 }
 

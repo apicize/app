@@ -9,10 +9,12 @@ import { observer } from 'mobx-react-lite';
 import { useWorkspace } from '../../contexts/workspace.context';
 import { useApicizeSettings } from '../../contexts/apicize-settings.context';
 import { EditableProxy } from '../../models/workspace/editable-proxy'
+import { useFeedback } from '../../contexts/feedback.context'
 
 export const ProxyEditor = observer(({ proxy, sx }: { proxy: EditableProxy, sx?: SxProps }) => {
     const settings = useApicizeSettings()
     const workspace = useWorkspace()
+    const feedback = useFeedback()
 
     workspace.nextHelpTopic = 'proxies'
 
@@ -36,7 +38,7 @@ export const ProxyEditor = observer(({ proxy, sx }: { proxy: EditableProxy, sx?:
                             value={proxy.name}
                             autoFocus={proxy.name === ''}
                             onChange={e => {
-                                proxy.setName(e.target.value)
+                                proxy.setName(e.target.value).catch(err => feedback.toastError(err))
                             }}
                             error={!!proxy.nameError}
                             helperText={proxy.nameError ?? ''}
@@ -51,7 +53,7 @@ export const ProxyEditor = observer(({ proxy, sx }: { proxy: EditableProxy, sx?:
                             size='small'
                             value={proxy.url}
                             onChange={e => {
-                                proxy.setUrl(e.target.value)
+                                proxy.setUrl(e.target.value).catch(err => feedback.toastError(err))
                             }}
                             error={!!proxy.urlError}
                             helperText={proxy.urlError ?? ''}

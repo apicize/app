@@ -1,7 +1,7 @@
 import { Selection, WorkspaceDefaultParameters, ExecutionState, ValidationState, NO_SELECTION, NO_SELECTION_ID } from "@apicize/lib-typescript"
-import { action, makeObservable, observable, toJS } from "mobx"
+import { action, makeObservable, observable } from "mobx"
 import { EditableEntityContext } from "../editable"
-import { EntityDefaults, EntityTypeName, EntityUpdateNotification } from "../../contexts/workspace.context"
+import { EntityTypeName, EntityUpdateNotification } from "../../contexts/workspace.context"
 import { EditableWarnings } from "./editable-warnings"
 import { EntityType } from "./entity-type"
 import { DefaultsUpdate } from "../updates/defaults-update"
@@ -37,15 +37,15 @@ export class EditableDefaults {
         makeObservable(this)
     }
 
-    protected performUpdate(update: DefaultsUpdate) {
+    protected async performUpdate(update: DefaultsUpdate) {
         this.dirty = true
-        this.workspace.update(update)
+        await this.workspace.update(update)
     }
 
     @action
     deleteWarning(warningId: string) {
         this.validationWarnings.delete(warningId)
-        this.performUpdate({
+        return this.performUpdate({
             type: EntityTypeName.Defaults, entityType: EntityType.Defaults,
             validationWarnings: [...this.validationWarnings.entries.values()]
         })
@@ -57,7 +57,7 @@ export class EditableDefaults {
         this.selectedScenario = entityId == NO_SELECTION_ID
             ? NO_SELECTION
             : { id: entityId, name: this.workspace.getNavigationName(entityId) }
-        this.performUpdate({ type: EntityTypeName.Defaults, entityType: EntityType.Defaults, selectedScenario: this.selectedScenario })
+        return this.performUpdate({ type: EntityTypeName.Defaults, entityType: EntityType.Defaults, selectedScenario: this.selectedScenario })
     }
 
     @action
@@ -65,7 +65,7 @@ export class EditableDefaults {
         this.selectedAuthorization = entityId == NO_SELECTION_ID
             ? NO_SELECTION
             : { id: entityId, name: this.workspace.getNavigationName(entityId) }
-        this.performUpdate({ type: EntityTypeName.Defaults, entityType: EntityType.Defaults, selectedAuthorization: this.selectedAuthorization })
+        return this.performUpdate({ type: EntityTypeName.Defaults, entityType: EntityType.Defaults, selectedAuthorization: this.selectedAuthorization })
     }
 
     @action
@@ -73,7 +73,7 @@ export class EditableDefaults {
         this.selectedCertificate = entityId == NO_SELECTION_ID
             ? NO_SELECTION
             : { id: entityId, name: this.workspace.getNavigationName(entityId) }
-        this.performUpdate({ type: EntityTypeName.Defaults, entityType: EntityType.Defaults, selectedCertificate: this.selectedCertificate })
+        return this.performUpdate({ type: EntityTypeName.Defaults, entityType: EntityType.Defaults, selectedCertificate: this.selectedCertificate })
     }
 
     @action
@@ -81,7 +81,7 @@ export class EditableDefaults {
         this.selectedProxy = entityId == NO_SELECTION_ID
             ? NO_SELECTION
             : { id: entityId, name: this.workspace.getNavigationName(entityId) }
-        this.performUpdate({ type: EntityTypeName.Defaults, entityType: EntityType.Defaults, selectedProxy: this.selectedProxy })
+        return this.performUpdate({ type: EntityTypeName.Defaults, entityType: EntityType.Defaults, selectedProxy: this.selectedProxy })
     }
 
     @action
@@ -89,7 +89,7 @@ export class EditableDefaults {
         this.selectedData = entityId === NO_SELECTION_ID
             ? NO_SELECTION
             : { id: entityId, name: this.workspace.getNavigationName(entityId) }
-        this.performUpdate({ type: EntityTypeName.Defaults, entityType: EntityType.Defaults, selectedData: this.selectedData })
+        return this.performUpdate({ type: EntityTypeName.Defaults, entityType: EntityType.Defaults, selectedData: this.selectedData })
     }
 
     @action

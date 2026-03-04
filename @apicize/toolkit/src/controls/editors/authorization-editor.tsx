@@ -66,9 +66,11 @@ export const AuthorizationEditor = observer(({ authorization, sx }: { authorizat
                     size='small'
                     autoFocus={authorization.name === ''}
                     value={authorization.name}
-                    error={!! authorization.nameError}
+                    error={!!authorization.nameError}
                     helperText={authorization.nameError ?? ''}
-                    onChange={e => authorization.setName(e.target.value)}
+                    onChange={e => {
+                        authorization.setName(e.target.value).catch(err => feedback.toastError(err))
+                    }}
                     fullWidth
                 />
             </Grid>
@@ -86,7 +88,11 @@ export const AuthorizationEditor = observer(({ authorization, sx }: { authorizat
                             open={showAuthorizationTypeMenu}
                             onClose={() => setShowAuthorizationTypeMenu(false)}
                             onOpen={() => setShowAuthorizationTypeMenu(true)}
-                            onChange={e => authorization.setType(e.target.value as AuthorizationType)}
+                            onChange={e => {
+                                if (e.target.value) {
+                                    authorization.setType(e.target.value as AuthorizationType).catch(err => feedback.toastError(err))
+                                }
+                            }}
                         >
                             <MenuItem value={AuthorizationType.Basic}>Basic Authentication</MenuItem>
                             <MenuItem value={AuthorizationType.ApiKey}>API Key Authentication</MenuItem>
@@ -141,7 +147,9 @@ export const AuthorizationEditor = observer(({ authorization, sx }: { authorizat
                                         panel == 'Settings'
                                             ? settingsContent()
                                             : panel == 'Warnings'
-                                                ? <WarningsEditor warnings={authorization.validationWarnings} onDelete={(id) => authorization.deleteWarning(id)} />
+                                                ? <WarningsEditor warnings={authorization.validationWarnings} onDelete={(id) => {
+                                                    authorization.deleteWarning(id).catch(err => feedback.toastError(err))
+                                                }} />
                                                 : <></>
                                     }
                                 </Box>

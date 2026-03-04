@@ -1,4 +1,4 @@
-import { ToggleButton, Box, Grid, SvgIcon, IconButton } from "@mui/material";
+import { ToggleButton, Box, Grid, SvgIcon } from "@mui/material";
 import { SxProps } from "@mui/material";
 import { observer } from "mobx-react-lite";
 import PlayCircleOutlined from '@mui/icons-material/PlayCircleOutlined'
@@ -11,11 +11,12 @@ import SeedIcon from "../icons/seed-icon";
 import { EditableRequestEntry } from "../models/workspace/editable-request-entry";
 import { useApicizeSettings } from "../contexts/apicize-settings.context";
 import { NO_SELECTION_ID } from "@apicize/lib-typescript";
-import { toJS } from "mobx";
+import { useFeedback } from "../contexts/feedback.context";
 
 export const RunToolbar = observer(({ sx, requestEntry }: { sx?: SxProps, requestEntry: EditableRequestEntry }) => {
     const settings = useApicizeSettings()
     const workspace = useWorkspace()
+    const feedback = useFeedback()
 
     const requestId = requestEntry.id
     const running = requestEntry.isRunning
@@ -24,11 +25,11 @@ export const RunToolbar = observer(({ sx, requestEntry }: { sx?: SxProps, reques
     const seedingFromData = requestEntry.selectedDataSet.id === NO_SELECTION_ID ? null : requestEntry.selectedDataSet.name
 
     const handleRunClick = (singleRun: boolean = false) => () => {
-        workspace.startExecution(requestId, singleRun)
+        workspace.startExecution(requestId, singleRun).catch(err => feedback.toastError(err))
     }
 
     const handleCancel = () => {
-        workspace.cancelExecution(requestId)
+        workspace.cancelExecution(requestId).catch(err => feedback.toastError(err))
     }
 
     const label = requestEntry.entityType === EntityType.Group ? 'group' : 'request'
@@ -50,7 +51,7 @@ export const RunToolbar = observer(({ sx, requestEntry }: { sx?: SxProps, reques
         clearDisplay = hasExecutions ? 'inline-flex' : 'none'
     }
 
-    let times = requestEntry.runs == 1 ? 'one time' : `${requestEntry.runs} times`
+    const times = requestEntry.runs == 1 ? 'one time' : `${requestEntry.runs} times`
 
     return (
         <Grid container direction={'row'} display='flex' flexGrow={1} marginLeft='1em' alignItems='center' justifyContent='space-between' sx={sx}>
@@ -64,7 +65,9 @@ export const RunToolbar = observer(({ sx, requestEntry }: { sx?: SxProps, reques
                 <ToggleButton value='Cancel' sx={{ display: cancelDisplay }} title='Cancel' size='small' onClick={() => handleCancel()}>
                     <BlockIcon color='error' />
                 </ToggleButton>
-                <ToggleButton value='Clear' sx={{ display: clearDisplay }} title='Clear Execution Results' size='small' onClick={() => workspace.clearExecution(requestEntry.id)}>
+                <ToggleButton value='Clear' sx={{ display: clearDisplay }} title='Clear Execution Results' size='small' onClick={() => {
+                    workspace.clearExecution(requestEntry.id).catch(err => feedback.toastError(err))
+                }}>
                     <ClearAllIcon color='warning' />
                 </ToggleButton>
             </Box>

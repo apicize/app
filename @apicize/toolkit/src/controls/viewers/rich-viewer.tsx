@@ -12,7 +12,7 @@ import React from 'react'
  * @param props
  * @returns 
  */
-export const RichViewer = React.memo(observer(
+export const RichViewer = observer(
     (
         { text, model, mode, beautify, wrap }:
             {
@@ -25,7 +25,7 @@ export const RichViewer = React.memo(observer(
     ) => {
         const settings = useApicizeSettings()
 
-        let editorLanguage = mode
+        const editorLanguage = mode
         if (beautify === true) {
             switch (mode) {
                 case EditorMode.js:
@@ -48,11 +48,7 @@ export const RichViewer = React.memo(observer(
                 case EditorMode.css:
                     text = css_beautify(text, { indent_size: settings.editorIndentSize })
                     break
-                default:
-                    text = text
             }
-        } else {
-            text = text
         }
 
         return <MonacoEditor
@@ -74,4 +70,4 @@ export const RichViewer = React.memo(observer(
                 readOnly: true,
                 wordWrap: wrap === true ? 'on' : 'off',
             }} />
-    }))
+    })

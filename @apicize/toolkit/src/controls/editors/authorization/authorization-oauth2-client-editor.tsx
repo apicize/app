@@ -4,7 +4,6 @@ import { useWorkspace } from "../../../contexts/workspace.context"
 import { EditableAuthorization } from "../../../models/workspace/editable-authorization"
 import { ToastSeverity, useFeedback } from "../../../contexts/feedback.context"
 import { DEFAULT_SELECTION_ID, NO_SELECTION, NO_SELECTION_ID, Selection } from "@apicize/lib-typescript"
-import { WorkspaceParameters } from "../../../models/workspace/workspace-parameters"
 import { useState, useEffect } from "react"
 import { PasswordTextField } from "../../password-text-field"
 
@@ -31,22 +30,23 @@ export const AuthorizationOAuth2ClientEditor = observer(({ authorization }: { au
         ))
     }
 
-    const retrieveClientToken = async () => {
-        try {
-            await workspace.getOAuth2ClientToken(authorization.id)
-            feedback.toast('OAuth2 client token retrieved successfully', ToastSeverity.Success)
-        } catch (e) {
-            feedback.toastError(e)
-        }
+    const retrieveClientToken = () => {
+        workspace.getOAuth2ClientToken(authorization.id)
+            .then(() => {
+                feedback.toast('OAuth2 client token retrieved successfully', ToastSeverity.Success)
+            }).catch(err => {
+                feedback.toastError(err)
+            })
     }
 
-    const clearToken = async () => {
-        try {
-            await workspace.clearToken(authorization.id)
-            feedback.toast('OAuth token cleared from cache', ToastSeverity.Info)
-        } catch (e) {
-            feedback.toast(`${e}`, ToastSeverity.Error)
-        }
+    const clearToken = () => {
+        workspace.clearToken(authorization.id)
+            .then(() => {
+                feedback.toast('OAuth token cleared from cache', ToastSeverity.Info)
+            })
+            .catch(err => {
+                feedback.toastError(err)
+            })
     }
 
     if ((!workspace.activeParameters) || workspace.activeParameters.requestOrGroupId !== null) {
@@ -64,7 +64,9 @@ export const AuthorizationOAuth2ClientEditor = observer(({ authorization }: { au
                 value={authorization.accessTokenUrl}
                 error={!!authorization.accessTokenUrlError}
                 helperText={authorization.accessTokenUrlError ?? ''}
-                onChange={e => authorization.setAccessTokenUrl(e.target.value)}
+                onChange={e => {
+                    authorization.setAccessTokenUrl(e.target.value).catch(err => feedback.toastError(err))
+                }}
                 size='small'
                 fullWidth
             />
@@ -77,7 +79,9 @@ export const AuthorizationOAuth2ClientEditor = observer(({ authorization }: { au
                 value={authorization.clientId}
                 error={!!authorization.clientIdError}
                 helperText={authorization.clientIdError ?? ''}
-                onChange={e => authorization.setClientId(e.target.value)}
+                onChange={e => {
+                    authorization.setClientId(e.target.value).catch(err => feedback.toastError(err))
+                }}
                 size='small'
                 fullWidth
             />
@@ -88,7 +92,9 @@ export const AuthorizationOAuth2ClientEditor = observer(({ authorization }: { au
                 label='Client Secret'
                 aria-label='oauth client secret'
                 value={authorization.clientSecret}
-                onChange={e => authorization.setClientSecret(e.target.value)}
+                onChange={e => {
+                    authorization.setClientSecret(e.target.value).catch(err => feedback.toastError(err))
+                }}
                 size='small'
                 fullWidth
             />
@@ -97,8 +103,9 @@ export const AuthorizationOAuth2ClientEditor = observer(({ authorization }: { au
             <FormControl>
                 <FormLabel id='lbl-auth-send-creds'>Send Crendentials In</FormLabel>
                 <RadioGroup defaultValue='false' name='auth-send-creds' aria-labelledby="auth-send-creds" row value={authorization.sendCredentialsInBody} onChange={
-                    e => authorization.setSendCredentialsInBody(e.target.value === 'true')
-                }>
+                    e => {
+                        authorization.setSendCredentialsInBody(e.target.value === 'true').catch(err => feedback.toastError(err))
+                    }}>
                     <FormControlLabel value={false} control={<Radio />} label='Basic Authorization' />
                     <FormControlLabel value={true} control={<Radio />} label='Body' />
                 </RadioGroup>
@@ -110,7 +117,9 @@ export const AuthorizationOAuth2ClientEditor = observer(({ authorization }: { au
                 label='Scope'
                 aria-label='oauth scope'
                 value={authorization.scope}
-                onChange={e => authorization.setScope(e.target.value)}
+                onChange={e => {
+                    authorization.setScope(e.target.value).catch(err => feedback.toastError(err))
+                }}
                 size='small'
                 fullWidth
             />
@@ -121,7 +130,9 @@ export const AuthorizationOAuth2ClientEditor = observer(({ authorization }: { au
                 label='Audience'
                 aria-label='oauth audience'
                 value={authorization.audience}
-                onChange={e => authorization.setAudience(e.target.value)}
+                onChange={e => {
+                    authorization.setAudience(e.target.value).catch(err => feedback.toastError(err))
+                }}
                 size='small'
                 fullWidth
             />
@@ -147,7 +158,7 @@ export const AuthorizationOAuth2ClientEditor = observer(({ authorization }: { au
                                 : selectionId == NO_SELECTION_ID
                                     ? NO_SELECTION
                                     : parameters.certificates.find(a => a.id === selectionId)
-                        )
+                        ).catch(err => feedback.toastError(err))
                     }}
                     size='small'
                     fullWidth
@@ -175,7 +186,7 @@ export const AuthorizationOAuth2ClientEditor = observer(({ authorization }: { au
                                 : selectionId === NO_SELECTION_ID
                                     ? NO_SELECTION
                                     : parameters.proxies.find(a => a.id === selectionId)
-                        )
+                        ).catch(err => feedback.toastError(err))
                     }}
                     size='small'
                     fullWidth

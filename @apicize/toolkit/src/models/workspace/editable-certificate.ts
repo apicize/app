@@ -40,50 +40,50 @@ export class EditableCertificate extends Editable<Certificate> {
         }
     }
 
-    protected performUpdate(update: CertificateUpdate) {
+    protected async performUpdate(update: CertificateUpdate) {
         this.markAsDirty()
-        this.workspace.update(update)
-            .then(updates => runInAction(() => {
-                if (updates) {
-                    this.validationErrors = updates.validationErrors || {}
-                }
-            }))
+        const updates = await this.workspace.update(update)
+        runInAction(() => {
+            if (updates) {
+                this.validationErrors = updates.validationErrors || {}
+            }
+        })
     }
 
     @action
     setName(value: string) {
         this.name = value
-        this.performUpdate({ type: EntityTypeName.Certificate, entityType: EntityType.Certificate, id: this.id, name: value })
+        return this.performUpdate({ type: EntityTypeName.Certificate, entityType: EntityType.Certificate, id: this.id, name: value })
     }
 
     @action
     setType(value: CertificateType) {
         this.type = value
-        this.performUpdate({ type: EntityTypeName.Certificate, entityType: EntityType.Certificate, id: this.id, certType: value })
+        return this.performUpdate({ type: EntityTypeName.Certificate, entityType: EntityType.Certificate, id: this.id, certType: value })
     }
 
     @action
     setPem(value: string) {
         this.pem = value
-        this.performUpdate({ type: EntityTypeName.Certificate, entityType: EntityType.Certificate, id: this.id, pem: value })
+        return this.performUpdate({ type: EntityTypeName.Certificate, entityType: EntityType.Certificate, id: this.id, pem: value })
     }
 
     @action
     setKey(value: string | undefined) {
         this.key = value || ''
-        this.performUpdate({ type: EntityTypeName.Certificate, entityType: EntityType.Certificate, id: this.id, key: value ?? null })
+        return this.performUpdate({ type: EntityTypeName.Certificate, entityType: EntityType.Certificate, id: this.id, key: value ?? null })
     }
 
     @action
     setCertificatePfx(value: string) {
         this.pfx = value
-        this.performUpdate({ type: EntityTypeName.Certificate, entityType: EntityType.Certificate, id: this.id, pfx: value })
+        return this.performUpdate({ type: EntityTypeName.Certificate, entityType: EntityType.Certificate, id: this.id, pfx: value })
     }
 
     @action
     setPassword(value: string) {
         this.password = value
-        this.performUpdate({ type: EntityTypeName.Certificate, entityType: EntityType.Certificate, id: this.password, pfx: value })
+        return this.performUpdate({ type: EntityTypeName.Certificate, entityType: EntityType.Certificate, id: this.password, pfx: value })
     }
 
     @action

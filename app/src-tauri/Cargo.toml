@@ -25,7 +25,9 @@ tauri-plugin-fs = "^2"
 # tauri-plugin-clipboard-manager = "^2.1.0"
 tauri-plugin-dialog = "^2"
 tauri-plugin-window-state = "^2"
-tauri-plugin-clipboard = { git = "https://github.com/jasonterando/tauri-plugin-clipboard/", branch = "v2-yarn-friendly" }
+# tauri-plugin-clipboard = { git = "https://github.com/jasonterando/tauri-plugin-clipboard/", branch = "v2-yarn-friendly" }
+# tauri-plugin-clipboard = { git = "https://github.com/CrossCopy/tauri-plugin-clipboard", branch = "v2" }
+clipboard-rs = "^0.3"
 env_logger = "^0.11.9"
 tauri-plugin-log = "^2"
 tauri-plugin-single-instance = "^2"

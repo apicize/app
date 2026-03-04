@@ -1,9 +1,9 @@
 import { Persistence } from "@apicize/lib-typescript"
-import { Box, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, SvgIcon, Theme, useTheme } from "@mui/material"
+import { Box, Divider, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, SvgIcon, Theme, useTheme } from "@mui/material"
 import AddIcon from '@mui/icons-material/Add'
-import DeleteIcon from '@mui/icons-material/DeleteOutlined'
+import DeleteIcon from '@mui/icons-material/RemoveCircleOutline';
 import { EntityType } from "../../../models/workspace/entity-type"
-import { useWorkspace, WorkspaceMode } from "../../../contexts/workspace.context"
+import { useWorkspace } from "../../../contexts/workspace.context"
 import { useState } from "react"
 import { MenuPosition } from "../../../models/menu-position"
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
@@ -40,21 +40,22 @@ const DataMenu = observer(({ dataMenu, settings, theme, onClose, onAdd, onDupe, 
             left: dataMenu?.mouseX ?? 0
         }}
     >
-        <MenuItem className='navigation-menu-item' sx={{ fontSize: 'inherit' }} onClick={(_) => onAdd(dataMenu.id, IndexedEntityPosition.After)}>
+        <MenuItem className='navigation-menu-item' onClick={(_) => onAdd(dataMenu.id, IndexedEntityPosition.After)}>
             <ListItemIcon>
-                <SvgIcon fontSize='small' color='data'><DatasetIcon /></SvgIcon>
+                <SvgIcon color='data'><DatasetIcon /></SvgIcon>
             </ListItemIcon>
             <ListItemText disableTypography>Add Data Set</ListItemText>
         </MenuItem>
-        <MenuItem className='navigation-menu-item' sx={{ fontSize: 'inherit' }} onClick={(_) => onDupe()}>
+        <Divider />
+        <MenuItem className='navigation-menu-item' onClick={(_) => onDupe()}>
             <ListItemIcon>
-                <SvgIcon fontSize='small' sx={{ color: theme.palette.data.light }}><ContentCopyOutlinedIcon /></SvgIcon>
+                <SvgIcon sx={{ color: theme.palette.data.light }}><ContentCopyOutlinedIcon /></SvgIcon>
             </ListItemIcon>
             <ListItemText disableTypography>Duplicate Data Set</ListItemText>
         </MenuItem>
-        <MenuItem className='navigation-menu-item' sx={{ fontSize: 'inherit' }} onClick={(_) => onDelete()}>
+        <MenuItem className='navigation-menu-item' onClick={(_) => onDelete()}>
             <ListItemIcon>
-                <DeleteIcon fontSize='small' color='error' />
+                <DeleteIcon color='error' />
             </ListItemIcon>
             <ListItemText disableTypography>Delete Data Set</ListItemText>
         </MenuItem>
@@ -185,7 +186,7 @@ export const DataSetSection = observer(({
             if (result) {
                 workspace.deleteDataSet(id)
             }
-        })
+        }).catch(err => feedback.toastError(err))
     }
 
     const dataSetContentsProps = {

@@ -64,15 +64,20 @@ export const CertificateEditor = observer(({ certificate, sx }: { certificate: E
 
     const pasteDataFromClipboard = async (fileType: SshFileType) => {
         try {
-            const text = await clipboard.getClipboardText()
+            const data = await clipboard.getData()
+            if (data.type !== 'text') {
+                throw new Error('Clipboard does not contain text')
+            }
+            const text = data.text
+
             if (text.length > 0) {
                 switch (fileType) {
                     case SshFileType.PEM:
-                        certificate.setPem(text)
+                        await certificate.setPem(text)
                         feedback.toast('PEM pasted from clipboard', ToastSeverity.Success)
                         break
                     case SshFileType.Key:
-                        certificate.setKey(text)
+                        await certificate.setKey(text)
                         feedback.toast('Key pasted from clipboard', ToastSeverity.Success)
                         break
                 }
@@ -88,13 +93,13 @@ export const CertificateEditor = observer(({ certificate, sx }: { certificate: E
             if (data) {
                 switch (fileType) {
                     case SshFileType.PEM:
-                        certificate.setPem(data)
+                        certificate.setPem(data).catch(err => feedback.toastError(err))
                         break
                     case SshFileType.Key:
-                        certificate.setKey(data)
+                        certificate.setKey(data).catch(err => feedback.toastError(err))
                         break
                     case SshFileType.PFX:
-                        certificate.setCertificatePfx(data)
+                        certificate.setCertificatePfx(data).catch(err => feedback.toastError(err))
                         break
                 }
                 feedback.toast(`${fileType} loaded from file`, ToastSeverity.Success)
@@ -124,7 +129,9 @@ export const CertificateEditor = observer(({ certificate, sx }: { certificate: E
                         size='small'
                         value={certificate.name}
                         helperText={certificate.nameError ?? ''}
-                        onChange={e => certificate.setName(e.target.value)}
+                        onChange={e => {
+                            certificate.setName(e.target.value).catch(err => feedback.toastError(err))
+                        }}
                         fullWidth
                     />
                     <FormControl>
@@ -138,8 +145,9 @@ export const CertificateEditor = observer(({ certificate, sx }: { certificate: E
                             open={showCertificateTypeMenu}
                             onClose={() => setShowCertificateTypeMenu(false)}
                             onOpen={() => setShowCertificateTypeMenu(true)}
-                            onChange={e => certificate.setType(e.target.value as
-                                CertificateType.PEM | CertificateType.PKCS8_PEM | CertificateType.PKCS12)}
+                            onChange={e => {
+                                certificate.setType(e.target.value).catch(err => feedback.toastError(err))
+                            }}
                         >
                             <MenuItem value={CertificateType.PKCS8_PEM}>PKCS 8 (PEM)</MenuItem>
                             <MenuItem value={CertificateType.PKCS12}>PKCS 12 (PFX)</MenuItem>
@@ -154,10 +162,14 @@ export const CertificateEditor = observer(({ certificate, sx }: { certificate: E
                                         <Stack direction={'row'} spacing={3} position='relative'>
                                             <Typography variant='h6' component='div'>SSL PEM Certificate / Chain</Typography>
                                             <IconButton color='primary' size='medium' aria-label='open pem certificate chain filename' title='Open Certificate PEM File'
-                                                onClick={() => openFile(SshFileType.PEM)}
+                                                onClick={() => {
+                                                    openFile(SshFileType.PEM).catch(err => feedback.toastError(err))
+                                                }}
                                             ><FileOpenIcon fontSize='inherit' /></IconButton>
                                             <IconButton color='primary' disabled={!clipboard.hasText} size='medium' aria-label='paste-pem' title='Paste PEM from Clipboard'
-                                                onClick={() => pasteDataFromClipboard(SshFileType.PEM)}><ContentPasteGoIcon fontSize='inherit' /></IconButton>
+                                                onClick={() => {
+                                                    pasteDataFromClipboard(SshFileType.PEM).catch(err => feedback.toastError(err))
+                                                }}><ContentPasteGoIcon fontSize='inherit' /></IconButton>
                                         </Stack>
                                         <TextField
                                             id='cert-pem'
@@ -179,10 +191,14 @@ export const CertificateEditor = observer(({ certificate, sx }: { certificate: E
                                         <Stack direction={'row'} spacing={3} position='relative'>
                                             <Typography variant='h6' component='div'>SSL Key</Typography>
                                             <IconButton color='primary' size='medium' aria-label='open certificate key file' title='Open Certificate Key File'
-                                                onClick={() => openFile(SshFileType.Key)}
+                                                onClick={() => {
+                                                    openFile(SshFileType.Key).catch(err => feedback.toastError(err))
+                                                }}
                                             ><FileOpenIcon fontSize='inherit' /></IconButton>
                                             <IconButton color='primary' disabled={!clipboard.hasText} size='medium' aria-label='paste-key' title='Paste Key from Clipboard'
-                                                onClick={() => pasteDataFromClipboard(SshFileType.Key)}><ContentPasteGoIcon fontSize='inherit' /></IconButton>
+                                                onClick={() => {
+                                                    pasteDataFromClipboard(SshFileType.Key).catch(err => feedback.toastError(err))
+                                                }}><ContentPasteGoIcon fontSize='inherit' /></IconButton>
                                         </Stack>
                                         <PasswordTextField
                                             id='cert-key'
@@ -208,7 +224,9 @@ export const CertificateEditor = observer(({ certificate, sx }: { certificate: E
                                         <Stack direction={'row'} spacing={3} position='relative'>
                                             <Typography variant='h6' component='div'>PFX Certificate</Typography>
                                             <IconButton color='primary' size='medium' aria-label='open certificate pfx file' title='Open Certificate PFX File'
-                                                onClick={() => openFile(SshFileType.PFX)}
+                                                onClick={() => {
+                                                    openFile(SshFileType.PFX).catch(err => feedback.toastError(err))
+                                                }}
                                             ><FileOpenIcon fontSize='inherit' /></IconButton>
                                         </Stack>
                                         <Stack direction={'row'} spacing={3}>
@@ -234,7 +252,9 @@ export const CertificateEditor = observer(({ certificate, sx }: { certificate: E
                                             aria-label='certificate pfx file contents'
                                             className="password"
                                             value={certificate.password}
-                                            onChange={e => certificate.setPassword(e.target.value)}
+                                            onChange={e => {
+                                                certificate.setPassword(e.target.value).catch(err => feedback.toastError(err))
+                                            }}
                                             size='small'
                                             fullWidth
                                         />
@@ -244,10 +264,14 @@ export const CertificateEditor = observer(({ certificate, sx }: { certificate: E
                                         <Stack direction={'row'} spacing={3} position='relative'>
                                             <Typography variant='h6' component='div'>SSL PEM Certificate / Chain</Typography>
                                             <IconButton color='primary' size='medium' aria-label='open pem certificate chain filename' title='Open Certificate PEM File'
-                                                onClick={() => openFile(SshFileType.PEM)}
+                                                onClick={() => {
+                                                    openFile(SshFileType.PEM).catch(err => feedback.toastError(err))
+                                                }}
                                             ><FileOpenIcon fontSize='inherit' /></IconButton>
                                             <IconButton color='primary' disabled={!clipboard.hasText} size='medium' aria-label='paste-pem' title='Paste PEM from Clipboard'
-                                                onClick={() => pasteDataFromClipboard(SshFileType.PEM)}><ContentPasteGoIcon fontSize='inherit' /></IconButton>
+                                                onClick={() => {
+                                                    pasteDataFromClipboard(SshFileType.PEM).catch(err => feedback.toastError(err))
+                                                }}><ContentPasteGoIcon fontSize='inherit' /></IconButton>
                                         </Stack>
                                         <Stack direction={'row'} spacing={3}>
                                             <TextField

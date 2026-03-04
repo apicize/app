@@ -16,14 +16,12 @@ import CloseIcon from '@mui/icons-material/Close';
 import { EditorTitle } from '../editor-title';
 import DefaultsIcon from '../../icons/defaults-icon';
 import AltRouteIcon from '@mui/icons-material/AltRoute'
-import DatasetIcon from '@mui/icons-material/Dataset';
 import { useEffect, useState } from 'react';
 import { useFeedback } from '../../contexts/feedback.context';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { WarningsEditor } from './warnings-editor';
 import { EditableDefaults } from '../../models/workspace/editable-defaults';
 import { WorkspaceParameters } from '../../models/workspace/workspace-parameters';
-import { toJS } from 'mobx'
 
 type DefaultsPanels = 'Parameters' | 'Warnings'
 
@@ -58,6 +56,8 @@ const ParameterEditor = observer(({
     showDefaultDataMenu,
     setShowDefaultDataMenu,
 }: ParameterEditorProps) => {
+    const feedback = useFeedback()
+
     let credIndex = 0
     const itemsFromSelections = (selections: Selection[]) => {
         return selections.map(s => (
@@ -77,7 +77,9 @@ const ParameterEditor = observer(({
                 open={showDefaultScenarioMenu}
                 onClose={() => setShowDefaultScenarioMenu(false)}
                 onOpen={() => setShowDefaultScenarioMenu(true)}
-                onChange={(e) => defaults.setScenarioId(e.target.value)}
+                onChange={(e) => {
+                    defaults.setScenarioId(e.target.value).catch(err => feedback.toastError(err))
+                }}
                 size='small'
                 fullWidth
             >
@@ -95,7 +97,9 @@ const ParameterEditor = observer(({
                 open={showDefaultAuthorizationMenu}
                 onClose={() => setShowDefaultAuthorizationMenu(false)}
                 onOpen={() => setShowDefaultAuthorizationMenu(true)}
-                onChange={(e) => defaults.setAuthorizationId(e.target.value)}
+                onChange={(e) => {
+                    defaults.setAuthorizationId(e.target.value).catch(err => feedback.toastError(err))
+                }}
                 size='small'
                 fullWidth
             >
@@ -113,7 +117,9 @@ const ParameterEditor = observer(({
                 open={showDefaultCertificateMenu}
                 onClose={() => setShowDefaultCertificateMenu(false)}
                 onOpen={() => setShowDefaultCertificateMenu(true)}
-                onChange={(e) => defaults.setCertificateId(e.target.value)}
+                onChange={(e) => {
+                    defaults.setCertificateId(e.target.value).catch(err => feedback.toastError(err))
+                }}
                 size='small'
                 fullWidth
             >
@@ -131,7 +137,9 @@ const ParameterEditor = observer(({
                 open={showDefaultProxyMenu}
                 onClose={() => setShowDefaultProxyMenu(false)}
                 onOpen={() => setShowDefaultProxyMenu(true)}
-                onChange={(e) => defaults.setProxyId(e.target.value)}
+                onChange={(e) => {
+                    defaults.setProxyId(e.target.value).catch(err => feedback.toastError(err))
+                }}
                 size='small'
                 fullWidth
             >
@@ -149,7 +157,9 @@ const ParameterEditor = observer(({
                 open={showDefaultDataMenu}
                 onClose={() => setShowDefaultDataMenu(false)}
                 onOpen={() => setShowDefaultDataMenu(true)}
-                onChange={(e) => defaults.setDataId(e.target.value)}
+                onChange={(e) => {
+                    defaults.setDataId(e.target.value).catch(err => feedback.toastError(err))
+                }}
                 fullWidth
                 size='small'
             >
@@ -251,7 +261,9 @@ export const DefaultsEditor = observer(({ sx }: { sx: SxProps }) => {
                                     panel == 'Parameters'
                                         ? <ParameterEditor {...parameterEditorProps} />
                                         : panel == 'Warnings'
-                                            ? <WarningsEditor warnings={workspace.defaults.validationWarnings} onDelete={(id) => defaults.deleteWarning(id)} />
+                                            ? <WarningsEditor warnings={workspace.defaults.validationWarnings} onDelete={(id) => {
+                                                defaults.deleteWarning(id).catch(err => feedback.toastError(err))
+                                            }} />
                                             : <></>
                                 }
                             </Box>

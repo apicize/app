@@ -19,7 +19,7 @@ export class FileDragDropStore {
     private observedTargets = new Map<string, DragDropTarget>()
 
     private lastResize = 0
-    private updateIfSettled(entries: ResizeObserverEntry[]) {
+    private updateIfSettled = (entries: ResizeObserverEntry[]) => {
         if (Date.now() - this.lastResize > 500) {
             for (const entry of entries) {
                 const observer = this.observedTargets.get(entry.target.id)

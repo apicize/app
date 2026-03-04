@@ -33,7 +33,7 @@ export function ApicizeSettingsProvider({
                 keydownHandler = (event: KeyboardEvent) => {
                     if (event.ctrlKey && event.shiftKey && event.key === 'R') {
                         event.preventDefault()
-                        core.invoke('set_debug_window_size')
+                        core.invoke('set_debug_window_size').catch(console.error)
                     }
                 }
                 document.addEventListener('keydown', keydownHandler)
@@ -49,7 +49,7 @@ export function ApicizeSettingsProvider({
             } catch (e) {
                 console.error("Unable to detect OS", e)
             }
-        })()
+        })().catch(console.error)
 
         return () => {
             if (contextMenuHandler) {

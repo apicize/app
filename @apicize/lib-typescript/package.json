@@ -4,6 +4,7 @@
   "version": "0.33.1",
   "description": "TypeScript model definitions for Apicize",
   "scripts": {
+    "lint": "yarn run -T eslint src/",
     "build": "tsc --build",
     "watch": "tsc --watch",
     "rebuild": "rm -rf dist && rm ./tsconfig.tsbuildinfo && tsc --build"

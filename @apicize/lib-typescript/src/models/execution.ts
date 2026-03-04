@@ -1,4 +1,4 @@
-export type JsonValue = string | number | boolean | [] | Object
+export type JsonValue = string | number | boolean | [] | object
 
 export type ApicizeGroupItem = ApicizeGroup | ApicizeRequest
 
@@ -188,7 +188,7 @@ export interface ApicizeBodyBinary {
     data: string
 }
 
-export type ApicizeBody = ApicizeBodyText | ApicizeBodyJSON | ApicizeBodyJSON | ApicizeBodyForm | ApicizeBodyBinary
+export type ApicizeBody = ApicizeBodyText | ApicizeBodyJSON   | ApicizeBodyForm | ApicizeBodyBinary
 
 export interface ApicizeHttpRequest {
     url: string,

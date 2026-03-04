@@ -3,9 +3,11 @@ import { observer } from 'mobx-react-lite'
 import { Box } from '@mui/material'
 import { useWorkspace } from '../../../contexts/workspace.context'
 import { EditableRequest } from '../../../models/workspace/editable-request'
+import { useFeedback } from '../../../contexts/feedback.context'
 
 export const RequestHeadersEditor = observer(({ request }: { request: EditableRequest }) => {
   const workspace = useWorkspace()
+  const feedback = useFeedback()
   workspace.nextHelpTopic = 'requests/headers'
 
   return (
@@ -15,7 +17,9 @@ export const RequestHeadersEditor = observer(({ request }: { request: EditableRe
         values={request.headers}
         nameHeader='Header'
         valueHeader='Value'
-        onUpdate={(pairs) => request.setHeaders(pairs)} />
+        onUpdate={(pairs) => {
+          request.setHeaders(pairs).catch(err => feedback.toastError(err))
+        }} />
     </Box>
   )
 })

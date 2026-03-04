@@ -1,6 +1,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+pub mod clipboard;
 pub mod dragdrop;
 pub mod error;
 pub mod navigation;
@@ -18,6 +19,8 @@ use apicize_lib::{
     editing::indexed_entities::IndexedEntityPosition, get_existing_absolute_file_name,
     get_oauth2_client_credentials, get_relative_file_name, store_oauth2_token_in_cache,
 };
+
+use clipboard::{ClipboardData, ClipboardDataType, ClipboardState};
 use dirs::home_dir;
 use dragdrop::DroppedFile;
 use error::ApicizeAppError;
@@ -41,7 +44,6 @@ use tauri::async_runtime::RwLock;
 use tauri::{
     AppHandle, Emitter, LogicalSize, Manager, PhysicalSize, State, WebviewWindowBuilder, Wry,
 };
-use tauri_plugin_clipboard::Clipboard;
 use tokio_util::sync::CancellationToken;
 use trace::{ReqwestEvent, ReqwestLogger};
 use workspaces::{
@@ -178,6 +180,7 @@ async fn main() {
                 &mut sessions,
                 &mut workspaces,
                 &mut settings,
+                ClipboardDataType::None,
                 load_workbook,
                 true,
                 None,
@@ -209,15 +212,17 @@ async fn main() {
             app.manage(SettingsState {
                 settings: RwLock::new(settings),
             });
+
             // Set up workspaces
             app.manage(WorkspacesState {
                 workspaces: RwLock::new(workspaces),
             });
 
+            app.manage(ClipboardState::new(app.handle().clone()));
+
             Ok(())
         })
         .plugin(tauri_plugin_os::init())
-        .plugin(tauri_plugin_clipboard::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
@@ -243,6 +248,7 @@ async fn main() {
                     app.state::<SessionsState>(),
                     app.state::<WorkspacesState>(),
                     app.state::<SettingsState>(),
+                    app.state::<ClipboardState>(),
                     None,
                     true,
                 ))
@@ -272,7 +278,6 @@ async fn main() {
             store_token,
             clear_all_cached_authorizations,
             clear_cached_authorization,
-            copy_to_clipboard,
             // get_environment_variables,
             is_release_mode,
             set_debug_window_size,
@@ -285,7 +290,6 @@ async fn main() {
             retrieve_oauth2_client_token,
             retrieve_oauth2_pkce_token,
             refresh_token,
-            get_clipboard_file_data,
             get,
             update_active_entity,
             update_expanded_items,
@@ -309,10 +313,16 @@ async fn main() {
             open_data_set_file,
             open_data_set_file_from,
             save_data_set_file,
+            copy_to_clipboard,
+            clipboard_get_file_data,
+            clipboard_write_text,
+            clipboard_write_image,
+            clipboard_read_image,
+            clipboard_paste_data,
         ])
         .build(tauri::generate_context!())
         .expect("error building Apicize")
-        .run(|_app_handle, event| {
+        .run(|_app: &AppHandle, event| {
             if let tauri::RunEvent::Exit = event {
                 let tokens = cancellation_tokens().lock().unwrap();
                 for token in tokens.values() {
@@ -376,11 +386,12 @@ fn create_workspace(
     sessions: &mut Sessions,
     workspaces: &mut Workspaces,
     settings: &mut ApicizeSettings,
+    clipboard_data_type: ClipboardDataType,
     open_existing_file_name: Option<String>,
     create_new_if_error: bool,
     current_session_id: Option<String>,
     open_in_new_session: bool,
-) -> Result<(), ApicizeAppError> {
+) -> Result<String, ApicizeAppError> {
     let mut save_recent_file_name: Option<String> = None;
 
     for (id, info) in &workspaces.workspaces {
@@ -473,6 +484,7 @@ fn create_workspace(
     }
 
     let trace_title: String;
+    let new_session_id: String;
     {
         let info = workspaces.get_workspace_info_mut(&workspace_result.workspace_id)?;
         trace_title = {
@@ -493,6 +505,8 @@ fn create_workspace(
         if let Some(active_session_id) = current_session_id.as_ref()
             && !open_in_new_session
         {
+            new_session_id = active_session_id.clone();
+
             // If we are assigning the opened workspace to an existing session, send necessary info
             let session =
                 sessions.change_workspace(active_session_id, &workspace_result.workspace_id)?;
@@ -567,6 +581,7 @@ fn create_workspace(
                     })
                     .collect::<FxHashMap<String, ExecutionEvent>>(),
                 error: None,
+                clipboard_data_type,
             };
 
             app.emit_to(active_session_id, "initialize", init).unwrap();
@@ -665,27 +680,27 @@ fn create_workspace(
                     })
                     .collect::<FxHashMap<String, ExecutionEvent>>(),
                 error: None,
+                clipboard_data_type,
             };
 
             let init_data = serde_json::to_string(&init).unwrap();
-            let active_session_id = sessions.add_session(session);
+            new_session_id = sessions.add_session(session);
 
             let webview_url = tauri::WebviewUrl::App("index.html".into());
-            let mut builder = tauri::WebviewWindowBuilder::new(
-                &app,
-                active_session_id.clone(),
-                webview_url.clone(),
-            )
-            .visible(false)
-            // .visible(true)
-            .prevent_overflow_with_margin(LogicalSize::new(64, 64))
-            .title(format_window_title(&workspace_result.display_name, info.dirty).as_str())
-            .initialization_script(format!("window.__INIT_DATA__= {init_data};"));
+            let release_mode = self::is_release_mode();
+
+            let mut builder =
+                tauri::WebviewWindowBuilder::new(&app, new_session_id.clone(), webview_url.clone())
+                    .visible(!release_mode)
+                    .prevent_overflow_with_margin(LogicalSize::new(64, 64))
+                    .title(format_window_title(&workspace_result.display_name, info.dirty).as_str())
+                    .initialization_script(format!("window.__INIT_DATA__= {init_data};"));
 
             builder = position_window_builder(&app, builder, &current_session_id);
             let window = builder.build().unwrap();
-            // window.show().unwrap();
-            window.hide().unwrap();
+            if release_mode {
+                window.hide().unwrap();
+            }
         }
     }
 
@@ -710,7 +725,7 @@ fn create_workspace(
     workspaces.trace_all_workspaces();
     sessions.trace_all_sessions();
 
-    Ok(())
+    Ok(new_session_id)
 }
 
 fn position_window_builder<'a>(
@@ -799,22 +814,28 @@ async fn clone_workspace(
     workspaces.trace_all_workspaces();
     sessions.trace_all_sessions();
 
+    let release_mode = self::is_release_mode();
+
     let webview_url = tauri::WebviewUrl::App("index.html".into());
     let mut builder =
         tauri::WebviewWindowBuilder::new(&app, active_session_id.clone(), webview_url.clone())
-            .visible(false)
+            .visible(!release_mode)
             .title(format_window_title(&info.display_name, info.dirty).as_str());
     builder = position_window_builder(&app, builder, &Some(session_id));
 
     let window = builder.build().unwrap();
-    window.hide().unwrap();
+    if release_mode {
+        window.hide().unwrap();
+    }
     Ok(())
 }
 
 #[tauri::command]
 fn show_session(app: AppHandle, session_id: String) {
     if let Some(w) = app.get_webview_window(&session_id) {
-        w.show().unwrap()
+        w.show().unwrap();
+        w.set_focus().unwrap();
+        app.emit("session_opened", session_id).unwrap();
     }
 }
 
@@ -824,9 +845,10 @@ async fn new_workspace(
     sessions_state: State<'_, SessionsState>,
     workspaces_state: State<'_, WorkspacesState>,
     settings_state: State<'_, SettingsState>,
+    clipboard_state: State<'_, ClipboardState>,
     current_session_id: Option<String>,
     open_in_new_session: bool,
-) -> Result<(), ApicizeAppError> {
+) -> Result<String, ApicizeAppError> {
     let sessions = &mut sessions_state.sessions.write().await;
     let workspaces = &mut workspaces_state.workspaces.write().await;
     let settings = &mut settings_state.settings.write().await;
@@ -836,6 +858,7 @@ async fn new_workspace(
         sessions,
         workspaces,
         settings,
+        clipboard_state.get_data_type(),
         None,
         true,
         current_session_id,
@@ -849,10 +872,11 @@ async fn open_workspace(
     sessions_state: State<'_, SessionsState>,
     workspaces_state: State<'_, WorkspacesState>,
     settings_state: State<'_, SettingsState>,
+    clipboard_state: State<'_, ClipboardState>,
     file_name: String,
     session_id: Option<String>,
     open_in_new_session: bool,
-) -> Result<(), ApicizeAppError> {
+) -> Result<String, ApicizeAppError> {
     let sessions = &mut sessions_state.sessions.write().await;
     let workspaces = &mut workspaces_state.workspaces.write().await;
     let settings = &mut settings_state.settings.write().await;
@@ -862,6 +886,7 @@ async fn open_workspace(
         sessions,
         workspaces,
         settings,
+        clipboard_state.get_data_type(),
         Some(file_name),
         false,
         session_id,
@@ -1582,34 +1607,6 @@ async fn retrieve_oauth2_client_token(
 }
 
 #[tauri::command]
-async fn copy_to_clipboard(
-    sessions_state: State<'_, SessionsState>,
-    workspaces_state: State<'_, WorkspacesState>,
-    clipboard_state: State<'_, Clipboard>,
-    settings_state: State<'_, SettingsState>,
-    session_id: &str,
-    payload_request: ClipboardPayloadRequest,
-    // payload_type: &str,
-) -> Result<(), ApicizeAppError> {
-    let workspaces = workspaces_state.workspaces.read().await;
-    let sessions = sessions_state.sessions.read().await;
-    let session = sessions.get_session(session_id)?;
-    let settings = settings_state.settings.read().await;
-    let info = workspaces.get_workspace_info(&session.workspace_id)?;
-
-    if let Some(payload) =
-        info.get_clipboard_payload(payload_request, settings.editor_indent_size as usize)?
-    {
-        return match payload {
-            PersistableData::Text(data) => clipboard_state.write_text(data),
-            PersistableData::Binary(data) => clipboard_state.write_image_binary(data),
-        }
-        .map_err(ApicizeAppError::ClipboardError);
-    }
-    Ok(())
-}
-
-#[tauri::command]
 async fn get_request_body(
     sessions_state: State<'_, SessionsState>,
     workspaces_state: State<'_, WorkspacesState>,
@@ -1678,86 +1675,55 @@ async fn update_request_body_from_clipboard(
     app: AppHandle,
     sessions_state: State<'_, SessionsState>,
     workspaces_state: State<'_, WorkspacesState>,
-    clipboard_state: State<'_, Clipboard>,
+    clipboard_state: State<'_, ClipboardState>,
     session_id: &str,
     request_id: &str,
 ) -> Result<RequestBodyInfo, ApicizeAppError> {
-    match clipboard_state.has_image() {
-        Ok(has_image) => {
-            if has_image {
-                let mut workspaces = workspaces_state.workspaces.write().await;
-                let sessions = sessions_state.sessions.read().await;
-                let session = sessions.get_session(session_id)?;
+    if clipboard_state.get_data_type() == ClipboardDataType::Image {
+        let mut workspaces = workspaces_state.workspaces.write().await;
+        let sessions = sessions_state.sessions.read().await;
+        let session = sessions.get_session(session_id)?;
 
-                let data = clipboard_state
-                    .read_image_binary()
-                    .map_err(ApicizeAppError::ClipboardError)?;
-                let body_length = Some(data.len());
-                let body = RequestBody::Raw { data };
-                let body_mime_type = Some(Workspaces::get_body_type(&body));
-                let body_info = RequestBodyInfo {
-                    id: request_id.to_string(),
-                    body: Some(body),
-                    body_mime_type,
-                    body_length,
-                };
+        let data = clipboard_state.read_image()?;
+        let body_length = Some(data.len());
+        let body = RequestBody::Raw { data };
+        let body_mime_type = Some(Workspaces::get_body_type(&body));
+        let body_info = RequestBodyInfo {
+            id: request_id.to_string(),
+            body: Some(body),
+            body_mime_type,
+            body_length,
+        };
 
-                workspaces.update_request_body(&session.workspace_id, &body_info)?;
+        workspaces.update_request_body(&session.workspace_id, &body_info)?;
 
-                let response = body_info.clone();
+        let response = body_info.clone();
 
-                // Publish updates on all other sessions than the one sending the update
-                // so they can update themselves
-                let other_sessions =
-                    get_workspace_sessions(&session.workspace_id, &sessions, Some(session_id));
-                if let Some(other_session_ids) = other_sessions {
-                    let notification = EntityUpdateNotification {
-                        update: EntityUpdate::Request(RequestUpdate::from_body_info(body_info)),
-                        validation_warnings: None,
-                        validation_errors: None,
-                    };
+        // Publish updates on all other sessions than the one sending the update
+        // so they can update themselves
+        let other_sessions =
+            get_workspace_sessions(&session.workspace_id, &sessions, Some(session_id));
+        if let Some(other_session_ids) = other_sessions {
+            let notification = EntityUpdateNotification {
+                update: EntityUpdate::Request(RequestUpdate::from_body_info(body_info)),
+                validation_warnings: None,
+                validation_errors: None,
+            };
 
-                    for other_session_id in other_session_ids {
-                        app.emit_to(other_session_id, "update", &notification)
-                            .unwrap();
-                    }
-                }
-
-                let info = workspaces.get_workspace_info(&session.workspace_id)?;
-                dispatch_save_state(&app, &sessions, &session.workspace_id, info, true);
-                Ok(response)
-            } else {
-                Err(ApicizeAppError::ClipboardError(String::from(
-                    "Clipboard does not contain an image",
-                )))
+            for other_session_id in other_session_ids {
+                app.emit_to(other_session_id, "update", &notification)
+                    .unwrap();
             }
         }
-        Err(msg) => Err(ApicizeAppError::ClipboardError(msg)),
-    }
-}
 
-#[tauri::command]
-fn get_clipboard_file_data(paths: Vec<String>) -> Result<DroppedFile, String> {
-    for file_path in paths {
-        match exists(&file_path) {
-            Ok(found) => {
-                if found {
-                    match fs::read(&file_path) {
-                        Ok(data) => {
-                            return Ok(DroppedFile::from_data(&file_path, data));
-                        }
-                        Err(err) => {
-                            return Err(err.to_string());
-                        }
-                    }
-                }
-            }
-            Err(err) => {
-                return Err(err.to_string());
-            }
-        }
+        let info = workspaces.get_workspace_info(&session.workspace_id)?;
+        dispatch_save_state(&app, &sessions, &session.workspace_id, info, true);
+        Ok(response)
+    } else {
+        Err(ApicizeAppError::ClipboardError(String::from(
+            "Clipboard does not contain an image",
+        )))
     }
-    Err("Unable to locate dropped paths".to_string())
 }
 
 #[tauri::command]
@@ -2745,6 +2711,198 @@ async fn save_data_set_file(
     .await?;
 
     Ok(relative_file_name)
+}
+
+#[tauri::command]
+async fn copy_to_clipboard(
+    sessions_state: State<'_, SessionsState>,
+    workspaces_state: State<'_, WorkspacesState>,
+    clipboard_state: State<'_, ClipboardState>,
+    settings_state: State<'_, SettingsState>,
+    session_id: &str,
+    payload_request: ClipboardPayloadRequest,
+    // payload_type: &str,
+) -> Result<(), ApicizeAppError> {
+    let workspaces = workspaces_state.workspaces.read().await;
+    let sessions = sessions_state.sessions.read().await;
+    let session = sessions.get_session(session_id)?;
+    let settings = settings_state.settings.read().await;
+    let info = workspaces.get_workspace_info(&session.workspace_id)?;
+
+    if let Some(payload) =
+        info.get_clipboard_payload(payload_request, settings.editor_indent_size as usize)?
+    {
+        match payload {
+            PersistableData::Text(data) => clipboard_state.set_text(data),
+            PersistableData::Binary(data) => clipboard_state.set_image(data),
+        }
+    } else {
+        Ok(())
+    }
+}
+
+#[tauri::command]
+fn clipboard_get_file_data(paths: Vec<String>) -> Result<DroppedFile, String> {
+    for file_path in paths {
+        match exists(&file_path) {
+            Ok(found) => {
+                if found {
+                    match fs::read(&file_path) {
+                        Ok(data) => {
+                            return Ok(DroppedFile::from_data(&file_path, data));
+                        }
+                        Err(err) => {
+                            return Err(err.to_string());
+                        }
+                    }
+                }
+            }
+            Err(err) => {
+                return Err(err.to_string());
+            }
+        }
+    }
+    Err("Unable to locate dropped paths".to_string())
+}
+
+#[tauri::command]
+fn clipboard_write_text(
+    clipboard_state: State<'_, ClipboardState>,
+    text: String,
+) -> Result<(), ApicizeAppError> {
+    clipboard_state.set_text(text)
+}
+
+#[tauri::command]
+fn clipboard_write_image(
+    clipboard_state: State<'_, ClipboardState>,
+    data: Vec<u8>,
+) -> Result<(), ApicizeAppError> {
+    clipboard_state.set_image(data)
+}
+
+#[tauri::command]
+fn clipboard_read_image(
+    clipboard_state: State<'_, ClipboardState>,
+) -> Result<Vec<u8>, ApicizeAppError> {
+    clipboard_state.read_image()
+}
+
+#[allow(clippy::too_many_arguments)]
+#[tauri::command]
+async fn clipboard_paste_data(
+    app: AppHandle,
+    sessions_state: State<'_, SessionsState>,
+    workspaces_state: State<'_, WorkspacesState>,
+    clipboard_state: State<'_, ClipboardState>,
+    session_id: &str,
+    data_type: ClipboardDataType,
+    relative_to_id: Option<&str>,
+    relative_position: Option<IndexedEntityPosition>,
+) -> Result<(String, EntityType), ApicizeAppError> {
+    let sessions = sessions_state.sessions.read().await;
+    let session = sessions.get_session(session_id)?;
+    let workspace_id = session.workspace_id.clone();
+    let mut workspaces = workspaces_state.workspaces.write().await;
+
+    let data = clipboard_state.get_data();
+    let (id, entity_type) = match data_type {
+        ClipboardDataType::RequestEntry => {
+            if let Some(ClipboardData::RequestEntry { entry }) = data {
+                Ok((
+                    workspaces.clone_request_entry(
+                        &workspace_id,
+                        relative_to_id,
+                        relative_position,
+                        entry,
+                    )?,
+                    EntityType::RequestEntry,
+                ))
+            } else {
+                Err(ApicizeAppError::ClipboardError(
+                    "Clipboard does not contain a Request or Group".to_string(),
+                ))
+            }
+        }
+        ClipboardDataType::Scenario => {
+            if let Some(ClipboardData::Scenario { scenario }) = data {
+                Ok((
+                    workspaces.clone_scenario(
+                        &workspace_id,
+                        relative_to_id,
+                        relative_position,
+                        scenario,
+                    )?,
+                    EntityType::Scenario,
+                ))
+            } else {
+                Err(ApicizeAppError::ClipboardError(
+                    "Clipboard does not contain a Scenario".to_string(),
+                ))
+            }
+        }
+        ClipboardDataType::Authorization => {
+            if let Some(ClipboardData::Authorization { authorization }) = data {
+                Ok((
+                    workspaces.clone_authorization(
+                        &workspace_id,
+                        relative_to_id,
+                        relative_position,
+                        authorization,
+                    )?,
+                    EntityType::Authorization,
+                ))
+            } else {
+                Err(ApicizeAppError::ClipboardError(
+                    "Clipboard does not contain an Authorization".to_string(),
+                ))
+            }
+        }
+        ClipboardDataType::Certificate => {
+            if let Some(ClipboardData::Certificate { certificate }) = data {
+                Ok((
+                    workspaces.clone_certificate(
+                        &workspace_id,
+                        relative_to_id,
+                        relative_position,
+                        certificate,
+                    )?,
+                    EntityType::Certificate,
+                ))
+            } else {
+                Err(ApicizeAppError::ClipboardError(
+                    "Clipboard does not contain a Certificate".to_string(),
+                ))
+            }
+        }
+        ClipboardDataType::Proxy => {
+            if let Some(ClipboardData::Proxy { proxy }) = data {
+                Ok((
+                    workspaces.clone_proxy(
+                        &workspace_id,
+                        relative_to_id,
+                        relative_position,
+                        proxy,
+                    )?,
+                    EntityType::Proxy,
+                ))
+            } else {
+                Err(ApicizeAppError::ClipboardError(
+                    "Clipboard does not contain a Proxy".to_string(),
+                ))
+            }
+        }
+        _ => Err(ApicizeAppError::ClipboardError(
+            "Unsupported clipboard operation".to_string(),
+        )),
+    }?;
+
+    let info = workspaces.get_workspace_info_mut(&workspace_id)?;
+    info.navigation = Navigation::new(&info.workspace, &info.executions);
+
+    dispatch_save_state(&app, &sessions, &workspace_id, info, true);
+
+    Ok((id, entity_type))
 }
 
 #[derive(Clone, Serialize, Deserialize)]

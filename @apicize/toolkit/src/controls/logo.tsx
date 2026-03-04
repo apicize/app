@@ -3,10 +3,10 @@ import { Box } from "@mui/material";
 import ApicizeIcon from "../icons/apicize-icon";
 import { useApicizeSettings } from "../contexts/apicize-settings.context";
 
-export function logo() {
+export const Logo = () => {
     const settings = useApicizeSettings()
-    let name = settings.appName
-    let version = settings.appVersion
+    const name = settings.appName
+    const version = settings.appVersion
 
     return <Box className='logo' display='flex'>
         <Box className='logo-icon'>

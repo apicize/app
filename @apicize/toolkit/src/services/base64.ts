@@ -7,9 +7,8 @@ for (let i = 0; i < chars.length; i++) {
 }
 
 export function base64Encode(bytes: Uint8Array): string {
-    let i,
-        len = bytes.length,
-        base64 = '';
+    const len = bytes.length
+    let i, base64 = ''
 
     for (i = 0; i < len; i += 3) {
         base64 += chars[bytes[i] >> 2];
@@ -28,14 +27,14 @@ export function base64Encode(bytes: Uint8Array): string {
 }
 
 export function base64Decode(base64: string): Uint8Array {
+    const len = base64.length
     let bufferLength = base64.length * 0.75,
-        len = base64.length,
         i,
         p = 0,
         encoded1,
         encoded2,
         encoded3,
-        encoded4;
+        encoded4
 
     if (base64[base64.length - 1] === '=') {
         bufferLength--;

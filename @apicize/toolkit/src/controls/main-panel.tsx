@@ -37,7 +37,7 @@ export const MainPanel = observer(() => {
 
     useEffect(() => {
         const disposer = when(
-            () => settings.readyToSave === true,
+            () => settings.readyToSave,
             () => {
                 settings.clearChangeCtr()
                 fileOps.saveSettings()

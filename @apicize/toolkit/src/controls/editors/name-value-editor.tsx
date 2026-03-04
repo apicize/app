@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from "react"
+import React, {  } from "react"
 import { EditableNameValuePair } from "../../models/workspace/editable-name-value-pair";
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
@@ -9,7 +9,7 @@ import TextField from '@mui/material/TextField'
 import { toJS } from "mobx";
 import { GenerateIdentifier } from "../../services/random-identifier-generator";
 import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
+import DeleteIcon from '@mui/icons-material/RemoveCircleOutline';
 
 export const NameValueEditor = React.memo(({ values, title, nameHeader, valueHeader, onUpdate }: {
     values: EditableNameValuePair[],

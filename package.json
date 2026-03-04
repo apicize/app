@@ -22,13 +22,18 @@
     "build:release": "yarn run build-deps && yarn tauri build --verbose",
     "start:release": "yarn run build:release && ./app/src-tauri/target/release/apicize",
     "icons": "echo $PWD && yarn tauri icon -o $PWD/app/src-tauri/icons $PWD/app/artwork/apicize-logo-plain.svg",
-    "generate-docs": "npx tsx generate-docs.ts"
+    "generate-docs": "npx tsx generate-docs.ts",
+    "lint": "yarn workspace @apicize/lib-typescript lint; yarn workspace @apicize/toolkit lint; yarn workspace app lint"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@tauri-apps/cli": "^2.10.0",
     "@types/hast": "^3.0.4",
     "@types/unist": "^3.0.2",
     "concurrently": "^8.2.2",
+    "eslint": "^10.0.2",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
     "rehype-stringify": "^10.0.0",
     "remark-directive": "^3.0.0",
     "remark-gfm": "^4.0.0",
@@ -38,6 +43,7 @@
     "smol-toml": "^1.3.0",
     "tsx": "^4.7.0",
     "typescript": "^5.7.3",
+    "typescript-eslint": "^8.56.1",
     "unified": "^11.0.5",
     "unist-util-visit": "^5.0.0"
   },

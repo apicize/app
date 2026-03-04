@@ -4,11 +4,6 @@ import { observer } from "mobx-react-lite"
 import { ReactNode, useMemo } from "react"
 import "@mui/x-tree-view/themeAugmentation"
 
-interface ExtendedTypographyOptions extends TypographyVariantsOptions {
-  code: React.CSSProperties;
-  navigation: React.CSSProperties;
-}
-
 export const ConfigurableTheme = observer(({ children }: {
   children?: ReactNode,
 }) => {

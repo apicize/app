@@ -6,147 +6,6 @@
             "name": "CRUD Operations",
             "children": [
                 {
-                    "id": "fc9b7f17-e86d-49de-9727-5c0113da0791",
-                    "name": "Data from Scenario",
-                    "children": [
-                        {
-                            "id": "1facbeeb-b69c-4a2d-a178-905ca2f2edb2",
-                            "name": "Create Quote",
-                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('response', () => {\n   it('returns an ID', () => {\n      const data = (response.body.type == BodyType.JSON)\n         ? response.body.data\n         : expect.fail('Response body is not JSON')\n\n      const id = data.id\n      expect(id).not.to.be.empty\n      output('id', id)\n      console.info(`ID is ${id}`)\n   })\n})",
-                            "url": "https://sample-api.apicize.com/quote/",
-                            "method": "POST",
-                            "timeout": 30000,
-                            "headers": [
-                                {
-                                    "name": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
-                            "body": {
-                                "type": "JSON",
-                                "data": {
-                                    "author": "{{author}}",
-                                    "quote": "{{quote}}"
-                                },
-                                "formatted": "{\n    \"author\": \"{{author}}\",\n    \"quote\": \"{{quote}}\"\n}"
-                            },
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
-                        },
-                        {
-                            "id": "740c1e49-24b7-4c88-9e3a-9ad0a8fc1e79",
-                            "name": "Get original quote",
-                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n// test #1\ndescribe('stored', () => {\n   const data = (response.body.type == BodyType.JSON)\n      ? response.body.data\n      : expect.fail('Response body is not JSON')\n\n   console.info(`Author: ${data.author}, Quote: \"${data.quote}\"`)\n\n   describe('author', () => {\n      it('equals configured author', () => {\n         expect(data.author).to.equal($.author)\n      })\n   })\n\n   describe('quote', () => {\n      it('equals original quote', () => {\n         expect(data.quote).to.equal($.quote)\n      })\n   })\n})\n",
-                            "url": "https://sample-api.apicize.com/quote/{{id}}",
-                            "method": "GET",
-                            "timeout": 30000,
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
-                        },
-                        {
-                            "id": "54bc9d39-46ef-4c39-aa51-4d1868770864",
-                            "name": "Update quote to test value",
-                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})",
-                            "url": "https://sample-api.apicize.com/quote/{{id}}",
-                            "method": "PUT",
-                            "timeout": 30000,
-                            "headers": [
-                                {
-                                    "name": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
-                            "body": {
-                                "type": "JSON",
-                                "data": {
-                                    "quote": "{{test-quote}}"
-                                },
-                                "formatted": "{\n  \"quote\": \"{{test-quote}}\"\n}"
-                            },
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
-                        },
-                        {
-                            "id": "ae846e26-6f0e-4b33-8313-0ba8cd5eba3b",
-                            "name": "Get updated quote",
-                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('quote', () => {\n   it('equals test quote', () => {\n      const result = (response.body.type == BodyType.JSON)\n         ? response.body.data\n         : expect.fail('Response body is not JSON')\n      console.info(`Author: ${result.author}, Quote: \"${result.quote}\"`)\n      expect(result.quote).to.equal($['test-quote'])\n   })\n})\n",
-                            "url": "https://sample-api.apicize.com/quote/{{id}}",
-                            "method": "GET",
-                            "timeout": 30000,
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
-                        },
-                        {
-                            "id": "ec50ac8e-ddd0-474a-ba6c-43baaabe5990",
-                            "name": "Restore original quote",
-                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})",
-                            "url": "https://sample-api.apicize.com/quote/{{id}}",
-                            "method": "PUT",
-                            "timeout": 30000,
-                            "headers": [
-                                {
-                                    "name": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
-                            "body": {
-                                "type": "JSON",
-                                "data": {
-                                    "quote": "{{quote}}"
-                                },
-                                "formatted": "{\n  \"quote\": \"{{quote}}\"\n}"
-                            },
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
-                        },
-                        {
-                            "id": "00aed3da-45f9-46d5-91be-780dfdc4eb72",
-                            "name": "Get restored quote",
-                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('stored quote', () => {\n   it('equals original quote', () => {\n      const result = (response.body.type == BodyType.JSON)\n         ? response.body.data\n         : expect.fail('Response body is not JSON')\n      console.info(`Author: ${result.author}, Quote: \"${result.quote}\"`)\n      expect(result.quote).to.equal($.quote)\n   })\n})",
-                            "url": "https://sample-api.apicize.com/quote/{{id}}",
-                            "method": "GET",
-                            "timeout": 30000,
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
-                        },
-                        {
-                            "id": "e3e0d5a3-fd8b-41fc-8aae-5d03bbac8a31",
-                            "name": "Delete quote",
-                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n",
-                            "url": "https://sample-api.apicize.com/quote/{{id}}",
-                            "method": "DELETE",
-                            "timeout": 30000,
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
-                        },
-                        {
-                            "id": "f90dbea5-5993-4f11-9943-d08416d28963",
-                            "name": "Ensure quote is deleted",
-                            "test": "describe('status', () => {\n   it('equals 404', () => {\n      expect(response.status).to.equal(404)\n   })\n})\n",
-                            "url": "https://sample-api.apicize.com/quote/{{id}}",
-                            "method": "GET",
-                            "timeout": 30000,
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
-                        }
-                    ],
-                    "execution": "SEQUENTIAL",
-                    "runs": 1,
-                    "multiRunExecution": "CONCURRENT",
-                    "selectedScenario": {
-                        "id": "1faeaabc-b348-4cd5-a8ee-78c8b0c838d8",
-                        "name": "Mark Twain Quote"
-                    }
-                },
-                {
                     "id": "951d3f21-e5cf-4426-90e9-0eaa3da83f11",
                     "name": "Data from JSON Data Set",
                     "children": [
@@ -282,10 +141,6 @@
                     "execution": "SEQUENTIAL",
                     "runs": 1,
                     "multiRunExecution": "SEQUENTIAL",
-                    "selectedScenario": {
-                        "id": "\tNONE\t",
-                        "name": "(None)"
-                    },
                     "selectedData": {
                         "id": "d5a031a1-4cda-4ffe-b78d-4f681d6507b3",
                         "name": "Sample JSON Data"
@@ -427,10 +282,6 @@
                     "execution": "SEQUENTIAL",
                     "runs": 1,
                     "multiRunExecution": "SEQUENTIAL",
-                    "selectedScenario": {
-                        "id": "\tNONE\t",
-                        "name": "(None)"
-                    },
                     "selectedData": {
                         "id": "78008fee-bbde-4ab6-ab77-650d44c5637a",
                         "name": "Sample CSV Data"
@@ -512,60 +363,63 @@
             "execution": "CONCURRENT",
             "runs": 1,
             "multiRunExecution": "SEQUENTIAL"
+        },
+        {
+            "id": "ea857655-6be7-4e4d-b7af-1869a39596af",
+            "name": "Math",
+            "children": [
+                {
+                    "id": "5b8a14db-94ec-441e-9a56-015a4bf76724",
+                    "name": "Addition",
+                    "test": "describe('status', () => {\n    it('equals 200', () => {\n        expect(response.status).to.equal(200)\n    })\n})\ndescribe('response', () => {\n    it('equals 4', () => {\n        if (response.body.type !== 'Text') {\n            throw new AssertionError('response not text')\n        }\n        expect(response.body.text).equals('4')\n    })\n})",
+                    "url": "{{url}}/calc",
+                    "method": "POST",
+                    "body": {
+                        "type": "Text",
+                        "data": "3+1"
+                    },
+                    "numberOfRedirects": 10,
+                    "runs": 1,
+                    "multiRunExecution": "SEQUENTIAL"
+                },
+                {
+                    "id": "95302890-0fdc-4eb5-9859-2f3675c1c1dd",
+                    "name": "Subtraction",
+                    "test": "describe('status', () => {\n    it('equals 200', () => {\n        expect(response.status).to.equal(200)\n    })\n})\ndescribe('response', () => {\n    it('equals 17', () => {\n        if (response.body.type !== 'Text') {\n            throw new AssertionError('response not text')\n        }\n        expect(parseInt(response.body.text)).equals(17)\n    })\n})",
+                    "url": "{{url}}/calc",
+                    "method": "POST",
+                    "body": {
+                        "type": "Text",
+                        "data": "20-3"
+                    },
+                    "numberOfRedirects": 10,
+                    "runs": 1,
+                    "multiRunExecution": "SEQUENTIAL"
+                }
+            ],
+            "execution": "SEQUENTIAL",
+            "runs": 1,
+            "multiRunExecution": "SEQUENTIAL"
         }
     ],
     "scenarios": [
         {
-            "id": "1faeaabc-b348-4cd5-a8ee-78c8b0c838d8",
-            "name": "Mark Twain Quote",
+            "id": "da4a4346-549d-4989-9b15-6e8b09711579",
+            "name": "Sample Site",
             "variables": [
                 {
-                    "name": "author",
-                    "value": "Samuel Clemmons"
-                },
-                {
-                    "name": "quote",
-                    "value": "Politicians and diapers must be changed often, and for the same reason"
-                },
-                {
-                    "name": "test-quote",
-                    "value": "Continuous improvement is better than delayed perfection"
+                    "name": "url",
+                    "value": "https://sample-api.apicize.com"
                 }
             ]
         },
         {
-            "id": "57f8809e-1691-40c7-bf3a-a7c96ff241f6",
-            "name": "Sun Tzu Quote",
+            "id": "146f71a0-ec9f-47a2-8858-8bfd63fdc81a",
+            "name": "Local (Development)",
             "variables": [
                 {
-                    "name": "author",
-                    "value": "Sun Tzu"
-                },
-                {
-                    "name": "quote",
-                    "value": "夫兵久而国利者，未之有也"
-                },
-                {
-                    "name": "test-quote",
-                    "value": "There is no instance of a country having benefited from prolonged warfare"
-                }
-            ]
-        },
-        {
-            "id": "6f8fb066-d243-47df-9641-c5d462a9cf89",
-            "name": "George Carlin Quote",
-            "variables": [
-                {
-                    "name": "author",
-                    "value": "George Carlin"
-                },
-                {
-                    "name": "quote",
-                    "value": "Just when I discovered the meaning of life, they changed it."
-                },
-                {
-                    "name": "test-quote",
-                    "value": "We have multiplied our possessions but reduced our values."
+                    "name": "url",
+                    "value": "http://localhost:8080"
                 }
             ]
         }
@@ -579,6 +433,14 @@
             "clientId": "apicize",
             "clientSecret": "",
             "scope": "image quote calc",
+            "selectedCertificate": {
+                "id": "\tNONE\t",
+                "name": "None (Off)"
+            },
+            "selectedProxy": {
+                "id": "\tNONE\t",
+                "name": "None (Off)"
+            },
             "sendCredentialsInBody": false
         }
     ],
@@ -587,22 +449,20 @@
             "id": "d5a031a1-4cda-4ffe-b78d-4f681d6507b3",
             "name": "Sample JSON Data",
             "type": "FILE-JSON",
-            "source": "./data/demo-test.json"
+            "source": "data/demo-test.json"
         },
         {
             "id": "78008fee-bbde-4ab6-ab77-650d44c5637a",
             "name": "Sample CSV Data",
             "type": "FILE-CSV",
-            "source": "./data/demo-test.csv"
-        },
-        {
-            "id": "f44a8dc3-4ed8-4b5f-ba66-a1875d9f65e8",
-            "name": "test",
-            "type": "FILE-JSON",
-            "source": "foo_123.json"
+            "source": "data/demo-test.csv"
         }
     ],
     "defaults": {
+        "selectedScenario": {
+            "id": "da4a4346-549d-4989-9b15-6e8b09711579",
+            "name": "Sample Site"
+        },
         "selectedAuthorization": {
             "id": "ccfbfacc-091c-4c97-908d-d5c6b0ddf13c",
             "name": "Sample Token"

@@ -8,7 +8,7 @@
     "zzz_dev": "vite",
     "zzz_build": "tsc && vite build",
     "start": "vite preview",
-    "lint": "next lint",
+    "lint": "yarn run -T eslint src/",
     "tauri": "tauri"
   },
   "dependencies": {
@@ -27,7 +27,6 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "remark-directive": "^3.0.0",
-    "tauri-plugin-clipboard-api": "https://github.com/jasonterando/tauri-plugin-clipboard.git#head=v2-yarn-friendly",
     "valibot": "^0.36.0"
   },
   "devDependencies": {
@@ -38,8 +37,6 @@
     "@vitejs/plugin-react": "^4.3.1",
     "clean-webpack-plugin": "^4.0.0",
     "css-loader": "^7.1.2",
-    "eslint": "^8",
-    "eslint-config-next": "14.0.4",
     "html-webpack-plugin": "^5.6.0",
     "mdast-util-directive": "^3.0.0",
     "mdast-util-to-hast": "^13.1.0",

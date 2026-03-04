@@ -71,7 +71,7 @@ pub enum ApicizeAppError {
     #[error("No results returned")]
     NoResults,
 
-    #[error("Clipboard Error '{0}'")]
+    #[error("clipboard error {0}")]
     ClipboardError(String),
 
     #[error("Concurrency Error '{0}'")]

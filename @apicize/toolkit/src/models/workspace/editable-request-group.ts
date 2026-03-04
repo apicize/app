@@ -1,5 +1,5 @@
 import { RequestGroup, ExecutionConcurrency, ValidationErrorList, DEFAULT_SELECTION_ID, NO_SELECTION_ID, NO_SELECTION, DEFAULT_SELECTION } from "@apicize/lib-typescript"
-import { observable, action, computed, runInAction, toJS } from "mobx"
+import { observable, action, computed, runInAction } from "mobx"
 import { EntityType } from "./entity-type"
 import { EditableEntityContext } from "../editable"
 import { EntityTypeName, EntityUpdateNotification } from "../../contexts/workspace.context"
@@ -8,7 +8,6 @@ import { EditableWarnings } from "./editable-warnings"
 import { RequestExecution } from "../request-execution"
 import { ExecutionResultViewState } from "./execution"
 import { RequestGroupUpdate } from "../updates/request-group-update"
-import { GenerateIdentifier } from "../../services/random-identifier-generator"
 
 export class EditableRequestGroup extends EditableRequestEntry {
     public readonly entityType = EntityType.Group
@@ -43,56 +42,56 @@ export class EditableRequestGroup extends EditableRequestEntry {
         this.validationErrors = entry.validationErrors ?? {}
     }
 
-    protected performUpdate(update: RequestGroupUpdate) {
+    protected async performUpdate(update: RequestGroupUpdate) {
         this.markAsDirty()
-        this.workspace.update(update)
-            .then(updates => runInAction(() => {
-                if (updates) {
-                    this.validationErrors = updates.validationErrors || {}
-                }
-            }))
+        const updates = await this.workspace.update(update)
+        runInAction(() => {
+            if (updates) {
+                this.validationErrors = updates.validationErrors || {}
+            }
+        })
     }
 
     @action
     setName(value: string) {
         this.name = value
-        this.performUpdate({ type: EntityTypeName.Group, entityType: EntityType.Group, id: this.id, name: value })
+        return this.performUpdate({ type: EntityTypeName.Group, entityType: EntityType.Group, id: this.id, name: value })
     }
 
     @action
     setDisabled(value: boolean) {
         this.disabled = value
-        this.performUpdate({ type: EntityTypeName.Group, entityType: EntityType.Group, id: this.id, disabled: value })
+        return this.performUpdate({ type: EntityTypeName.Group, entityType: EntityType.Group, id: this.id, disabled: value })
     }
 
     @action
     setKey(value: string) {
         this.key = value
-        this.performUpdate({ type: EntityTypeName.Group, entityType: EntityType.Group, id: this.id, key: value })
+        return this.performUpdate({ type: EntityTypeName.Group, entityType: EntityType.Group, id: this.id, key: value })
     }
 
     @action
     setRuns(value: number) {
         this.runs = value
-        this.performUpdate({ type: EntityTypeName.Group, entityType: EntityType.Group, id: this.id, runs: value })
+        return this.performUpdate({ type: EntityTypeName.Group, entityType: EntityType.Group, id: this.id, runs: value })
     }
 
     @action
     setMultiRunExecution(value: ExecutionConcurrency) {
         this.multiRunExecution = value
-        this.performUpdate({ type: EntityTypeName.Group, entityType: EntityType.Group, id: this.id, multiRunExecution: value })
+        return this.performUpdate({ type: EntityTypeName.Group, entityType: EntityType.Group, id: this.id, multiRunExecution: value })
     }
 
     @action
     setGroupConcurrency(value: ExecutionConcurrency) {
         this.execution = value
-        this.performUpdate({ type: EntityTypeName.Group, entityType: EntityType.Group, id: this.id, execution: value })
+        return this.performUpdate({ type: EntityTypeName.Group, entityType: EntityType.Group, id: this.id, execution: value })
     }
 
     @action
     setSetup(value: string | undefined) {
         this.setup = value ?? ''
-        this.performUpdate({ type: EntityTypeName.Group, entityType: EntityType.Group, id: this.id, setup: value })
+        return this.performUpdate({ type: EntityTypeName.Group, entityType: EntityType.Group, id: this.id, setup: value })
     }
 
     @action
@@ -102,7 +101,7 @@ export class EditableRequestGroup extends EditableRequestEntry {
             : entityId == NO_SELECTION_ID
                 ? NO_SELECTION
                 : { id: entityId, name: this.workspace.getNavigationName(entityId) }
-        this.performUpdate({
+        return this.performUpdate({
             type: EntityTypeName.Group, entityType: EntityType.Group, id: this.id,
             selectedScenario: this.selectedScenario ?? { id: DEFAULT_SELECTION_ID, name: '(Default)' }
         })
@@ -115,7 +114,7 @@ export class EditableRequestGroup extends EditableRequestEntry {
             : entityId == NO_SELECTION_ID
                 ? NO_SELECTION
                 : { id: entityId, name: this.workspace.getNavigationName(entityId) }
-        this.performUpdate({
+        return this.performUpdate({
             type: EntityTypeName.Group, entityType: EntityType.Group, id: this.id,
             selectedAuthorization: this.selectedAuthorization ?? { id: DEFAULT_SELECTION_ID, name: '(Default)' }
         })
@@ -128,7 +127,7 @@ export class EditableRequestGroup extends EditableRequestEntry {
             : entityId == NO_SELECTION_ID
                 ? NO_SELECTION
                 : { id: entityId, name: this.workspace.getNavigationName(entityId) }
-        this.performUpdate({
+        return this.performUpdate({
             type: EntityTypeName.Group, entityType: EntityType.Group, id: this.id,
             selectedCertificate: this.selectedCertificate ?? { id: DEFAULT_SELECTION_ID, name: '(Default)' }
         })
@@ -141,7 +140,7 @@ export class EditableRequestGroup extends EditableRequestEntry {
             : entityId == NO_SELECTION_ID
                 ? NO_SELECTION
                 : { id: entityId, name: this.workspace.getNavigationName(entityId) }
-        this.performUpdate({
+        return this.performUpdate({
             type: EntityTypeName.Group, entityType: EntityType.Group, id: this.id,
             selectedProxy: this.selectedProxy ?? { id: DEFAULT_SELECTION_ID, name: '(Default)' }
         })
@@ -152,7 +151,7 @@ export class EditableRequestGroup extends EditableRequestEntry {
         this.selectedDataSet = entityId == NO_SELECTION_ID
             ? NO_SELECTION
             : { id: entityId, name: this.workspace.getNavigationName(entityId) }
-        this.performUpdate({
+        return this.performUpdate({
             type: EntityTypeName.Group, entityType: EntityType.Group, id: this.id,
             selectedData: this.selectedDataSet ?? { id: DEFAULT_SELECTION_ID, name: '(Default)' }
         })
@@ -206,7 +205,7 @@ export class EditableRequestGroup extends EditableRequestEntry {
     @action
     deleteWarning(id: string) {
         this.validationWarnings.delete(id)
-        this.performUpdate({
+        return this.performUpdate({
             type: EntityTypeName.Group, entityType: EntityType.Group, id: this.id,
             validationWarnings: [...this.validationWarnings.entries.values()]
         })

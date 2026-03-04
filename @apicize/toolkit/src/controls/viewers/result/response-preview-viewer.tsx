@@ -7,10 +7,11 @@ import { RichViewer } from "../rich-viewer";
 import { ResultEditSessionType } from "../../editors/editor-types";
 import { useWorkspace } from "../../../contexts/workspace.context";
 import { ExecutionResultDetail } from "@apicize/lib-typescript";
+import { useFeedback } from "../../../contexts/feedback.context";
 
 export function ResultResponsePreview({ detail }: { detail: ExecutionResultDetail | null }) {
-
     const workspace = useWorkspace()
+    const feedback = useFeedback()
 
     if (detail?.entityType !== 'request') {
         return
@@ -18,15 +19,15 @@ export function ResultResponsePreview({ detail }: { detail: ExecutionResultDetai
 
     const body = detail.testContext.response?.body ?? { type: 'Text', text: '' }
     const headers = detail.testContext.response?.headers
-        ? new Map(Object.entries(detail.testContext.response.headers))
-        : new Map()
+        ? new Map<string, string>(Object.entries(detail.testContext.response.headers))
+        : new Map<string, string>()
 
     let extension = ''
     for (const [name, value] of headers.entries()) {
         if (name.toLowerCase() === 'content-type') {
-            let i = value.indexOf('/')
+            const i = value.indexOf('/')
             if (i !== -1) {
-                let j = value.indexOf(';')
+                const j = value.indexOf(';')
                 if (value.indexOf('json') !== -1) {
                     extension = 'json'
                 } else if (value.indexOf('xml') !== -1) {
@@ -68,7 +69,7 @@ export function ResultResponsePreview({ detail }: { detail: ExecutionResultDetai
             }
     }
 
-    let hasText = text.length > 0
+    const hasText = text.length > 0
 
     let viewer
     if (isImage && detail.testContext?.response?.body?.type === 'Binary' && detail.testContext.response.body.data.length > 0 && extension) {
@@ -118,10 +119,13 @@ export function ResultResponsePreview({ detail }: { detail: ExecutionResultDetai
                     title="Copy to Clipboard"
                     color='primary'
                     sx={{ marginLeft: '16px' }}
-                    onClick={_ => workspace.copyToClipboard({
-                        payloadType: 'ResponseBodyPreview',
-                        execCtr: detail.execCtr
-                    }, isImage ? 'Image' : 'Data')}
+                    onClick={_ => {
+                        workspace.copyToClipboard({
+                            payloadType: 'ResponseBodyPreview',
+                            execCtr: detail.execCtr
+                        }, isImage ? 'Image' : 'Data')
+                            .catch(err => feedback.toastError(err))
+                    }}
                 >
                     <ContentCopyIcon />
                 </IconButton>

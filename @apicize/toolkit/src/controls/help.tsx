@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import Box from '@mui/material/Box'
 import IconButton from '@mui/material/IconButton'
 import Link from '@mui/material/Link'
@@ -13,7 +16,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CloseIcon from '@mui/icons-material/Close';
 import AltRouteIcon from '@mui/icons-material/AltRoute'
 import MenuIcon from '@mui/icons-material/Menu';
-import { createElement, Fragment, HTMLAttributes, useRef, useState } from 'react'
+import { createElement, Fragment, HTMLAttributes, useRef, useState, JSX } from 'react'
 import { jsx, jsxs } from 'react/jsx-runtime'
 import SettingsIcon from '@mui/icons-material/Settings';
 import DisplaySettingsIcon from '@mui/icons-material/DisplaySettings'
@@ -22,7 +25,7 @@ import ViewListOutlinedIcon from '@mui/icons-material/ViewListOutlined'
 import ScienceIcon from '@mui/icons-material/Science';
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined'
 import QuestionMarkIcon from '@mui/icons-material/QuestionMark';
-import { logo } from './logo';
+import { Logo } from './logo';
 import remarkParse from 'remark-parse'
 import remarkRehype from 'remark-rehype'
 import rehypeReact from 'rehype-react'
@@ -67,15 +70,15 @@ export const HelpPanel = observer(({ sx }: { sx?: SxProps }) => {
     const fileOps = useFileOperations()
     const feedback = useFeedback()
 
-    let name = settings.appName
-    let version = settings.appVersion
+    const name = settings.appName
+    const version = settings.appVersion
 
-    let [isLoading, setIsLoading] = useState(false)
-    let [content, setContent] = useState(createElement(Fragment));
+    const [isLoading, setIsLoading] = useState(false)
+    const [content, setContent] = useState(createElement(Fragment));
     const [contentsMenu, setContentsMenu] = useState<null | HTMLElement>(null)
     const [helpContents, setHelpContents] = useState<null | HelpContents>(null)
 
-    let activeTopic = useRef('')
+    const activeTopic = useRef('')
 
     const handleShowContents = () => {
         const target = document.getElementById('help-contents-button')
@@ -98,7 +101,7 @@ export const HelpPanel = observer(({ sx }: { sx?: SxProps }) => {
 
     const handleContentsMenuClose = () => {
         setContentsMenu(null);
-    }; 
+    };
 
     const remarkApicizeDirectives = createRemarkApicizeDirectives({
         appName: name,
@@ -113,7 +116,7 @@ export const HelpPanel = observer(({ sx }: { sx?: SxProps }) => {
                 const first = attrs.children[0]
                 if (first) id = first.toString()
             } else {
-                id = attrs.children.toString()
+                id = null // attrs.children.toString()
             }
         }
         if (id) {
@@ -127,7 +130,7 @@ export const HelpPanel = observer(({ sx }: { sx?: SxProps }) => {
 
     const rehypeTransformIcon = (attrs: HTMLAttributes<any>) => {
         const attrsWithNode = attrs as any
-        const name = (attrsWithNode.node as any).properties.name
+        const name = (attrsWithNode.node).properties.name
         switch (name) {
             case 'request':
                 return <SvgIcon className='help-icon' color='request' sx={{ marginRight: '0.5em' }}><RequestIcon /></SvgIcon>
@@ -213,9 +216,9 @@ export const HelpPanel = observer(({ sx }: { sx?: SxProps }) => {
         return <Typography component='div' variant='body1' {...attrs} />
     }
 
-    const rehypeTransformToolbar = (attrs: ExtraProps): React.ReactNode => renderToolbar()
+    const rehypeTransformToolbar = (/*attrs: ExtraProps*/): React.ReactNode => renderToolbar()
 
-    const rehypeTransformToolbarTop = (attrs: ExtraProps): React.ReactNode => renderToolbar('help-toolbar top')
+    const rehypeTransformToolbarTop = (/*attrs: ExtraProps*/): React.ReactNode => renderToolbar('help-toolbar top')
 
     const renderToolbar = (className: string = 'help-toolbar') => {
         return (
@@ -259,14 +262,14 @@ export const HelpPanel = observer(({ sx }: { sx?: SxProps }) => {
                     .use(remarkDirective)
                     .use(remarkApicizeDirectives)
                     .use(remarkRehype)
-                    // @ts-expect-error
+                    // @ts-expect-error rehypeReact typing issue 
                     .use(rehypeReact, {
                         Fragment,
                         jsx,
                         jsxs,
                         passNode: true,
                         components: {
-                            logo,
+                            logo: Logo,
                             icon: rehypeTransformIcon,
                             toolbar: rehypeTransformToolbar,
                             toolbarTop: rehypeTransformToolbarTop,
@@ -286,7 +289,7 @@ export const HelpPanel = observer(({ sx }: { sx?: SxProps }) => {
             } catch (e) {
                 feedback.toast(`Unable to render help topic "${activeTopic.current} - ${e}}`, ToastSeverity.Error)
             }
-        })();
+        })().catch(err => feedback.toastError(err));
     }
 
     const HelpContents = () => {
@@ -312,7 +315,7 @@ export const HelpPanel = observer(({ sx }: { sx?: SxProps }) => {
     }
 
     return <Box className='help' sx={sx}>
-        <Typography variant='h2' display={isLoading === true ? 'block' : 'none'}>Loading Help, One Moment Please...</Typography>
+        <Typography variant='h2' display={isLoading ? 'block' : 'none'}>Loading Help, One Moment Please...</Typography>
         <Box className='help-text'>
             {content}
         </Box>

@@ -9,9 +9,9 @@ export function LogProvider({ store, children }: { store: LogStore, children?: R
             store.addEvent(event.payload)
         })
         return () => {
-            unlistenLog.then(f => f())
+            unlistenLog.then(f => f()).catch(console.error)
         }
-    }, [])
+    }, [store])
 
     return (
         <LogContext.Provider value={store}>

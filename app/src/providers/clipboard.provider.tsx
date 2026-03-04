@@ -1,23 +1,25 @@
+import * as core from '@tauri-apps/api/core'
 import { ReactNode, useEffect, useMemo } from "react";
-import { hasImage, hasText, readText, readImageBase64, writeImageBase64, writeText, onClipboardUpdate, writeImageBinary, readImageBinary } from "tauri-plugin-clipboard-api"
-import { ClipboardContext, ClipboardStore, ToastSeverity, useFeedback } from "@apicize/toolkit";
+import { ClipboardContext, ClipboardData, ClipboardDataType, ClipboardStore, ToastSeverity, useFeedback } from "@apicize/toolkit";
 import { runInAction } from "mobx";
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 
 /**
  * Implementation of clipboard operations via Tauri
  */
 export function ClipboardProvider({
-    children
+    dataType,
+    children,
 }: {
+    dataType: ClipboardDataType,
     children?: ReactNode
 }) {
     const feedback = useFeedback()
-
     const store = useMemo(
-        () => new ClipboardStore({
+        () => new ClipboardStore(dataType, {
             onWriteText: async (text: string) => {
                 try {
-                    await writeText(text)
+                    await core.invoke('clipboard_write_text', { text });
                     feedback.toast('Text copied to clipboard', ToastSeverity.Success)
                 } catch (e) {
                     feedback.toast(`${e}`, ToastSeverity.Error)
@@ -25,63 +27,33 @@ export function ClipboardProvider({
             },
             onWriteImage: async (data: Uint8Array) => {
                 try {
-                    await writeImageBinary([...data])
+                    await core.invoke('clipboard_write_image', { data: [...data] });
                     feedback.toast('Image copied to clipboard', ToastSeverity.Success)
                 } catch (e) {
                     feedback.toast(`${e}`, ToastSeverity.Error)
                 }
             },
-            onGetText: () => {
-                return readText()
+            onGetData: () => {
+                return core.invoke<ClipboardData>('clipboard_read_data')
             },
-            onGetImage: async () => {
-                return (await readImageBinary("Uint8Array")) as Uint8Array
+            onGetImage: () => {
+                return core.invoke<Uint8Array>('clipboard_read_image')
             },
         }),
-        [feedback]
+        [dataType, feedback]
     )
 
     useEffect(() => {
-        const updateClipboardState = async (state: {
-            text: boolean,
-            image: boolean
-        }) => {
-            if (store.hasText !== state.text) {
-                runInAction(() => {
-                    store.updateClipboardTextStatus(state.text)
-                })
-            }
-            if (store.hasImage !== state.image) {
-                if (state.image) {
-                    const tryReadImage = (attempt: number) => {
-                        readImageBase64()
-                            .then(() => runInAction(() => {
-                                store.updateClipboardImageStatus(true)
-                            }))
-                            .catch(() => {
-                                if (attempt < 10) setTimeout(() => tryReadImage(attempt + 1), 100)
-                                else store.updateClipboardImageStatus(false)
-                            })
-                    }
-                    tryReadImage(0)
-                } else {
-                    runInAction(() => {
-                        store.updateClipboardImageStatus(false)
-                    })
-                }
-            }
-        }
-
-        const unlisten = onClipboardUpdate(updateClipboardState)
-        // Promise.all([hasText(), hasImage()]).then(([text, image]) => {
-        //     updateClipboardState({
-        //         text, image
-        //     })
-        // })
+        const w = getCurrentWebviewWindow()
+        const unlistenClipboardChanged = w.listen<ClipboardDataType>('clipboard_changed', (event) => {
+            runInAction(() => {
+                store.updateClipboardDataType(event.payload)
+            })
+        })
         return () => {
-            unlisten.then(() => { })
+            unlistenClipboardChanged.then(() => { }).catch(console.error)
         }
-    }, [store])
+    }, [store, feedback])
 
     return (
         <ClipboardContext.Provider value={store}>

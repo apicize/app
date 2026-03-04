@@ -2,8 +2,8 @@ use apicize_lib::{
     Authorization, Certificate, DataSet, DataSourceType, ExecutionReportFormat,
     ExecutionResultBuilder, ExecutionResultDetail, ExecutionResultSuccess, ExecutionResultSummary,
     ExecutionState, Identifiable, IndexedEntities, Proxy, Request, RequestBody, RequestEntry,
-    RequestGroup, Scenario, SelectedParameters, Selection, Validated, ValidationState,
-    WorkbookDefaultParameters, Workspace,
+    RequestGroup, Scenario, SelectedParameters, Selection, StoredRequestEntry, Validated,
+    ValidationState, WorkbookDefaultParameters, Workspace,
     editing::indexed_entities::IndexedEntityPosition,
     identifiable::CloneIdentifiable,
     workspace::{InvalidSelections, SelectedOption},
@@ -23,6 +23,7 @@ use std::{
 use uuid::Uuid;
 
 use crate::{
+    clipboard::{ClipboardData, ClipboardDataType},
     error::ApicizeAppError,
     navigation::{
         Navigation, NavigationRequestEntry, UpdateWithNavigationResponse, UpdatedNavigationEntry,
@@ -400,7 +401,6 @@ impl Workspaces {
         clone_from_id: Option<&str>,
     ) -> Result<String, ApicizeAppError> {
         let info = self.get_workspace_info_mut(workspace_id)?;
-        info.dirty = true;
         let request = match clone_from_id {
             Some(other_id) => match info.workspace.requests.entities.get(other_id) {
                 Some(RequestEntry::Request(request)) => {
@@ -410,13 +410,7 @@ impl Workspaces {
             },
             None => Request::default(),
         };
-        let id = request.id.clone();
-        info.workspace.requests.add_entity(
-            RequestEntry::Request(request),
-            relative_to,
-            relative_position,
-        )?;
-        Ok(id)
+        Self::perform_add_request(info, relative_to, relative_position, request)
     }
 
     pub fn add_request_group(
@@ -427,7 +421,6 @@ impl Workspaces {
         clone_from_id: Option<&str>,
     ) -> Result<String, ApicizeAppError> {
         let info = self.get_workspace_info_mut(workspace_id)?;
-        info.dirty = true;
 
         let group = match clone_from_id {
             Some(other_id) => match info.workspace.requests.entities.get(other_id) {
@@ -439,6 +432,74 @@ impl Workspaces {
             None => RequestGroup::default(),
         };
 
+        Self::perform_add_group(
+            info,
+            relative_to,
+            relative_position,
+            clone_from_id,
+            None,
+            group,
+        )
+    }
+
+    pub fn clone_request_entry(
+        &mut self,
+        workspace_id: &str,
+        relative_to: Option<&str>,
+        relative_position: Option<IndexedEntityPosition>,
+        entry: StoredRequestEntry,
+    ) -> Result<String, ApicizeAppError> {
+        let info = self.get_workspace_info_mut(workspace_id)?;
+        let entry = entry.clone().to_workspace();
+        match entry {
+            RequestEntry::Request(request) => {
+                let new_request = request.clone_as_new(request.get_title());
+                Self::perform_add_request(info, relative_to, relative_position, new_request)
+            }
+            RequestEntry::Group(group) => {
+                let orig_id = group.id.clone();
+                let clone_from_id = Some(orig_id.as_str());
+                let new_group = group.clone_as_new(group.get_title());
+                let source = IndexedEntities::<RequestEntry>::new(&[RequestEntry::Group(group)]);
+
+                Self::perform_add_group(
+                    info,
+                    relative_to,
+                    relative_position,
+                    clone_from_id,
+                    Some(&source),
+                    new_group,
+                )
+            }
+        }
+    }
+
+    fn perform_add_request(
+        info: &mut WorkspaceInfo,
+        relative_to: Option<&str>,
+        relative_position: Option<IndexedEntityPosition>,
+        request: Request,
+    ) -> Result<String, ApicizeAppError> {
+        info.dirty = true;
+        let id = request.id.clone();
+        info.workspace.requests.add_entity(
+            RequestEntry::Request(request),
+            relative_to,
+            relative_position,
+        )?;
+        info.workspace.validate_selections();
+        Ok(id)
+    }
+
+    fn perform_add_group(
+        info: &mut WorkspaceInfo,
+        relative_to: Option<&str>,
+        relative_position: Option<IndexedEntityPosition>,
+        clone_from_id: Option<&str>,
+        source_requests: Option<&IndexedEntities<RequestEntry>>,
+        group: RequestGroup,
+    ) -> Result<String, ApicizeAppError> {
+        info.dirty = true;
         let id = group.id.clone();
         info.workspace.requests.add_entity(
             RequestEntry::Group(group),
@@ -446,9 +507,11 @@ impl Workspaces {
             relative_position,
         )?;
 
+        let source = source_requests.unwrap_or(&info.workspace.requests);
+
         if let Some(other_id) = clone_from_id {
             // Pre-calculate approximate size by counting descendant nodes
-            let estimated_size = Self::count_descendant_nodes(&info.workspace.requests, other_id);
+            let estimated_size = Self::count_descendant_nodes(&source, other_id);
 
             // Pre-allocate collections with estimated capacity
             let mut cloned_group_ids = FxHashMap::<String, String>::with_capacity_and_hasher(
@@ -474,7 +537,7 @@ impl Workspaces {
                     continue; // Already processed
                 }
 
-                if let Some(child_ids) = info.workspace.requests.child_ids.get(&parent_id) {
+                if let Some(child_ids) = source.child_ids.get(&parent_id) {
                     let new_group_id = cloned_group_ids
                         .get(&parent_id)
                         .expect("Parent group ID should exist in cloned_group_ids")
@@ -484,8 +547,8 @@ impl Workspaces {
                     let mut new_group_child_ids = Vec::with_capacity(child_ids.len());
 
                     for child_id in child_ids {
-                        if let Some(child) = info.workspace.requests.get(child_id) {
-                            let cloned_child = child.clone_as_new(child.get_name().to_owned());
+                        if let Some(child) = source.get(child_id) {
+                            let cloned_child = child.clone_as_new(child.get_title().to_owned());
                             let cloned_child_id = cloned_child.get_id().to_string();
                             let is_group = matches!(&cloned_child, RequestEntry::Group(_));
 
@@ -527,6 +590,7 @@ impl Workspaces {
             }
             info.workspace.requests.child_ids.extend(new_child_mappings);
         }
+        info.workspace.validate_selections();
         Ok(id)
     }
 
@@ -1166,14 +1230,39 @@ impl Workspaces {
         clone_from_id: Option<&str>,
     ) -> Result<String, ApicizeAppError> {
         let info = self.get_workspace_info_mut(workspace_id)?;
-        info.dirty = true;
         let scenario = match clone_from_id {
             Some(other_id) => match info.workspace.scenarios.get(other_id) {
-                Some(other) => other.clone_as_new(Self::create_copy_name(&other.name)),
+                Some(other) => other.clone_as_new(Self::create_copy_name(&other.get_title())),
                 None => return Err(ApicizeAppError::InvalidScenario(other_id.to_owned())),
             },
             None => Scenario::default(),
         };
+        Self::perform_add_scenario(info, relative_to, relative_position, scenario)
+    }
+
+    pub fn clone_scenario(
+        &mut self,
+        workspace_id: &str,
+        relative_to: Option<&str>,
+        relative_position: Option<IndexedEntityPosition>,
+        scenario: Scenario,
+    ) -> Result<String, ApicizeAppError> {
+        let info = self.get_workspace_info_mut(workspace_id)?;
+        Self::perform_add_scenario(
+            info,
+            relative_to,
+            relative_position,
+            scenario.clone_as_new(scenario.get_title()),
+        )
+    }
+
+    fn perform_add_scenario(
+        info: &mut WorkspaceInfo,
+        relative_to: Option<&str>,
+        relative_position: Option<IndexedEntityPosition>,
+        scenario: Scenario,
+    ) -> Result<String, ApicizeAppError> {
+        info.dirty = true;
         let id = scenario.id.clone();
         info.workspace
             .scenarios
@@ -1305,7 +1394,6 @@ impl Workspaces {
         clone_from_id: Option<&str>,
     ) -> Result<String, ApicizeAppError> {
         let info = self.get_workspace_info_mut(workspace_id)?;
-        info.dirty = true;
         let authorization = match clone_from_id {
             Some(other_id) => match info.workspace.authorizations.get(other_id) {
                 Some(other) => other.clone_as_new(Self::create_copy_name(other.get_name())),
@@ -1313,10 +1401,37 @@ impl Workspaces {
             },
             None => Authorization::default(),
         };
+        Self::perform_add_authorization(info, relative_to, relative_position, authorization)
+    }
+
+    pub fn clone_authorization(
+        &mut self,
+        workspace_id: &str,
+        relative_to: Option<&str>,
+        relative_position: Option<IndexedEntityPosition>,
+        authorization: Authorization,
+    ) -> Result<String, ApicizeAppError> {
+        let info = self.get_workspace_info_mut(workspace_id)?;
+        Self::perform_add_authorization(
+            info,
+            relative_to,
+            relative_position,
+            authorization.clone_as_new(authorization.get_title()),
+        )
+    }
+
+    fn perform_add_authorization(
+        info: &mut WorkspaceInfo,
+        relative_to: Option<&str>,
+        relative_position: Option<IndexedEntityPosition>,
+        authorization: Authorization,
+    ) -> Result<String, ApicizeAppError> {
+        info.dirty = true;
         let id = authorization.get_id().to_string();
         info.workspace
             .authorizations
             .add_entity(authorization, relative_to, relative_position)?;
+        info.workspace.validate_selections();
         Ok(id)
     }
 
@@ -1669,14 +1784,39 @@ impl Workspaces {
         clone_from_id: Option<&str>,
     ) -> Result<String, ApicizeAppError> {
         let info = self.get_workspace_info_mut(workspace_id)?;
-        info.dirty = true;
         let certificate = match clone_from_id {
             Some(other_id) => match info.workspace.certificates.get(other_id) {
-                Some(other) => other.clone_as_new(Self::create_copy_name(other.get_name())),
+                Some(other) => other.clone_as_new(Self::create_copy_name(&other.get_title())),
                 None => return Err(ApicizeAppError::InvalidCertificate(other_id.to_owned())),
             },
             None => Certificate::default(),
         };
+        Self::perform_add_certificate(info, relative_to, relative_position, certificate)
+    }
+
+    pub fn clone_certificate(
+        &mut self,
+        workspace_id: &str,
+        relative_to: Option<&str>,
+        relative_position: Option<IndexedEntityPosition>,
+        certificate: Certificate,
+    ) -> Result<String, ApicizeAppError> {
+        let info = self.get_workspace_info_mut(workspace_id)?;
+        Self::perform_add_certificate(
+            info,
+            relative_to,
+            relative_position,
+            certificate.clone_as_new(certificate.get_title()),
+        )
+    }
+
+    fn perform_add_certificate(
+        info: &mut WorkspaceInfo,
+        relative_to: Option<&str>,
+        relative_position: Option<IndexedEntityPosition>,
+        certificate: Certificate,
+    ) -> Result<String, ApicizeAppError> {
+        info.dirty = true;
         let id = certificate.get_id().to_string();
         info.workspace
             .certificates
@@ -1879,7 +2019,6 @@ impl Workspaces {
         clone_from_id: Option<&str>,
     ) -> Result<String, ApicizeAppError> {
         let info = self.get_workspace_info_mut(workspace_id)?;
-        info.dirty = true;
         let proxy = match clone_from_id {
             Some(other_id) => match info.workspace.proxies.get(other_id) {
                 Some(other) => other.clone_as_new(Self::create_copy_name(&other.name)),
@@ -1887,6 +2026,32 @@ impl Workspaces {
             },
             None => Proxy::default(),
         };
+        Self::perform_add_proxy(info, relative_to, relative_position, proxy)
+    }
+
+    pub fn clone_proxy(
+        &mut self,
+        workspace_id: &str,
+        relative_to: Option<&str>,
+        relative_position: Option<IndexedEntityPosition>,
+        proxy: Proxy,
+    ) -> Result<String, ApicizeAppError> {
+        let info = self.get_workspace_info_mut(workspace_id)?;
+        Self::perform_add_proxy(
+            info,
+            relative_to,
+            relative_position,
+            proxy.clone_as_new(proxy.get_title()),
+        )
+    }
+
+    fn perform_add_proxy(
+        info: &mut WorkspaceInfo,
+        relative_to: Option<&str>,
+        relative_position: Option<IndexedEntityPosition>,
+        proxy: Proxy,
+    ) -> Result<String, ApicizeAppError> {
+        info.dirty = true;
         let id = proxy.id.clone();
         info.workspace
             .proxies
@@ -2794,6 +2959,39 @@ impl WorkspaceInfo {
             }
         };
 
+        let get_request_entry = |request_id: &str| -> Result<RequestEntry, ApicizeAppError> {
+            let entry = self
+                .workspace
+                .requests
+                .entities
+                .get(request_id)
+                .ok_or(ApicizeAppError::InvalidRequest(request_id.to_string()))?;
+            let mut result = entry.clone();
+            if let RequestEntry::Group(group) = &mut result {
+                group.children = if let Some(child_ids) =
+                    self.workspace.requests.child_ids.get(request_id)
+                    && !child_ids.is_empty()
+                {
+                    Some(
+                        child_ids
+                            .iter()
+                            .map(|child_id| {
+                                self.workspace
+                                    .requests
+                                    .entities
+                                    .get(child_id)
+                                    .ok_or(ApicizeAppError::InvalidRequest(child_id.to_string()))
+                                    .cloned()
+                            })
+                            .collect::<Result<Vec<RequestEntry>, ApicizeAppError>>()?,
+                    )
+                } else {
+                    None
+                };
+            }
+            Ok(result)
+        };
+
         let get_execution_summaries =
             |exec_ctr: &usize| self.execution_results.get_result_summaries(exec_ctr);
         let get_request_execution_detail = |exec_ctr: &usize| {
@@ -2806,6 +3004,64 @@ impl WorkspaceInfo {
         };
 
         match payload_request {
+            ClipboardPayloadRequest::Request { request_id } => {
+                let entry = get_request_entry(&request_id)?;
+                let data = ClipboardData::RequestEntry {
+                    entry: StoredRequestEntry::from_workspace(entry),
+                };
+                Ok(Some(PersistableData::Text(serde_json::to_string(&data)?)))
+            }
+            ClipboardPayloadRequest::Scenario { scenario_id } => {
+                let data = ClipboardData::Scenario {
+                    scenario: self
+                        .workspace
+                        .scenarios
+                        .entities
+                        .get(&scenario_id)
+                        .ok_or(ApicizeAppError::InvalidScenario(scenario_id))?
+                        .clone(),
+                };
+                Ok(Some(PersistableData::Text(serde_json::to_string(&data)?)))
+            }
+            ClipboardPayloadRequest::Authorization { authorization_id } => {
+                let data = ClipboardData::Authorization {
+                    authorization: self
+                        .workspace
+                        .authorizations
+                        .entities
+                        .get(&authorization_id)
+                        .ok_or(ApicizeAppError::InvalidAuthorization(authorization_id))?
+                        .clone(),
+                };
+
+                Ok(Some(PersistableData::Text(serde_json::to_string(&data)?)))
+            }
+            ClipboardPayloadRequest::Certificate { certificate_id } => {
+                let data = ClipboardData::Certificate {
+                    certificate: self
+                        .workspace
+                        .certificates
+                        .entities
+                        .get(&certificate_id)
+                        .ok_or(ApicizeAppError::InvalidCertificate(certificate_id))?
+                        .clone(),
+                };
+
+                Ok(Some(PersistableData::Text(serde_json::to_string(&data)?)))
+            }
+            ClipboardPayloadRequest::Proxy { proxy_id } => {
+                let data = ClipboardData::Proxy {
+                    proxy: self
+                        .workspace
+                        .proxies
+                        .entities
+                        .get(&proxy_id)
+                        .ok_or(ApicizeAppError::InvalidProxy(proxy_id))?
+                        .clone(),
+                };
+
+                Ok(Some(PersistableData::Text(serde_json::to_string(&data)?)))
+            }
             ClipboardPayloadRequest::RequestBody { request_id } => {
                 if let Some(body) = &get_request(&request_id)?.body {
                     match body {
@@ -3261,6 +3517,16 @@ pub struct OpenWorkspaceResult {
 #[serde(tag = "payloadType")]
 pub enum ClipboardPayloadRequest {
     #[serde(rename_all = "camelCase")]
+    Request { request_id: String },
+    #[serde(rename_all = "camelCase")]
+    Scenario { scenario_id: String },
+    #[serde(rename_all = "camelCase")]
+    Authorization { authorization_id: String },
+    #[serde(rename_all = "camelCase")]
+    Certificate { certificate_id: String },
+    #[serde(rename_all = "camelCase")]
+    Proxy { proxy_id: String },
+    #[serde(rename_all = "camelCase")]
     RequestBody { request_id: String },
     #[serde(rename_all = "camelCase")]
     RequestTest { request_id: String },
@@ -3344,6 +3610,8 @@ pub struct WorkspaceInitialization {
     pub settings: ApicizeSettings,
     /// Message to display to user if something wrong happened during startup   
     pub error: Option<String>,
+    /// Type of data currently available in the clipboard
+    pub clipboard_data_type: ClipboardDataType,
 }
 
 #[derive(Clone, Copy, Serialize, Deserialize)]

@@ -1,4 +1,4 @@
-import { ApicizeError, ApicizeExecutionTestContext, ApicizeHttpRequest, ApicizeHttpResponse, ApicizeTestResult, JsonValue } from "./execution"
+import { ApicizeError, ApicizeExecutionTestContext, ApicizeTestResult, JsonValue } from "./execution"
 import { ExecutionResultSuccess } from "./execution-result-success"
 
 export type ExecutionResultDetail = ExecutionResultDetailRequest | ExecutionResultDetailGroup

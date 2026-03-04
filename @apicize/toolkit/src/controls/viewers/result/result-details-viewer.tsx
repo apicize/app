@@ -9,10 +9,12 @@ import { ResultEditSessionType } from "../../editors/editor-types"
 import { useWorkspace } from "../../../contexts/workspace.context"
 import { toJS } from "mobx"
 import { ExecutionResultDetail } from "@apicize/lib-typescript"
+import { useFeedback } from "../../../contexts/feedback.context"
 
 export const ResultDetailsViewer = observer(({ detail }: { detail: ExecutionResultDetail | null }) => {
 
     const workspace = useWorkspace()
+    const feedback = useFeedback()
 
     if (!detail) {
         return
@@ -38,10 +40,13 @@ export const ResultDetailsViewer = observer(({ detail }: { detail: ExecutionResu
                     title="Copy Details to Clipboard"
                     color='primary'
                     sx={{ marginLeft: '16px' }}
-                    onClick={_ => workspace.copyToClipboard({
-                        payloadType: 'ResponseDetail',
-                        execCtr: detail.execCtr,
-                    }, 'Response details')}>
+                    onClick={_ => {
+                        workspace.copyToClipboard({
+                            payloadType: 'ResponseDetail',
+                            execCtr: detail.execCtr,
+                        }, 'Response details')
+                            .catch(err => feedback.toastError(err)).catch(err => feedback.toastError(err))
+                    }}>
                     <ContentCopyIcon />
                 </IconButton>
             </Typography>

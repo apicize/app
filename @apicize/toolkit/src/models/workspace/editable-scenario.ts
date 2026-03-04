@@ -1,10 +1,10 @@
 import { Scenario, ValidationErrorList, Variable, VariableSourceType } from "@apicize/lib-typescript"
 import { Editable } from "../editable"
-import { action, computed, observable, runInAction, toJS } from "mobx"
+import { action, computed, observable } from "mobx"
 import { GenerateIdentifier } from "../../services/random-identifier-generator"
 import { EntityType } from "./entity-type"
 import { EditableEntityContext } from "../editable"
-import { EntityScenario, EntityTypeName, EntityUpdateNotification } from "../../contexts/workspace.context"
+import { EntityTypeName, EntityUpdateNotification } from "../../contexts/workspace.context"
 import { ScenarioUpdate } from "../updates/scenario-update"
 
 export class EditableScenario extends Editable<Scenario> {
@@ -26,26 +26,24 @@ export class EditableScenario extends Editable<Scenario> {
         )) ?? []
     }
 
-    protected performUpdate(update: ScenarioUpdate) {
+    protected async performUpdate(update: ScenarioUpdate) {
         this.markAsDirty()
-        this.workspace.update(update)
-            .then(updates => runInAction(() => {
-                if (updates) {
-                    this.validationErrors = updates.validationErrors || {}
-                }
-            }))
+        const updates = await this.workspace.update(update)
+        if (updates) {
+            this.validationErrors = updates.validationErrors || {}
+        }
     }
 
     @action
     setName(value: string) {
         this.name = value
-        this.performUpdate({ type: EntityTypeName.Scenario, entityType: EntityType.Scenario, id: this.id, name: value })
+        return this.performUpdate({ type: EntityTypeName.Scenario, entityType: EntityType.Scenario, id: this.id, name: value })
     }
 
     @action
     setVariables(value: EditableVariable[]) {
         this.variables = value
-        this.performUpdate({ type: EntityTypeName.Scenario, entityType: EntityType.Scenario, id: this.id, variables: this.variables.map(v => v.toWorkspace()) })
+        return this.performUpdate({ type: EntityTypeName.Scenario, entityType: EntityType.Scenario, id: this.id, variables: this.variables.map(v => v.toWorkspace()) })
     }
 
     @action
@@ -128,18 +126,18 @@ export class EditableVariable implements Variable {
             case VariableSourceType.JSON: {
                 try {
                     JSON.parse(this.value)
-                } catch (_) {
+                } catch {
                     return 'Value must ve valid JSON'
                 }
             }
                 break
             case VariableSourceType.FileJSON:
-                if (/^(?!\/\\)(?!.*\.\.)(?!.*\/\/)(?!.*\/\.)[\.\w\/ ]{1,200}\.json$/.exec(this.value) === null) {
+                if (/^(?!\/\\)(?!.*\.\.)(?!.*\/\/)(?!.*\/\.)[.\w/ ]{1,200}\.json$/.exec(this.value) === null) {
                     return 'Value must be a relative .json file name using forward slashes'
                 }
                 break
             case VariableSourceType.FileCSV:
-                if (/^(?!\/\\)(?!.*\.\.)(?!.*\/\/)(?!.*\/\.)[\.\w\/ ]{1,200}\.csv$/.exec(this.value) === null) {
+                if (/^(?!\/\\)(?!.*\.\.)(?!.*\/\/)(?!.*\/\.)[.\w/ ]{1,200}\.csv$/.exec(this.value) === null) {
                     return 'Value must be a relative .csv file name using forward slashes'
                 }
                 break

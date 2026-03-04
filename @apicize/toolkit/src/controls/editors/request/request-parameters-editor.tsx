@@ -64,7 +64,9 @@ export const RequestParametersEditor = observer(({
                     open={showScenarioMenu}
                     onClose={() => setShowScenarioMenu(false)}
                     onOpen={() => setShowScenarioMenu(true)}
-                    onChange={(e) => requestOrGroup.setSelectedScenarioId(e.target.value)}
+                    onChange={(e) => {
+                        requestOrGroup.setSelectedScenarioId(e.target.value).catch(err => feedback.toastError(err))
+                    }}
                     fullWidth
                     size='small'
                 >
@@ -82,7 +84,9 @@ export const RequestParametersEditor = observer(({
                     open={showAuthorizationMenu}
                     onClose={() => setShowAuthorizationMenu(false)}
                     onOpen={() => setShowAuthorizationMenu(true)}
-                    onChange={(e) => requestOrGroup.setSelectedAuthorizationId(e.target.value)}
+                    onChange={(e) => {
+                        requestOrGroup.setSelectedAuthorizationId(e.target.value).catch(err => feedback.toastError(err))
+                    }}
                     fullWidth
                     size='small'
                 >
@@ -100,7 +104,9 @@ export const RequestParametersEditor = observer(({
                     open={showCertificateMenu}
                     onClose={() => setShowCertificateMenu(false)}
                     onOpen={() => setShowCertificateMenu(true)}
-                    onChange={(e) => requestOrGroup.setSelectedCertificateId(e.target.value)}
+                    onChange={(e) => {
+                        requestOrGroup.setSelectedCertificateId(e.target.value).catch(err => feedback.toastError(err))
+                    }}
                     fullWidth
                     size='small'
                 >
@@ -118,7 +124,9 @@ export const RequestParametersEditor = observer(({
                     open={showProxyMenu}
                     onClose={() => setShowProxyMenu(false)}
                     onOpen={() => setShowProxyMenu(true)}
-                    onChange={(e) => requestOrGroup.setSelectedProxyId(e.target.value)}
+                    onChange={(e) => {
+                        requestOrGroup.setSelectedProxyId(e.target.value).catch(err => feedback.toastError(err))
+                    }}
                     fullWidth
                     size='small'
                 >
@@ -136,7 +144,9 @@ export const RequestParametersEditor = observer(({
                     open={showDataMenu}
                     onClose={() => setShowDataMenu(false)}
                     onOpen={() => setShowDataMenu(true)}
-                    onChange={(e) => requestOrGroup.setSelectedDataId(e.target.value)}
+                    onChange={(e) => {
+                        requestOrGroup.setSelectedDataId(e.target.value).catch(err => feedback.toastError(err))
+                    }}
                     fullWidth
                     size='small'
                 >

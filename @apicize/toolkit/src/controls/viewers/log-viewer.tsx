@@ -13,7 +13,7 @@ import { useWorkspace } from "../../contexts/workspace.context"
 import { reaction, runInAction } from "mobx"
 import { useFeedback } from "../../contexts/feedback.context"
 
-export const LogViewer = React.memo(observer(({
+export const LogViewer = observer(({
     sx
 }: {
     sx?: SxProps<Theme>
@@ -47,7 +47,7 @@ export const LogViewer = React.memo(observer(({
         )
 
         return () => disposer()
-    }, [])
+    }, [feedback, log, workspace])
 
 
     const renderEvent = (e: ReqwestEvent) => {
@@ -87,7 +87,7 @@ export const LogViewer = React.memo(observer(({
             .catch(e => feedback.toastError(e))
     }
 
-    return <Stack display='flex' direction='column' className='log-panel' width='100%'>
+    return <Stack display='flex' direction='column' className='log-panel' width='100%' sx={sx}>
         <Box className='editor-panel-header' sx={{ maxWidth: 'None' }} flexGrow={0}>
             <EditorTitle icon={<SvgIcon><LogIcon /></SvgIcon>} name='Communication Logs'>
                 <Box>
@@ -97,7 +97,9 @@ export const LogViewer = React.memo(observer(({
                         size='medium'
                         color='primary'
                         sx={{ marginLeft: '1rem' }}
-                        onClick={_ => clipboard.writeTextToClipboard(eventsToText())}>
+                        onClick={_ => {
+                            clipboard.writeTextToClipboard(eventsToText()).catch(err => feedback.toastError(err))
+                        }}>
                         <ContentCopyIcon />
                     </IconButton>
                     <IconButton color='primary' size='medium' aria-label='Clear' title='Clear Entries' onClick={() => clear()}><ClearAllIcon fontSize='inherit' color='warning' /></IconButton>
@@ -114,5 +116,4 @@ export const LogViewer = React.memo(observer(({
             </Stack>
         </Box>
     </Stack>
-}))
-
+})

@@ -1,5 +1,5 @@
 import { useDraggable, useDroppable } from "@dnd-kit/core"
-import { SvgIconPropsColorOverrides, SvgIcon, IconButton, Typography } from "@mui/material"
+import { SvgIconPropsColorOverrides, SvgIcon, IconButton } from "@mui/material"
 import { Box } from "@mui/system"
 import { TreeItem } from "@mui/x-tree-view/TreeItem"
 import { observer } from "mobx-react-lite"
@@ -11,7 +11,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import ErrorIcon from '@mui/icons-material/Error';
 import { CSS, useCombinedRefs } from '@dnd-kit/utilities';
-import React, { useState } from "react"
+import React, { useState, JSX } from "react"
 import { useDragDrop } from "../../contexts/dragdrop.context"
 import { useApicizeSettings } from "../../contexts/apicize-settings.context"
 import { useWorkspace } from "../../contexts/workspace.context"
@@ -62,11 +62,11 @@ export const iconsFromState = (entry: NavigationEntry) => {
     }
 
     return icons.length > 0
-        ? <Box className='nav-state-icon-container' typography='navigation'>{icons}</Box>
-        : null
+        ? <Box className='nav-state-icon-container' typography='navigation'>{icons} ({entry.executionState})</Box>
+        : <Box className='nav-state-icon-container' typography='navigation'>({entry.executionState})</Box>
 }
 
-export const NavTreeItem = React.memo(observer(({
+export const NavTreeItem = observer(({
     entry,
     type,
     depth,
@@ -77,7 +77,6 @@ export const NavTreeItem = React.memo(observer(({
     icon,
     iconColor,
     children,
-    onSelect,
     onMenu,
     onMove
 }: {
@@ -230,4 +229,4 @@ export const NavTreeItem = React.memo(observer(({
             children
         }
     </TreeItem >
-}))
+})

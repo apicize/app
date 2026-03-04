@@ -5,7 +5,7 @@ import { EditableScenario, EditableVariable } from '../../models/workspace/edita
 import ScenarioIcon from '../../icons/scenario-icon';
 import { GenerateIdentifier } from '../../services/random-identifier-generator';
 import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
+import DeleteIcon from '@mui/icons-material/RemoveCircleOutline';
 import { VariableSourceType } from '@apicize/lib-typescript';
 import { useWorkspace } from '../../contexts/workspace.context';
 import { useApicizeSettings } from '../../contexts/apicize-settings.context';
@@ -38,13 +38,13 @@ export const ScenarioEditor = observer(({ scenario, sx }: { scenario: EditableSc
                 ''
             ),
             ...scenario.variables
-        ])
+        ]).catch(err => feedback.toastError(err))
     }
 
     const onDeleteVariable = (id: string) => {
         scenario.setVariables(
             scenario.variables.filter(v => v.id !== id)
-        )
+        ).catch(err => feedback.toastError(err))
     }
 
     return (
@@ -65,7 +65,9 @@ export const ScenarioEditor = observer(({ scenario, sx }: { scenario: EditableSc
                         size='small'
                         value={scenario.name}
                         autoFocus={scenario.name === ''}
-                        onChange={e => scenario.setName(e.target.value)}
+                        onChange={e => {
+                            scenario.setName(e.target.value).catch(err => feedback.toastError(err))
+                        }}
                         error={!!scenario.nameError}
                         helperText={scenario.nameError ?? ''}
                         fullWidth
@@ -86,7 +88,7 @@ export const ScenarioEditor = observer(({ scenario, sx }: { scenario: EditableSc
                                                 helperText={variable.nameInvalid ? 'Variable name is required' : ''}
                                                 onChange={(e) => {
                                                     variable.updateName(e.target.value)
-                                                    scenario.setVariables(scenario.variables)
+                                                    scenario.setVariables(scenario.variables).catch(err => feedback.toastError(err))
                                                 }}
                                                 fullWidth
                                             />
@@ -106,7 +108,7 @@ export const ScenarioEditor = observer(({ scenario, sx }: { scenario: EditableSc
                                                     onOpen={() => setOpenVariableTypeMenuId(variable.id)}
                                                     onChange={e => {
                                                         variable.updateSourceType(e.target.value as VariableSourceType)
-                                                        scenario.setVariables(scenario.variables)
+                                                        scenario.setVariables(scenario.variables).catch(err => feedback.toastError(err))
                                                     }}
                                                 >
                                                     <MenuItem key={`${variable.id}-type-text`} value={VariableSourceType.Text}>Text Value</MenuItem>
@@ -131,7 +133,7 @@ export const ScenarioEditor = observer(({ scenario, sx }: { scenario: EditableSc
                                                 helperText={variable.valueError ?? ''}
                                                 onChange={(e) => {
                                                     variable.updateValue(e.target.value)
-                                                    scenario.setVariables(scenario.variables)
+                                                    scenario.setVariables(scenario.variables).catch(err => feedback.toastError(err))
                                                 }}
                                                 fullWidth
                                             />

@@ -1,13 +1,12 @@
-import { ReactNode, useEffect, useRef } from "react";
+import { ReactNode, useRef } from "react";
 import * as core from '@tauri-apps/api/core'
 import * as dialog from '@tauri-apps/plugin-dialog'
 import * as path from '@tauri-apps/api/path'
 import { exists, readFile, readTextFile } from "@tauri-apps/plugin-fs"
-import { base64Encode, DataSetContent, FileOperationsContext, FileOperationsStore, HelpContents, OpenDataSetFileResponse, SshFileType, ToastSeverity, UpdateResponse, useApicizeSettings, useFeedback, WorkspaceStore } from "@apicize/toolkit";
-import { ApicizeSettings, DataSet, DataSourceType } from "@apicize/lib-typescript";
+import { base64Encode, FileOperationsContext, FileOperationsStore, HelpContents, OpenDataSetFileResponse, SshFileType, ToastSeverity, useApicizeSettings, useFeedback, WorkspaceStore } from "@apicize/toolkit";
+import { ApicizeSettings, DataSourceType } from "@apicize/lib-typescript";
 import { extname, join, resourceDir } from '@tauri-apps/api/path';
 import { EditableSettings } from "@apicize/toolkit/dist/models/editable-settings";
-import { EditableDataSet } from "@apicize/toolkit/dist/models/workspace/editable-data-set";
 
 
 /**
@@ -97,7 +96,7 @@ export function FileOperationsProvider(
         const fileName = workspaceStore.fileName
         if (fileName && fileName.length > 0) {
             const base = await path.basename(fileName)
-            let i = fileName.indexOf(base)
+            const i = fileName.indexOf(base)
             if (i != -1) {
                 _bodyDataPath.current = fileName.substring(0, i)
                 return _bodyDataPath.current
@@ -111,7 +110,7 @@ export function FileOperationsProvider(
      * Launches a new workspace
      * @returns 
      */
-    const newWorkbook = async (openInNewWindow: boolean) => {
+    const newWorkbook = async (openInNewWindow: boolean): Promise<string> => {
         if (!openInNewWindow && workspaceStore.dirty) {
             if (! await feedback.confirm({
                 title: 'New Workbook',
@@ -120,12 +119,13 @@ export function FileOperationsProvider(
                 cancelButton: 'No',
                 defaultToCancel: true
             })) {
-                return
+                return ""
             }
         }
 
-        await core.invoke('new_workspace', { currentSessionId: activeSessionId, openInNewSession: openInNewWindow })
+        const response = await core.invoke<string>('new_workspace', { currentSessionId: activeSessionId, openInNewSession: openInNewWindow })
         feedback.toast('Created New Workbook', ToastSeverity.Success)
+        return response
     }
 
     /**
@@ -134,7 +134,7 @@ export function FileOperationsProvider(
      * @param doUpdateSettings 
      * @returns 
      */
-    const openWorkbook = async (openInNewWindow: boolean, defaultFileName?: string) => {
+    const openWorkbook = async (openInNewWindow: boolean, defaultFileName?: string): Promise<string> => {
         try {
             if (!openInNewWindow && workspaceStore.dirty && workspaceStore.editorCount < 2) {
                 if (! await feedback.confirm({
@@ -144,7 +144,7 @@ export function FileOperationsProvider(
                     cancelButton: 'No',
                     defaultToCancel: true
                 })) {
-                    return
+                    return ""
                 }
             }
             let fileName = defaultFileName ?? null
@@ -164,11 +164,12 @@ export function FileOperationsProvider(
                 feedback.setModal(false)
             }
 
-            if (!fileName) return
+            if (!fileName) return ""
 
-            await core.invoke('open_workspace', { fileName, sessionId: activeSessionId, openInNewSession: openInNewWindow })
+            return await core.invoke('open_workspace', { fileName, sessionId: activeSessionId, openInNewSession: openInNewWindow })
         } catch (e) {
             feedback.toastError(e)
+            return ""
         }
     }
 
@@ -323,12 +324,12 @@ export function FileOperationsProvider(
 
         if (!fileName) return null
 
-        const baseName = await path.basename(fileName)
-        let pathName = ''
-        let i = fileName.indexOf(baseName)
-        if (i !== -1) {
-            pathName = (await path.dirname(fileName)).substring(0, i)
-        }
+        // const baseName = await path.basename(fileName)
+        // let pathName = ''
+        // const i = fileName.indexOf(baseName)
+        // if (i !== -1) {
+        //     pathName = (await path.dirname(fileName)).substring(0, i)
+        // }
 
         const data = base64Encode(await readFile(fileName))
         return data
@@ -355,12 +356,12 @@ export function FileOperationsProvider(
 
         if (!fileName) return null
 
-        const baseName = await path.basename(fileName)
-        let pathName = ''
-        let i = fileName.indexOf(baseName)
-        if (i !== -1) {
-            pathName = (await path.dirname(fileName)).substring(0, i)
-        }
+        // const baseName = await path.basename(fileName)
+        // let pathName = ''
+        // const i = fileName.indexOf(baseName)
+        // if (i !== -1) {
+        //     pathName = (await path.dirname(fileName)).substring(0, i)
+        // }
 
         return await readFile(fileName)
     }
@@ -369,13 +370,14 @@ export function FileOperationsProvider(
         const helpContents = await join(await resourceDir(), 'help', 'contents.json')
         const contents = await readTextFile(helpContents)
         try {
-            const result = JSON.parse(contents)
+            const result = JSON.parse(contents) as HelpContents
             if (typeof result !== 'object') {
                 throw new Error('Help contents not in expected format')
             }
             return result
         } catch (e) {
-            throw new Error(`Unable to read contents - ${e}`)
+            feedback.toastError(e)
+            return {}
         }
     }
 
@@ -415,7 +417,7 @@ export function FileOperationsProvider(
                 filters = [{ name: 'JSON Files (*.json)', extensions: [ext, 'jsonc'] }, { name: 'All Files', extensions: ['*'] }]
             }
 
-            let fileName = await dialog.open({
+            const fileName = await dialog.open({
                 title: 'Open Data Set',
                 defaultPath: workspaceStore.directory,
                 filters,
@@ -483,8 +485,8 @@ export function FileOperationsProvider(
                 return null
             }
 
-            let lastDot = fileName.lastIndexOf('.')
-            let lastSlash = fileName.lastIndexOf('/')
+            const lastDot = fileName.lastIndexOf('.')
+            const lastSlash = fileName.lastIndexOf('/')
 
             if (lastDot < lastSlash) {
                 fileName += `.${ext}`
@@ -515,16 +517,16 @@ export function FileOperationsProvider(
             // This is cheesy, but I can't think of another way to inject images from the React client
             let imageLink
             do {
-                imageLink = text.match(/\:image\[(.*)\]/)
+                imageLink = text.match(/:image\[(.*)\]/)
                 if (imageLink && imageLink.length > 0 && imageLink.index) {
                     const imageFile = await join(helpDir, imageLink[1])
-                    let replaceWith = ''
+                    let replaceWith: string
                     try {
                         const data = await readFile(imageFile)
                         const ext = await extname(imageFile)
                         replaceWith = `![](data:image/${ext};base64,${base64Encode(data)})`
                     } catch (e) {
-                        throw new Error(`Unable to load ${imageFile} - ${e}`)
+                        throw new Error(`Unable to load ${imageFile}`, { cause: e })
                     }
                     text = `${text.substring(0, imageLink.index)}${replaceWith}${text.substring(imageLink.index + imageLink[0].length)}`
                 }

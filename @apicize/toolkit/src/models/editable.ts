@@ -1,5 +1,5 @@
 import { Body } from "@apicize/lib-typescript"
-import { action, computed, observable } from "mobx"
+import { observable } from "mobx"
 import { EntityType } from "./workspace/entity-type"
 import { EditableProxy } from "./workspace/editable-proxy"
 import { EditableRequest } from "./workspace/editable-request"

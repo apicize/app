@@ -1,7 +1,6 @@
-import { ApicizeExecutionType, ApicizeGroup, ApicizeGroupRun, ApicizeRequest, ExecutionResultDetailGroup, ExecutionResultDetailRequest, ExecutionResultSummary, ExecutionState } from "@apicize/lib-typescript";
+import { ApicizeExecutionType, ApicizeGroup, ApicizeGroupRun, ApicizeRequest, ExecutionResultSummary, ExecutionState } from "@apicize/lib-typescript";
 import { OverridableStringUnion } from '@mui/types'
 import { SvgIconPropsColorOverrides } from "@mui/material"
-import { action, observable } from "mobx";
 
 export type ExecutionData = ApicizeGroup | ApicizeGroupRun | ApicizeRequest | ApicizeExecutionType
 

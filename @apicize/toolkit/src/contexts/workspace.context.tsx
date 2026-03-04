@@ -1,4 +1,4 @@
-import { action, computed, makeObservable, observable, runInAction, toJS } from "mobx"
+import { action, computed, makeObservable, observable, runInAction } from "mobx"
 import { ExecutionEvent, ExecutionResultViewState } from "../models/workspace/execution"
 import { EditableRequest } from "../models/workspace/editable-request"
 import { EditableRequestGroup } from "../models/workspace/editable-request-group"
@@ -27,7 +27,6 @@ import {
     ExecutionState,
     Body,
     TokenResult,
-    DataSourceType,
     NO_SELECTION,
 } from "@apicize/lib-typescript"
 import { EntityType } from "../models/workspace/entity-type"
@@ -52,6 +51,7 @@ import { EditableEntityContext, UpdateResponse } from "../models/editable"
 import { EntityUpdate } from "../models/updates/entity-update"
 import { RequestBodyInfo, RequestBodyMimeInfo } from "../models/workspace/request-body-info"
 import { DataSetContent } from "../models/updates/data-set-update"
+import { ClipboardDataType } from "./clipboard.context"
 
 export enum WorkspaceMode {
     Normal = 0,
@@ -145,7 +145,7 @@ export class WorkspaceStore implements EditableEntityContext {
             updateActiveEntity: (entity?: SessionEntity) => Promise<undefined>,
             updateExpandedItems: (ids?: string[]) => Promise<undefined>,
             updateMode: (mode: WorkspaceMode) => Promise<undefined>,
-            getTitle: (entityType: EntityType, id: string) => Promise<String>,
+            getTitle: (entityType: EntityType, id: string) => Promise<string>,
             getExecution: (requestOrGroupId: string) => Promise<RequestExecution>,
             getDirty: () => Promise<boolean>,
             listParameters: (requestId?: string) => Promise<WorkspaceParameters>,
@@ -174,9 +174,10 @@ export class WorkspaceStore implements EditableEntityContext {
             closePkce: (data: { authorizationId: string }) => Promise<void>,
             refreshToken: (data: { authorizationId: string }) => Promise<void>,
             copyToClipboard: (payloadRequest: ClipboardPaylodRequest) => Promise<void>,
+            clipboardPasteData: (relativeToId: string | null, relativePosition: IndexedEntityPosition | null, dataType: ClipboardDataType) => Promise<[string, EntityType]>,
             getRequestBody: (requestId: string) => Promise<RequestBodyInfo>,
             updateRequestBody: (requestId: string, body?: Body) => Promise<RequestBodyMimeInfo>,
-            updateRequestBodyFromClipboard: (requestId: String) => Promise<RequestBodyInfo>,
+            updateRequestBodyFromClipboard: (requestId: string) => Promise<RequestBodyInfo>,
             openUrl: (url: string) => Promise<void>,
         }) {
         makeObservable(this)
@@ -250,7 +251,7 @@ export class WorkspaceStore implements EditableEntityContext {
     updateExpanded(id: string | string[], isExpanded: boolean) {
         const expanded = [...this.expandedItems]
         for (const thisId of Array.isArray(id) ? id : [id]) {
-            let idx = expanded.indexOf(thisId)
+            const idx = expanded.indexOf(thisId)
             if (isExpanded) {
                 if (idx === -1) expanded.push(thisId)
             } else {
@@ -259,10 +260,11 @@ export class WorkspaceStore implements EditableEntityContext {
         }
         this.expandedItems = expanded
         this.callbacks.updateExpandedItems(expanded.length > 0 ? expanded : undefined)
+            .catch(err => this.feedback.toastError(err))
     }
 
     @action
-    async changeActive(type: EntityType, id: string) {
+    changeActive(type: EntityType, id: string) {
         const expandId = `${type}-${id}`
         const isExpanded = this.expandedItems.includes(expandId)
         const isAlreadyActive = this.activeSelection?.entityType === type && this.activeSelection?.id === id
@@ -287,7 +289,7 @@ export class WorkspaceStore implements EditableEntityContext {
     performChangeActive(type: EntityType, id: string, onChange?: () => void) {
         (async () => {
             try {
-                let selection = await this.generateActiveSelection(id, type)
+                const selection = await this.generateActiveSelection(id, type)
                 runInAction(() => {
                     this.activeSelection = selection
 
@@ -535,6 +537,7 @@ export class WorkspaceStore implements EditableEntityContext {
     @action
     updateNavigationState(entry: UpdatedNavigationEntry) {
         const match = this.findNavigationEntry(entry.id, entry.entityType)
+        console.log(`Updating navigation for ${entry.id} (exec state = ${entry.executionState})`)
         if (match) {
             match.name = entry.disabled ? entry.name : entry.name
             match.validationState = entry.validationState
@@ -570,7 +573,7 @@ export class WorkspaceStore implements EditableEntityContext {
             case EntityType.Defaults:
                 return this.defaults
             default:
-                throw type satisfies never
+                throw new Error(`Unhandled selection type: ${type satisfies never}`)
         }
     }
 
@@ -590,7 +593,7 @@ export class WorkspaceStore implements EditableEntityContext {
             throw new Error(`Request Entry ID "${id}" is not valid`)
         }
 
-        if (result.entityTypeName === 'RequestEntry') {
+        if (result.entityTypeName === EntityTypeName.RequestEntry) {
             const execution = await this.callbacks.getExecution(id)
             const executionResultViewState = await this.callbacks.getExecutionResultViewState(id)
             if (result.request) {
@@ -621,7 +624,7 @@ export class WorkspaceStore implements EditableEntityContext {
     }
 
     @action
-    deleteRequest(id: string) {
+    deleteRequestOrGroup(id: string) {
         this.callbacks.delete(EntityType.Request, id)
             .then(() => {
                 this.clearActiveConditionally(EntityType.Request, id)
@@ -662,11 +665,6 @@ export class WorkspaceStore implements EditableEntityContext {
     }
 
     @action
-    deleteGroup(id: string) {
-        this.deleteRequest(id)
-    }
-
-    @action
     moveGroup(groupId: string, relativeToId: string, relativePosition: IndexedEntityPosition) {
         if (relativePosition === IndexedEntityPosition.Under) {
             this.updateExpanded(`${EntityType.Group}-${relativeToId}`, true)
@@ -702,6 +700,17 @@ export class WorkspaceStore implements EditableEntityContext {
                 this.clearParameterList()
             })
             .catch(e => this.feedback.toastError(e))
+    }
+
+    @action
+    async pasteFromClipboard(relativeToId: string | null, relativePosition: IndexedEntityPosition, dataType: ClipboardDataType) {
+        try {
+            const [id, entityType] = await this.callbacks.clipboardPasteData(relativeToId, relativePosition, dataType)
+            this.changeActive(entityType, id)
+            this.clearParameterList()
+        } catch (e) {
+            this.feedback.toastError(e)
+        }
     }
 
     @action
@@ -783,7 +792,7 @@ export class WorkspaceStore implements EditableEntityContext {
     }
 
     @action
-    async addCertificate(relativeToId: string, relativePosition: IndexedEntityPosition, cloneFromId: string | null) {
+    addCertificate(relativeToId: string, relativePosition: IndexedEntityPosition, cloneFromId: string | null) {
         this.callbacks.add(
             EntityType.Certificate,
             relativeToId,
@@ -844,7 +853,7 @@ export class WorkspaceStore implements EditableEntityContext {
     }
 
     @action
-    async deleteProxy(id: string) {
+    deleteProxy(id: string) {
         this.callbacks.delete(EntityType.Proxy, id)
             .then(() => {
                 this.clearActiveConditionally(EntityType.Proxy, id)
@@ -915,7 +924,6 @@ export class WorkspaceStore implements EditableEntityContext {
     initializeParameterList(requestOrGroupId: string | null) {
         this.callbacks.listParameters(requestOrGroupId ?? undefined)
             .then(parameters => runInAction(() => {
-                console.log(`Initializing parameter list for ${requestOrGroupId}`, toJS(parameters))
                 this.activeParameters = {
                     requestOrGroupId,
                     parameters
@@ -928,7 +936,6 @@ export class WorkspaceStore implements EditableEntityContext {
      * Reset parameter list to force a re-render
      */
     clearParameterList() {
-        console.log('clearing paramter list')
         this.activeParameters = null
     }
 
@@ -1009,7 +1016,7 @@ export class WorkspaceStore implements EditableEntityContext {
                     this.addPendingPkceRequest(auth.id, requestOrGroupId, singleRun)
                     this.callbacks.initializePkce({
                         authorizationId: auth.id
-                    })
+                    }).catch(err => this.feedback.toastError(err))
                     return
                 } else if (tokenInfo.expiration) {
                     const nowInSec = Date.now() / 1000
@@ -1017,13 +1024,13 @@ export class WorkspaceStore implements EditableEntityContext {
                         this.addPendingPkceRequest(auth.id, requestOrGroupId, singleRun)
                         this.callbacks.refreshToken({
                             authorizationId: auth.id
-                        })
+                        }).catch(err => this.feedback.toastError(err))
                         return
                     }
                 }
             }
 
-            let idx = this.executingRequestIDs.indexOf(requestOrGroupId)
+            const idx = this.executingRequestIDs.indexOf(requestOrGroupId)
             if (idx === -1) {
                 this.executingRequestIDs.push(requestOrGroupId)
             }
@@ -1040,7 +1047,7 @@ export class WorkspaceStore implements EditableEntityContext {
             if (requestEntry && requestEntry.isRunning) {
                 requestEntry.stopExecution()
             }
-            let idx = this.executingRequestIDs.indexOf(requestOrGroupId)
+            const idx = this.executingRequestIDs.indexOf(requestOrGroupId)
             if (idx !== -1) {
                 this.executingRequestIDs.splice(idx, 1)
             }
@@ -1052,7 +1059,7 @@ export class WorkspaceStore implements EditableEntityContext {
         const request = await this.getRequestEntry(requestOrGroupId)
         request.isRunning = false
 
-        let idx = this.executingRequestIDs.indexOf(requestOrGroupId)
+        const idx = this.executingRequestIDs.indexOf(requestOrGroupId)
         if (idx !== -1) {
             this.executingRequestIDs.splice(idx, 1)
         }
@@ -1088,7 +1095,7 @@ export class WorkspaceStore implements EditableEntityContext {
     initializePkce(authorizationId: string) {
         this.callbacks.initializePkce({
             authorizationId
-        })
+        }).catch(err => this.feedback.toastError(err))
     }
 
     /**
@@ -1100,7 +1107,7 @@ export class WorkspaceStore implements EditableEntityContext {
      */
     @action
     async updatePkceAuthorization(authorizationId: string, accessToken: string, refreshToken: string | undefined, expiration: number | undefined) {
-        const auth = this.getAuthorization(authorizationId)
+        const auth = await this.getAuthorization(authorizationId)
         if (!auth) {
             throw new Error('Invalid authorization ID')
         }
@@ -1115,7 +1122,7 @@ export class WorkspaceStore implements EditableEntityContext {
 
         // Execute pending requests
         for (const [requestOrGroupId, singleRun] of pendingRequests) {
-            this.startExecution(requestOrGroupId, singleRun)
+            await this.startExecution(requestOrGroupId, singleRun)
         }
     }
 
@@ -1158,12 +1165,12 @@ export class WorkspaceStore implements EditableEntityContext {
      * @param type 
      * @returns 
      */
-    async getRequestEditModel(request: EditableRequest | EditableRequestGroup, type: RequestEditSessionType, mode: EditorMode): Promise<IRequestEditorTextModel> {
+    getRequestEditModel(request: EditableRequest | EditableRequestGroup, type: RequestEditSessionType, mode: EditorMode): IRequestEditorTextModel {
         const requestId = request.id
 
         const models = this.requestModels.get(requestId)
         if (models) {
-            let model = models.get(type)
+            const model = models.get(type)
             if (model) {
                 if (model.getLanguageId() === mode) {
                     return model
@@ -1208,7 +1215,6 @@ export class WorkspaceStore implements EditableEntityContext {
     * @returns 
     */
     getResultEditModel(detail: ExecutionResultDetail, type: ResultEditSessionType, mode: EditorMode): editor.ITextModel {
-        let id: string
         let text: string
 
         switch (detail.entityType) {
@@ -1260,7 +1266,7 @@ export class WorkspaceStore implements EditableEntityContext {
      * @param type 
      * @returns 
      */
-    async getDataSetEditModel(dataSet: EditableDataSet): Promise<IDataSetEditorTextModel> {
+    getDataSetEditModel(dataSet: EditableDataSet): IDataSetEditorTextModel {
         const dataSetId = dataSet.id
 
         let model = this.dataSetModels.get(dataSetId)
@@ -1304,10 +1310,9 @@ export class WorkspaceStore implements EditableEntityContext {
         return this.callbacks.clearLogs()
     }
 
-    public copyToClipboard(payloadRequest: ClipboardPaylodRequest, description: string) {
-        this.callbacks.copyToClipboard(payloadRequest)
-            .then(() => this.feedback.toast(`${description} copied to clipboard`, ToastSeverity.Info))
-            .catch((err) => this.feedback.toastError(err))
+    public async copyToClipboard(payloadRequest: ClipboardPaylodRequest, description: string) {
+        await this.callbacks.copyToClipboard(payloadRequest)
+        this.feedback.toast(`${description} copied to clipboard`, ToastSeverity.Info)
     }
 
     async updateRequestBody(requestId: string, body: Body | undefined): Promise<RequestBodyMimeInfo | null> {
@@ -1323,7 +1328,7 @@ export class WorkspaceStore implements EditableEntityContext {
         }
     }
 
-    public async updateRequestBodyFromClipboard(requestId: String): Promise<RequestBodyInfo> {
+    public async updateRequestBodyFromClipboard(requestId: string): Promise<RequestBodyInfo> {
         const bodyInfo = await this.callbacks.updateRequestBodyFromClipboard(requestId)
         runInAction(() => {
             if (this.activeSelection?.entityType === EntityType.Request && this.activeSelection.id === bodyInfo.id) {
@@ -1378,7 +1383,7 @@ export class WorkspaceStore implements EditableEntityContext {
         if (notification.update.entityType === EntityType.Defaults) {
             this.defaults.refreshFromExternalSpecificUpdate(notification)
         } else {
-            let activeSelection = this.activeSelection
+            const activeSelection = this.activeSelection
             if (activeSelection && activeSelection.entityType === notification.update.entityType && activeSelection.id === notification.update.id) {
                 activeSelection.refreshFromExternalSpecificUpdate(notification)
             }
@@ -1492,7 +1497,7 @@ export interface Session {
     /**
      * Session ID associated with the session
      */
-    workspaceId: String
+    workspaceId: string
     /**
      * Track which request is active in the session, if any
      */
@@ -1523,6 +1528,7 @@ export interface WorkspaceInitialization {
     defaults: WorkspaceDefaultParameters
     settings: EditableSettings
     error: string | undefined
+    clipboardDataType: ClipboardDataType
 }
 
 export interface SessionSaveState {

@@ -38,10 +38,10 @@ export const RequestGroupInfoEditor = observer(({ sx, group }: {
     const isUsingSeedData = workspace.defaults.selectedData.id !== NO_SELECTION_ID
 
     const handleRunClick = () => () => {
-        workspace.startExecution(group.id)
+        workspace.startExecution(group.id).catch(err => feedback.toastError(err))
     }
 
-    let times = group.runs == 1 ? 'one time' : `${group.runs} times`
+    const times = group.runs == 1 ? 'one time' : `${group.runs} times`
 
     return (
         <Grid container direction='column' spacing={3} sx={sx}>
@@ -57,7 +57,9 @@ export const RequestGroupInfoEditor = observer(({ sx, group }: {
                         title="Name of group"
                         // size='small'
                         value={group.name}
-                        onChange={e => group.setName(e.target.value)}
+                        onChange={e => {
+                            group.setName(e.target.value).catch(err => feedback.toastError(err))
+                        }}
                         error={!!group.nameError}
                         helperText={group.nameError}
                     />
@@ -71,7 +73,9 @@ export const RequestGroupInfoEditor = observer(({ sx, group }: {
                         size="small"
                         title="Referential key of group"
                         value={group.key}
-                        onChange={e => group.setKey(e.target.value)}
+                        onChange={e => {
+                            group.setKey(e.target.value).catch(err => feedback.toastError(err))
+                        }}
                     />
                 </Grid>
             </Grid>
@@ -93,7 +97,9 @@ export const RequestGroupInfoEditor = observer(({ sx, group }: {
                             }
                         }}
                         value={group.runs}
-                        onChange={e => group.setRuns(parseInt(e.target.value))}
+                        onChange={e => {
+                            group.setRuns(parseInt(e.target.value)).catch(err => feedback.toastError(err))
+                        }}
                     />
                     <ToggleButton value='Run' title={`Run selected group ${times} with defined timeout`} disabled={running || zeroRuns} onClick={handleRunClick()} size='small'>
                         <PlayCircleFilledIcon color={running || zeroRuns ? 'disabled' : 'success'} />
@@ -114,7 +120,9 @@ export const RequestGroupInfoEditor = observer(({ sx, group }: {
                             open={showGroupExecutionMenu}
                             onClose={() => setShowGroupExecutionMenu(false)}
                             onOpen={() => setShowGroupExecutionMenu(true)}
-                            onChange={e => group.setMultiRunExecution(e.target.value as ExecutionConcurrency)}
+                            onChange={e => {
+                                group.setMultiRunExecution(e.target.value as ExecutionConcurrency).catch(err => feedback.toastError(err))
+                            }}
                             title='Whether to execute mutiple group runs sequentially (one at a time) or concurrently'
                         >
                             <MenuItem value={ExecutionConcurrency.Sequential}>Sequential</MenuItem>
@@ -138,7 +146,9 @@ export const RequestGroupInfoEditor = observer(({ sx, group }: {
                             open={showGroupItemExecutionMenu}
                             onClose={() => setShowGroupItemExecutionMenu(false)}
                             onOpen={() => setShowGroupItemExecutionMenu(true)}
-                            onChange={e => group.setGroupConcurrency(e.target.value as ExecutionConcurrency)}
+                            onChange={e => {
+                                group.setGroupConcurrency(e.target.value as ExecutionConcurrency).catch(err => feedback.toastError(err))
+                            }}
                         >
                             <MenuItem value={ExecutionConcurrency.Sequential}>Sequential</MenuItem>
                             <MenuItem value={ExecutionConcurrency.Concurrent}>Concurrent</MenuItem>
@@ -147,7 +157,9 @@ export const RequestGroupInfoEditor = observer(({ sx, group }: {
                 </Grid>
                 <Grid>
                     <FormControlLabel control={<Checkbox checked={group.disabled}
-                        onChange={(e) => group.setDisabled(e.target.checked)} />}
+                        onChange={(e) => {
+                            group.setDisabled(e.target.checked).catch(err => feedback.toastError(err))
+                        }} />}
                         title="Disable group when run as a child"
                         label="Disable" />
                 </Grid>

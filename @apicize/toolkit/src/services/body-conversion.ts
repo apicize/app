@@ -1,3 +1,6 @@
+// Disabled any handling for XML and JSON handling
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Body, BodyForm, BodyJSON, BodyNone, BodyRaw, BodyText, BodyType, BodyXML, NameValuePair } from "@apicize/lib-typescript";
 import { EditableNameValuePair } from "../models/workspace/editable-name-value-pair";
 import { GenerateIdentifier } from "./random-identifier-generator";
@@ -23,11 +26,11 @@ export class BodyConversion {
             case BodyType.Raw:
                 return this.toRaw()
             case BodyType.Text:
-                return this.toText()
+                return Promise.resolve(this.toText())
             case BodyType.None:
                 return Promise.resolve(this.toNone())
             default:
-                throw destinationType satisfies never
+                throw new Error(`Unhandled body type: ${destinationType satisfies never}`)
         }
     }
 
@@ -66,7 +69,7 @@ export class BodyConversion {
                     data: ''
                 }
             default:
-                throw type satisfies never
+                throw new Error(`Unhandled body type: ${type satisfies never}`)
         }
     }
 
@@ -105,7 +108,7 @@ export class BodyConversion {
                     data: ''
                 }
             default:
-                throw type satisfies never
+                throw new Error(`Unhandled body type: ${type satisfies never}`)
         }
     }
 
@@ -113,7 +116,7 @@ export class BodyConversion {
      * Output body as Text
      * @returns Body object of type Text
      */
-    public async toText(): Promise<BodyText> {
+    public toText(): BodyText {
         const type = this.source.type
         switch (type) {
             case BodyType.Text:
@@ -136,7 +139,7 @@ export class BodyConversion {
                     data: ''
                 }
             default:
-                throw type satisfies never
+                throw new Error(`Unhandled body type: ${type satisfies never}`)
         }
     }
 
@@ -146,6 +149,9 @@ export class BodyConversion {
      */
     public async toRaw(): Promise<BodyRaw> {
         const type = this.source.type
+        let jsonData: any
+        let xmlData: any
+
         switch (type) {
             case BodyType.Raw:
                 return this.source
@@ -157,7 +163,7 @@ export class BodyConversion {
                         : base64Encode((new TextEncoder()).encode(this.source.data))
                 }
             case BodyType.JSON:
-                const jsonData = JSON.parse(this.source.data)
+                jsonData = JSON.parse(this.source.data)
                 return {
                     type: BodyType.Raw,
                     data: BodyConversion.isValidBase64(jsonData)
@@ -165,7 +171,7 @@ export class BodyConversion {
                         : base64Encode((new TextEncoder()).encode(this.source.data))
                 }
             case BodyType.XML:
-                const xmlData = await BodyConversion.parseXml(this.source.data)
+                xmlData = await BodyConversion.parseXml(this.source.data)
                 return {
                     type: BodyType.Raw,
                     data: BodyConversion.isValidBase64(xmlData)
@@ -185,7 +191,7 @@ export class BodyConversion {
                     data: ''
                 }
             default:
-                throw type satisfies never
+                throw new Error(`Unhandled body type: ${type satisfies never}`)
         }
     }
 
@@ -195,19 +201,21 @@ export class BodyConversion {
      */
     public async toForm(): Promise<BodyForm> {
         const type = this.source.type
+        let obj: any
+        let raw: any
         switch (type) {
             case BodyType.Form:
                 return this.source
             case BodyType.JSON:
             case BodyType.Text:
             case BodyType.XML:
-                const obj = await BodyConversion.parseText(this.source.data)
+                obj = await BodyConversion.parseText(this.source.data)
                 return {
                     type: BodyType.Form,
                     data: BodyConversion.parsePairData(obj)
                 }
             case BodyType.Raw:
-                const raw = await BodyConversion.parseText(this.source.data)
+                raw = await BodyConversion.parseText(this.source.data)
                 return {
                     type: BodyType.Form,
                     data: BodyConversion.parsePairData(raw as unknown as NameValuePair[])
@@ -218,7 +226,7 @@ export class BodyConversion {
                     data: []
                 }
             default:
-                throw type satisfies never
+                throw new Error(`Unhandled body type: ${type satisfies never}`)
         }
     }
 
@@ -245,24 +253,30 @@ export class BodyConversion {
                 } else {
                     return parsed
                 }
-            } catch { }
+            } catch {
+                // noop
+            }
         }
         // Try and parse as JSON
         try {
             return JSON.parse(source)
-        } catch { }
+        } catch {
+            // noop
+        }
 
         // Try and parse as XML
         try {
             return await BodyConversion.parseXml(source)
-        } catch { }
+        } catch {
+            // noop
+        }
 
         // Try and parse as Name-Value pairs
         try {
             const formResult = source.replaceAll('\\,', '\t\t').split(',').map(s => s.replaceAll('\t\t', ','))
             if (formResult.length > 0) {
                 let ok = true
-                let cleansed: NameValuePair[] = []
+                const cleansed: NameValuePair[] = []
                 for (const segment of formResult) {
                     const parts = segment.replaceAll('\\=', '\t\t').split('=').map(s => s.replaceAll('\t\t', '=').trim())
                     if (parts.length !== 2) {
@@ -275,14 +289,17 @@ export class BodyConversion {
                     return cleansed
                 }
             }
-        } catch { }
+        } catch {
+            // NOOP
+        }
 
         return source
     }
 
+
     private static async parseXml(source: string) {
         try {
-            const xml = (await (new Parser({ explicitArray: false })).parseStringPromise(source))
+            const xml = (await (new Parser({ explicitArray: false })).parseStringPromise(source)) as { [name: string]: object }
             const keys = Object.keys(xml)
             if (keys.length > 0) {
                 return keys[0] === 'root'
@@ -292,7 +309,7 @@ export class BodyConversion {
                 throw new Error('no root element')
             }
         } catch (e) {
-            throw new Error(`Unable to parse as XML: ${e instanceof Error ? e.message : `${e}`}`)
+            throw new Error(`Unable to parse as XML: ${e instanceof Error ? e.message : `${e}`}`, { cause: e })
         }
     }
 
@@ -332,9 +349,9 @@ export class BodyConversion {
         // Decode and re-encode to validate base64
         try {
             const decoded = base64Decode(text)
-            let reencoded = base64Encode(decoded)
-            let lastPadChar1 = text.lastIndexOf('=')
-            let lastPadChar2 = reencoded.lastIndexOf('=')
+            const reencoded = base64Encode(decoded)
+            const lastPadChar1 = text.lastIndexOf('=')
+            const lastPadChar2 = reencoded.lastIndexOf('=')
 
             let compareUntil = lastPadChar1 === -1 ? text.length : lastPadChar1
             if (lastPadChar2 !== -1 && lastPadChar2 < lastPadChar1) {

@@ -84,21 +84,21 @@ export class EditableAuthorization extends Editable<Authorization> {
         return this
     }
 
-    protected performUpdate(update: AuthorizationUpdate) {
+    protected async performUpdate(update: AuthorizationUpdate) {
         this.markAsDirty()
-        this.workspace.update(update)
-            .then(updates => runInAction(() => {
-                if (updates) {
-                    this.validationErrors = updates.validationErrors || {}
-                    this.validationWarnings.set(updates.validationWarnings)
-                }
-            }))
+        const updates = await this.workspace.update(update)
+        runInAction(() => {
+            if (updates) {
+                this.validationErrors = updates.validationErrors || {}
+                this.validationWarnings.set(updates.validationWarnings)
+            }
+        })
     }
 
     @action
     deleteWarning(warningId: string) {
         this.validationWarnings.delete(warningId)
-        this.performUpdate({
+        return this.performUpdate({
             id: this.id,
             type: EntityTypeName.Authorization,
             entityType: EntityType.Authorization,
@@ -109,18 +109,18 @@ export class EditableAuthorization extends Editable<Authorization> {
     @action
     setName(value: string) {
         this.name = value
-        this.performUpdate({ id: this.id, type: EntityTypeName.Authorization, entityType: EntityType.Authorization, name: value })
+        return this.performUpdate({ id: this.id, type: EntityTypeName.Authorization, entityType: EntityType.Authorization, name: value })
     }
 
     @action
-    setType(value: AuthorizationType) {
+    async setType(value: AuthorizationType) {
         if (value === this.type) {
             return
         }
         this.type = value
         switch (this.type) {
             case AuthorizationType.Basic:
-                this.performUpdate({
+                return await this.performUpdate({
                     id: this.id,
                     type: EntityTypeName.Authorization,
                     entityType: EntityType.Authorization,
@@ -128,9 +128,8 @@ export class EditableAuthorization extends Editable<Authorization> {
                     username: this.username,
                     password: this.password
                 })
-                break
             case AuthorizationType.OAuth2Client:
-                this.performUpdate({
+                return await this.performUpdate({
                     id: this.id,
                     type: EntityTypeName.Authorization,
                     entityType: EntityType.Authorization,
@@ -144,9 +143,8 @@ export class EditableAuthorization extends Editable<Authorization> {
                     selectedProxy: this.selectedProxy ?? null,
                     sendCredentialsInBody: this.sendCredentialsInBody
                 })
-                break
             case AuthorizationType.OAuth2Pkce:
-                this.performUpdate({
+                return await this.performUpdate({
                     id: this.id,
                     type: EntityTypeName.Authorization,
                     entityType: EntityType.Authorization,
@@ -157,9 +155,8 @@ export class EditableAuthorization extends Editable<Authorization> {
                     scope: this.scope,
                     sendCredentialsInBody: this.sendCredentialsInBody
                 })
-                break
             case AuthorizationType.ApiKey:
-                this.performUpdate({
+                return await this.performUpdate({
                     id: this.id,
                     type: EntityTypeName.Authorization,
                     entityType: EntityType.Authorization,
@@ -167,88 +164,87 @@ export class EditableAuthorization extends Editable<Authorization> {
                     header: this.header,
                     value: this.value,
                 })
-                break
             default:
-                throw this.type satisfies never
+                throw new Error(`Unhandled authorization type: ${this.type satisfies never}`)
         }
     }
 
     @action
     setUsername(value: string) {
         this.username = value
-        this.performUpdate({ id: this.id, type: EntityTypeName.Authorization, entityType: EntityType.Authorization, username: value })
+        return this.performUpdate({ id: this.id, type: EntityTypeName.Authorization, entityType: EntityType.Authorization, username: value })
     }
 
     @action
     setPassword(value: string) {
         this.password = value
-        this.performUpdate({ id: this.id, type: EntityTypeName.Authorization, entityType: EntityType.Authorization, password: value })
+        return this.performUpdate({ id: this.id, type: EntityTypeName.Authorization, entityType: EntityType.Authorization, password: value })
     }
 
     @action
     setAccessTokenUrl(value: string) {
         this.accessTokenUrl = value
-        this.performUpdate({ id: this.id, type: EntityTypeName.Authorization, entityType: EntityType.Authorization, accessTokenUrl: value })
+        return this.performUpdate({ id: this.id, type: EntityTypeName.Authorization, entityType: EntityType.Authorization, accessTokenUrl: value })
     }
 
     @action
     setUrl(value: string) {
         this.authorizeUrl = value
-        this.performUpdate({ id: this.id, type: EntityTypeName.Authorization, entityType: EntityType.Authorization, authorizeUrl: value })
+        return this.performUpdate({ id: this.id, type: EntityTypeName.Authorization, entityType: EntityType.Authorization, authorizeUrl: value })
     }
 
     @action
     setClientId(value: string) {
         this.clientId = value
-        this.performUpdate({ id: this.id, type: EntityTypeName.Authorization, entityType: EntityType.Authorization, clientId: value })
+        return this.performUpdate({ id: this.id, type: EntityTypeName.Authorization, entityType: EntityType.Authorization, clientId: value })
     }
 
     @action
     setClientSecret(value: string) {
         this.clientSecret = value
-        this.performUpdate({ id: this.id, type: EntityTypeName.Authorization, entityType: EntityType.Authorization, clientSecret: value })
+        return this.performUpdate({ id: this.id, type: EntityTypeName.Authorization, entityType: EntityType.Authorization, clientSecret: value })
     }
 
     @action
     setSendCredentialsInBody(value: boolean) {
         this.sendCredentialsInBody = value
-        this.performUpdate({ id: this.id, type: EntityTypeName.Authorization, entityType: EntityType.Authorization, sendCredentialsInBody: value })
+        return this.performUpdate({ id: this.id, type: EntityTypeName.Authorization, entityType: EntityType.Authorization, sendCredentialsInBody: value })
     }
 
     @action
     setScope(value: string) {
         this.scope = value
-        this.performUpdate({ id: this.id, type: EntityTypeName.Authorization, entityType: EntityType.Authorization, scope: value })
+        return this.performUpdate({ id: this.id, type: EntityTypeName.Authorization, entityType: EntityType.Authorization, scope: value })
     }
 
     @action
     setAudience(value: string) {
         this.audience = value
-        this.performUpdate({ id: this.id, type: EntityTypeName.Authorization, entityType: EntityType.Authorization, audience: value })
+        return this.performUpdate({ id: this.id, type: EntityTypeName.Authorization, entityType: EntityType.Authorization, audience: value })
     }
 
     @action
     setSelectedCertificate(selection: Selection | undefined) {
         this.selectedCertificate = selection && selection.id != NO_SELECTION_ID ? selection : undefined
-        this.performUpdate({ id: this.id, type: EntityTypeName.Authorization, entityType: EntityType.Authorization, selectedCertificate: selection ?? null })
+        return this.performUpdate({ id: this.id, type: EntityTypeName.Authorization, entityType: EntityType.Authorization, selectedCertificate: selection ?? null })
     }
 
     @action
     setSelectedProxy(selection: Selection | undefined) {
         this.selectedProxy = selection && selection.id != NO_SELECTION_ID ? selection : undefined
-        this.performUpdate({ id: this.id, type: EntityTypeName.Authorization, entityType: EntityType.Authorization, selectedProxy: selection ?? null })
+        return this.performUpdate({ id: this.id, type: EntityTypeName.Authorization, entityType: EntityType.Authorization, selectedProxy: selection ?? null })
     }
 
     @action
     setHeader(value: string) {
         this.header = value
-        this.performUpdate({ id: this.id, type: EntityTypeName.Authorization, entityType: EntityType.Authorization, header: value })
+        return this.performUpdate({ id: this.id, type: EntityTypeName.Authorization, entityType: EntityType.Authorization, header: value })
     }
 
     @action
     setValue(value: string) {
         this.value = value
-        this.performUpdate({ id: this.id, type: EntityTypeName.Authorization, entityType: EntityType.Authorization, value })
+        return this.performUpdate({ id: this.id, type: EntityTypeName.Authorization, entityType: EntityType.Authorization, value })
     }
 
     @action

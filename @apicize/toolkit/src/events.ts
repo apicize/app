@@ -5,8 +5,6 @@ export enum uiEvents {
     saveAs = 'saveAs'
 }
 
-const allUIEvents = [uiEvents.new, uiEvents.open, uiEvents.save, uiEvents.saveAs]
-
 export function subscribeUIEvent(event: uiEvents, listener: EventListenerOrEventListenerObject) {
     document.addEventListener(event, listener)
 }

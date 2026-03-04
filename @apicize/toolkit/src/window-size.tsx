@@ -10,12 +10,10 @@ export default function useWindowSize() {
         setWindowSize({ width: window.innerWidth, height: window.innerHeight });
     }, []);
 
-    const debouncedResize = React.useMemo(() => {
-        let timeoutId: NodeJS.Timeout;
-        return () => {
-            clearTimeout(timeoutId);
-            timeoutId = setTimeout(changeWindowSize, 100);
-        };
+    const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+    const debouncedResize = React.useCallback(() => {
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        timeoutRef.current = setTimeout(changeWindowSize, 100);
     }, [changeWindowSize]);
 
     React.useEffect(() => {

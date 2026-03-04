@@ -3,7 +3,7 @@ import { ExecutionConcurrency, Method, Methods } from '@apicize/lib-typescript'
 import { EditableRequest } from '../../../models/workspace/editable-request'
 import { observer } from 'mobx-react-lite'
 import { useWorkspace } from '../../../contexts/workspace.context'
-import { ToastSeverity, useFeedback } from '../../../contexts/feedback.context'
+import { useFeedback } from '../../../contexts/feedback.context'
 import PlayCircleFilledIcon from '@mui/icons-material/PlayCircleFilled'
 import { useState, useEffect } from 'react'
 
@@ -33,10 +33,10 @@ export const RequestInfoEditor = observer(({ request }: { request: EditableReque
     }
 
     const handleRunClick = () => () => {
-        workspace.startExecution(request.id)
+        workspace.startExecution(request.id).catch(err => feedback.toastError(err))
     }
 
-    let times = request.runs == 1 ? 'one time' : `${request.runs} times`
+    const times = request.runs == 1 ? 'one time' : `${request.runs} times`
 
     return (
         <Grid container direction='column' spacing={3}>
@@ -50,7 +50,9 @@ export const RequestInfoEditor = observer(({ request }: { request: EditableReque
                         size="small"
                         title="Name of request"
                         value={request.name}
-                        onChange={e => request.setName(e.target.value)}
+                        onChange={e => {
+                            request.setName(e.target.value).catch(err => feedback.toastError(err))
+                        }}
                         error={!!request.nameError}
                         helperText={request.nameError}
                         fullWidth
@@ -65,7 +67,9 @@ export const RequestInfoEditor = observer(({ request }: { request: EditableReque
                         size="small"
                         title="Referential key of request"
                         value={request.key}
-                        onChange={e => request.setKey(e.target.value)}
+                        onChange={e => {
+                            request.setKey(e.target.value).catch(err => feedback.toastError(err))
+                        }}
                     />
                 </Grid>
             </Grid>
@@ -82,7 +86,9 @@ export const RequestInfoEditor = observer(({ request }: { request: EditableReque
                             open={showMethodMenu}
                             onClose={() => setShowMethodMenu(false)}
                             onOpen={() => setShowMethodMenu(true)}
-                            onChange={e => request.setMethod(e.target.value as Method)}
+                            onChange={e => {
+                                request.setMethod(e.target.value as Method).catch(err => feedback.toastError(err))
+                            }}
                             size='small'
                             label="Method"
                         >
@@ -99,7 +105,9 @@ export const RequestInfoEditor = observer(({ request }: { request: EditableReque
                         size="small"
                         title="Destination URL for request"
                         value={request.url}
-                        onChange={e => request.setUrl(e.target.value)}
+                        onChange={e => {
+                            request.setUrl(e.target.value).catch(err => feedback.toastError(err))
+                        }}
                         error={!!request.urlError}
                         helperText={request.urlError}
                         fullWidth
@@ -124,7 +132,9 @@ export const RequestInfoEditor = observer(({ request }: { request: EditableReque
                             }
                         }}
                         value={request.runs}
-                        onChange={e => request.setRuns(parseInt(e.target.value))}
+                        onChange={e => {
+                            request.setRuns(parseInt(e.target.value)).catch(err => feedback.toastError(err))
+                        }}
                     />
                     <ToggleButton value='Run' title={`Run selected request ${times} with defined timeout`} disabled={request.isRunning || zeroRuns} size='small' onClick={handleRunClick()}>
                         <PlayCircleFilledIcon color={request.isRunning || zeroRuns ? 'disabled' : 'success'} />
@@ -146,7 +156,9 @@ export const RequestInfoEditor = observer(({ request }: { request: EditableReque
                             open={showMultiRunMenu}
                             onClose={() => setShowMultiRunMenu(false)}
                             onOpen={() => setShowMultiRunMenu(true)}
-                            onChange={e => request.setMultiRunExecution(e.target.value as ExecutionConcurrency)}
+                            onChange={e => {
+                                request.setMultiRunExecution(e.target.value as ExecutionConcurrency).catch(err => feedback.toastError(err))
+                            }}
                         >
                             <MenuItem value={ExecutionConcurrency.Sequential}>Sequential</MenuItem>
                             <MenuItem value={ExecutionConcurrency.Concurrent}>Concurrent</MenuItem>
@@ -155,7 +167,9 @@ export const RequestInfoEditor = observer(({ request }: { request: EditableReque
                 </Grid>
                 <Grid>
                     <FormControlLabel control={<Checkbox checked={request.disabled}
-                        onChange={(e) => request.setDisabled(e.target.checked)} />}
+                        onChange={(e) => {
+                            request.setDisabled(e.target.checked).catch(err => feedback.toastError(err))
+                        }} />}
                         title="Disable request when run as a child"
                         label="Disable" />
                 </Grid>
@@ -178,7 +192,9 @@ export const RequestInfoEditor = observer(({ request }: { request: EditableReque
                                     max: 600000
                                 }
                             }}
-                            onChange={e => request.setTimeout(parseInt(e.target.value))}
+                            onChange={e => {
+                                request.setTimeout(parseInt(e.target.value)).catch(err => feedback.toastError(err))
+                            }}
                         />
                     </FormControl>
                 </Grid>
@@ -199,19 +215,25 @@ export const RequestInfoEditor = observer(({ request }: { request: EditableReque
                                 }
                             }}
                             value={request.numberOfRedirects}
-                            onChange={e => request.setNumberOfRedirects(parseInt(e.target.value))}
+                            onChange={e => {
+                                request.setNumberOfRedirects(parseInt(e.target.value)).catch(err => feedback.toastError(err))
+                            }}
                         />
                     </FormControl>
                 </Grid>
                 <Grid>
                     <FormControlLabel control={<Checkbox checked={request.acceptInvalidCerts}
-                        onChange={(e) => request.setAcceptInvalidCerts(e.target.checked)} />}
+                        onChange={(e) => {
+                            request.setAcceptInvalidCerts(e.target.checked).catch(err => feedback.toastError(err))
+                        }} />}
                         title="Enable to allow expired or self-signed certificates"
                         label="Allow Invalid Certificates" />
                 </Grid>
                 <Grid>
                     <FormControlLabel control={<Checkbox checked={request.keepAlive}
-                        onChange={(e) => request.setKeepAlive(e.target.checked)} />}
+                        onChange={(e) => {
+                            request.setKeepAlive(e.target.checked).catch(err => feedback.toastError(err))
+                        }} />}
                         title="Enable HTTP2 connection Keep Alive"
                         label="Keep Alive" />
                 </Grid>

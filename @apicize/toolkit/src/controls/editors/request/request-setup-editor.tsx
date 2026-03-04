@@ -57,7 +57,7 @@ export const RequestSetupEditor = observer(({ group }: { group: EditableRequestG
                 },
                 onOver: (_x, _y, extensions) => {
                     setIsDragging(true)
-                    let isJs = extensions.includes('js')
+                    const isJs = extensions.includes('js')
                     setIsDraggingValid(isJs)
                 },
                 onLeave: () => {
@@ -69,7 +69,7 @@ export const RequestSetupEditor = observer(({ group }: { group: EditableRequestG
                     switch (file.type) {
                         case 'text':
                             runInAction(() => {
-                                group.setSetup(file.data.toString())
+                                group.setSetup(file.data).catch(err => feedback.toastError(err))
                             })
                             break
                     }
@@ -79,14 +79,14 @@ export const RequestSetupEditor = observer(({ group }: { group: EditableRequestG
                 unregisterDragDrop()
             })
         }
-    }, [refContainer])
+    }, [feedback, fileDragDrop, group, isDragingValid, refContainer])
 
     function performBeautify() {
         if (editorRef.current) {
             try {
                 const action = editorRef.current.getAction('editor.action.formatDocument')
                 if (!action) throw new Error('Format action not found')
-                action.run()
+                action.run().catch(err => feedback.toastError(err))
             } catch (e) {
                 feedback.toastError(e)
             }
@@ -119,9 +119,8 @@ export const RequestSetupEditor = observer(({ group }: { group: EditableRequestG
 
     // Make sure we have the editor setup model
     if (!model || model.requestId !== group.id || model.type !== RequestEditSessionType.Setup) {
-        workspace.getRequestEditModel(group, RequestEditSessionType.Setup, EditorMode.js)
-            .then(setModel)
-            .catch(e => feedback.toastError(e))
+        const model = workspace.getRequestEditModel(group, RequestEditSessionType.Setup, EditorMode.js)
+        setModel(model)
         return null
     }
 
@@ -133,10 +132,13 @@ export const RequestSetupEditor = observer(({ group }: { group: EditableRequestG
                     title="Copy Setup to Clipboard"
                     color='primary'
                     sx={{ marginLeft: '16px' }}
-                    onClick={_ => workspace.copyToClipboard({
-                        payloadType: 'RequestTest',
-                        requestId: group.id,
-                    }, 'Body')}>
+                    onClick={_ => {
+                        workspace.copyToClipboard({
+                            payloadType: 'RequestTest',
+                            requestId: group.id,
+                        }, 'Body')
+                            .catch(err => feedback.toastError(err))
+                    }}>
                     <ContentCopyIcon />
                 </IconButton>
                 <Box flexGrow={1} minWidth={0} />
@@ -157,7 +159,9 @@ export const RequestSetupEditor = observer(({ group }: { group: EditableRequestG
                     language='javascript'
                     theme={settings.colorScheme === "dark" ? 'vs-dark' : 'vs-light'}
                     value={group.setup}
-                    onChange={(value) => group.setSetup(value)}
+                    onChange={(value) => {
+                        group.setSetup(value).catch(err => feedback.toastError(err))
+                    }}
                     options={{
                         automaticLayout: true,
                         minimap: { enabled: false },

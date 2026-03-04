@@ -1,22 +1,26 @@
-import { SvgIcon, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Typography } from "@mui/material"
+import { SvgIcon, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Typography, Divider } from "@mui/material"
 import { Box } from "@mui/system"
 import { TreeItem } from "@mui/x-tree-view/TreeItem"
 import FolderIcon from "../../../icons/folder-icon"
 import RequestIcon from "../../../icons/request-icon"
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
-import DeleteIcon from '@mui/icons-material/DeleteOutlined'
+import ContentCutIcon from '@mui/icons-material/ContentCut';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import ContentPasteIcon from '@mui/icons-material/ContentPaste';
+import DeleteIcon from '@mui/icons-material/RemoveCircleOutline';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import { EntityType } from "../../../models/workspace/entity-type"
 import { NavTreeItem } from "../nav-tree-item"
 import { Persistence } from "@apicize/lib-typescript"
 import { MenuPosition } from "../../../models/menu-position"
 import React, { useCallback, useMemo, useState } from "react"
-import { useWorkspace, WorkspaceMode } from "../../../contexts/workspace.context"
+import { useWorkspace } from "../../../contexts/workspace.context"
 import { useFeedback } from "../../../contexts/feedback.context"
 import { observer } from "mobx-react-lite"
 import { useApicizeSettings } from "../../../contexts/apicize-settings.context"
 import { NavigationRequestEntry } from "../../../models/navigation"
 import { IndexedEntityPosition } from "../../../models/workspace/indexed-entity-position"
+import { ClipboardDataType, useClipboard } from "../../../contexts/clipboard.context"
 
 interface RequestTreeItemProps {
     entry: NavigationRequestEntry
@@ -87,6 +91,7 @@ const RequestTreeItem = React.memo(observer(({
 export const RequestSection = observer(({ includeHeader }: { includeHeader?: boolean }) => {
     const workspace = useWorkspace()
     const feedback = useFeedback()
+    const clipboard = useClipboard()
     const settings = useApicizeSettings()
 
     const [requestsMenu, setRequestsMenu] = useState<MenuPosition | undefined>()
@@ -167,17 +172,24 @@ export const RequestSection = observer(({ includeHeader }: { includeHeader?: boo
                 defaultToCancel: true
             }).then((result) => {
                 if (result) {
-                    switch (type) {
-                        case EntityType.Request:
-                            workspace.deleteRequest(id)
-                            break
-                        case EntityType.Group:
-                            workspace.deleteGroup(id)
-                            break
-                    }
+                    workspace.deleteRequestOrGroup(id)
                 }
-            })
+            }).catch(err => feedback.toastError(err))
         }
+    }
+
+    const handleCutRequest = (requestId: string, type: EntityType) => {
+        closeRequestMenu()
+        workspace.copyToClipboard({ payloadType: 'Request', requestId },
+            type == EntityType.Request ? 'Request' : 'Group')
+            .then(() => workspace.deleteRequestOrGroup(requestId))
+            .catch(err => feedback.toastError(err))
+    }
+
+    const handleCopyRequest = async (requestId: string, type: EntityType) => {
+        closeRequestMenu()
+        await workspace.copyToClipboard({ payloadType: 'Request', requestId },
+            type == EntityType.Request ? 'Request' : 'Group')
     }
 
     const handleMoveRequest = useCallback((id: string, relativeToId: string, relativePosition: IndexedEntityPosition) => {
@@ -205,6 +217,13 @@ export const RequestSection = observer(({ includeHeader }: { includeHeader?: boo
         }
     }
 
+    const handlePasteRequest = (relativeToId: string | null, relativePosition: IndexedEntityPosition) => {
+        closeRequestMenu()
+        closeRequestsMenu()
+        workspace.pasteFromClipboard(relativeToId, relativePosition, ClipboardDataType.RequestEntry)
+            .catch(err => feedback.toastError(err))
+    }
+
     function RequestsMenu() {
         return (
             <Menu
@@ -230,6 +249,16 @@ export const RequestSection = observer(({ includeHeader }: { includeHeader?: boo
                     </ListItemIcon>
                     <ListItemText disableTypography>Append Group</ListItemText>
                 </MenuItem>
+                <MenuItem
+                    className='navigation-menu-item'
+                    sx={{ fontSize: 'inherit' }}
+                    disabled={clipboard.type !== ClipboardDataType.RequestEntry}
+                    onClick={() => handlePasteRequest(null, IndexedEntityPosition.Under)}>
+                    <ListItemIcon>
+                        <ContentPasteIcon fontSize='inherit' />
+                    </ListItemIcon>
+                    <ListItemText disableTypography>Paste from Clipboard</ListItemText>
+                </MenuItem>
             </Menu>
         )
     }
@@ -250,7 +279,7 @@ export const RequestSection = observer(({ includeHeader }: { includeHeader?: boo
             action = 'Insert'
         }
 
-
+        const desc = requestMenu.type === EntityType.Group ? 'Group' : 'Request'
         return <Menu
             id='req-menu'
             open={requestMenu !== undefined}
@@ -262,36 +291,80 @@ export const RequestSection = observer(({ includeHeader }: { includeHeader?: boo
                 left: requestMenu?.mouseX ?? 0
             }}
         >
-            <MenuItem className='navigation-menu-item' sx={{ fontSize: 'inherit' }} onClick={(e) => handleAddRequest(
-                requestMenu.id,
-                positionType
-            )}>
-                <ListItemIcon>
-                    <SvgIcon fontSize='inherit' color='request'><RequestIcon /></SvgIcon>
-                </ListItemIcon>
-                <ListItemText disableTypography>{action} Request</ListItemText>
-            </MenuItem>
-            <MenuItem className='navigation-menu-item' sx={{ fontSize: 'inherit' }} onClick={(e) =>
-                handleAddRequestGroup(
+            <MenuItem className='navigation-menu-item'
+                sx={{ fontSize: 'inherit' }}
+                onClick={() => handleAddRequest(
                     requestMenu.id,
                     positionType
                 )}>
                 <ListItemIcon>
-                    <SvgIcon fontSize='inherit' color='folder'><FolderIcon /></SvgIcon>
+                    <SvgIcon color='request' fontSize='inherit'><RequestIcon /></SvgIcon>
+                </ListItemIcon>
+                <ListItemText disableTypography>{action} Request</ListItemText>
+            </MenuItem>
+            <MenuItem
+                className='navigation-menu-item'
+                sx={{ fontSize: 'inherit' }}
+                onClick={() =>
+                    handleAddRequestGroup(
+                        requestMenu.id,
+                        positionType
+                    )}>
+                <ListItemIcon>
+                    <SvgIcon color='folder' fontSize='inherit'><FolderIcon /></SvgIcon>
                 </ListItemIcon>
                 <ListItemText disableTypography>{action} Request Group</ListItemText>
             </MenuItem>
-            <MenuItem className='navigation-menu-item' sx={{ fontSize: 'inherit' }} onClick={(e) => handleDupeRequest(requestMenu.id, requestMenu.type)}>
+            <Divider />
+            <MenuItem
+                className='navigation-menu-item'
+                sx={{ fontSize: 'inherit' }}
+                onClick={() => handleDupeRequest(requestMenu.id, requestMenu.type)}>
                 <ListItemIcon>
-                    <ContentCopyOutlinedIcon fontSize='inherit' sx={{ color: 'request' }} />
+                    <ContentCopyOutlinedIcon color='request' fontSize='inherit' />
                 </ListItemIcon>
-                <ListItemText disableTypography>Add Duplicate</ListItemText>
+                <ListItemText disableTypography>{action} Duplicate {desc}</ListItemText>
             </MenuItem>
-            <MenuItem className='navigation-menu-item' sx={{ fontSize: 'inherit' }} onClick={(e) => handleDeleteRequest(requestMenu.id, requestMenu.type)}>
+            <MenuItem
+                className='navigation-menu-item'
+                sx={{ fontSize: 'inherit' }}
+                onClick={() => handleDeleteRequest(requestMenu.id, requestMenu.type)}>
                 <ListItemIcon>
-                    <DeleteIcon fontSize='inherit' color='error' />
+                    <DeleteIcon color='error' fontSize='inherit' />
                 </ListItemIcon>
-                <ListItemText disableTypography>Delete</ListItemText>
+                <ListItemText disableTypography>Delete {desc}</ListItemText>
+            </MenuItem>
+            <Divider />
+            <MenuItem
+                className='navigation-menu-item'
+                sx={{ fontSize: 'inherit' }}
+                onClick={() => handleCutRequest(requestMenu.id, requestMenu.type)}>
+                <ListItemIcon>
+                    <ContentCutIcon fontSize='inherit' />
+                </ListItemIcon>
+                <ListItemText disableTypography>Cut {desc}</ListItemText>
+            </MenuItem>
+            <MenuItem
+                className='navigation-menu-item'
+                sx={{ fontSize: 'inherit' }}
+                onClick={() => {
+                    handleCopyRequest(requestMenu.id, requestMenu.type)
+                        .catch(err => feedback.toastError(err))
+                }}>
+                <ListItemIcon>
+                    <ContentCopyIcon fontSize='inherit' />
+                </ListItemIcon>
+                <ListItemText disableTypography>Copy {desc}</ListItemText>
+            </MenuItem>
+            <MenuItem
+                className='navigation-menu-item'
+                sx={{ fontSize: 'inherit' }}
+                disabled={clipboard.type !== ClipboardDataType.RequestEntry}
+                onClick={() => handlePasteRequest(requestMenu.id, IndexedEntityPosition.After)}>
+                <ListItemIcon>
+                    <ContentPasteIcon fontSize='inherit' />
+                </ListItemIcon>
+                <ListItemText disableTypography>Paste from Clipboard</ListItemText>
             </MenuItem>
         </Menu>
     }

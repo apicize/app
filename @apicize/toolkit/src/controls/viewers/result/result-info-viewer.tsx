@@ -4,8 +4,8 @@ import CheckIcon from '@mui/icons-material/Check'
 import BlockIcon from '@mui/icons-material/Block'
 import { observer } from "mobx-react-lite"
 import { useWorkspace } from "../../../contexts/workspace.context"
-import { ApicizeError, ApicizeTestBehavior, ExecutionReportFormat, ExecutionResultSuccess, ExecutionResultSummary, RequestEntry } from "@apicize/lib-typescript"
-import React, { useRef, useState } from "react"
+import { ApicizeError, ApicizeTestBehavior, ExecutionReportFormat, ExecutionResultSuccess, ExecutionResultSummary } from "@apicize/lib-typescript"
+import React, { useState } from "react"
 import ViewIcon from "../../../icons/view-icon"
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import { useApicizeSettings } from "../../../contexts/apicize-settings.context"
@@ -14,7 +14,6 @@ import ErrorIcon from '@mui/icons-material/Error';
 import { EditableRequestEntry } from "../../../models/workspace/editable-request-entry"
 import { ResultErrorIcon, ResultFailureIcon, ResultSuccessIcon } from "../../../icons"
 import { useFeedback } from "../../../contexts/feedback.context"
-import { toJS } from "mobx"
 
 const ApicizeErrorToString = (error?: ApicizeError): string => {
     const desc = error?.description ? ` ${error.description}` : ''
@@ -184,14 +183,13 @@ export const ResultInfoViewer = observer(({
             payloadType,
             execCtr: execCtr
         }, format === ExecutionReportFormat.CSV ? 'Summary as CSV' : 'Summary as JSON')
+            .catch(err => feedback.toastError(err))
     }
 
     const RenderExecution = ({ result, depth }: { result: ExecutionResultSummary, depth: number }) => {
         // const rowSuffix = props.result.info.rowNumber && props.result.info.rowCount ? ` Row ${props.result.info.rowNumber} of ${props.result.info.rowCount}` : ''
         let subtitle: string
         let color: string
-
-        console.log('Result', toJS(result))
 
         const totalToShow = (
             hideSuccess ? 0 : result.requestSuccessCount
@@ -278,7 +276,7 @@ export const ResultInfoViewer = observer(({
                 <Box margin='0.5rem 0 0.5rem 1.5rem'>
                     {
                         result.error
-                            ? (<TestInfo success={result.success} text={`${ApicizeErrorToString(result.error)}`} />)
+                            ? (<TestInfo success={result.success} text={ApicizeErrorToString(result.error)} />)
                             : (null)
                     }
                 </Box>

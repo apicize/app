@@ -372,7 +372,7 @@ declare interface Match {
 
 declare interface Keys {
     (...keys: string[]): Assertion;
-    (keys: readonly any[] | Object): Assertion;
+    (keys: readonly any[] | object): Assertion;
 }
 
 declare interface Throw {
@@ -393,7 +393,7 @@ declare interface Members {
 }
 
 declare interface PropertyChange {
-    (object: Object, property?: string, message?: string): DeltaAssertion;
+    (object: object, property?: string, message?: string): DeltaAssertion;
 }
 
 declare interface DeltaAssertion extends Assertion {
@@ -1886,7 +1886,7 @@ declare interface Assert {
      * @param keys   Keys to check
      * @param message    Message to display on error.
      */
-    hasAnyKeys<T>(object: T, keys: Array<Object | string> | { [key: string]: any }, message?: string): void;
+    hasAnyKeys<T>(object: T, keys: Array<object | string> | { [key: string]: any }, message?: string): void;
 
     /**
      * Asserts that \`object\` has all and only all of the \`keys\` provided.
@@ -1898,7 +1898,7 @@ declare interface Assert {
      * @param keys   Keys to check
      * @param message    Message to display on error.
      */
-    hasAllKeys<T>(object: T, keys: Array<Object | string> | { [key: string]: any }, message?: string): void;
+    hasAllKeys<T>(object: T, keys: Array<object | string> | { [key: string]: any }, message?: string): void;
 
     /**
      * Asserts that \`object\` has all of the \`keys\` provided but may have more keys not listed.
@@ -1912,7 +1912,7 @@ declare interface Assert {
      */
     containsAllKeys<T>(
         object: T,
-        keys: Array<Object | string> | { [key: string]: any },
+        keys: Array<object | string> | { [key: string]: any },
         message?: string,
     ): void;
 
@@ -1928,7 +1928,7 @@ declare interface Assert {
      */
     doesNotHaveAnyKeys<T>(
         object: T,
-        keys: Array<Object | string> | { [key: string]: any },
+        keys: Array<object | string> | { [key: string]: any },
         message?: string,
     ): void;
 
@@ -1944,7 +1944,7 @@ declare interface Assert {
      */
     doesNotHaveAllKeys<T>(
         object: T,
-        keys: Array<Object | string> | { [key: string]: any },
+        keys: Array<object | string> | { [key: string]: any },
         message?: string,
     ): void;
 
@@ -1960,7 +1960,7 @@ declare interface Assert {
      * @param keys   Keys to check
      * @param message    Message to display on error.
      */
-    hasAnyDeepKeys<T>(object: T, keys: Array<Object | string> | { [key: string]: any }, message?: string): void;
+    hasAnyDeepKeys<T>(object: T, keys: Array<object | string> | { [key: string]: any }, message?: string): void;
 
     /**
      * Asserts that \`object\` has all and only all of the \`keys\` provided.
@@ -1974,7 +1974,7 @@ declare interface Assert {
      * @param keys   Keys to check
      * @param message    Message to display on error.
      */
-    hasAllDeepKeys<T>(object: T, keys: Array<Object | string> | { [key: string]: any }, message?: string): void;
+    hasAllDeepKeys<T>(object: T, keys: Array<object | string> | { [key: string]: any }, message?: string): void;
 
     /**
      * Asserts that \`object\` contains all of the \`keys\` provided.
@@ -1990,7 +1990,7 @@ declare interface Assert {
      */
     containsAllDeepKeys<T>(
         object: T,
-        keys: Array<Object | string> | { [key: string]: any },
+        keys: Array<object | string> | { [key: string]: any },
         message?: string,
     ): void;
 
@@ -2008,7 +2008,7 @@ declare interface Assert {
      */
     doesNotHaveAnyDeepKeys<T>(
         object: T,
-        keys: Array<Object | string> | { [key: string]: any },
+        keys: Array<object | string> | { [key: string]: any },
         message?: string,
     ): void;
 
@@ -2026,7 +2026,7 @@ declare interface Assert {
      */
     doesNotHaveAllDeepKeys<T>(
         object: T,
-        keys: Array<Object | string> | { [key: string]: any },
+        keys: Array<object | string> | { [key: string]: any },
         message?: string,
     ): void;
 

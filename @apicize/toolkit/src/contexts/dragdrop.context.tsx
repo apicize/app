@@ -1,7 +1,11 @@
-import { DndContext, DragCancelEvent, DragEndEvent, DragMoveEvent, MouseSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/restrict-plus-operands */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+import { DndContext, DragEndEvent, DragMoveEvent, MouseSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { DraggableData, DroppableData } from "../models/drag-drop";
-import { createContext, ReactNode, useContext, useState } from "react";
-import { action, observable, toJS } from "mobx";
+import { createContext, ReactNode, useContext } from "react";
+import { action, observable } from "mobx";
 import { IndexedEntityPosition } from "../models/workspace/indexed-entity-position";
 
 export type DragDropPosition = IndexedEntityPosition | 'INVALID' | null
@@ -46,7 +50,7 @@ export const DragDropProvider = ({ children }: { children?: ReactNode }) => {
         })
     )
 
-    const onDragCancel = (e: DragCancelEvent) => {
+    const onDragCancel = (/*e: DragCancelEvent*/) => {
         store.setDragPosition(null)
     }
 
@@ -59,12 +63,12 @@ export const DragDropProvider = ({ children }: { children?: ReactNode }) => {
         const activeData = active.data.current as unknown as DraggableData
         const overData = over.data.current as unknown as DroppableData
 
-        let evtDelta = delta as any
+        const evtDelta = delta as any
 
-        let x = pointer.x + evtDelta.x
-        let y = pointer.y + evtDelta.y
+        const x = pointer.x + evtDelta.x
+        const y = pointer.y + evtDelta.y
 
-        let r = e.over?.rect
+        const r = e.over?.rect
 
         if (active.id === over.id) {
             return 'INVALID'
@@ -96,7 +100,7 @@ export const DragDropProvider = ({ children }: { children?: ReactNode }) => {
 
 
         const { active, over } = e
-        let endingPosition = positionFromEvent(e)
+        const endingPosition = positionFromEvent(e)
         if (!over || !active || endingPosition === 'INVALID' || endingPosition === null) {
             return
         }
@@ -104,7 +108,7 @@ export const DragDropProvider = ({ children }: { children?: ReactNode }) => {
         const activeData = active.data.current as unknown as DraggableData
         const overData = over.data.current as unknown as DroppableData
 
-        let id = overData.isHeader
+        const id = overData.isHeader
             ? (overData.persistence ? overData.persistence : null)
             : over.id.toString()
 

@@ -1,7 +1,6 @@
 import { Selection, ExecutionConcurrency, Request, RequestGroup, ExecutionResultSummary, ExecutionState, DEFAULT_SELECTION, NO_SELECTION } from "@apicize/lib-typescript"
 import { Editable, EditableEntityContext } from "../editable"
-import { action, computed, observable, reaction, runInAction, toJS } from "mobx"
-import { WorkspaceParameters } from "./workspace-parameters"
+import { action, computed, observable } from "mobx"
 import { ResultsPanel } from "../../contexts/workspace.context"
 import { ExecutionEvent, ExecutionMenuItem, ExecutionResultViewState } from "./execution"
 import { RequestExecution } from "../request-execution"
@@ -103,7 +102,8 @@ export abstract class EditableRequestEntry extends Editable<Request | RequestGro
 
     @action
     public processExecutionEvent(event: ExecutionEvent) {
-        switch (event.eventType) {
+        const eventType = event.eventType
+        switch (eventType) {
             case 'start':
                 this.isRunning = true
                 break
@@ -116,7 +116,7 @@ export abstract class EditableRequestEntry extends Editable<Request | RequestGro
                 this.isRunning = false
                 break
             default:
-                throw event satisfies ExecutionEvent
+                throw new Error(`Unhandled event type: ${eventType satisfies never}`)
         }
     }
 
@@ -187,15 +187,15 @@ export abstract class EditableRequestEntry extends Editable<Request | RequestGro
         return this.resultMenuItems.filter(item => {
             const state = item.executionState
             // If hideSuccess is true and the item is only success, filter it out
-            if (this.hideSuccess && state === 1 /* ExecutionState.success */) {
+            if (this.hideSuccess && state === ExecutionState.success) {
                 return false
             }
             // If hideFailure is true and the item is only failure, filter it out
-            if (this.hideFailure && state === 2 /* ExecutionState.failure */) {
+            if (this.hideFailure && state === ExecutionState.failure) {
                 return false
             }
             // If hideError is true and the item is only error, filter it out
-            if (this.hideError && state === 4 /* ExecutionState.error */) {
+            if (this.hideError && state === ExecutionState.error) {
                 return false
             }
             return true

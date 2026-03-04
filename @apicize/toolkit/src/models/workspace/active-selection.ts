@@ -1,4 +1,4 @@
-import { action, makeObservable, observable, runInAction } from "mobx"
+import { makeObservable, observable } from "mobx"
 import { EditableRequest } from "../workspace/editable-request"
 import { EditableRequestGroup } from "../workspace/editable-request-group"
 import { EditableScenario } from "../workspace/editable-scenario"

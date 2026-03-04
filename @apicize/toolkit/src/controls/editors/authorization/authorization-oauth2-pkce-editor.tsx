@@ -8,14 +8,15 @@ export const AuthorizationOAuth2PkceEditor = observer(({ authorization }: { auth
     const workspace = useWorkspace()
     const feedback = useFeedback()
 
-    const clearToken = async () => {
-        try {
-            await workspace.clearToken(authorization.id)
-            feedback.toast('OAuth token cleared from cache', ToastSeverity.Info)
-        } catch (e) {
-            feedback.toast(`${e}`, ToastSeverity.Error)
-        }
+    const clearToken = () => {
+        workspace.clearToken(authorization.id)
+            .then(() => {
+                feedback.toast('OAuth token cleared from cache', ToastSeverity.Info)
+            }).catch(err => {
+                feedback.toastError(err)
+            })
     }
+
     return <Grid container direction={'column'} spacing={3} className='authorization-editor-subpanel'>
         <Grid>
             <Alert severity="warning">PKCE authorization requires user interaction and will not available from the Apicize CLI test runner.</Alert>
@@ -28,7 +29,9 @@ export const AuthorizationOAuth2PkceEditor = observer(({ authorization }: { auth
                 value={authorization.authorizeUrl}
                 error={!!authorization.authorizationUrlError}
                 helperText={authorization.accessTokenUrlError ?? ''}
-                onChange={e => authorization.setUrl(e.target.value)}
+                onChange={e => {
+                    authorization.setUrl(e.target.value).catch(err => feedback.toastError(err))
+                }}
                 size='small'
                 fullWidth
             />
@@ -41,7 +44,9 @@ export const AuthorizationOAuth2PkceEditor = observer(({ authorization }: { auth
                 value={authorization.accessTokenUrl}
                 error={!!authorization.accessTokenUrlError}
                 helperText={authorization.accessTokenUrlError ?? ''}
-                onChange={e => authorization.setAccessTokenUrl(e.target.value)}
+                onChange={e => {
+                    authorization.setAccessTokenUrl(e.target.value).catch(err => feedback.toastError(err))
+                }}
                 size='small'
                 fullWidth
             />
@@ -54,7 +59,9 @@ export const AuthorizationOAuth2PkceEditor = observer(({ authorization }: { auth
                 value={authorization.clientId}
                 error={!!authorization.clientIdError}
                 helperText={authorization.clientIdError ?? ''}
-                onChange={e => authorization.setClientId(e.target.value)}
+                onChange={e => {
+                    authorization.setClientId(e.target.value).catch(err => feedback.toastError(err))
+                }}
                 size='small'
                 fullWidth
             />
@@ -62,7 +69,8 @@ export const AuthorizationOAuth2PkceEditor = observer(({ authorization }: { auth
         <Grid>
             <FormControl>
                 <FormLabel id='lbl-auth-send-creds'>Send Crendentials In</FormLabel>
-                <RadioGroup defaultValue='false' name='auth-send-creds' aria-labelledby="auth-send-creds" value={authorization.sendCredentialsInBody} row onChange={e => authorization.setSendCredentialsInBody(e.target.value === 'true')}>
+                <RadioGroup defaultValue='false' name='auth-send-creds' aria-labelledby="auth-send-creds" value={authorization.sendCredentialsInBody}
+                    row onChange={e => { authorization.setSendCredentialsInBody(e.target.value === 'true').catch(err => feedback.toastError(err)) }}>
                     <FormControlLabel value={false} control={<Radio />} label='Basic Authorization' />
                     <FormControlLabel value={true} control={<Radio />} label='Body' />
                 </RadioGroup>
@@ -74,7 +82,9 @@ export const AuthorizationOAuth2PkceEditor = observer(({ authorization }: { auth
                 label='Scope'
                 aria-label='oauth scope'
                 value={authorization.scope}
-                onChange={e => authorization.setScope(e.target.value)}
+                onChange={e => {
+                    authorization.setScope(e.target.value).catch(err => feedback.toastError(err))
+                }}
                 size='small'
                 fullWidth
             />
@@ -85,7 +95,9 @@ export const AuthorizationOAuth2PkceEditor = observer(({ authorization }: { auth
                 label='Audience'
                 aria-label='oauth audience'
                 value={authorization.audience}
-                onChange={e => authorization.setAudience(e.target.value)}
+                onChange={e => {
+                    authorization.setAudience(e.target.value).catch(err => feedback.toastError(err))
+                }}
                 size='small'
                 fullWidth
             />

@@ -3,12 +3,12 @@ import {
     BodyJSON, BodyNone, BodyRaw, BodyText, BodyXML, ValidationErrorList, DEFAULT_SELECTION_ID, NO_SELECTION_ID, NO_SELECTION,
     DEFAULT_SELECTION
 } from "@apicize/lib-typescript"
-import { action, computed, observable, runInAction, toJS } from "mobx"
+import { action, computed, observable, runInAction } from "mobx"
 import { EditableNameValuePair } from "./editable-name-value-pair"
 import { GenerateIdentifier } from "../../services/random-identifier-generator"
 import { EntityType } from "./entity-type"
 import { EditableEntityContext } from "../editable"
-import { EntityRequest, EntityTypeName, EntityUpdateNotification } from "../../contexts/workspace.context"
+import { EntityTypeName, EntityUpdateNotification } from "../../contexts/workspace.context"
 import { EditableRequestEntry } from "./editable-request-entry"
 import { RequestDuplex } from "undici-types"
 import { EditableWarnings } from "./editable-warnings"
@@ -86,7 +86,7 @@ export class EditableRequest extends EditableRequestEntry {
             ...h
         })) ?? []
 
-        let idxQuery = this.url.indexOf('?')
+        const idxQuery = this.url.indexOf('?')
         if (idxQuery !== -1) {
             const params = new URLSearchParams(this.url.substring(idxQuery + 1))
             for (const [name, value] of params) {
@@ -120,14 +120,14 @@ export class EditableRequest extends EditableRequestEntry {
         this.checkEditModel()
     }
 
-    protected performUpdate(update: RequestUpdate) {
+    protected async performUpdate(update: RequestUpdate) {
         this.markAsDirty()
-        this.workspace.update(update)
-            .then(updates => runInAction(() => {
-                if (updates) {
-                    this.validationErrors = updates.validationErrors || {}
-                }
-            }))
+        const updates = await this.workspace.update(update)
+        runInAction(() => {
+            if (updates) {
+                this.validationErrors = updates.validationErrors || {}
+            }
+        })
     }
 
     @action
@@ -145,68 +145,68 @@ export class EditableRequest extends EditableRequestEntry {
                     this.checkEditModel()
                     resolve()
                 }))
-                .catch(e => reject(e))
+                .catch(e => reject(e instanceof Error ? e : new Error(e)))
         })
     }
     @action
     setName(value: string) {
         this.name = value
-        this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, name: value })
+        return this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, name: value })
     }
 
     @action
     setDisabled(value: boolean) {
         this.disabled = value
-        this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, disabled: value })
+        return this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, disabled: value })
     }
 
 
     @action
     setKey(value: string) {
         this.key = value
-        this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, key: value })
+        return this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, key: value })
     }
 
     @action
     setRuns(value: number) {
         this.runs = value
-        this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, runs: value })
+        return this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, runs: value })
     }
 
     @action
     setMultiRunExecution(value: ExecutionConcurrency) {
         this.multiRunExecution = value
-        this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, multiRunExecution: value })
+        return this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, multiRunExecution: value })
     }
 
     @action
     setUrl(value: string) {
         this.url = value
-        this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, url: value })
+        return this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, url: value })
     }
 
     @action
     setMethod(value: Method) {
         this.method = value
-        this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, method: value })
+        return this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, method: value })
     }
 
     @action
     setTimeout(value: number) {
         this.timeout = value
-        this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, timeout: value })
+        return this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, timeout: value })
     }
 
     @action
     setKeepAlive(value: boolean) {
         this.keepAlive = value
-        this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, keepAlive: value })
+        return this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, keepAlive: value })
     }
 
     @action
     setAcceptInvalidCerts(value: boolean) {
         this.acceptInvalidCerts = value
-        this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, acceptInvalidCerts: value })
+        return this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, acceptInvalidCerts: value })
     }
 
     @action
@@ -214,25 +214,25 @@ export class EditableRequest extends EditableRequestEntry {
         if (value < 0) {
             throw new Error('Number of redirects must be zero (disabled) or greater')
         }
-        this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, numberOfRedirects: value })
+        return this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, numberOfRedirects: value })
     }
 
     @action
     setQueryStringParams(value: EditableNameValuePair[]) {
         this.queryStringParams = value
-        this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, queryStringParams: value })
+        return this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, queryStringParams: value })
     }
 
     @action
     setHeaders(value: EditableNameValuePair[]) {
         this.headers = value
-        this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, headers: value })
+        return this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, headers: value })
     }
 
     @action
     setTest(value: string | undefined) {
         this.test = value ?? ''
-        this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, test: value })
+        return this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, test: value })
     }
 
     @action
@@ -273,7 +273,7 @@ export class EditableRequest extends EditableRequestEntry {
             : entityId == NO_SELECTION_ID
                 ? NO_SELECTION
                 : { id: entityId, name: this.workspace.getNavigationName(entityId) }
-        this.performUpdate({
+        return this.performUpdate({
             type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id,
             selectedScenario: this.selectedScenario ?? { id: DEFAULT_SELECTION_ID, name: '(Default)' }
         })
@@ -286,7 +286,7 @@ export class EditableRequest extends EditableRequestEntry {
             : entityId == NO_SELECTION_ID
                 ? NO_SELECTION
                 : { id: entityId, name: this.workspace.getNavigationName(entityId) }
-        this.performUpdate({
+        return this.performUpdate({
             type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id,
             selectedAuthorization: this.selectedAuthorization ?? { id: DEFAULT_SELECTION_ID, name: '(Default)' }
         })
@@ -299,7 +299,7 @@ export class EditableRequest extends EditableRequestEntry {
             : entityId == NO_SELECTION_ID
                 ? NO_SELECTION
                 : { id: entityId, name: this.workspace.getNavigationName(entityId) }
-        this.performUpdate({
+        return this.performUpdate({
             type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id,
             selectedCertificate: this.selectedCertificate ?? { id: DEFAULT_SELECTION_ID, name: '(Default)' }
         })
@@ -312,7 +312,7 @@ export class EditableRequest extends EditableRequestEntry {
             : entityId == NO_SELECTION_ID
                 ? NO_SELECTION
                 : { id: entityId, name: this.workspace.getNavigationName(entityId) }
-        this.performUpdate({
+        return this.performUpdate({
             type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id,
             selectedProxy: this.selectedProxy ?? { id: DEFAULT_SELECTION_ID, name: '(Default)' }
         })
@@ -323,7 +323,7 @@ export class EditableRequest extends EditableRequestEntry {
         this.selectedDataSet = entityId == NO_SELECTION_ID
             ? NO_SELECTION
             : { id: entityId, name: this.workspace.getNavigationName(entityId) }
-        this.performUpdate({
+        return this.performUpdate({
             type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id,
             selecteData: this.selectedDataSet ?? { id: DEFAULT_SELECTION_ID, name: '(Default)' }
         })
@@ -439,7 +439,7 @@ export class EditableRequest extends EditableRequestEntry {
     @action
     deleteWarning(id: string) {
         this.validationWarnings.delete(id)
-        this.performUpdate({
+        return this.performUpdate({
             type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id,
             validationWarnings: [...this.validationWarnings.entries.values()]
         })

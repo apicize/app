@@ -10,8 +10,8 @@ import {
   EntityUpdateNotification,
   RequestBodyInfo,
   RequestBodyMimeInfo,
-  OpenDataSetFileResponse,
   ToastSeverity,
+  ClipboardDataType,
 } from '@apicize/toolkit'
 import { useEffect, useState } from 'react'
 import "@fontsource/roboto-mono/latin.css"
@@ -28,13 +28,25 @@ import { LogProvider } from './providers/log.provider';
 import { CssBaseline } from '@mui/material'
 import { FileDragDropProvider } from './providers/file-dragdrop.provider'
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
-import { DataSourceType, TokenResult } from '@apicize/lib-typescript'
+import { TokenResult } from '@apicize/lib-typescript'
 import { openUrl } from '@tauri-apps/plugin-opener';
-import { runInAction, toJS } from 'mobx'
+import { runInAction } from 'mobx'
+
+interface WindowData {
+  __TAURI_INTERNALS__: {
+    metadata: {
+      currentWindow: {
+        label: string
+      }
+    }
+  },
+  __INIT_DATA__: WorkspaceInitialization
+}
 
 // This is defined externally via Tauri main or other boostrap application
-const sessionId: string = (window as any).__TAURI_INTERNALS__.metadata.currentWindow.label
-const initData: WorkspaceInitialization = (window as any).__INIT_DATA__;
+const w = window as unknown as WindowData
+const sessionId: string = w.__TAURI_INTERNALS__.metadata.currentWindow.label
+const initData: WorkspaceInitialization = w.__INIT_DATA__
 
 const feedbackStore = new FeedbackStore()
 const logStore = new LogStore()
@@ -48,7 +60,6 @@ const workspaceStore = new WorkspaceStore(
         sessionId
       })
     },
-
     get: (entityType: EntityType, entityId: string) => core.invoke('get', {
       sessionId,
       entityType,
@@ -101,6 +112,13 @@ const workspaceStore = new WorkspaceStore(
         relativeToId,
         relativePosition,
         cloneFromId,
+      }),
+    clipboardPasteData: (relativeToId: string | null, relativePosition: IndexedEntityPosition | null, dataType: ClipboardDataType) =>
+      core.invoke<[string, EntityType]>('clipboard_paste_data', {
+        sessionId,
+        relativeToId,
+        relativePosition,
+        dataType,
       }),
     delete: (entityType: EntityType, entityId: string) => core.invoke('delete', {
       sessionId,
@@ -159,7 +177,7 @@ const workspaceStore = new WorkspaceStore(
       emit('oauth2-pkce-close', data),
     refreshToken: (data: { authorizationId: string }) =>
       emit('oauth2-refresh-token', data),
-    copyToClipboard: (payloadRequest: ClipboardPaylodRequest) => core.invoke<void>(
+    copyToClipboard: (payloadRequest: ClipboardPaylodRequest) => core.invoke(
       'copy_to_clipboard', { sessionId, payloadRequest }
     ),
     getRequestBody: (requestId) => core.invoke<RequestBodyInfo>(
@@ -182,27 +200,27 @@ export default function Home() {
   useEffect(() => {
     const w = getCurrentWebviewWindow()
     // Notification sent for when initialization data is available
-    let unlistenInitialize = w.listen<WorkspaceInitialization>('initialize', (data) => {
+    const unlistenInitialize = w.listen<WorkspaceInitialization>('initialize', (data) => {
       workspaceStore.initialize(data.payload)
     })
     // Notification sent on entire navigation tree update
-    let unlistenNavigation = w.listen<Navigation>('navigation', (data) => {
+    const unlistenNavigation = w.listen<Navigation>('navigation', (data) => {
       workspaceStore.setNavigation(data.payload)
     })
     // Toast provider
-    let unlistenToast = w.listen<{ message: string, severity: ToastSeverity }>('toast', (data) => {
+    const unlistenToast = w.listen<{ message: string, severity: ToastSeverity }>('toast', (data) => {
       feedbackStore.toast(data.payload.message, data.payload.severity)
     })
     // Notification sent on individual navigation entry update
-    let unlistenNavigationEntry = w.listen<UpdatedNavigationEntry>('navigation_entry', (data) => {
+    const unlistenNavigationEntry = w.listen<UpdatedNavigationEntry>('navigation_entry', (data) => {
       workspaceStore.updateNavigationState(data.payload)
     })
     // Notification sent when the save state changes (file name change, dirty status change)
-    let unlistenSaveState = w.listen<SessionSaveState>('save_state', (data) => {
+    const unlistenSaveState = w.listen<SessionSaveState>('save_state', (data) => {
       workspaceStore.updateSaveState(data.payload)
     })
     // Notification on record changes (not sent to window/session initiating the update)
-    let unlistenUpdate = w.listen<EntityUpdateNotification>('update', (data) => {
+    const unlistenUpdate = w.listen<EntityUpdateNotification>('update', (data) => {
       runInAction(() => {
         workspaceStore.refreshFromExternalUpdate(data.payload)
       })
@@ -212,32 +230,36 @@ export default function Home() {
     //   workspaceStore.updateExecutionStatus(data.payload)
     // })
     // Notification on request execution results
-    let unlistenExecutionResults = w.listen<{ [requestOrGroupId: string]: ExecutionEvent }>('execution_event', (data) => {
-      workspaceStore.processExecutionEvents(data.payload)
+    const unlistenExecutionResults = w.listen<{ [requestOrGroupId: string]: ExecutionEvent }>('execution_event', (data) => {
+      return workspaceStore.processExecutionEvents(data.payload)
     })
     // Notification on settings update
-    let unlistenSettingsUpdate = w.listen<EditableSettings>('update_settings', (data) => {
+    const unlistenSettingsUpdate = w.listen<EditableSettings>('update_settings', (data) => {
       setSettings(new EditableSettings(data.payload))
     })
-    let unlistenListLogs = w.listen<ReqwestEvent[]>('list_logs', () => {
-      workspaceStore.listLogs()
+    const unlistenListLogs = w.listen<ReqwestEvent[]>('list_logs', () => {
+      workspaceStore.listLogs().catch(console.error)
+    })
+    const unlistenSessionOpened = w.listen<string>('session_opened', (data) => {
+      feedbackStore.closeSessionToast(data.payload)
     })
 
     // Show the winodow once everything is mostly set up
     setTimeout(() => {
-      core.invoke('show_session', { sessionId })
+      core.invoke('show_session', { sessionId }).catch(console.error)
     }, 100)
 
     return () => {
-      unlistenInitialize.then(() => { })
-      unlistenNavigation.then(() => { })
-      unlistenToast.then(() => { })
-      unlistenNavigationEntry.then(() => { })
-      unlistenSaveState.then(() => { })
-      unlistenUpdate.then(() => { })
-      unlistenExecutionResults.then(() => { })
-      unlistenSettingsUpdate.then(() => { })
-      unlistenListLogs.then(() => { })
+      unlistenInitialize.then(() => { }).catch(console.error)
+      unlistenNavigation.then(() => { }).catch(console.error)
+      unlistenToast.then(() => { }).catch(console.error)
+      unlistenNavigationEntry.then(() => { }).catch(console.error)
+      unlistenSaveState.then(() => { }).catch(console.error)
+      unlistenUpdate.then(() => { }).catch(console.error)
+      unlistenExecutionResults.then(() => { }).catch(console.error)
+      unlistenSettingsUpdate.then(() => { }).catch(console.error)
+      unlistenListLogs.then(() => { }).catch(console.error)
+      unlistenSessionOpened.then(() => { }).catch(console.error)
     }
   })
 
@@ -255,7 +277,7 @@ export default function Home() {
                 <DragDropProvider>
                   <FileDragDropProvider>
                     <OAuth2Provider store={workspaceStore}>
-                      <ClipboardProvider>
+                      <ClipboardProvider dataType={initData.clipboardDataType}>
                         <MainPanel />
                       </ClipboardProvider>
                     </OAuth2Provider>

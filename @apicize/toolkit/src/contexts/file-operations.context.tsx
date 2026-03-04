@@ -2,13 +2,12 @@ import { createContext, useContext } from "react";
 import { SshFileType } from "../models/workspace/ssh-file-type";
 import { HelpContents } from "../models/help-contents";
 import { EditableSettings } from "../models/editable-settings";
-import { UpdateResponse } from "../models/editable";
 import { OpenDataSetFileResponse } from "./workspace.context";
-import { DataSet, DataSourceType } from "@apicize/lib-typescript";
+import { DataSourceType } from "@apicize/lib-typescript";
 
 export class FileOperationsStore {
-    public readonly newWorkbook: (openInNewWindow: boolean) => Promise<void>
-    public readonly openWorkbook: (openInNewWindow: boolean, fileName?: string, doUpdateSettings?: boolean) => Promise<void>
+    public readonly newWorkbook: (openInNewWindow: boolean) => Promise<string>
+    public readonly openWorkbook: (openInNewWindow: boolean, fileName?: string, doUpdateSettings?: boolean) => Promise<string>
     public readonly saveWorkbook: () => Promise<void>
     public readonly saveWorkbookAs: () => Promise<void>
     public readonly cloneWorkspace: () => Promise<void>
@@ -24,8 +23,8 @@ export class FileOperationsStore {
     public readonly saveDataSetAs: (dataSetId: string, sourceType: DataSourceType) => Promise<string | null>
 
     constructor(callbacks: {
-        onNewWorkbook: (openInNewWindow: boolean) => Promise<void>,
-        onOpenWorkbook: (openInNewWindow: boolean, fileName?: string, doUpdateSettings?: boolean) => Promise<void>,
+        onNewWorkbook: (openInNewWindow: boolean) => Promise<string>,
+        onOpenWorkbook: (openInNewWindow: boolean, fileName?: string, doUpdateSettings?: boolean) => Promise<string>,
         onSaveWorkbook: () => Promise<void>,
         onSaveWorkbookAs: () => Promise<void>,
         onCloneWorkspace: () => Promise<void>,

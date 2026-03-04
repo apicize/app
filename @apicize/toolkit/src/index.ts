@@ -81,6 +81,7 @@ monaco.editor.addKeybindingRules([
 
 // This needs to be here because Monaco is prone to throwing cancellation errors when it goes out of context
 window.addEventListener('unhandledrejection', (evt) => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     if (evt?.reason?.stack?.includes?.('CancellationError@')) {
         evt.stopImmediatePropagation()
         evt.stopPropagation()

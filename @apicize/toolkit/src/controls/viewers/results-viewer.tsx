@@ -13,7 +13,7 @@ import { ResultInfoViewer } from "./result/result-info-viewer";
 import { ResponseHeadersViewer } from "./result/response-headers-viewer";
 import { ResultDetailsViewer } from "./result/result-details-viewer";
 import { observer } from 'mobx-react-lite';
-import { ResultsPanel, useWorkspace } from "../../contexts/workspace.context";
+import { ResultsPanel } from "../../contexts/workspace.context";
 // import { MAX_TEXT_RENDER_LENGTH } from "./text-viewer";
 import RequestIcon from "../../icons/request-icon";
 import { ExecutionResultDetail, ExecutionResultSuccess } from "@apicize/lib-typescript";
@@ -59,7 +59,7 @@ export const ResultsViewer = observer((
         | 'private'
         | 'vault',
         SvgIconPropsColorOverrides
-    > | undefined = undefined
+    > | undefined
 
     if (selectedSummary.success === ExecutionResultSuccess.Success) {
         infoColor = 'success'

@@ -2,8 +2,10 @@ import { Grid, TextField } from "@mui/material"
 import { observer } from "mobx-react-lite"
 import { EditableAuthorization } from "../../../models/workspace/editable-authorization"
 import { PasswordTextField } from "../../password-text-field"
+import { useFeedback } from "../../../contexts/feedback.context"
 
 export const AuthorizationBasicEditor = observer(({ authorization }: { authorization: EditableAuthorization }) => {
+    const feedback = useFeedback()
     return <Grid container direction={'column'} spacing={3} className='authorization-editor-subpanel'>
         <Grid>
             <TextField
@@ -13,7 +15,9 @@ export const AuthorizationBasicEditor = observer(({ authorization }: { authoriza
                 value={authorization.username}
                 error={!!authorization.usernameError}
                 helperText={authorization.usernameError ?? ''}
-                onChange={e => authorization.setUsername(e.target.value)}
+                onChange={e => {
+                    authorization.setUsername(e.target.value).catch(err => feedback.toastError(err))
+                }}
                 size='small'
                 fullWidth
             />
@@ -24,7 +28,9 @@ export const AuthorizationBasicEditor = observer(({ authorization }: { authoriza
                 label="Password"
                 aria-label='authorization password'
                 value={authorization.password}
-                onChange={e => authorization.setPassword(e.target.value)}
+                onChange={e => {
+                    authorization.setPassword(e.target.value).catch(err => feedback.toastError(err))
+                }}
                 size='small'
                 fullWidth
             />

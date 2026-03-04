@@ -8,6 +8,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
+    "lint": "yarn run -T eslint src/",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",

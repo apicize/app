@@ -36,7 +36,7 @@ const RawEditor = observer(({ bodyLength, bodyMimeType, data, hasClipboardImage,
 
   if (bodyMimeType?.startsWith('image/')) {
     ext = bodyMimeType.substring(6).toLocaleLowerCase()
-    let idx = ext.indexOf('+')
+    const idx = ext.indexOf('+')
     if (idx !== -1) {
       ext = ext.substring(0, idx)
     }
@@ -147,7 +147,7 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
         unregisterDragDrop()
       })
     }
-  }, [refContainer])
+  }, [feedback, fileDragDrop, refContainer, request])
 
   // Request body hasn't been retrieved yet, wait for it
   if (!request.isBodyInitialized) {
@@ -161,15 +161,14 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
       || model.type !== RequestEditSessionType.Body
       || model.getLanguageId() !== request.bodyLanguage
     )) {
-    workspace.getRequestEditModel(request, RequestEditSessionType.Body, request.bodyLanguage)
-      .then(m => runInAction(() => {
-        request.bodyEditorModel = m
-      }))
-      .catch(e => feedback.toastError(e))
+    const model = workspace.getRequestEditModel(request, RequestEditSessionType.Body, request.bodyLanguage)
+    runInAction(() => {
+      request.bodyEditorModel = model
+    })
     return null
   }
 
-  let allowUpdateHeader = false
+  let allowUpdateHeader
   const contentTypeHeader = request.headers?.find(h => h.name === 'Content-Type')
   if (request.bodyMimeType) {
     if (contentTypeHeader && request.bodyMimeType.length > 0) {
@@ -192,7 +191,7 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
       try {
         const action = editor.current.getAction('editor.action.formatDocument')
         if (!action) throw new Error('Format action not found')
-        action.run()
+        action.run().catch(err => feedback.toastError(err))
       } catch (e) {
         feedback.toastError(e)
       }
@@ -229,7 +228,7 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
       }
     }
     // setAllowUpdateHeader(false)
-    request.setHeaders(newHeaders)
+    request.setHeaders(newHeaders).catch(err => feedback.toastError(err))
   }
 
   const bodyTypeMenuItems = () => {
@@ -259,23 +258,22 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
       ))
   }
 
-  const pasteImageFromClipboard = async () => {
-    try {
-      const bodyInfo = await workspace.updateRequestBodyFromClipboard(request.id)
-      feedback.toast(`Image pasted from clipboard (${bodyInfo.bodyMimeType ?? '(No Type)'})`, ToastSeverity.Success)
-    } catch (e) {
-      feedback.toast(`Unable to access clipboard image - ${e}`, ToastSeverity.Error)
-    }
+  const pasteImageFromClipboard = () => {
+    workspace.updateRequestBodyFromClipboard(request.id)
+      .then((bodyInfo) => {
+        feedback.toast(`Image pasted from clipboard (${bodyInfo.bodyMimeType ?? '(No Type)'})`, ToastSeverity.Success)
+      })
+      .catch(err => feedback.toastError(err))
   }
 
-  const openFile = async () => {
-    try {
-      const data = await fileOps.openFile()
-      if (!data) return
-      request.setBodyFromRawData(data).catch(e => feedback.toastError(e))
-    } catch (e) {
-      feedback.toast(`Unable to open file - ${e}`, ToastSeverity.Error)
-    }
+  const openFile = () => {
+    fileOps.openFile()
+      .then(data => {
+        if (data) {
+          request.setBodyFromRawData(data).catch(e => feedback.toastError(e))
+        }
+      })
+      .catch(e => feedback.toast(`Unable to open file - ${e}`, ToastSeverity.Error))
   }
 
   let allowCopy: boolean
@@ -319,7 +317,9 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
                 open={showBodyTypeMenu}
                 onClose={() => setShowBodyTypeMenu(false)}
                 onOpen={() => setShowBodyTypeMenu(true)}
-                onChange={e => updateBodyType(e.target.value)}
+                onChange={e => {
+                  updateBodyType(e.target.value)
+                }}
                 aria-labelledby='request-body-type-label-id'
               >
                 {bodyTypeMenuItems()}
@@ -332,10 +332,12 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
                   title="Copy Data to Clipboard"
                   color='primary'
                   sx={{ marginLeft: '16px' }}
-                  onClick={_ => workspace.copyToClipboard({
-                    payloadType: 'RequestBody',
-                    requestId: request.id,
-                  }, 'Body')}>
+                  onClick={_ => {
+                    workspace.copyToClipboard({
+                      payloadType: 'RequestBody',
+                      requestId: request.id,
+                    }, 'Body').catch(err => feedback.toastError(err))
+                  }}>
                   <ContentCopyIcon />
                 </IconButton>
                 : <></>
@@ -354,23 +356,27 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
               values={request.body.data}
               nameHeader='Name'
               valueHeader='Value'
-              onUpdate={(data) => request.setBodyData(data ?? []).catch(e => feedback.toastError(e))} />
+              onUpdate={(data) => {
+                request.setBodyData(data ?? []).catch(e => feedback.toastError(e))
+              }} />
             : request.body.type == BodyType.Raw
               ? <RawEditor
-                  bodyLength={request.bodyLength}
-                  bodyMimeType={request.bodyMimeType}
-                  data={request.body.data}
-                  hasClipboardImage={clipboard.hasImage}
-                  onOpenFile={openFile}
-                  onPasteFromClipboard={pasteImageFromClipboard}
-                />
+                bodyLength={request.bodyLength}
+                bodyMimeType={request.bodyMimeType}
+                data={request.body.data}
+                hasClipboardImage={clipboard.hasImage}
+                onOpenFile={openFile}
+                onPasteFromClipboard={pasteImageFromClipboard}
+              />
               : <MonacoEditor
                 language={request.bodyLanguage ?? undefined}
                 width='100%'
                 height='100%'
                 theme={settings.colorScheme === "dark" ? 'vs-dark' : 'vs-light'}
                 value={request.body.data}
-                onChange={(text: string) => request.setBodyData(text).catch(e => feedback.toastError(e))}
+                onChange={(text: string) => {
+                  request.setBodyData(text).catch(e => feedback.toastError(e))
+                }}
                 editorDidMount={(me) => {
                   editor.current = me
                 }}

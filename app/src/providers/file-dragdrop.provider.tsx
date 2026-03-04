@@ -1,7 +1,6 @@
 import { ReactNode, useEffect, useMemo } from "react";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { FileDragDropContext, FileDragDropStore, ToastSeverity, useFeedback } from "@apicize/toolkit";
-import { Body } from '@apicize/lib-typescript'
 import * as core from '@tauri-apps/api/core'
 import { DroppedFile } from "@apicize/toolkit/dist/contexts/file-dragdrop.context";
 
@@ -21,7 +20,7 @@ export function FileDragDropProvider({
     )
 
     useEffect(() => {
-        let unlisten = getCurrentWebview().onDragDropEvent((e) => {
+        const unlisten = getCurrentWebview().onDragDropEvent((e) => {
             switch (e.payload.type) {
                 case 'enter':
                     store.onEnter(e.payload.position.x, e.payload.position.y, e.payload.paths)
@@ -33,7 +32,7 @@ export function FileDragDropProvider({
                     store.onLeave()
                     break
                 case 'drop':
-                    core.invoke<DroppedFile>('get_clipboard_file_data', { paths: e.payload.paths }).then(
+                    core.invoke<DroppedFile>('clipboard_get_file_data', { paths: e.payload.paths }).then(
                         (f: DroppedFile) => store.onDrop(f)
                     ).catch((e) => {
                         feedback.toast(`${e}`, ToastSeverity.Error)
@@ -43,7 +42,7 @@ export function FileDragDropProvider({
         })
 
         return () => {
-            unlisten.then(() => { })
+            unlisten.then(() => { }).catch(console.error)
         }
     }, [store, feedback])
 

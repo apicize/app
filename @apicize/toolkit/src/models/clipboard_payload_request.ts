@@ -1,8 +1,35 @@
 /**
  * Payload type to serialize to file or clipboard
  */
-export type ClipboardPaylodRequest = ClipboardPayloadRequestBody | ClipboardPayloadRequestTest | ClipboardPayloadResponseSummaryJson
-    | ClipboardPayloadResponseSummaryCsv | ClipboardPayloadResponseBodyRaw | ClipboardPayloadResponseBodyPreview | ClipboardPayloadResponseDetail
+export type ClipboardPaylodRequest = ClipboardPayloadRequest | ClipboardPayloadScenario | ClipboardPayloadAuthorization
+    | ClipboardPayloadCertificate | ClipboardPayloadProxy | ClipboardPayloadRequestBody | ClipboardPayloadRequestTest
+    | ClipboardPayloadResponseSummaryJson | ClipboardPayloadResponseSummaryCsv
+    | ClipboardPayloadResponseBodyRaw | ClipboardPayloadResponseBodyPreview | ClipboardPayloadResponseDetail
+
+export interface ClipboardPayloadRequest {
+    payloadType: 'Request'
+    requestId: string
+}
+
+export interface ClipboardPayloadScenario {
+    payloadType: 'Scenario'
+    scenarioId: string
+}
+
+export interface ClipboardPayloadAuthorization {
+    payloadType: 'Authorization'
+    authorizationId: string
+}
+
+export interface ClipboardPayloadCertificate {
+    payloadType: 'Certificate'
+    certificateId: string
+}
+
+export interface ClipboardPayloadProxy {
+    payloadType: 'Proxy'
+    proxyId: string
+}
 
 export interface ClipboardPayloadRequestBody {
     payloadType: 'RequestBody'

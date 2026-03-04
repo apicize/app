@@ -20,6 +20,7 @@ import { EditableRequestGroup } from '../../models/workspace/editable-request-gr
 import { runInAction } from 'mobx';
 import { EditableSettings } from '../../models/editable-settings';
 import { RequestSetupEditor } from './request/request-setup-editor';
+import { useFeedback } from '../../contexts/feedback.context';
 
 interface GroupPanelViewProps {
     group: EditableRequestGroup
@@ -30,6 +31,8 @@ interface GroupPanelViewProps {
 }
 
 const GroupPanelView = observer(({ group, settings, usePanel, hasWarnings, onPanelChanged }: GroupPanelViewProps) => {
+    const feedback = useFeedback()
+
     const panelsClass = React.useMemo(() =>
         (usePanel === 'Setup') ? 'panels full-width' : 'panels',
         [usePanel]
@@ -68,7 +71,9 @@ const GroupPanelView = observer(({ group, settings, usePanel, hasWarnings, onPan
                     {usePanel === 'Info' ? <RequestGroupInfoEditor group={group} />
                         : usePanel === 'Setup' ? <RequestSetupEditor group={group} />
                             : usePanel === 'Parameters' ? <RequestParametersEditor requestOrGroup={group} />
-                                : usePanel === 'Warnings' ? <WarningsEditor warnings={group.validationWarnings} onDelete={(id) => group.deleteWarning(id)} />
+                                : usePanel === 'Warnings' ? <WarningsEditor warnings={group.validationWarnings} onDelete={(id) => {
+                                    group.deleteWarning(id).catch(err => feedback.toastError(err))
+                                }} />
                                     : null}
                 </Box>
             </Stack>

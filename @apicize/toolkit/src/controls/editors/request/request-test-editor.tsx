@@ -50,7 +50,7 @@ export const RequestTestEditor = observer(({ request }: { request: EditableReque
                 },
                 onOver: (_x, _y, extensions) => {
                     setIsDragging(true)
-                    let isJs = extensions.includes('js')
+                    const isJs = extensions.includes('js')
                     setIsDraggingValid(isJs)
                 },
                 onLeave: () => {
@@ -62,7 +62,7 @@ export const RequestTestEditor = observer(({ request }: { request: EditableReque
                     switch (file.type) {
                         case 'text':
                             runInAction(() => {
-                                request.setTest(file.data.toString())
+                                request.setTest(file.data).catch(err => feedback.toastError(err))
                             })
                             break
                     }
@@ -72,14 +72,14 @@ export const RequestTestEditor = observer(({ request }: { request: EditableReque
                 unregisterDragDrop()
             })
         }
-    }, [refContainer])
+    }, [feedback, fileDragDrop, isDragingValid, refContainer, request])
 
     function performBeautify() {
         if (editorRef.current) {
             try {
                 const action = editorRef.current.getAction('editor.action.formatDocument')
                 if (!action) throw new Error('Format action not found')
-                action.run()
+                action.run().catch(err => feedback.toastError(err))
             } catch (e) {
                 feedback.toastError(e)
             }
@@ -88,9 +88,8 @@ export const RequestTestEditor = observer(({ request }: { request: EditableReque
 
     // Make sure we have the editor test model
     if (!model || model.requestId !== request.id || model.type !== RequestEditSessionType.Test) {
-        workspace.getRequestEditModel(request, RequestEditSessionType.Test, EditorMode.js)
-            .then(setModel)
-            .catch(e => feedback.toastError(e))
+        const model = workspace.getRequestEditModel(request, RequestEditSessionType.Test, EditorMode.js)
+        setModel(model)
         return null
     }
 
@@ -102,10 +101,12 @@ export const RequestTestEditor = observer(({ request }: { request: EditableReque
                     title="Copy Tests to Clipboard"
                     color='primary'
                     sx={{ marginLeft: '16px' }}
-                    onClick={_ => workspace.copyToClipboard({
-                        payloadType: 'RequestTest',
-                        requestId: request.id,
-                    }, 'Body')}>
+                    onClick={_ => {
+                        workspace.copyToClipboard({
+                            payloadType: 'RequestTest',
+                            requestId: request.id,
+                        }, 'Body').catch(err => feedback.toastError(err))
+                    }}>
                     <ContentCopyIcon />
                 </IconButton>
                 <Box flexGrow={1} minWidth={0} />
@@ -126,7 +127,9 @@ export const RequestTestEditor = observer(({ request }: { request: EditableReque
                     language='javascript'
                     theme={settings.colorScheme === "dark" ? 'vs-dark' : 'vs-light'}
                     value={request.test}
-                    onChange={(value) => request.setTest(value)}
+                    onChange={(value) => {
+                        request.setTest(value).catch(err => feedback.toastError(err))
+                    }}
                     options={{
                         automaticLayout: true,
                         minimap: { enabled: false },

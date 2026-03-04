@@ -20,26 +20,26 @@ export class EditableProxy extends Editable<Proxy> {
         this.validationErrors = entry.validationErrors ?? {}
     }
 
-    protected performUpdate(update: ProxyUpdate) {
+    protected async performUpdate(update: ProxyUpdate) {
         this.markAsDirty()
-        this.workspace.update(update)
-            .then(updates => runInAction(() => {
-                if (updates) {
-                    this.validationErrors = updates.validationErrors || {}
-                }
-            }))
+        const updates = await this.workspace.update(update)
+        runInAction(() => {
+            if (updates) {
+                this.validationErrors = updates.validationErrors || {}
+            }
+        })
     }
 
     @action
     setName(value: string) {
         this.name = value
-        this.performUpdate({ id: this.id, type: EntityTypeName.Proxy, entityType: EntityType.Proxy, name: value })
+        return this.performUpdate({ id: this.id, type: EntityTypeName.Proxy, entityType: EntityType.Proxy, name: value })
     }
 
     @action
     setUrl(value: string) {
         this.url = value
-        this.performUpdate({ id: this.id, type: EntityTypeName.Proxy, entityType: EntityType.Proxy, url: value })
+        return this.performUpdate({ id: this.id, type: EntityTypeName.Proxy, entityType: EntityType.Proxy, url: value })
     }
 
     @action

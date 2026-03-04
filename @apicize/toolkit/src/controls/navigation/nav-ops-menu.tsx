@@ -1,5 +1,4 @@
 import { observer } from "mobx-react-lite";
-import { useApicizeSettings } from "../../contexts/apicize-settings.context";
 import { useWorkspace, WorkspaceMode } from "../../contexts/workspace.context";
 import { ToggleButtonGroup, ToggleButton, SvgIcon } from "@mui/material";
 import { SxProps } from "@mui/system";

@@ -1,52 +1,70 @@
-import { observer } from "mobx-react-lite";
-import { createRef, useRef, useState } from "react";
-import { useApicizeSettings } from "../../contexts/apicize-settings.context";
-import { useFileOperations } from "../../contexts/file-operations.context";
-import { useWorkspace } from "../../contexts/workspace.context";
-import { ButtonGroup, IconButton, MenuItem } from "@mui/material";
-import { Stack, Box, ResponsiveStyleValue, SxProps } from "@mui/system";
-import { EntityType } from "../../models/workspace/entity-type";
-import { DropdownMenu } from "./dropdown-menu";
+import { observer } from "mobx-react-lite"
+import { useState } from "react"
+import { useApicizeSettings } from "../../contexts/apicize-settings.context"
+import { useFileOperations } from "../../contexts/file-operations.context"
+import { useWorkspace } from "../../contexts/workspace.context"
+import { ButtonGroup, IconButton, MenuItem } from "@mui/material"
+import { Box, ResponsiveStyleValue, SxProps } from "@mui/system"
+import { EntityType } from "../../models/workspace/entity-type"
+import { DropdownMenu } from "./dropdown-menu"
 import PostAddIcon from '@mui/icons-material/PostAdd'
 import FileOpenIcon from '@mui/icons-material/FileOpen'
 import SaveIcon from '@mui/icons-material/Save'
 import SaveAsIcon from '@mui/icons-material/SaveAs'
 import OpenInBrowserIcon from '@mui/icons-material/OpenInBrowser'
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
+import { ToastSeverity, useFeedback } from "../../contexts/feedback.context"
 
 export const NavFileOpsMenu = observer(({ sx, orientation }: { sx?: SxProps, orientation: 'horizontal' | 'vertical' }) => {
     const settings = useApicizeSettings()
     const workspace = useWorkspace()
     const fileOps = useFileOperations()
+    const feedback = useFeedback()
 
     const [newMenu, setNewMenu] = useState<null | HTMLElement>(null)
+
     const [openMenu, setOpenMenu] = useState<null | HTMLElement>(null)
 
     const handleNewFileMenuClick = () => {
         const target = document.getElementById('file-new-menu-button')
-        setNewMenu(target);
+        setNewMenu(target)
         document.getElementById('nav-new-file')?.focus()
-    };
-    const handleFileNew = () => {
-        setNewMenu(null)
-        fileOps.cloneWorkspace()
     }
+
     const handleNewFileMenuClose = () => {
-        setNewMenu(null);
-    };
+        setNewMenu(null)
+    }
 
     const handleOpenFileMenuClick = () => {
         const target = document.getElementById('file-open-menu-button')
-        setOpenMenu(target);
+        setOpenMenu(target)
         document.getElementById('nav-file-0')?.focus()
-    };
-    const handleFileOpen = (fileName: string, newWindow: boolean) => {
-        setOpenMenu(null);
-        fileOps.openWorkbook(newWindow, fileName)
     }
+
+    const handleFileOpen = async (fileName: string, newWindow: boolean) => {
+        setOpenMenu(null)
+        const newSessionId = await fileOps.openWorkbook(newWindow, fileName)
+        if (newWindow) {
+            let idx = fileName.length - 1
+            while (idx > 0 && !['/', '\\'].includes(fileName[idx])) {
+                idx--
+            }
+            const showFileName = idx > 0 ? fileName.substring(idx + 1) : fileName
+            feedback.toast(`Opening ${showFileName}...`, ToastSeverity.Info, newSessionId)
+        }
+    }
+
     const handleOpenFileMenuClose = () => {
-        setOpenMenu(null);
-    };
+        setOpenMenu(null)
+    }
+
+    const handleOpenNewInNewWindow = () => {
+        fileOps.newWorkbook(true)
+            .then((newSessionId) => {
+                feedback.toast('Opening New Session...', ToastSeverity.Info, newSessionId)
+            })
+            .catch(err => feedback.toastError(err))
+    }
 
     const normalizeWorkbookFileName = (filename: string) => {
         if (filename.startsWith(settings.workbookDirectory)) {
@@ -66,9 +84,11 @@ export const NavFileOpsMenu = observer(({ sx, orientation }: { sx?: SxProps, ori
                         return
                     }
                     workspace.startExecution(workspace.activeSelection.id, !e.shiftKey)
+                        .catch(err => feedback.toastError(err))
                     break
                 case 'n':
                     fileOps.newWorkbook(false)
+                        .catch(err => feedback.toastError(err))
                     break
                 // case 'O':
                 //     TODO - need to work on making recent file drop down keyboard-friendly
@@ -79,43 +99,43 @@ export const NavFileOpsMenu = observer(({ sx, orientation }: { sx?: SxProps, ori
                         handleOpenFileMenuClick()
                     } else {
                         fileOps.openWorkbook(false)
+                            .catch(err => feedback.toastError(err))
                     }
                     break
                 case 's':
                     if (e.shiftKey) {
                         fileOps.saveWorkbookAs()
+                            .catch(err => feedback.toastError(err))
                     } else {
                         fileOps.saveWorkbook()
+                            .catch(err => feedback.toastError(err))
                     }
                     break
             }
         }
     })
 
-    let direction: ResponsiveStyleValue<'row' | 'column'>
     let alignDropBtnSelf: ResponsiveStyleValue<'begin' | 'end'>
     let alignDropBtnItems: ResponsiveStyleValue<'begin' | 'end'>
-    let firstPanelTPad: string
-    let buttonSpacing: string | undefined
+    let buttonSpacing: string
 
     if (orientation == 'horizontal') {
-        direction = 'row'
-        firstPanelTPad = 'None'
         alignDropBtnSelf = 'begin'
         alignDropBtnItems = 'end'
+        buttonSpacing = '1em'
     } else {
-        direction = 'column'
-        firstPanelTPad = '10em'
         alignDropBtnSelf = 'end'
-        // buttonSpacing = '1em'
         alignDropBtnItems = 'begin'
+        buttonSpacing = '1em'
     }
 
     return <ButtonGroup orientation={orientation} sx={sx}>
         <IconButton
             size='large'
             aria-label='new'
-            title={`New Workspace (${settings.ctrlKey} + N)`} onClick={() => fileOps.newWorkbook(false)}
+            title={`New Workspace (${settings.ctrlKey} + N)`} onClick={() => {
+                fileOps.newWorkbook(false).catch(err => feedback.toastError(err))
+            }}
             sx={{ fontSize: 'inherit', paddingLeft: '8px', paddingRight: '4px' }}
         >
             <PostAddIcon />
@@ -139,8 +159,8 @@ export const NavFileOpsMenu = observer(({ sx, orientation }: { sx?: SxProps, ori
             open={newMenu !== null}
             onClose={handleNewFileMenuClose}
         >
-            <MenuItem autoFocus={true} key='nav-new-file' className='recent-file' sx={{ fontSize: 'inherit' }} disableRipple onClick={() => handleFileNew()}>
-                <Box className='filename'>Open Workspace in New Window</Box>
+            <MenuItem autoFocus={true} key='nav-new-file' className='recent-file' sx={{ fontSize: 'inherit' }} disableRipple onClick={() => handleOpenNewInNewWindow()}>
+                <Box className='filename'>Open New Workspace in New Window</Box>
                 <OpenInBrowserIcon sx={{ marginRight: 0 }} fontSize='inherit' />
             </MenuItem>
         </DropdownMenu>
@@ -151,7 +171,9 @@ export const NavFileOpsMenu = observer(({ sx, orientation }: { sx?: SxProps, ori
             id='file-open-btn'
             sx={{ marginTop: buttonSpacing }}
             title={`Open Workbook (${settings.ctrlKey} + O)`}
-            onClick={() => fileOps.openWorkbook(false, undefined, true)}>
+            onClick={() => {
+                fileOps.openWorkbook(false, undefined, true).catch(err => feedback.toastError(err))
+            }}>
             <FileOpenIcon />
         </IconButton>
         {
@@ -200,9 +222,15 @@ export const NavFileOpsMenu = observer(({ sx, orientation }: { sx?: SxProps, ori
                 >
                     {
                         settings.recentWorkbookFileNames.map((f, idx) => (
-                            <MenuItem autoFocus={idx == 0} key={`nav-file-${idx}`} sx={{ fontSize: 'inherit' }} className='recent-file' disableRipple onClick={() => handleFileOpen(f, false)}>
+                            <MenuItem autoFocus={idx == 0} key={`nav-file-${idx}`} sx={{ fontSize: 'inherit' }} className='recent-file' disableRipple onClick={() => {
+                                handleFileOpen(f, false).catch(err => feedback.toastError(err))
+                            }}>
                                 <Box className='filename'>{normalizeWorkbookFileName(f)}</Box>
-                                <IconButton title='Open in New Window' onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleFileOpen(f, true); }}><OpenInBrowserIcon sx={{ marginRight: 0 }} fontSize='inherit' /></IconButton>
+                                <IconButton title='Open in New Window' onClick={(e) => {
+                                    e.preventDefault()
+                                    e.stopPropagation()
+                                    handleFileOpen(f, true).catch(err => feedback.toastError(err))
+                                }}><OpenInBrowserIcon sx={{ marginRight: 0 }} fontSize='inherit' /></IconButton>
                             </MenuItem>
                         ))
                     }
@@ -213,13 +241,17 @@ export const NavFileOpsMenu = observer(({ sx, orientation }: { sx?: SxProps, ori
             size='large'
             aria-label='save'
             sx={{ marginTop: buttonSpacing, paddingLeft: '8px', paddingRight: '8px' }}
-            title={`Save to Workbook (${settings.ctrlKey} + S)`} disabled={workspace.fileName.length == 0} onClick={() => fileOps.saveWorkbook()}>
+            title={`Save to Workbook (${settings.ctrlKey} + S)`} disabled={workspace.fileName.length == 0} onClick={() => {
+                fileOps.saveWorkbook().catch(err => feedback.toastError(err))
+            }}>
             <SaveIcon />
         </IconButton>
         <IconButton
             size='large'
             aria-label='save-as' sx={{ marginTop: buttonSpacing, paddingLeft: '8px', paddingRight: '8px' }}
-            title={`Save to Workbook As (${settings.ctrlKey} + Shift + S)`} onClick={() => fileOps.saveWorkbookAs()}>
+            title={`Save to Workbook As (${settings.ctrlKey} + Shift + S)`} onClick={() => {
+                fileOps.saveWorkbookAs().catch(err => feedback.toastError(err))
+            }}>
             <SaveAsIcon />
         </IconButton>
     </ButtonGroup>

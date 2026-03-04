@@ -1,3 +1,6 @@
+// Note:  disabling *any* checks for this because of dynamic help context
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { visit } from 'unist-util-visit'
 import { LeafDirective } from 'mdast-util-directive'
 import { Parent } from 'unist'
@@ -106,10 +109,10 @@ export function createRemarkApicizeDirectives(config: HelpFormatConfig) {
 
     return () => (tree: Parent) => {
         visit(tree, 'leafDirective', function (node: LeafDirective) {
-            handleLogo(node) || handleToolbar(node) || handleImage(node)
+            return handleLogo(node) || handleToolbar(node) || handleImage(node)
         })
         visit(tree, 'textDirective', function (node: LeafDirective) {
-            handleLogo(node) || handleToolbar(node) || handleInfo(node) || handleIcon(node) || handleImage(node)
+            return handleLogo(node) || handleToolbar(node) || handleInfo(node) || handleIcon(node) || handleImage(node)
         })
     }
 }

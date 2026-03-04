@@ -1,5 +1,5 @@
 import { observer } from "mobx-react-lite"
-import { WarningAmberIcon, PlayArrowIcon, AirlineStopsIcon } from '../../icons'
+import { AirlineStopsIcon } from '../../icons'
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView'
 import { TreeItem } from '@mui/x-tree-view/TreeItem'
 import Box from '@mui/material/Box'

@@ -18,22 +18,24 @@ export const WorkspaceProvider = observer(({ store, children }: { store: Workspa
         const unlistenClose = currentWindow.onCloseRequested((e) => {
             if (store.dirty && store.editorCount < 2 && (!_forceClose.current)) {
                 e.preventDefault();
-                (async () => {
-                    if (await feedback.confirm({
-                        title: `Close ${store.displayName.length === 0 ? 'New Workspace' : store.displayName}?`,
-                        message: 'You have unsaved changes, are you sure you want to close Apicize?',
-                        okButton: 'Yes',
-                        cancelButton: 'No',
-                        defaultToCancel: true
-                    })) {
+                feedback.confirm({
+                    title: `Close ${store.displayName.length === 0 ? 'New Workspace' : store.displayName}?`,
+                    message: 'You have unsaved changes, are you sure you want to close Apicize?',
+                    okButton: 'Yes',
+                    cancelButton: 'No',
+                    defaultToCancel: true
+                }).then((ok) => {
+                    if (ok) {
                         _forceClose.current = true
                         store.dirty = false
-                        currentWindow.close()
+                        currentWindow.close().catch((e) => {
+                            feedback.toastError(e)
+                        })
                         store.close().catch((e) => {
                             feedback.toastError(e)
                         })
                     }
-                })()
+                }).catch(e => feedback.toastError(e))
             } else {
                 store.close().catch((e) => {
                     feedback.toastError(e)
@@ -42,7 +44,7 @@ export const WorkspaceProvider = observer(({ store, children }: { store: Workspa
             }
         })
         return (() => {
-            unlistenClose.then(f => f())
+            unlistenClose.then(f => f()).catch(console.error)
         })
     }, [fileOps, feedback, store])
 

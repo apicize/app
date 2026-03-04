@@ -1,5 +1,4 @@
-import { action, computed, observable, toJS } from "mobx";
-import { EntityType } from "./entity-type";
+import { action, computed, observable } from "mobx";
 import { GenerateIdentifier } from "../../services/random-identifier-generator";
 
 export class EditableWarnings {

@@ -1,6 +1,6 @@
 import { Box, Typography } from "@mui/material";
 import { observer } from "mobx-react-lite";
-import { ReactNode } from "react";
+import { ReactNode, JSX } from "react";
 
 export const EditorTitle = observer(({ name, diag, icon, children }: { name: string, diag?: string, icon: JSX.Element, children?: ReactNode }) => {
     return (

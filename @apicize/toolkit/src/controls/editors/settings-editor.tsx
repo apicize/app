@@ -22,7 +22,6 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import { useApicizeSettings } from '../../contexts/apicize-settings.context';
 import { BorderedSection } from '../bordered-section';
-import { toJS } from 'mobx';
 import { useState, useEffect } from 'react'
 
 export const SettingsEditor = observer(({ sx }: { sx?: SxProps }) => {
@@ -201,7 +200,9 @@ export const SettingsEditor = observer(({ sx }: { sx?: SxProps }) => {
                     </Stack>
                 </BorderedSection>
                 <Box>
-                    <Button variant="outlined" aria-label="defaults" startIcon={<RestartAltIcon />} onClick={() => resetToDefaults()}>Reset to Defaults</Button>
+                    <Button variant="outlined" aria-label="defaults" startIcon={<RestartAltIcon />} onClick={() => {
+                        resetToDefaults().catch(err => feedback.toastError(err))
+                    }}>Reset to Defaults</Button>
                 </Box>
             </Stack>
         </Box>

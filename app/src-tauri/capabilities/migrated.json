@@ -27,12 +27,6 @@
     "core:window:allow-center",
     "dialog:allow-open",
     "dialog:allow-save",
-    "clipboard:allow-start-monitor",
-    "clipboard:allow-stop-monitor",
-    "clipboard:allow-has-text",
-    "clipboard:allow-has-image",
-    "clipboard:read-all",
-    "clipboard:write-all",
     "os:allow-os-type",
     {
       "identifier": "opener:allow-open-url",

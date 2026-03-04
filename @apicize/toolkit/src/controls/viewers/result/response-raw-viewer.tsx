@@ -6,10 +6,11 @@ import { ResultEditSessionType } from "../../editors/editor-types";
 import { useWorkspace } from "../../../contexts/workspace.context";
 import { editor } from 'monaco-editor'
 import { ExecutionResultDetail } from "@apicize/lib-typescript";
+import { useFeedback } from "../../../contexts/feedback.context";
 
 export function ResultRawPreview({ detail }: { detail: ExecutionResultDetail | null }) {
-
     const workspace = useWorkspace()
+    const feedback = useFeedback()
 
     if (detail?.entityType !== 'request') {
         return
@@ -64,10 +65,13 @@ export function ResultRawPreview({ detail }: { detail: ExecutionResultDetail | n
                         title="Copy Data to Clipboard"
                         color='primary'
                         sx={{ marginLeft: '16px' }}
-                        onClick={_ => workspace.copyToClipboard({
-                            payloadType: 'ResponseBodyRaw',
-                            execCtr: detail.execCtr,
-                        }, 'Data')}
+                        onClick={_ => {
+                            workspace.copyToClipboard({
+                                payloadType: 'ResponseBodyRaw',
+                                execCtr: detail.execCtr,
+                            }, 'Data')
+                                .catch(err => feedback.toastError(err))
+                        }}
                     >
                         <ContentCopyIcon />
                     </IconButton>)

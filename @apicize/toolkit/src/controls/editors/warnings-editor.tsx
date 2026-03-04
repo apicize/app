@@ -3,7 +3,7 @@ import { observer } from 'mobx-react-lite';
 import { EditableWarnings } from '../../models/workspace/editable-warnings';
 
 export const WarningsEditor = observer(({ sx, warnings, onDelete }: { sx?: SxProps, warnings: EditableWarnings, onDelete: (id: string) => void }) => {
-    return <Grid container direction='column' spacing={3}>
+    return <Grid container direction='column' spacing={3} sx={sx}>
         {
             warnings.hasEntries
                 ?

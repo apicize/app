@@ -4,11 +4,12 @@ import { ExecutionResultDetail } from "@apicize/lib-typescript"
 
 export function ResponseHeadersViewer({ detail }: { detail: ExecutionResultDetail | null }) {
 
+    const [headers] = useState(Object.entries(detail?.entityType === 'request' ? (detail.testContext.response?.headers ?? {}) : {}))
+
     if (detail?.entityType !== 'request') {
         return
     }
 
-    const [headers] = useState(Object.entries(detail.testContext.response?.headers ?? {}))
     let hdrCtr = 0
     return (
         <Stack direction="column" sx={{ flexGrow: 1, maxWidth: '80em', position: 'absolute', top: '0', bottom: '0' }}>
