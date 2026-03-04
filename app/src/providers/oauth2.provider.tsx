@@ -7,6 +7,7 @@ import { Webview } from "@tauri-apps/api/webview"
 import { EditableAuthorization } from "@apicize/toolkit";
 import { observer } from "mobx-react-lite";
 import { AuthorizationType, OAuth2PkceAuthorization, TokenResult } from "@apicize/lib-typescript";
+import { autorun, reaction } from "mobx";
 
 /**
  * Implementation of file opeartions via Tauri
@@ -20,9 +21,9 @@ export const OAuth2Provider = observer(({ store, children }: { store: WorkspaceS
     const wip = useRef<Map<string, OAuthPkceRequest>>(new Map())
     const window_counter = useRef(1)
 
-    // const lastPortUpdatedAt = useRef(0)
-    // const lastPortValue = useRef(0)
-    // const lastPortTimeout = useRef<NodeJS.Timeout | null>(null)
+    const lastPortUpdatedAt = useRef(0)
+    const lastPortValue = useRef(0)
+    const lastPortTimeout = useRef<NodeJS.Timeout | null>(null)
 
 
     useEffect(() => {
@@ -209,17 +210,29 @@ export const OAuth2Provider = observer(({ store, children }: { store: WorkspaceS
             feedback.toast(event.payload, ToastSeverity.Error)
         })
 
-        // const checkPortUpdate = (newPort: number) => {
-        //     const now = Date.now()
-        //     if ((lastPortUpdatedAt.current === 0 || now - lastPortUpdatedAt.current > 1000) && lastPortValue.current !== newPort) {
-        //         core.invoke('set_pkce_port', { port: newPort })
-        //     } else if (lastPortUpdatedAt.current !== newPort) {
-        //         lastPortUpdatedAt.current = now
-        //         lastPortTimeout.current = setTimeout(() => checkPortUpdate(newPort), 500)
-        //     }
-        // }
+        const checkPortUpdate = (newPort: number) => {
+            if (lastPortValue.current !== newPort) {
+                core.invoke('set_pkce_port', { port: newPort })
+                lastPortValue.current = newPort
+                lastPortUpdatedAt.current = Date.now()
+            }
+            lastPortTimeout.current = null
+        }
+
+        if (lastPortUpdatedAt.current === 0) {
+            checkPortUpdate(settings.pkceListenerPort)
+        }
+        let portPollerDisposer = autorun(
+            () => {
+                if (lastPortTimeout.current) {
+                    clearTimeout(lastPortTimeout.current)
+                }
+                lastPortTimeout.current = setTimeout(() => checkPortUpdate(settings.pkceListenerPort), 3000)
+            }
+        )
 
         return () => {
+            portPollerDisposer()
             unlistenOAuth2ClientToken.then(f => f()).catch(console.error)
             unlistenPkceInit.then(f => f()).catch(console.error)
             unlistenPkceClose.then(f => f()).catch(console.error)
@@ -230,12 +243,14 @@ export const OAuth2Provider = observer(({ store, children }: { store: WorkspaceS
         }
     }, [feedback, workspace, settings.pkceListenerPort])
 
+
     return (
         <OAuth2Context.Provider value={store}>
             {children}
         </OAuth2Context.Provider>
     )
 })
+
 
 interface OAuthPkceRequest {
     url: string,

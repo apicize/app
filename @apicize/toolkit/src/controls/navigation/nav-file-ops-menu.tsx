@@ -117,12 +117,12 @@ export const NavFileOpsMenu = observer(({ sx, orientation }: { sx?: SxProps, ori
 
     let alignDropBtnSelf: ResponsiveStyleValue<'begin' | 'end'>
     let alignDropBtnItems: ResponsiveStyleValue<'begin' | 'end'>
-    let buttonSpacing: string
+    let buttonSpacing: string | undefined
 
     if (orientation == 'horizontal') {
         alignDropBtnSelf = 'begin'
         alignDropBtnItems = 'end'
-        buttonSpacing = '1em'
+        buttonSpacing = undefined
     } else {
         alignDropBtnSelf = 'end'
         alignDropBtnItems = 'begin'

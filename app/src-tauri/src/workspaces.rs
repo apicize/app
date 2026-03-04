@@ -3267,7 +3267,11 @@ impl WorkspaceInfo {
                 return Some(entry);
             }
             if let Some(children) = &mut entry.children {
-                return WorkspaceInfo::get_navigation_int_mut(request_or_group_id, children);
+                let result =
+                    WorkspaceInfo::get_navigation_int_mut(request_or_group_id, children);
+                if result.is_some() {
+                    return result;
+                }
             }
         }
         None

@@ -62,8 +62,8 @@ export const iconsFromState = (entry: NavigationEntry) => {
     }
 
     return icons.length > 0
-        ? <Box className='nav-state-icon-container' typography='navigation'>{icons} ({entry.executionState})</Box>
-        : <Box className='nav-state-icon-container' typography='navigation'>({entry.executionState})</Box>
+        ? <Box className='nav-state-icon-container' typography='navigation'>{icons}</Box>
+        : null
 }
 
 export const NavTreeItem = observer(({

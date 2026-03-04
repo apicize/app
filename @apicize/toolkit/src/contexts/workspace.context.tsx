@@ -537,7 +537,6 @@ export class WorkspaceStore implements EditableEntityContext {
     @action
     updateNavigationState(entry: UpdatedNavigationEntry) {
         const match = this.findNavigationEntry(entry.id, entry.entityType)
-        console.log(`Updating navigation for ${entry.id} (exec state = ${entry.executionState})`)
         if (match) {
             match.name = entry.disabled ? entry.name : entry.name
             match.validationState = entry.validationState
