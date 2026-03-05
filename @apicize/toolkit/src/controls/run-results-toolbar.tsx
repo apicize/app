@@ -17,32 +17,25 @@ import { useFeedback } from "../contexts/feedback.context";
 
 // Memoized component to display execution state icon
 const ExecutionStateIcon = React.memo(({ executionState }: { executionState: ExecutionState }) => {
-    if ((executionState & (ExecutionState.success | ExecutionState.failure | ExecutionState.error)) ===
-        (ExecutionState.success | ExecutionState.failure | ExecutionState.error)) {
-        return <SvgIcon fontSize='small'><ResultSuccessFailureErrorIcon /></SvgIcon>
+    const masked = executionState & (ExecutionState.success | ExecutionState.failure | ExecutionState.error)
+    switch (masked) {
+        case ExecutionState.success | ExecutionState.failure | ExecutionState.error:
+            return <SvgIcon fontSize='small'><ResultSuccessFailureErrorIcon /></SvgIcon>
+        case ExecutionState.success | ExecutionState.failure:
+            return <SvgIcon fontSize='small'><ResultSuccessFailureIcon /></SvgIcon>
+        case ExecutionState.success | ExecutionState.error:
+            return <SvgIcon fontSize='small'><ResultSuccessErrorIcon /></SvgIcon>
+        case ExecutionState.failure | ExecutionState.error:
+            return <SvgIcon fontSize='small'><ResultFailureErrorIcon /></SvgIcon>
+        case ExecutionState.success as number:
+            return <SvgIcon fontSize='small'><ResultSuccessIcon /></SvgIcon>
+        case ExecutionState.failure as number:
+            return <SvgIcon fontSize='small'><ResultFailureIcon /></SvgIcon>
+        case ExecutionState.error as number:
+            return <SvgIcon fontSize='small'><ResultErrorIcon /></SvgIcon>
+        default:
+            return null
     }
-    if ((executionState & (ExecutionState.success | ExecutionState.failure)) ===
-        (ExecutionState.success | ExecutionState.failure)) {
-        return <SvgIcon fontSize='small'><ResultSuccessFailureIcon /></SvgIcon>
-    }
-    if ((executionState & (ExecutionState.success | ExecutionState.error)) ===
-        (ExecutionState.success | ExecutionState.error)) {
-        return <SvgIcon fontSize='small'><ResultSuccessErrorIcon /></SvgIcon>
-    }
-    if ((executionState & (ExecutionState.failure | ExecutionState.error)) ===
-        (ExecutionState.failure | ExecutionState.error)) {
-        return <SvgIcon fontSize='small'><ResultFailureErrorIcon /></SvgIcon>
-    }
-    if ((executionState & ExecutionState.success) === ExecutionState.success) {
-        return <SvgIcon fontSize='small'><ResultSuccessIcon /></SvgIcon>
-    }
-    if ((executionState & ExecutionState.failure) === ExecutionState.failure) {
-        return <SvgIcon fontSize='small'><ResultFailureIcon /></SvgIcon>
-    }
-    if ((executionState & ExecutionState.error) === ExecutionState.error) {
-        return <SvgIcon fontSize='small'><ResultErrorIcon /></SvgIcon>
-    }
-    return null
 }, (prev, next) => prev.executionState === next.executionState)
 
 export const RunResultsToolbar = observer((

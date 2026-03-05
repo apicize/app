@@ -7,7 +7,7 @@ import { Webview } from "@tauri-apps/api/webview"
 import { EditableAuthorization } from "@apicize/toolkit";
 import { observer } from "mobx-react-lite";
 import { AuthorizationType, OAuth2PkceAuthorization, TokenResult } from "@apicize/lib-typescript";
-import { autorun, reaction } from "mobx";
+import { autorun } from "mobx";
 
 /**
  * Implementation of file opeartions via Tauri
@@ -212,7 +212,7 @@ export const OAuth2Provider = observer(({ store, children }: { store: WorkspaceS
 
         const checkPortUpdate = (newPort: number) => {
             if (lastPortValue.current !== newPort) {
-                core.invoke('set_pkce_port', { port: newPort })
+                core.invoke('set_pkce_port', { port: newPort }).catch(err => feedback.toastError(err))
                 lastPortValue.current = newPort
                 lastPortUpdatedAt.current = Date.now()
             }
@@ -222,7 +222,7 @@ export const OAuth2Provider = observer(({ store, children }: { store: WorkspaceS
         if (lastPortUpdatedAt.current === 0) {
             checkPortUpdate(settings.pkceListenerPort)
         }
-        let portPollerDisposer = autorun(
+        const portPollerDisposer = autorun(
             () => {
                 if (lastPortTimeout.current) {
                     clearTimeout(lastPortTimeout.current)

@@ -1,5 +1,5 @@
 import { Persistence } from "@apicize/lib-typescript"
-import { SvgIconPropsColorOverrides, SvgIcon, IconButton, Menu, MenuItem, ListItemIcon, ListItemText } from "@mui/material"
+import { SvgIcon, IconButton, Menu, MenuItem, ListItemIcon, ListItemText } from "@mui/material"
 import { JSX } from 'react'
 import { Box } from "@mui/system"
 import { TreeItem } from "@mui/x-tree-view/TreeItem"
@@ -9,7 +9,6 @@ import PrivateIcon from "../../../icons/private-icon"
 import PublicIcon from "../../../icons/public-icon"
 import VaultIcon from "../../../icons/vault-icon"
 import { EntityType } from "../../../models/workspace/entity-type"
-import { OverridableStringUnion } from "@mui/types";
 import { DroppableData } from "../../../models/drag-drop"
 import { useWorkspace } from "../../../contexts/workspace.context"
 import { NavTreeItem } from "../nav-tree-item"
@@ -20,6 +19,7 @@ import { NavigationEntry, ParamNavigationSection } from "../../../models/navigat
 import { IndexedEntityPosition } from "../../../models/workspace/indexed-entity-position"
 import { useDragDrop } from "../../../contexts/dragdrop.context"
 import { useState } from "react"
+import { IconColors } from "../../../theme"
 
 const ParameterSubsection = observer(({
     type,
@@ -43,7 +43,7 @@ const ParameterSubsection = observer(({
     persistence: Persistence,
     icon: JSX.Element,
     entityIcon: JSX.Element,
-    entityIconColor: string,
+    entityIconColor: IconColors,
     label: string,
     singularName: string,
     pasteDisabled: boolean,
@@ -127,7 +127,7 @@ const ParameterSubsection = observer(({
                             workspace.updateExpanded(headerId, true)
                         }}>
                         <ListItemIcon>
-                            <SvgIcon color={entityIconColor as any} fontSize='inherit'>{entityIcon}</SvgIcon>
+                            <SvgIcon color={entityIconColor} fontSize='inherit'>{entityIcon}</SvgIcon>
                         </ListItemIcon>
                         <ListItemText disableTypography>Add {singularName}</ListItemText>
                     </MenuItem>
@@ -193,17 +193,7 @@ export const ParameterSection = observer(({
     icon: JSX.Element,
     includeHeader: boolean,
     contextMenu?: JSX.Element,
-    iconColor: OverridableStringUnion<
-        | 'inherit'
-        | 'action'
-        | 'disabled'
-        | 'primary'
-        | 'secondary'
-        | 'error'
-        | 'info'
-        | 'success'
-        | 'warning',
-        SvgIconPropsColorOverrides>,
+    iconColor: IconColors,
     singularName: string,
     pasteDisabled: boolean,
     onAdd: (relativeToId: string, relativePosition: IndexedEntityPosition, cloneFromId: string | null) => void,

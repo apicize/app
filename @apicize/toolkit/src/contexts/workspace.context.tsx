@@ -1171,7 +1171,7 @@ export class WorkspaceStore implements EditableEntityContext {
         if (models) {
             const model = models.get(type)
             if (model) {
-                if (model.getLanguageId() === mode) {
+                if (model.getLanguageId() as EditorMode === mode) {
                     return model
                 }
             }

@@ -1,4 +1,5 @@
-// Disabled any handling for XML and JSON handling
+// Disabled "any" handling for XML and JSON handling
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Body, BodyForm, BodyJSON, BodyNone, BodyRaw, BodyText, BodyType, BodyXML, NameValuePair } from "@apicize/lib-typescript";

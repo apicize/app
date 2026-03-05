@@ -1,5 +1,18 @@
+import { SvgIconPropsColorOverrides } from '@mui/material'
 import '@mui/material/styles'
+import { OverridableStringUnion } from '@mui/types'
 
+export type IconColors = OverridableStringUnion<
+    | 'inherit'
+    | 'action'
+    | 'disabled'
+    | 'primary'
+    | 'secondary'
+    | 'error'
+    | 'info'
+    | 'success'
+    | 'warning',
+    SvgIconPropsColorOverrides>
 declare module '@mui/material/styles' {
     interface Palette {
         navigation: Palette['primary']

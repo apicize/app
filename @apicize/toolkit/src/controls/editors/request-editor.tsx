@@ -24,7 +24,7 @@ import { RequestBodyEditor } from './request/request-body-editor'
 import { WarningsEditor } from './warnings-editor'
 import { RequestParametersEditor } from './request/request-parameters-editor'
 import { EditableRequest } from '../../models/workspace/editable-request'
-import { reaction, runInAction } from 'mobx'
+import { runInAction } from 'mobx'
 import { useFeedback } from '../../contexts/feedback.context'
 
 const RequestPanel = observer(({

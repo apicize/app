@@ -34,7 +34,7 @@ export interface UpdateResponse {
 /**
  * Interface to track state of editable entity
  */
-export abstract class Editable<T> {
+export abstract class Editable {
     @observable accessor id: string = ''
     @observable accessor name: string = ''
     @observable accessor dirty: boolean = false

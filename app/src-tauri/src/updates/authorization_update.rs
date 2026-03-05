@@ -37,9 +37,9 @@ pub struct AuthorizationUpdate {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub client_secret: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub audience: Option<Option<String>>,
+    pub audience: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub scope: Option<Option<String>>,
+    pub scope: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub selected_certificate: Option<Selection>,
     #[serde(skip_serializing_if = "Option::is_none")]

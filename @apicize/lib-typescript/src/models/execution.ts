@@ -188,7 +188,7 @@ export interface ApicizeBodyBinary {
     data: string
 }
 
-export type ApicizeBody = ApicizeBodyText | ApicizeBodyJSON   | ApicizeBodyForm | ApicizeBodyBinary
+export type ApicizeBody = ApicizeBodyText | ApicizeBodyJSON | ApicizeBodyForm | ApicizeBodyBinary
 
 export interface ApicizeHttpRequest {
     url: string,

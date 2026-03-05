@@ -1,11 +1,10 @@
 import { useDraggable, useDroppable } from "@dnd-kit/core"
-import { SvgIconPropsColorOverrides, SvgIcon, IconButton } from "@mui/material"
+import { SvgIcon, IconButton } from "@mui/material"
 import { Box } from "@mui/system"
 import { TreeItem } from "@mui/x-tree-view/TreeItem"
 import { observer } from "mobx-react-lite"
 import { DraggableData, DroppableData } from "../../models/drag-drop"
 import { EntityType } from "../../models/workspace/entity-type"
-import { OverridableStringUnion } from "@mui/types";
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
@@ -22,6 +21,7 @@ import {
     ResultSuccessFailureIcon, ResultSuccessErrorIcon, ResultFailureErrorIcon, ResultSuccessFailureErrorIcon,
 } from "../../icons"
 import { ExecutionState, ValidationState } from "@apicize/lib-typescript"
+import { IconColors } from "../../theme"
 
 // Helper function to generate icons from entry state
 // Used inside observer components, so it will react to MobX changes
@@ -29,34 +29,41 @@ export const iconsFromState = (entry: NavigationEntry) => {
     const icons: JSX.Element[] = []
 
     if (entry.executionState) {
-        if ((entry.executionState & ExecutionState.running) === ExecutionState.running) {
+        if ((entry.executionState & ExecutionState.running) === ExecutionState.running as number) {
             icons.push(<PlayArrowIcon color="success" fontSize='medium' key={`play-${entry.id}`} />)
-        } else if ((entry.executionState & (ExecutionState.success | ExecutionState.failure | ExecutionState.error)) ===
-            (ExecutionState.success | ExecutionState.failure | ExecutionState.error)) {
-            icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultSuccessFailureErrorIcon /></SvgIcon>)
-        } else if ((entry.executionState & (ExecutionState.success | ExecutionState.failure)) ===
-            (ExecutionState.success | ExecutionState.failure)) {
-            icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultSuccessFailureIcon /></SvgIcon>)
-        } else if ((entry.executionState & (ExecutionState.success | ExecutionState.error)) ===
-            (ExecutionState.success | ExecutionState.error)) {
-            icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultSuccessErrorIcon /></SvgIcon>)
-        } else if ((entry.executionState & (ExecutionState.failure | ExecutionState.error)) ===
-            (ExecutionState.failure | ExecutionState.error)) {
-            icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultFailureErrorIcon /></SvgIcon>)
-        } else if ((entry.executionState & ExecutionState.success) === ExecutionState.success) {
-            icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultSuccessIcon /></SvgIcon>)
-        } else if ((entry.executionState & ExecutionState.failure) === ExecutionState.failure) {
-            icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultFailureIcon /></SvgIcon>)
-        } else if ((entry.executionState & ExecutionState.error) === ExecutionState.error) {
-            icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultErrorIcon /></SvgIcon>)
+        } else {
+            const masked = entry.executionState & (ExecutionState.success | ExecutionState.failure | ExecutionState.error)
+            switch (masked) {
+                case ExecutionState.success | ExecutionState.failure | ExecutionState.error:
+                    icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultSuccessFailureErrorIcon /></SvgIcon>)
+                    break
+                case ExecutionState.success | ExecutionState.failure:
+                    icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultSuccessFailureIcon /></SvgIcon>)
+                    break
+                case ExecutionState.success | ExecutionState.error:
+                    icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultSuccessErrorIcon /></SvgIcon>)
+                    break
+                case ExecutionState.failure | ExecutionState.error:
+                    icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultFailureErrorIcon /></SvgIcon>)
+                    break
+                case ExecutionState.success as number:
+                    icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultSuccessIcon /></SvgIcon>)
+                    break
+                case ExecutionState.failure as number:
+                    icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultFailureIcon /></SvgIcon>)
+                    break
+                case ExecutionState.error as number:
+                    icons.push(<SvgIcon fontSize='small' key={`sok-${entry.id}`}><ResultErrorIcon /></SvgIcon>)
+                    break
+            }
         }
     }
 
     if (entry.validationState) {
-        if ((entry.validationState & ValidationState.warning) === ValidationState.warning) {
+        if ((entry.validationState & ValidationState.warning) === ValidationState.warning as number) {
             icons.push(<WarningAmberIcon color="warning" fontSize='medium' sx={{ fontSize: '1.1rem', marginLeft: icons.length === 0 ? 'none' : '0.5em' }} key={`warn-${entry.id}`} />)
         }
-        if ((entry.validationState & ValidationState.error) === ValidationState.error) {
+        if ((entry.validationState & ValidationState.error) === ValidationState.error as number) {
             icons.push(<ErrorIcon color="error" fontSize='medium' sx={{ fontSize: '1.1rem', marginLeft: icons.length === 0 ? 'none' : '0.5em' }} key={`err-${entry.id}`} />)
         }
     }
@@ -88,17 +95,7 @@ export const NavTreeItem = observer(({
     acceptDropTypes?: EntityType[],
     acceptDropAppends?: boolean,
     icon?: JSX.Element,
-    iconColor?: OverridableStringUnion<
-        | 'inherit'
-        | 'action'
-        | 'disabled'
-        | 'primary'
-        | 'secondary'
-        | 'error'
-        | 'info'
-        | 'success'
-        | 'warning',
-        SvgIconPropsColorOverrides>,
+    iconColor?: IconColors,
     children?: JSX.Element[],
     onSelect?: (id: string) => void,
     onMenu?: (event: React.MouseEvent, id: string, type: EntityType) => void,

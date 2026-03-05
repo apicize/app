@@ -1,5 +1,10 @@
 # Change Log
 
+# 0.34.0
+
+* Clipboard support for requests, scenarios, auths, certs and proxies
+* ESLint
+
 # 0.33.0
 
 * Update loaded parameters to be explicitly default instead of using Option

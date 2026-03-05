@@ -6,7 +6,7 @@ import { EditableEntityContext } from "../editable"
 import { EntityTypeName, EntityUpdateNotification } from "../../contexts/workspace.context"
 import { ProxyUpdate } from "../updates/proxy-update"
 
-export class EditableProxy extends Editable<Proxy> {
+export class EditableProxy extends Editable {
     public readonly entityType = EntityType.Proxy
     @observable accessor url = ''
 

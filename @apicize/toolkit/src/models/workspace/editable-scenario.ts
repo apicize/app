@@ -7,7 +7,7 @@ import { EditableEntityContext } from "../editable"
 import { EntityTypeName, EntityUpdateNotification } from "../../contexts/workspace.context"
 import { ScenarioUpdate } from "../updates/scenario-update"
 
-export class EditableScenario extends Editable<Scenario> {
+export class EditableScenario extends Editable {
     public readonly entityType = EntityType.Scenario
     @observable accessor variables: EditableVariable[] = []
     @observable accessor validationErrors: ValidationErrorList = {}

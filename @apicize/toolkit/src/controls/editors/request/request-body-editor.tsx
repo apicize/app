@@ -8,7 +8,7 @@ import { BodyType, BodyTypes } from '@apicize/lib-typescript'
 import { observer } from 'mobx-react-lite'
 import { useClipboard } from '../../../contexts/clipboard.context'
 import { useFileOperations } from '../../../contexts/file-operations.context'
-import { runInAction, toJS } from 'mobx'
+import { toJS } from 'mobx'
 import { useWorkspace } from '../../../contexts/workspace.context'
 import { ToastSeverity, useFeedback } from '../../../contexts/feedback.context'
 import { createRef, useEffect, useRef, useState } from 'react'
@@ -20,6 +20,8 @@ import { useApicizeSettings } from '../../../contexts/apicize-settings.context'
 import { EditableRequest } from '../../../models/workspace/editable-request'
 import { RequestEditSessionType } from '../editor-types';
 import { ImageViewer, KNOWN_IMAGE_EXTENSIONS } from '../../viewers/image-viewer';
+import { EditorMode } from '../../../models/editor-mode';
+import { IRequestEditorTextModel } from '../../../models/editor-text-model';
 
 interface RawEditorProps {
   bodyLength: number | null
@@ -97,6 +99,7 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
 
   const refContainer = createRef<HTMLElement>()
   const [isDragging, setIsDragging] = useState(false)
+  const [model, setModel] = useState<IRequestEditorTextModel | null>(null)
   const editor = useRef<editor.IStandaloneCodeEditor | null>(null)
 
   // let [allowUpdateHeader, setAllowUpdateHeader] = useState(false)
@@ -143,6 +146,7 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
           }
         }
       })
+
       return (() => {
         unregisterDragDrop()
       })
@@ -155,18 +159,17 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
   }
 
   // If we are editing text, ensure we have a model
-  const model = request.bodyEditorModel
   if (request.bodyLanguage &&
-    (!model || model.requestId !== request.id
-      || model.type !== RequestEditSessionType.Body
-      || model.getLanguageId() !== request.bodyLanguage
-    )) {
-    const model = workspace.getRequestEditModel(request, RequestEditSessionType.Body, request.bodyLanguage)
-    runInAction(() => {
-      request.bodyEditorModel = model
-    })
+    (!model
+      ||
+      (model.requestId !== request.id
+        || model.type !== RequestEditSessionType.Body
+        || model.getLanguageId() as EditorMode !== request.bodyLanguage
+      ))) {
+    setModel(workspace.getRequestEditModel(request, RequestEditSessionType.Body, request.bodyLanguage))
     return null
   }
+
 
   let allowUpdateHeader
   const contentTypeHeader = request.headers?.find(h => h.name === 'Content-Type')

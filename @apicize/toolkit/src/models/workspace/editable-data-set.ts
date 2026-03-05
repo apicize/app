@@ -14,7 +14,7 @@ export enum EditableDataSetType {
     CSV
 }
 
-export class EditableDataSet extends Editable<DataSet> {
+export class EditableDataSet extends Editable {
     public readonly entityType = EntityType.DataSet
 
     @observable accessor type: DataSourceType
@@ -227,7 +227,9 @@ export class EditableDataSet extends Editable<DataSet> {
 
         // Remove the column data from all rows
         this.csvRows = this.csvRows.map(row => {
-            const { [columnField]: removed, ...rest } = row
+            const rest = { ...row }
+            // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+            delete rest[columnField]
             return rest
         })
 

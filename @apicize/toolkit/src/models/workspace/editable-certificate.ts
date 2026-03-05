@@ -6,7 +6,7 @@ import { EditableEntityContext } from "../editable"
 import { EntityTypeName, EntityUpdateNotification } from "../../contexts/workspace.context"
 import { CertificateUpdate } from "../updates/certificate-update"
 
-export class EditableCertificate extends Editable<Certificate> {
+export class EditableCertificate extends Editable {
     public readonly entityType = EntityType.Certificate
 
     @observable accessor type = CertificateType.PKCS8_PEM

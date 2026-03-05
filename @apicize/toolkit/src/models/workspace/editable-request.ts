@@ -14,7 +14,6 @@ import { RequestDuplex } from "undici-types"
 import { EditableWarnings } from "./editable-warnings"
 import { RequestExecution } from "../request-execution"
 import { EditorMode } from "../editor-mode"
-import { IRequestEditorTextModel } from "../editor-text-model"
 import { ExecutionResultViewState } from "./execution"
 import { base64Encode } from "../../services/base64"
 import { BodyConversion } from "../../services/body-conversion"
@@ -47,7 +46,6 @@ export class EditableRequest extends EditableRequestEntry {
     @observable public accessor bodyMimeType: string | null = null
     @observable public accessor bodyLength: number | null = null
     @observable public accessor bodyLanguage: EditorMode | null = null
-    @observable public accessor bodyEditorModel: IRequestEditorTextModel | null = null
 
     @observable accessor validationErrors: ValidationErrorList = {}
     @observable accessor validationWarnings = new EditableWarnings()

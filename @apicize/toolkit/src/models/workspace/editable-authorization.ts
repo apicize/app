@@ -12,7 +12,7 @@ import { EntityTypeName, EntityUpdateNotification } from "../../contexts/workspa
 import { AuthorizationUpdate } from "../updates/authorization-update"
 import { EditableWarnings } from "./editable-warnings"
 
-export class EditableAuthorization extends Editable<Authorization> {
+export class EditableAuthorization extends Editable {
     public readonly entityType = EntityType.Authorization
 
     @observable accessor type: AuthorizationType = AuthorizationType.Basic

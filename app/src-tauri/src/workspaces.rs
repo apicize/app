@@ -447,10 +447,10 @@ impl Workspaces {
         workspace_id: &str,
         relative_to: Option<&str>,
         relative_position: Option<IndexedEntityPosition>,
-        entry: StoredRequestEntry,
+        stored_entry: StoredRequestEntry,
     ) -> Result<String, ApicizeAppError> {
         let info = self.get_workspace_info_mut(workspace_id)?;
-        let entry = entry.clone().to_workspace();
+        let entry = RequestEntry::from(stored_entry);
         match entry {
             RequestEntry::Request(request) => {
                 let new_request = request.clone_as_new(request.get_title());
@@ -511,7 +511,7 @@ impl Workspaces {
 
         if let Some(other_id) = clone_from_id {
             // Pre-calculate approximate size by counting descendant nodes
-            let estimated_size = Self::count_descendant_nodes(&source, other_id);
+            let estimated_size = Self::count_descendant_nodes(source, other_id);
 
             // Pre-allocate collections with estimated capacity
             let mut cloned_group_ids = FxHashMap::<String, String>::with_capacity_and_hasher(
@@ -1489,8 +1489,8 @@ impl Workspaces {
                         *auth = Authorization::Basic {
                             id: update.id.to_string(),
                             name: auth.get_name().to_string(),
-                            username: "".to_string(),
-                            password: "".to_string(),
+                            username: Default::default(),
+                            password: Default::default(),
                             validation_state: ValidationState::empty(),
                             validation_warnings: None,
                             validation_errors: None,
@@ -1504,14 +1504,14 @@ impl Workspaces {
                     *auth = Authorization::OAuth2Client {
                         id: update.id.to_string(),
                         name: auth.get_name().to_string(),
-                        access_token_url: "".to_string(),
-                        client_id: "".to_string(),
-                        client_secret: "".to_string(),
-                        audience: None,
-                        scope: None,
+                        access_token_url: Default::default(),
+                        client_id: Default::default(),
+                        client_secret: Default::default(),
+                        audience: Default::default(),
+                        scope: Default::default(),
                         selected_certificate: Selection::new_none(),
                         selected_proxy: Selection::new_none(),
-                        send_credentials_in_body: None,
+                        send_credentials_in_body: Default::default(),
                         validation_state: ValidationState::empty(),
                         validation_warnings: None,
                         validation_errors: None,
@@ -1524,14 +1524,14 @@ impl Workspaces {
                     *auth = Authorization::OAuth2Pkce {
                         id: update.id.to_string(),
                         name: auth.get_name().to_string(),
-                        authorize_url: "".to_string(),
-                        access_token_url: "".to_string(),
-                        client_id: "".to_string(),
-                        scope: None,
-                        send_credentials_in_body: None,
-                        token: None,
-                        refresh_token: None,
-                        expiration: None,
+                        authorize_url: Default::default(),
+                        access_token_url: Default::default(),
+                        client_id: Default::default(),
+                        scope: Default::default(),
+                        token: Default::default(),
+                        refresh_token: Default::default(),
+                        expiration: Default::default(),
+                        send_credentials_in_body: Default::default(),
                         validation_state: ValidationState::empty(),
                         validation_warnings: None,
                         validation_errors: None,
@@ -1544,8 +1544,8 @@ impl Workspaces {
                     *auth = Authorization::ApiKey {
                         id: update.id.to_string(),
                         name: auth.get_name().to_string(),
-                        header: "".to_string(),
-                        value: "".to_string(),
+                        header: Default::default(),
+                        value: Default::default(),
                         validation_state: ValidationState::empty(),
                         validation_warnings: None,
                         validation_errors: None,
@@ -1640,16 +1640,16 @@ impl Workspaces {
         if let Some(updated_audience) = &update.audience
             && let Authorization::OAuth2Client { audience, .. } = auth
         {
-            *audience = updated_audience.clone();
+            *audience = updated_audience.to_string();
         }
 
         if let Some(updated_scope) = &update.scope {
             match auth {
                 Authorization::OAuth2Client { scope, .. } => {
-                    *scope = updated_scope.clone();
+                    *scope = updated_scope.to_string();
                 }
                 Authorization::OAuth2Pkce { scope, .. } => {
-                    *scope = updated_scope.clone();
+                    *scope = updated_scope.to_string();
                 }
                 _ => {}
             }
@@ -3007,7 +3007,7 @@ impl WorkspaceInfo {
             ClipboardPayloadRequest::Request { request_id } => {
                 let entry = get_request_entry(&request_id)?;
                 let data = ClipboardData::RequestEntry {
-                    entry: StoredRequestEntry::from_workspace(entry),
+                    entry: StoredRequestEntry::from(entry),
                 };
                 Ok(Some(PersistableData::Text(serde_json::to_string(&data)?)))
             }
@@ -3267,8 +3267,7 @@ impl WorkspaceInfo {
                 return Some(entry);
             }
             if let Some(children) = &mut entry.children {
-                let result =
-                    WorkspaceInfo::get_navigation_int_mut(request_or_group_id, children);
+                let result = WorkspaceInfo::get_navigation_int_mut(request_or_group_id, children);
                 if result.is_some() {
                     return result;
                 }

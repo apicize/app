@@ -13,9 +13,10 @@ pub mod updates;
 pub mod workspaces;
 use apicize_lib::{
     ApicizeRunner, Authorization, CachedTokenInfo, DataSet, DataSourceType, ExecutionResultDetail,
-    ExecutionResultSuccess, ExecutionResultSummary, ExecutionState, Parameters, PkceTokenResult,
-    RequestBody, RequestEntry, TestRunnerContext, TokenResult, Validated, Workspace,
-    build_absolute_file_name, clear_all_oauth2_tokens_from_cache, clear_oauth2_token_from_cache,
+    ExecutionResultSuccess, ExecutionResultSummary, ExecutionState, IndexedEntities,
+    PERSIST_PRIVATE, PERSIST_VAULT, Parameters, PkceTokenResult, RequestBody, RequestEntry,
+    TestRunnerContext, TokenResult, Validated, Workspace, build_absolute_file_name,
+    clear_all_oauth2_tokens_from_cache, clear_oauth2_token_from_cache,
     editing::indexed_entities::IndexedEntityPosition, get_existing_absolute_file_name,
     get_oauth2_client_credentials, get_relative_file_name, store_oauth2_token_in_cache,
 };
@@ -867,6 +868,7 @@ async fn new_workspace(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 async fn open_workspace(
     app: AppHandle,
     sessions_state: State<'_, SessionsState>,
@@ -2096,6 +2098,20 @@ async fn add(
     Ok(id)
 }
 
+fn is_entity_shared<T>(id: &String, entities: &IndexedEntities<T>) -> bool {
+    if let Some(vault) = entities.child_ids.get(PERSIST_VAULT)
+        && vault.contains(id)
+    {
+        true
+    } else if let Some(private) = entities.child_ids.get(PERSIST_PRIVATE)
+        && private.contains(id)
+    {
+        true
+    } else {
+        false
+    }
+}
+
 #[tauri::command]
 async fn update(
     app: AppHandle,
@@ -2107,8 +2123,6 @@ async fn update(
     let sessions = sessions_state.sessions.read().await;
     let session = sessions.get_session(session_id)?;
     let mut workspaces = workspaces_state.workspaces.write().await;
-
-    let other_sessions = get_workspace_sessions(&session.workspace_id, &sessions, Some(session_id));
 
     let result = match &entity_update {
         EntityUpdate::Request(request) => {
@@ -2180,10 +2194,39 @@ async fn update(
 
     let info = &workspaces.get_workspace_info(&session.workspace_id)?;
 
+    let is_shared = match &entity_update {
+        EntityUpdate::Request(..) => false,
+        EntityUpdate::RequestGroup(..) => false,
+        EntityUpdate::Scenario(scenario) => {
+            is_entity_shared(&scenario.id, &info.workspace.scenarios)
+        }
+        EntityUpdate::Authorization(authorization) => {
+            is_entity_shared(&authorization.id, &info.workspace.authorizations)
+        }
+        EntityUpdate::Certificate(certificate) => {
+            is_entity_shared(&certificate.id, &info.workspace.certificates)
+        }
+        EntityUpdate::Proxy(proxy) => is_entity_shared(&proxy.id, &info.workspace.proxies),
+        EntityUpdate::DataSet(..) => false,
+        EntityUpdate::Defaults(..) => false,
+    };
+
     let display_name = &info.display_name;
 
-    // Publish any navigation updates to all sessions/windows for this workspace
-    if let Some(session_ids) = get_workspace_sessions(&session.workspace_id, &sessions, None) {
+    // Send navigation updates to all sessions, including this one
+    let navigation_sessions: Option<Vec<&str>> = if is_shared {
+        Some(
+            sessions
+                .sessions
+                .keys()
+                .map(|k| k.as_str())
+                .collect::<Vec<&str>>(),
+        )
+    } else {
+        get_workspace_sessions(&session.workspace_id, &sessions, None)
+    };
+
+    if let Some(session_ids) = navigation_sessions {
         for session_id in session_ids {
             if let Some(updated_navigation) = &result.navigation {
                 app.emit_to(session_id, "navigation_entry", updated_navigation)
@@ -2197,8 +2240,27 @@ async fn update(
         }
     }
 
+    // Send entity updates to all sessions, except for this one
+    let update_sessions: Option<Vec<&str>> = if is_shared {
+        Some(
+            sessions
+                .sessions
+                .keys()
+                .filter_map(|k| {
+                    if k == session_id {
+                        None
+                    } else {
+                        Some(k.as_str())
+                    }
+                })
+                .collect::<Vec<&str>>(),
+        )
+    } else {
+        get_workspace_sessions(&session.workspace_id, &sessions, Some(session_id))
+    };
+
     // Publish updates on all other sessions than the one sending the update
-    if let Some(other_session_ids) = other_sessions {
+    if let Some(other_session_ids) = update_sessions {
         let notification = EntityUpdateNotification {
             update: entity_update,
             validation_warnings: result.validation_warnings.clone(),

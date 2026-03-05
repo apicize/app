@@ -57,29 +57,29 @@ impl ClipboardState {
     }
 
     pub fn read_image(&self) -> Result<Vec<u8>, ApicizeAppError> {
-        let img = self.ctx.get_image().or_else(|err| {
-            return Err(ApicizeAppError::ClipboardError(err.to_string()));
-        })?;
-        let png = img.to_png().or_else(|err| {
-            return Err(ApicizeAppError::ClipboardError(err.to_string()));
-        })?;
+        let img = self
+            .ctx
+            .get_image()
+            .map_err(|err| ApicizeAppError::ClipboardError(err.to_string()))?;
+        let png = img
+            .to_png()
+            .map_err(|err| ApicizeAppError::ClipboardError(err.to_string()))?;
         Ok(png.get_bytes().to_owned())
     }
 
     pub fn set_text(&self, text: String) -> Result<(), ApicizeAppError> {
         self.ctx
             .set_text(text)
-            .or_else(|err| Err(ApicizeAppError::ClipboardError(err.to_string())))
+            .map_err(|err| ApicizeAppError::ClipboardError(err.to_string()))
     }
 
     pub fn set_image(&self, data: Vec<u8>) -> Result<(), ApicizeAppError> {
-        let image = RustImageData::from_bytes(&data).or_else(|err| {
-            return Err(ApicizeAppError::ClipboardError(err.to_string()));
-        })?;
+        let image = RustImageData::from_bytes(&data)
+            .map_err(|err| ApicizeAppError::ClipboardError(err.to_string()))?;
 
         self.ctx
             .set_image(image)
-            .or_else(|err| Err(ApicizeAppError::ClipboardError(err.to_string())))
+            .map_err(|err| ApicizeAppError::ClipboardError(err.to_string()))
     }
 }
 

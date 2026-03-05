@@ -1,11 +1,11 @@
-import { Selection, ExecutionConcurrency, Request, RequestGroup, ExecutionResultSummary, ExecutionState, DEFAULT_SELECTION, NO_SELECTION } from "@apicize/lib-typescript"
+import { Selection, ExecutionConcurrency, ExecutionResultSummary, ExecutionState, DEFAULT_SELECTION, NO_SELECTION } from "@apicize/lib-typescript"
 import { Editable, EditableEntityContext } from "../editable"
 import { action, computed, observable } from "mobx"
 import { ResultsPanel } from "../../contexts/workspace.context"
 import { ExecutionEvent, ExecutionMenuItem, ExecutionResultViewState } from "./execution"
 import { RequestExecution } from "../request-execution"
 
-export abstract class EditableRequestEntry extends Editable<Request | RequestGroup> {
+export abstract class EditableRequestEntry extends Editable {
     @observable accessor disabled = false
     @observable accessor runs = 0
     @observable public accessor multiRunExecution = ExecutionConcurrency.Sequential

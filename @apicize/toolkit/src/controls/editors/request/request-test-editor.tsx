@@ -74,6 +74,12 @@ export const RequestTestEditor = observer(({ request }: { request: EditableReque
         }
     }, [feedback, fileDragDrop, isDragingValid, refContainer, request])
 
+    // Make sure we have the editor test model
+    if (!model || model.requestId !== request.id || model.type !== RequestEditSessionType.Test) {
+        const model = workspace.getRequestEditModel(request, RequestEditSessionType.Test, EditorMode.js)
+        setModel(model)
+    }
+
     function performBeautify() {
         if (editorRef.current) {
             try {
@@ -84,13 +90,6 @@ export const RequestTestEditor = observer(({ request }: { request: EditableReque
                 feedback.toastError(e)
             }
         }
-    }
-
-    // Make sure we have the editor test model
-    if (!model || model.requestId !== request.id || model.type !== RequestEditSessionType.Test) {
-        const model = workspace.getRequestEditModel(request, RequestEditSessionType.Test, EditorMode.js)
-        setModel(model)
-        return null
     }
 
     return <Box id='request-test-container' position='relative' width='100%' height='100%'>

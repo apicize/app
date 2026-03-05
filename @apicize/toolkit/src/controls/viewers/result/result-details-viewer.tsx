@@ -20,13 +20,11 @@ export const ResultDetailsViewer = observer(({ detail }: { detail: ExecutionResu
         return
     }
 
-    const detailToRender = structuredClone(toJS(detail))
-
     // Remove tracking elements from displayed result details
-    if (detailToRender.entityType === 'request') {
-        const temp = detailToRender as any
-        delete temp['entityType']
-        delete temp['execCtr']
+    const detailToRender = {
+        ...structuredClone(toJS(detail)),
+        entityType: undefined,
+        execCtr: undefined,
     }
 
     const text = beautify.js_beautify(JSON.stringify(detailToRender), {})
