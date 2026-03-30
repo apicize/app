@@ -12,10 +12,13 @@ pub mod trace;
 pub mod updates;
 pub mod workspaces;
 use apicize_lib::{
-    ApicizeRunner, Authorization, CachedTokenInfo, DataSet, DataSourceType, ExecutionResultDetail,
-    ExecutionResultSuccess, ExecutionResultSummary, ExecutionState, IndexedEntities,
-    PERSIST_PRIVATE, PERSIST_VAULT, Parameters, PkceTokenResult, RequestBody, RequestEntry,
-    TestRunnerContext, TokenResult, Validated, Workspace, build_absolute_file_name,
+    ApicizeError, ApicizeRunner, Authorization, CachedTokenInfo, Certificate, DataSet,
+    DataSourceType, ExecutionResultDetail, ExecutionResultSuccess, ExecutionResultSummary,
+    ExecutionState, Identifiable, IndexedEntities, OAuth2ClientCredentialParameters,
+    OpenWorkbookOptions, PERSIST_PRIVATE, PERSIST_VAULT, ParameterLockStatus, ParameterStore,
+    Parameters, PkceTokenResult, Proxy, RequestBody, RequestEntry, SaveWorkspaceParameters,
+    Scenario, TestRunnerContext, TokenResult, Validated, Workspace,
+    authorization::AuthorizationPlain, build_absolute_file_name,
     clear_all_oauth2_tokens_from_cache, clear_oauth2_token_from_cache,
     editing::indexed_entities::IndexedEntityPosition, get_existing_absolute_file_name,
     get_oauth2_client_credentials, get_relative_file_name, store_oauth2_token_in_cache,
@@ -38,6 +41,7 @@ use std::{
     env,
     fs::{self, File, exists},
     io,
+    ops::Deref,
     path::{Path, PathBuf},
     sync::{Arc, Mutex, OnceLock},
 };
@@ -57,10 +61,10 @@ use workspaces::{
 use crate::{
     sessions::SessionEntity,
     updates::{
-        DataSetUpdate, DefaultsUpdate, EntityUpdate, EntityUpdateNotification, RequestGroupUpdate,
-        RequestUpdate,
+        AuthorizationUpdate, CertificateUpdate, DataSetUpdate, DefaultsUpdate, EntityUpdate,
+        ProxyUpdate, RequestGroupUpdate, RequestUpdate, ScenarioUpdate,
     },
-    workspaces::DataSetContent,
+    workspaces::{DataSetContent, PasswordLockType},
 };
 
 struct AuthState {
@@ -264,6 +268,8 @@ async fn main() {
             open_workspace,
             save_workspace,
             close_workspace,
+            set_parameters_password,
+            decrypt_parameters,
             clone_workspace,
             show_session,
             get_workspace_save_status,
@@ -394,6 +400,8 @@ fn create_workspace(
     open_in_new_session: bool,
 ) -> Result<String, ApicizeAppError> {
     let mut save_recent_file_name: Option<String> = None;
+    let private_env_var_set = workspaces.private_env_var_set;
+    let vault_env_var_set = workspaces.vault_env_var_set;
 
     for (id, info) in &workspaces.workspaces {
         println!("*** Open workspace {} ({id})", info.file_name);
@@ -449,15 +457,16 @@ fn create_workspace(
                 // If there is not a workspace already open for this file, open the file,
                 // create a workspace and add a session
                 let path = PathBuf::from(&file_name);
-                match Workspace::open(
-                    Some(&path),
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    path.parent().unwrap(),
-                ) {
+                let defaults = OpenWorkbookOptions {
+                    override_default_scenario: Default::default(),
+                    override_default_authorization: Default::default(),
+                    override_default_certificate: Default::default(),
+                    override_default_proxy: Default::default(),
+                    override_data_seed: Default::default(),
+                    private_password: Default::default(),
+                    vault_password: workspaces.vault_password.clone(),
+                };
+                match Workspace::open(Some(&path), path.parent().unwrap(), defaults) {
                     Ok(workspace) => {
                         save_recent_file_name = Some(file_name.clone());
                         Ok(workspaces.add_workspace(workspace, file_name, false))
@@ -558,6 +567,10 @@ fn create_workspace(
                         .get_workspace_session_ids(&workspace_result.workspace_id)
                         .len(),
                 },
+                private_lock_status: info.workspace.private_lock_status,
+                vault_lock_status: info.workspace.vault_lock_status,
+                private_env_var_set,
+                vault_env_var_set,
                 defaults: info.workspace.defaults.clone(),
                 settings: settings.clone(),
                 executions: info
@@ -657,6 +670,10 @@ fn create_workspace(
                         .get_workspace_session_ids(&session.workspace_id)
                         .len(),
                 },
+                private_lock_status: info.workspace.private_lock_status,
+                vault_lock_status: info.workspace.vault_lock_status,
+                private_env_var_set,
+                vault_env_var_set,
                 defaults: info.workspace.defaults.clone(),
                 settings: settings.clone(),
                 executions: info
@@ -787,10 +804,13 @@ async fn clone_workspace(
     app: AppHandle,
     sessions_state: State<'_, SessionsState>,
     workspaces_state: State<'_, WorkspacesState>,
+    settings_state: State<'_, SettingsState>,
+    clipboard_state: State<'_, ClipboardState>,
     session_id: String,
 ) -> Result<(), ApicizeAppError> {
     let workspaces = workspaces_state.workspaces.read().await;
     let mut sessions = sessions_state.sessions.write().await;
+    let settings = settings_state.settings.read().await;
 
     let new_session = {
         let session = sessions.get_session(&session_id)?;
@@ -806,6 +826,53 @@ async fn clone_workspace(
     };
 
     let info = workspaces.get_workspace_info(&new_session.workspace_id)?;
+    let clipboard_data_type = clipboard_state.get_data_type();
+
+    let init = WorkspaceInitialization {
+        session: new_session.clone(),
+        navigation: info.navigation.clone(),
+        save_state: SessionSaveState {
+            file_name: info.file_name.clone(),
+            directory: info.directory.clone(),
+            display_name: info.display_name.clone(),
+            dirty: info.dirty,
+            editor_count: sessions
+                .get_workspace_session_ids(&new_session.workspace_id)
+                .len()
+                + 1,
+        },
+        private_lock_status: info.workspace.private_lock_status,
+        vault_lock_status: info.workspace.vault_lock_status,
+        private_env_var_set: workspaces.private_env_var_set,
+        vault_env_var_set: workspaces.vault_env_var_set,
+        defaults: info.workspace.defaults.clone(),
+        settings: settings.clone(),
+        executions: info
+            .executions
+            .iter()
+            .filter_map(|(id, exec)| match exec.execution_state {
+                ExecutionState::RUNNING => Some((
+                    id.to_string(),
+                    ExecutionEvent::Start {
+                        execution_state: ExecutionState::RUNNING,
+                    },
+                )),
+                ExecutionState::ERROR => None,
+                _ => Some((
+                    id.to_string(),
+                    ExecutionEvent::Complete(RequestExecution {
+                        menu: exec.menu.clone(),
+                        execution_state: exec.execution_state,
+                        active_summaries: exec.active_summaries.clone(),
+                    }),
+                )),
+            })
+            .collect(),
+        error: None,
+        clipboard_data_type,
+    };
+    let init_data = serde_json::to_string(&init).unwrap();
+
     let active_session_id = sessions.add_session(new_session);
 
     println!(
@@ -821,7 +888,8 @@ async fn clone_workspace(
     let mut builder =
         tauri::WebviewWindowBuilder::new(&app, active_session_id.clone(), webview_url.clone())
             .visible(!release_mode)
-            .title(format_window_title(&info.display_name, info.dirty).as_str());
+            .title(format_window_title(&info.display_name, info.dirty).as_str())
+            .initialization_script(format!("window.__INIT_DATA__= {init_data};"));
     builder = position_window_builder(&app, builder, &Some(session_id));
 
     let window = builder.build().unwrap();
@@ -921,54 +989,65 @@ async fn save_workspace(
 
     let mut workspaces = workspaces_state.workspaces.write().await;
     let info = workspaces.get_workspace_info_mut(&session.workspace_id)?;
-    let save_as = match file_name {
-        Some(n) => n,
-        None => {
-            if info.file_name.is_empty() {
-                return Err(ApicizeAppError::FileNameRequired());
-            } else {
-                info.file_name.clone()
-            }
-        }
+
+    let mut save_as_file_name = if file_name.is_some() {
+        file_name
+    } else {
+        Some(info.file_name.clone())
+    };
+    if save_as_file_name.as_ref().is_some_and(|n| n.is_empty()) {
+        save_as_file_name = None;
+    }
+
+    let workbook_path = save_as_file_name.as_ref().map(PathBuf::from);
+    let include_workbook = save_as_file_name.is_some();
+    let include_private = include_workbook && !info.workspace.private_lock_status.is_locked();
+    let include_vault = !info.workspace.vault_lock_status.is_locked();
+
+    let save_params = SaveWorkspaceParameters {
+        workbook_path,
+        include_workbook,
+        include_private,
+        include_vault,
     };
 
-    let save_to = PathBuf::from(&save_as);
-    match info.workspace.save(&save_to) {
-        Ok(..) => {
-            let mut settings = settings_state.settings.write().await;
-            if settings.update_recent_workbook_file_name(&save_as) {
-                settings.save()?;
-                app.emit("update_settings", settings.clone()).unwrap();
-            }
-
-            let data_path = std::path::absolute(&save_as)?
-                .parent()
-                .ok_or(ApicizeAppError::InvalidOperation(
-                    "Unable to determine parent director".to_string(),
-                ))?
-                .to_path_buf();
-
-            for data_set in info.workspace.data.entities.values() {
-                let Some(content) = info.data_set_content.get_mut(&data_set.id) else {
-                    continue;
-                };
-                perform_save_data_set_file(data_set, content, &data_path, false)?;
-            }
-
-            info.dirty = false;
-            info.warn_on_workspace_creds = false;
-            info.file_name = save_as.clone();
-            info.display_name = save_to
-                .file_stem()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .to_string();
-
-            dispatch_save_state(&app, &sessions, &session.workspace_id, info, false);
-            Ok(())
+    info.workspace.save(&save_params)?;
+    if save_params.include_workbook
+        && let Some(save_as) = &save_params.workbook_path
+        && let Some(save_as_file_name) = &save_as_file_name
+    {
+        let mut settings = settings_state.settings.write().await;
+        if settings.update_recent_workbook_file_name(save_as_file_name) {
+            settings.save()?;
+            app.emit("update_settings", settings.clone()).unwrap();
         }
-        Err(err) => Err(ApicizeAppError::ApicizeError(err)),
+
+        let data_path = std::path::absolute(save_as)?
+            .parent()
+            .ok_or(ApicizeAppError::InvalidOperation(
+                "Unable to determine parent director".to_string(),
+            ))?
+            .to_path_buf();
+
+        for data_set in info.workspace.data.entities.values() {
+            let Some(content) = info.data_set_content.get_mut(&data_set.id) else {
+                continue;
+            };
+            perform_save_data_set_file(data_set, content, &data_path, false)?;
+        }
+
+        info.dirty = false;
+        info.warn_on_workspace_creds = false;
+        info.file_name = save_as_file_name.clone();
+        info.display_name = save_as
+            .file_stem()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+
+        dispatch_save_state(&app, &sessions, &session.workspace_id, info, false);
     }
+    Ok(())
 }
 
 fn perform_save_data_set_file(
@@ -1115,6 +1194,204 @@ async fn close_workspace(
         println!("*** {trace_title} ***");
         workspaces.trace_all_workspaces();
         sessions.trace_all_sessions();
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn set_parameters_password(
+    app: AppHandle,
+    sessions_state: State<'_, SessionsState>,
+    workspaces_state: State<'_, WorkspacesState>,
+    session_id: &str,
+    parameter_store: ParameterStore,
+    lock_type: PasswordLockType,
+) -> Result<(), ApicizeAppError> {
+    let sessions = sessions_state.sessions.write().await;
+    let session = sessions.get_session(session_id)?;
+    let workspace_id = session.workspace_id.as_str();
+
+    let mut workspaces = workspaces_state.workspaces.write().await;
+    let workbook_path = {
+        let info = workspaces.get_workspace_info_mut(workspace_id)?;
+        if info.file_name.is_empty() {
+            None
+        } else {
+            Some(PathBuf::from(&info.file_name))
+        }
+    };
+
+    workspaces.set_parameters_password(workspace_id, workbook_path, parameter_store, lock_type)?;
+
+    let workspace = workspaces.get_workspace(workspace_id)?;
+    if parameter_store == ParameterStore::Vault {
+        app.emit(
+            "lock_status",
+            LockStatusUpdate::Vault {
+                status: workspace.vault_lock_status,
+            },
+        )
+        .unwrap();
+    } else {
+        // Broadcast workspace decrypt event only to the same workspace sessions
+        let workspace_session_ids = sessions.get_workspace_session_ids(workspace_id);
+        for workspace_session_id in &workspace_session_ids {
+            app.emit_to(
+                workspace_session_id,
+                "lock_status",
+                LockStatusUpdate::Private {
+                    status: workspace.private_lock_status,
+                },
+            )
+            .unwrap();
+        }
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn decrypt_parameters(
+    app: AppHandle,
+    sessions_state: State<'_, SessionsState>,
+    workspaces_state: State<'_, WorkspacesState>,
+    session_id: &str,
+    parameter_store: ParameterStore,
+    password: &str,
+) -> Result<(), ApicizeAppError> {
+    let sessions = sessions_state.sessions.write().await;
+    let session = sessions.get_session(session_id)?;
+    let workspace_id = session.workspace_id.as_str();
+
+    let mut workspaces = workspaces_state.workspaces.write().await;
+    let parameters = workspaces.decrypt_parameters(workspace_id, parameter_store, password)?;
+    let info = workspaces.get_workspace_info_mut(workspace_id)?;
+
+    let workspace_session_ids = sessions.get_workspace_session_ids(workspace_id);
+
+    let number_of_updates = parameters.get_parameter_count();
+    let mut entity_updates = Vec::<EntityUpdate>::with_capacity(number_of_updates);
+    let mut navigation_updates = Vec::<UpdatedNavigationEntry>::with_capacity(number_of_updates);
+
+    if let Some(scenarios) = parameters.scenarios {
+        for scenario in scenarios {
+            if let Scenario::Plain(scenario) = scenario {
+                entity_updates.push(EntityUpdate::Scenario(ScenarioUpdate::from(
+                    scenario.deref().clone(),
+                )));
+                navigation_updates.push(UpdatedNavigationEntry {
+                    id: scenario.id,
+                    name: scenario.name,
+                    entity_type: EntityType::Scenario,
+                    validation_state: scenario.validation_state,
+                    execution_state: ExecutionState::empty(),
+                    disabled: false,
+                    encrypted: false,
+                    parameter_store: Some(parameter_store),
+                });
+            }
+        }
+    }
+
+    if let Some(authorizations) = parameters.authorizations {
+        for authorization in authorizations {
+            let id = authorization.get_id().to_string();
+            let name = authorization.get_name().to_string();
+            let validation_state = authorization.get_validation_state();
+            if let Authorization::Plain(authorization) = authorization {
+                entity_updates.push(EntityUpdate::Authorization(AuthorizationUpdate::from(
+                    authorization.deref().clone(),
+                )));
+                navigation_updates.push(UpdatedNavigationEntry {
+                    id,
+                    name,
+                    entity_type: EntityType::Authorization,
+                    validation_state,
+                    execution_state: ExecutionState::empty(),
+                    disabled: false,
+                    encrypted: false,
+                    parameter_store: Some(parameter_store),
+                });
+            }
+        }
+    }
+
+    if let Some(certificates) = parameters.certificates {
+        for certificate in certificates {
+            let id = certificate.get_id().to_string();
+            let name = certificate.get_name().to_string();
+            let validation_state = certificate.get_validation_state();
+
+            if let Certificate::Plain(certificate) = certificate {
+                entity_updates.push(EntityUpdate::Certificate(CertificateUpdate::from(
+                    certificate.deref().clone(),
+                )));
+                navigation_updates.push(UpdatedNavigationEntry {
+                    id,
+                    name,
+                    entity_type: EntityType::Certificate,
+                    validation_state,
+                    execution_state: ExecutionState::empty(),
+                    disabled: false,
+                    encrypted: false,
+                    parameter_store: Some(parameter_store),
+                });
+            }
+        }
+    }
+
+    if let Some(proxies) = parameters.proxies {
+        for proxy in proxies {
+            if let Proxy::Plain(proxy) = proxy {
+                entity_updates.push(EntityUpdate::Proxy(ProxyUpdate::from(
+                    proxy.deref().clone(),
+                )));
+                navigation_updates.push(UpdatedNavigationEntry {
+                    id: proxy.id,
+                    name: proxy.name,
+                    entity_type: EntityType::Proxy,
+                    validation_state: proxy.validation_state,
+                    execution_state: ExecutionState::empty(),
+                    disabled: false,
+                    encrypted: false,
+                    parameter_store: Some(parameter_store),
+                });
+            }
+        }
+    }
+
+    if parameter_store == ParameterStore::Vault {
+        // Broadcast vault decrption events globally
+        app.emit("update", &entity_updates).unwrap();
+        app.emit("navigation_entry", &navigation_updates).unwrap();
+        app.emit(
+            "lock_status",
+            LockStatusUpdate::Vault {
+                status: info.workspace.vault_lock_status,
+            },
+        )
+        .unwrap();
+    } else {
+        // Broadcast workspace decrypt event only to the same workspace sessions
+        for workspace_session_id in &workspace_session_ids {
+            app.emit_to(workspace_session_id, "update", &entity_updates)
+                .unwrap();
+            app.emit_to(
+                workspace_session_id,
+                "navigation_entry",
+                &navigation_updates,
+            )
+            .unwrap();
+            app.emit_to(
+                workspace_session_id,
+                "lock_status",
+                LockStatusUpdate::Private {
+                    status: info.workspace.private_lock_status,
+                },
+            )
+            .unwrap();
+        }
     }
 
     Ok(())
@@ -1292,6 +1569,7 @@ async fn start_execution(
         single_run,
         &allowed_data_path,
         true, // enable detailed trace capture to get read/write data
+        true,
     ));
 
     // Phase 5: Execute request (no locks held)
@@ -1469,25 +1747,15 @@ async fn clear_execution(
     let sessions = sessions_state.sessions.read().await;
     let session = sessions.get_session(session_id)?;
     let mut workspaces = workspaces_state.workspaces.write().await;
-    // Track of the request IDs associated with this execution (incl children) so we can trigger
-    // an update on them all
-    let all_request_ids = workspaces
-        .get_execution(&session.workspace_id, request_or_group_id)?
-        .active_summaries
-        .values()
-        .map(|s| s.request_or_group_id.to_string())
-        .collect::<HashSet<String>>();
-
-    // Clear the execution
-    workspaces.clear_execution(&session.workspace_id, request_or_group_id)?;
 
     // Build clear events for all affected request and group IDs
-    let info = workspaces.get_workspace_info(&session.workspace_id)?;
-    let clear_event: HashMap<String, ExecutionEvent> = all_request_ids
+    let info = workspaces.get_workspace_info_mut(&session.workspace_id)?;
+    let affected_request_ids = info.delete_executions(request_or_group_id, false);
+    let reset_event: HashMap<String, ExecutionEvent> = affected_request_ids
         .into_iter()
-        .map(|update_request_or_group_id| {
-            let exec = info.build_request_execution(&update_request_or_group_id)?;
-            Ok((update_request_or_group_id, ExecutionEvent::Clear(exec)))
+        .map(|updated_request_or_group_id| {
+            let exec = info.rebuild_request_execution(&updated_request_or_group_id)?;
+            Ok((updated_request_or_group_id, ExecutionEvent::Reset(exec)))
         })
         .collect::<Result<_, ApicizeAppError>>()?;
 
@@ -1497,7 +1765,7 @@ async fn clear_execution(
         .map(|s| s.to_string())
         .collect::<Vec<String>>();
     for session_id in &all_session_ids {
-        app.emit_to(session_id, "execution_event", &clear_event)
+        app.emit_to(session_id, "execution_event", &reset_event)
             .unwrap();
     }
     Ok(())
@@ -1570,41 +1838,53 @@ async fn retrieve_oauth2_client_token(
     let auth = workspaces.get_authorization(&session.workspace_id, authorization_id)?;
 
     match auth {
-        Authorization::OAuth2Client {
-            id,
-            access_token_url,
-            client_id,
-            client_secret,
-            send_credentials_in_body,
-            scope,
-            audience,
-            selected_certificate,
-            selected_proxy,
-            ..
-        } => {
-            let certificate = workspace
-                .certificates
-                .get_optional(&selected_certificate.id);
-            let proxy = workspace.proxies.get_optional(&selected_proxy.id);
-
-            clear_oauth2_token_from_cache(&id).await;
-            Ok(get_oauth2_client_credentials(
-                &id,
-                &access_token_url,
-                &client_id,
-                &client_secret,
-                send_credentials_in_body.unwrap_or_default(),
-                &scope,
-                &audience,
-                certificate,
-                proxy,
-                true,
-            )
-            .await?)
+        Authorization::Cipher(_auth) => {
+            Err(ApicizeAppError::ApicizeError(ApicizeError::Encryption {
+                description: "Unable to retrieve tokens from encrypted authorization configuration"
+                    .to_string(),
+            }))
         }
-        _ => Err(ApicizeAppError::InvalidAuthorization(
-            "Not an OAuth2 client authorization".to_string(),
-        )),
+        Authorization::Plain(auth) => {
+            if let AuthorizationPlain::OAuth2Client {
+                id,
+                access_token_url,
+                client_id,
+                client_secret,
+                send_credentials_in_body,
+                scope,
+                audience,
+                selected_certificate,
+                selected_proxy,
+                ..
+            } = auth.as_ref()
+            {
+                let certificate = workspace
+                    .certificates
+                    .get_optional(&selected_certificate.id);
+                let proxy = workspace.proxies.get_optional(&selected_proxy.id);
+
+                clear_oauth2_token_from_cache(id).await;
+                Ok(get_oauth2_client_credentials(
+                    id,
+                    OAuth2ClientCredentialParameters {
+                        token_url: access_token_url,
+                        client_id,
+                        client_secret,
+                        send_credentials_in_body: send_credentials_in_body.unwrap_or_default(),
+                        scope,
+                        audience,
+                        certificate,
+                        proxy,
+                        enable_trace: true,
+                    },
+                )
+                .await?)
+            } else {
+                Err(ApicizeAppError::InvalidAuthorization(
+                    "Not an OAuth2 client authorization".to_string(),
+                ))
+            }
+        }
     }
 }
 
@@ -1655,12 +1935,7 @@ async fn update_request_body(
     let other_sessions = get_workspace_sessions(&session.workspace_id, &sessions, Some(session_id));
     if let Some(other_session_ids) = other_sessions {
         // Publish updates on all other sessions than the one sending the update
-        let notification = EntityUpdateNotification {
-            update: EntityUpdate::Request(RequestUpdate::from_body_info(body_info)),
-            validation_warnings: None,
-            validation_errors: None,
-        };
-
+        let notification = RequestUpdate::from_body_info(body_info);
         for other_session_id in other_session_ids {
             app.emit_to(other_session_id, "update", &notification)
                 .unwrap();
@@ -1706,12 +1981,7 @@ async fn update_request_body_from_clipboard(
         let other_sessions =
             get_workspace_sessions(&session.workspace_id, &sessions, Some(session_id));
         if let Some(other_session_ids) = other_sessions {
-            let notification = EntityUpdateNotification {
-                update: EntityUpdate::Request(RequestUpdate::from_body_info(body_info)),
-                validation_warnings: None,
-                validation_errors: None,
-            };
-
+            let notification = EntityUpdate::Request(RequestUpdate::from_body_info(body_info));
             for other_session_id in other_session_ids {
                 app.emit_to(other_session_id, "update", &notification)
                     .unwrap();
@@ -2164,23 +2434,14 @@ async fn update(
                         let workspace = workspaces.get_workspace(&session.workspace_id)?;
                         match workspace.requests.entities.get(&request_id) {
                             Some(RequestEntry::Request(request)) => {
-                                let notification = EntityUpdateNotification {
-                                    update: EntityUpdate::Request(RequestUpdate::from_selections(
-                                        request,
-                                    )),
-                                    validation_warnings: None,
-                                    validation_errors: None,
-                                };
+                                let notification =
+                                    EntityUpdate::Request(RequestUpdate::from_selections(request));
                                 app.emit_to(session_id, "update", notification).unwrap();
                             }
                             Some(RequestEntry::Group(group)) => {
-                                let notification = EntityUpdateNotification {
-                                    update: EntityUpdate::RequestGroup(
-                                        RequestGroupUpdate::from_selections(group),
-                                    ),
-                                    validation_warnings: None,
-                                    validation_errors: None,
-                                };
+                                let notification = EntityUpdate::RequestGroup(
+                                    RequestGroupUpdate::from_selections(group),
+                                );
                                 app.emit_to(session_id, "update", notification).unwrap();
                             }
                             _ => {}
@@ -2261,14 +2522,8 @@ async fn update(
 
     // Publish updates on all other sessions than the one sending the update
     if let Some(other_session_ids) = update_sessions {
-        let notification = EntityUpdateNotification {
-            update: entity_update,
-            validation_warnings: result.validation_warnings.clone(),
-            validation_errors: result.validation_errors.clone(),
-        };
-
         for other_session_id in other_session_ids {
-            app.emit_to(other_session_id, "update", &notification)
+            app.emit_to(other_session_id, "update", &entity_update)
                 .unwrap();
         }
     }
@@ -2336,25 +2591,21 @@ async fn delete(
                     .generate_authorization_selection_update(&workspace_id, id)
                     .ok()
             }))
-            .collect::<Vec<(EntityUpdateNotification, UpdatedNavigationEntry)>>();
+            .collect::<Vec<(EntityUpdate, UpdatedNavigationEntry)>>();
 
         // Set up update notifications for workspace defaults
         if entities.defaults {
             let defaults = workspaces.get_defaults(&workspace_id)?;
             notifications.push((
-                EntityUpdateNotification {
-                    update: EntityUpdate::Defaults(DefaultsUpdate {
-                        entity_type: EntityType::Defaults,
-                        selected_scenario: Some(defaults.selected_scenario),
-                        selected_authorization: Some(defaults.selected_authorization),
-                        selected_certificate: Some(defaults.selected_certificate),
-                        selected_proxy: Some(defaults.selected_proxy),
-                        selected_data: Some(defaults.selected_data),
-                        validation_warnings: defaults.validation_warnings.clone(),
-                    }),
-                    validation_warnings: defaults.validation_warnings,
-                    validation_errors: None,
-                },
+                EntityUpdate::Defaults(DefaultsUpdate {
+                    entity_type: EntityType::Defaults,
+                    selected_scenario: Some(defaults.selected_scenario),
+                    selected_authorization: Some(defaults.selected_authorization),
+                    selected_certificate: Some(defaults.selected_certificate),
+                    selected_proxy: Some(defaults.selected_proxy),
+                    selected_data: Some(defaults.selected_data),
+                    validation_warnings: defaults.validation_warnings.clone(),
+                }),
                 UpdatedNavigationEntry {
                     entity_type: EntityType::Defaults,
                     execution_state: ExecutionState::empty(),
@@ -2362,6 +2613,8 @@ async fn delete(
                     id: Navigation::DEFAULTS_ID.to_string(),
                     name: Navigation::DEFAULTS_NAME.to_string(),
                     validation_state: defaults.validation_state,
+                    encrypted: false,
+                    parameter_store: None,
                 },
             ))
         }
@@ -2375,7 +2628,7 @@ async fn delete(
 
     // Clear execution state for deleted requests/groups
     let deleted_executed_request_ids = if deleted_request {
-        Some(info.delete_executions(entity_id))
+        Some(info.delete_executions(entity_id, true))
     } else {
         None
     };
@@ -2487,9 +2740,7 @@ async fn move_entity(
             &nav_position,
             entity_type,
         );
-
         dispatch_save_state(&app, &sessions, &workspace_id, info, true);
-
         workspaces.find_parent_ids(&workspace_id, entity_type, entity_id)?
     } else {
         vec![]
@@ -2876,7 +3127,7 @@ async fn clipboard_paste_data(
                         &workspace_id,
                         relative_to_id,
                         relative_position,
-                        entry,
+                        *entry,
                     )?,
                     EntityType::RequestEntry,
                 ))
@@ -2893,7 +3144,7 @@ async fn clipboard_paste_data(
                         &workspace_id,
                         relative_to_id,
                         relative_position,
-                        scenario,
+                        *scenario,
                     )?,
                     EntityType::Scenario,
                 ))
@@ -2910,7 +3161,7 @@ async fn clipboard_paste_data(
                         &workspace_id,
                         relative_to_id,
                         relative_position,
-                        authorization,
+                        *authorization,
                     )?,
                     EntityType::Authorization,
                 ))
@@ -2927,7 +3178,7 @@ async fn clipboard_paste_data(
                         &workspace_id,
                         relative_to_id,
                         relative_position,
-                        certificate,
+                        *certificate,
                     )?,
                     EntityType::Certificate,
                 ))
@@ -2944,7 +3195,7 @@ async fn clipboard_paste_data(
                         &workspace_id,
                         relative_to_id,
                         relative_position,
-                        proxy,
+                        *proxy,
                     )?,
                     EntityType::Proxy,
                 ))
@@ -2975,4 +3226,11 @@ struct StorageInformation {
     home_directory: String,
     home_environment_variable: String,
     settings_directory: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(tag = "store")]
+enum LockStatusUpdate {
+    Vault { status: ParameterLockStatus },
+    Private { status: ParameterLockStatus },
 }

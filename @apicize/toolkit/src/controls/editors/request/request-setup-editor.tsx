@@ -1,9 +1,10 @@
 import { observer } from "mobx-react-lite";
 import { createRef, useEffect, useRef, useState } from "react";
 import { useWorkspace } from "../../../contexts/workspace.context";
-import { Box, Button, IconButton, Stack } from "@mui/material";
+import { Box, IconButton, Stack } from "@mui/material";
 import { DroppedFile, useFileDragDrop } from "../../../contexts/file-dragdrop.context";
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { useFeedback } from "../../../contexts/feedback.context";
 import MonacoEditor, { monaco } from 'react-monaco-editor';
 
@@ -47,7 +48,7 @@ export const RequestSetupEditor = observer(({ group }: { group: EditableRequestG
     const [model, setModel] = useState<IRequestEditorTextModel | null>(null)
     const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
 
-    workspace.nextHelpTopic = 'requests/setup'
+    workspace.nextHelpTopic = 'groups/setup'
 
     useEffect(() => {
         if (refContainer.current) {
@@ -134,15 +135,22 @@ export const RequestSetupEditor = observer(({ group }: { group: EditableRequestG
                     sx={{ marginLeft: '16px' }}
                     onClick={_ => {
                         workspace.copyToClipboard({
-                            payloadType: 'RequestTest',
-                            requestId: group.id,
-                        }, 'Body')
+                            payloadType: 'GroupSetup',
+                            groupId: group.id,
+                        }, 'Setup')
                             .catch(err => feedback.toastError(err))
                     }}>
                     <ContentCopyIcon />
                 </IconButton>
                 <Box flexGrow={1} minWidth={0} />
-                <Button variant='outlined' size='small' onClick={performBeautify}>Beautify Setup Code</Button>
+                <IconButton
+                    aria-label='beautify setup code'
+                    color='primary'
+                    id='beautify-setup-btn'
+                    title='"Beautify" Setup Code'
+                    onClick={performBeautify}>
+                    <AutoAwesomeIcon />
+                </IconButton>
             </Stack>
 
             <Box top={0}

@@ -7,6 +7,7 @@ import { DraggableData, DroppableData } from "../../models/drag-drop"
 import { EntityType } from "../../models/workspace/entity-type"
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+// import KeyIcon from '@mui/icons-material/Key';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import ErrorIcon from '@mui/icons-material/Error';
 import { CSS, useCombinedRefs } from '@dnd-kit/utilities';
@@ -68,6 +69,10 @@ export const iconsFromState = (entry: NavigationEntry) => {
         }
     }
 
+    // if (entry.encrypted) {
+    //     icons.push(<KeyIcon color="error" fontSize='medium' sx={{ fontSize: '1.1rem', marginLeft: icons.length === 0 ? 'none' : '0.5em' }} key={`encrpyted-${entry.id}`} />)
+    // }
+
     return icons.length > 0
         ? <Box className='nav-state-icon-container' typography='navigation'>{icons}</Box>
         : null
@@ -108,37 +113,37 @@ export const NavTreeItem = observer(({
 
     const [focused, setFocused] = useState<boolean>(false)
 
-    const { attributes, listeners, setNodeRef: setDragRef, transform } = isDraggable
-        ? useDraggable({
-            id: entry.id,
-            data: {
-                type: type,
-                move: (relativeToId: string, relativePosition: IndexedEntityPosition) => {
-                    if (onMove) {
-                        onMove(entry.id, relativeToId, relativePosition)
-                    }
+    const draggable = useDraggable({
+        id: entry.id,
+        disabled: !isDraggable,
+        data: {
+            type: type,
+            move: (relativeToId: string, relativePosition: IndexedEntityPosition) => {
+                if (onMove) {
+                    onMove(entry.id, relativeToId, relativePosition)
                 }
-            } as DraggableData
-        })
-        : {
-            attributes: undefined,
-            listeners: undefined,
-            setNodeRef: () => null,
-            transform: null
-        }
+            }
+        } as DraggableData
+    })
 
-    const { isOver, setNodeRef: setDropRef } = acceptDropTypes
-        ? useDroppable({
-            id: entry.id,
-            data: {
-                acceptAppend: acceptDropAppends === true,
-                acceptReposition: true,
-                acceptsTypes: acceptDropTypes,
-                depth: depth,
-                isHeader: false,
-            } as DroppableData
-        })
-        : { isOver: false, setNodeRef: () => null }
+    const droppable = useDroppable({
+        id: entry.id,
+        disabled: !acceptDropTypes,
+        data: {
+            acceptAppend: acceptDropAppends === true,
+            acceptReposition: true,
+            acceptsTypes: acceptDropTypes ?? [],
+            depth: depth,
+            isHeader: false,
+        } as DroppableData
+    })
+
+    const attributes = isDraggable ? draggable.attributes : undefined
+    const listeners = isDraggable ? draggable.listeners : undefined
+    const setDragRef = isDraggable ? draggable.setNodeRef : () => null
+    const transform = isDraggable ? draggable.transform : null
+    const isOver = acceptDropTypes ? droppable.isOver : false
+    const setDropRef = acceptDropTypes ? droppable.setNodeRef : () => null
 
     const dragStyle = {
         transform: CSS.Translate.toString(transform)

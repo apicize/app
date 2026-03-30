@@ -10,5 +10,5 @@ To add a new header, click "ADD REQUEST HEADER".  To delete a header, click on t
 
 ### See Also
 
-* [**Requests**](help:requests)
+* [**Requests**](help:workspace/requests)
 * [**Workspace**](help:home)

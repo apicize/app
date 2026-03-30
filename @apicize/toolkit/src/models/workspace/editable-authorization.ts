@@ -1,5 +1,6 @@
 import {
-    Authorization, AuthorizationType,
+    Authorization,
+    AuthorizationType,
     NO_SELECTION,
     NO_SELECTION_ID,
     Selection,
@@ -8,12 +9,14 @@ import {
 import { Editable, EditableEntityContext } from "../editable"
 import { action, computed, observable, runInAction } from "mobx"
 import { EntityType } from "./entity-type"
-import { EntityTypeName, EntityUpdateNotification } from "../../contexts/workspace.context"
+import { EntityTypeName } from "../../contexts/workspace.context"
 import { AuthorizationUpdate } from "../updates/authorization-update"
 import { EditableWarnings } from "./editable-warnings"
+import { EntityUpdate } from "../updates/entity-update"
 
 export class EditableAuthorization extends Editable {
     public readonly entityType = EntityType.Authorization
+    @observable accessor encrypted: boolean
 
     @observable accessor type: AuthorizationType = AuthorizationType.Basic
     // API Key
@@ -38,61 +41,63 @@ export class EditableAuthorization extends Editable {
     @observable accessor sendCredentialsInBody: boolean = false
 
     @observable accessor validationWarnings = new EditableWarnings()
-    @observable accessor validationErrors: ValidationErrorList
+    @observable accessor validationErrors: ValidationErrorList = {}
 
     public constructor(authorization: Authorization, workspace: EditableEntityContext) {
-        super(workspace)
-        this.id = authorization.id
-        this.name = authorization.name ?? ''
-        this.type = authorization.type
+        super(authorization.id, authorization.name ?? '', workspace)
 
-        switch (authorization.type) {
-            case AuthorizationType.ApiKey:
-                this.header = authorization.header
-                this.value = authorization.value
-                this.validationErrors = authorization.validationErrors ?? {}
-                break
-            case AuthorizationType.Basic:
-                this.username = authorization.username
-                this.password = authorization.password
-                this.validationErrors = authorization.validationErrors ?? {}
-                break
-            case AuthorizationType.OAuth2Client:
-                this.accessTokenUrl = authorization.accessTokenUrl
-                this.clientId = authorization.clientId
-                this.clientSecret = authorization.clientSecret
-                this.sendCredentialsInBody = authorization.sendCredentialsInBody === true
-                this.scope = authorization.scope
-                this.audience = authorization.audience
-                this.selectedCertificate = authorization.selectedCertificate ?? NO_SELECTION
-                this.selectedProxy = authorization.selectedProxy ?? NO_SELECTION
-                this.validationErrors = authorization.validationErrors ?? {}
-                break
-            case AuthorizationType.OAuth2Pkce:
-                this.authorizeUrl = authorization.authorizeUrl
-                this.accessTokenUrl = authorization.accessTokenUrl
-                this.clientId = authorization.clientId
-                this.sendCredentialsInBody = authorization.sendCredentialsInBody === false
-                this.scope = authorization.scope
-                this.audience = authorization.audience
-                this.validationErrors = authorization.validationErrors ?? {}
-                break
-            default:
-                throw new Error('Invalid authorization type')
+        if ('data' in authorization) {
+            this.encrypted = true
+        } else {
+            this.encrypted = false
+            this.type = authorization.type
+            switch (authorization.type) {
+                case AuthorizationType.ApiKey:
+                    this.header = authorization.header
+                    this.value = authorization.value
+                    this.validationErrors = authorization.validationErrors ?? {}
+                    break
+                case AuthorizationType.Basic:
+                    this.username = authorization.username
+                    this.password = authorization.password
+                    this.validationErrors = authorization.validationErrors ?? {}
+                    break
+                case AuthorizationType.OAuth2Client:
+                    this.accessTokenUrl = authorization.accessTokenUrl
+                    this.clientId = authorization.clientId
+                    this.clientSecret = authorization.clientSecret
+                    this.sendCredentialsInBody = authorization.sendCredentialsInBody === true
+                    this.scope = authorization.scope
+                    this.audience = authorization.audience
+                    this.selectedCertificate = authorization.selectedCertificate ?? NO_SELECTION
+                    this.selectedProxy = authorization.selectedProxy ?? NO_SELECTION
+                    this.validationErrors = authorization.validationErrors ?? {}
+                    break
+                case AuthorizationType.OAuth2Pkce:
+                    this.authorizeUrl = authorization.authorizeUrl
+                    this.accessTokenUrl = authorization.accessTokenUrl
+                    this.clientId = authorization.clientId
+                    this.sendCredentialsInBody = authorization.sendCredentialsInBody === true
+                    this.scope = authorization.scope
+                    this.audience = authorization.audience
+                    this.validationErrors = authorization.validationErrors ?? {}
+                    break
+                default:
+                    throw new Error('Invalid authorization type')
+            }
+
         }
-
-        return this
     }
 
     protected async performUpdate(update: AuthorizationUpdate) {
         this.markAsDirty()
         const updates = await this.workspace.update(update)
-        runInAction(() => {
-            if (updates) {
+        if (updates) {
+            runInAction(() => {
                 this.validationErrors = updates.validationErrors || {}
                 this.validationWarnings.set(updates.validationWarnings)
-            }
-        })
+            })
+        }
     }
 
     @action
@@ -113,14 +118,14 @@ export class EditableAuthorization extends Editable {
     }
 
     @action
-    async setType(value: AuthorizationType) {
-        if (value === this.type) {
-            return
+    setType(value: AuthorizationType) {
+        if (value !== this.type) {
+            return Promise.resolve()
         }
         this.type = value
         switch (this.type) {
             case AuthorizationType.Basic:
-                return await this.performUpdate({
+                return this.performUpdate({
                     id: this.id,
                     type: EntityTypeName.Authorization,
                     entityType: EntityType.Authorization,
@@ -129,7 +134,7 @@ export class EditableAuthorization extends Editable {
                     password: this.password
                 })
             case AuthorizationType.OAuth2Client:
-                return await this.performUpdate({
+                return this.performUpdate({
                     id: this.id,
                     type: EntityTypeName.Authorization,
                     entityType: EntityType.Authorization,
@@ -144,7 +149,7 @@ export class EditableAuthorization extends Editable {
                     sendCredentialsInBody: this.sendCredentialsInBody
                 })
             case AuthorizationType.OAuth2Pkce:
-                return await this.performUpdate({
+                return this.performUpdate({
                     id: this.id,
                     type: EntityTypeName.Authorization,
                     entityType: EntityType.Authorization,
@@ -156,7 +161,7 @@ export class EditableAuthorization extends Editable {
                     sendCredentialsInBody: this.sendCredentialsInBody
                 })
             case AuthorizationType.ApiKey:
-                return await this.performUpdate({
+                return this.performUpdate({
                     id: this.id,
                     type: EntityTypeName.Authorization,
                     entityType: EntityType.Authorization,
@@ -248,58 +253,58 @@ export class EditableAuthorization extends Editable {
     }
 
     @action
-    refreshFromExternalSpecificUpdate(notification: EntityUpdateNotification) {
-        if (notification.update.entityType !== EntityType.Authorization) {
+    refreshFromExternalSpecificUpdate(update: EntityUpdate) {
+        if (update.entityType !== EntityType.Authorization) {
             return
         }
-        if (notification.update.authType !== undefined) {
-            this.type = notification.update.authType
+        if (update.encrypted !== undefined) {
+            this.encrypted = update.encrypted
         }
-        if (notification.update.name !== undefined) {
-            this.name = notification.update.name
+        if (update.authType !== undefined) {
+            this.type = update.authType
         }
-        if (notification.update.username !== undefined) {
-            this.username = notification.update.username
+        if (update.name !== undefined) {
+            this.name = update.name
         }
-        if (notification.update.password !== undefined) {
-            this.password = notification.update.password
+        if (update.username !== undefined) {
+            this.username = update.username
         }
-        if (notification.update.header !== undefined) {
-            this.password = notification.update.header
+        if (update.password !== undefined) {
+            this.password = update.password
         }
-        if (notification.update.value !== undefined) {
-            this.password = notification.update.value
+        if (update.header !== undefined) {
+            this.password = update.header
         }
-        if (notification.update.accessTokenUrl !== undefined) {
-            this.accessTokenUrl = notification.update.accessTokenUrl
+        if (update.value !== undefined) {
+            this.password = update.value
         }
-        if (notification.update.authorizeUrl !== undefined) {
-            this.authorizeUrl = notification.update.authorizeUrl
+        if (update.accessTokenUrl !== undefined) {
+            this.accessTokenUrl = update.accessTokenUrl
         }
-        if (notification.update.clientId !== undefined) {
-            this.clientId = notification.update.clientId
+        if (update.authorizeUrl !== undefined) {
+            this.authorizeUrl = update.authorizeUrl
         }
-        if (notification.update.clientSecret !== undefined) {
-            this.clientSecret = notification.update.clientSecret
+        if (update.clientId !== undefined) {
+            this.clientId = update.clientId
         }
-        if (notification.update.audience !== undefined) {
-            this.audience = notification.update.audience ?? ''
+        if (update.clientSecret !== undefined) {
+            this.clientSecret = update.clientSecret
         }
-        if (notification.update.scope !== undefined) {
-            this.scope = notification.update.scope ?? ''
+        if (update.audience !== undefined) {
+            this.audience = update.audience ?? ''
         }
-        if (notification.update.selectedCertificate !== undefined) {
-            this.selectedCertificate = notification.update.selectedCertificate ?? undefined
+        if (update.scope !== undefined) {
+            this.scope = update.scope ?? ''
         }
-        if (notification.update.selectedProxy !== undefined) {
-            this.selectedProxy = notification.update.selectedProxy ?? undefined
+        if (update.selectedCertificate !== undefined) {
+            this.selectedCertificate = update.selectedCertificate ?? undefined
         }
-        if (notification.update.sendCredentialsInBody !== undefined) {
-            this.sendCredentialsInBody = notification.update.sendCredentialsInBody === true
+        if (update.selectedProxy !== undefined) {
+            this.selectedProxy = update.selectedProxy ?? undefined
         }
-
-        this.validationWarnings.set(notification.validationWarnings)
-        this.validationErrors = notification.validationErrors ?? {}
+        if (update.sendCredentialsInBody !== undefined) {
+            this.sendCredentialsInBody = update.sendCredentialsInBody === true
+        }
     }
 
     @computed get nameError() {

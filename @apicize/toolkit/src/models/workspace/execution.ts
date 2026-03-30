@@ -17,7 +17,7 @@ export type InfoColorType = OverridableStringUnion<
 /**
  * Payload that application back-end notifies front-end of execution results
  */
-export type ExecutionEvent = ExecutionStartEvent | ExecutionCompleteEvent | ExecutionCancelEvent | ExecutionClearEvent
+export type ExecutionEvent = ExecutionStartEvent | ExecutionCompleteEvent | ExecutionCancelEvent | ExecutionResetEvent
 
 export interface ExecutionStartEvent {
      eventType: 'start',
@@ -36,8 +36,8 @@ export interface ExecutionCancelEvent {
      executionState: ExecutionState
 }
 
-export interface ExecutionClearEvent {
-     eventType: 'clear',
+export interface ExecutionResetEvent {
+     eventType: 'reset',
      executionState: ExecutionState
      menu: ExecutionMenuItem[]
      activeSummaries: { [execCtr: number]: ExecutionResultSummary }

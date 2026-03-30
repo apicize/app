@@ -59,6 +59,7 @@ export class EditableSettings {
 
     @action
     public update(settings: ApicizeSettings) {
+        this.incrementChangeCtr()
         this.setValues(settings)
     }
 

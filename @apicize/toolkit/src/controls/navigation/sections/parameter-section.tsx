@@ -1,4 +1,4 @@
-import { Persistence } from "@apicize/lib-typescript"
+import { getLockStatusColor, isLocked, ParameterLockStatus, Persistence } from "@apicize/lib-typescript"
 import { SvgIcon, IconButton, Menu, MenuItem, ListItemIcon, ListItemText } from "@mui/material"
 import { JSX } from 'react'
 import { Box } from "@mui/system"
@@ -8,6 +8,7 @@ import ContentPasteIcon from '@mui/icons-material/ContentPaste'
 import PrivateIcon from "../../../icons/private-icon"
 import PublicIcon from "../../../icons/public-icon"
 import VaultIcon from "../../../icons/vault-icon"
+import KeyIcon from '@mui/icons-material/Key';
 import { EntityType } from "../../../models/workspace/entity-type"
 import { DroppableData } from "../../../models/drag-drop"
 import { useWorkspace } from "../../../contexts/workspace.context"
@@ -29,6 +30,7 @@ const ParameterSubsection = observer(({
     entityIcon,
     entityIconColor,
     label,
+    lockStatus,
     singularName,
     pasteDisabled,
     onSelect,
@@ -45,6 +47,7 @@ const ParameterSubsection = observer(({
     entityIcon: JSX.Element,
     entityIconColor: IconColors,
     label: string,
+    lockStatus: ParameterLockStatus | null,
     singularName: string,
     pasteDisabled: boolean,
     onSelect: (id: string) => void,
@@ -60,11 +63,14 @@ const ParameterSubsection = observer(({
     const [focused, setFocused] = useState(false)
     const [menuAnchor, setMenuAnchor] = useState<{ mouseX: number, mouseY: number } | undefined>(undefined)
 
-    const { isOver, setNodeRef: setDropRef } = useDroppable({
+    const lockColor = getLockStatusColor(lockStatus)
+    const locked = isLocked(lockStatus)
+
+    const dropable = useDroppable({
         id: `hdr-${type}-${persistence}`,
         data: {
-            acceptAppend: true,
-            acceptsTypes: [type],
+            acceptAppend: !locked,
+            acceptsTypes: locked ? [] : [type],
             depth: 0,
             isHeader: true,
             persistence: persistence,
@@ -77,8 +83,8 @@ const ParameterSubsection = observer(({
         key={headerId}
         id={headerId}
         onFocusCapture={e => e.stopPropagation()}
-        ref={setDropRef}
-        sx={{ background: isOver ? dragDrop.toBackgroundColor() : 'default', margin: '0 0 0 1.0em', padding: 0 }}
+        ref={dropable?.setNodeRef}
+        sx={{ background: dropable?.isOver ? dragDrop.toBackgroundColor() : 'default', margin: '0 0 0 1.0em', padding: 0 }}
         label={(
             <Box
                 className='nav-item'
@@ -97,55 +103,63 @@ const ParameterSubsection = observer(({
                 {icon}
                 <Box className='nav-node-text' typography='navigation' sx={{ flexGrow: 1, minHeight: '1em' }}>
                     {label}
+                    {
+                        lockColor
+                            ? <KeyIcon color={lockColor} fontSize='medium' sx={{ fontSize: '1.1rem', marginLeft: '0.5em' }} />
+                            : <></>
+                    }
                 </Box>
-                <IconButton sx={{ flexGrow: 0, minHeight: '1em', padding: 0, margin: 0, visibility: focused ? 'normal' : 'hidden' }}
-                    onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        setMenuAnchor({ mouseX: e.clientX - 1, mouseY: e.clientY - 6 })
-                    }}>
-                    <Box className='nav-icon-context'>
-                        <MoreVertIcon style={{ fontSize: settings.navigationFontSize * 1.5 }} />
-                    </Box>
-                </IconButton>
-                <Menu
-                    open={menuAnchor !== undefined}
-                    onClose={() => setMenuAnchor(undefined)}
-                    sx={{ fontSize: settings.navigationFontSize }}
-                    anchorReference='anchorPosition'
-                    anchorPosition={{
-                        top: menuAnchor?.mouseY ?? 0,
-                        left: menuAnchor?.mouseX ?? 0
-                    }}
-                >
-                    <MenuItem
-                        className='navigation-menu-item'
-                        sx={{ fontSize: 'inherit' }}
-                        onClick={() => {
-                            setMenuAnchor(undefined)
-                            onAdd()
-                            workspace.updateExpanded(headerId, true)
+                {
+                    locked ? null : <><IconButton sx={{ flexGrow: 0, minHeight: '1em', padding: 0, margin: 0, visibility: focused ? 'normal' : 'hidden' }}
+                        onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            setMenuAnchor({ mouseX: e.clientX - 1, mouseY: e.clientY - 6 })
                         }}>
-                        <ListItemIcon>
-                            <SvgIcon color={entityIconColor} fontSize='inherit'>{entityIcon}</SvgIcon>
-                        </ListItemIcon>
-                        <ListItemText disableTypography>Add {singularName}</ListItemText>
-                    </MenuItem>
-                    <MenuItem
-                        className='navigation-menu-item'
-                        sx={{ fontSize: 'inherit' }}
-                        disabled={pasteDisabled}
-                        onClick={() => {
-                            setMenuAnchor(undefined)
-                            onPaste()
-                            workspace.updateExpanded(headerId, true)
-                        }}>
-                        <ListItemIcon>
-                            <ContentPasteIcon fontSize='inherit' />
-                        </ListItemIcon>
-                        <ListItemText disableTypography>Paste from Clipboard</ListItemText>
-                    </MenuItem>
-                </Menu>
+                        <Box className='nav-icon-context'>
+                            <MoreVertIcon style={{ fontSize: settings.navigationFontSize * 1.5 }} />
+                        </Box>
+                    </IconButton>
+                        <Menu
+                            open={menuAnchor !== undefined}
+                            onClose={() => setMenuAnchor(undefined)}
+                            sx={{ fontSize: settings.navigationFontSize }}
+                            anchorReference='anchorPosition'
+                            anchorPosition={{
+                                top: menuAnchor?.mouseY ?? 0,
+                                left: menuAnchor?.mouseX ?? 0
+                            }}
+                        >
+                            <MenuItem
+                                className='navigation-menu-item'
+                                sx={{ fontSize: 'inherit' }}
+                                onClick={() => {
+                                    setMenuAnchor(undefined)
+                                    onAdd()
+                                    workspace.updateExpanded(headerId, true)
+                                }}>
+                                <ListItemIcon>
+                                    <SvgIcon color={entityIconColor} fontSize='inherit'>{entityIcon}</SvgIcon>
+                                </ListItemIcon>
+                                <ListItemText disableTypography>Add {singularName}</ListItemText>
+                            </MenuItem>
+                            <MenuItem
+                                className='navigation-menu-item'
+                                sx={{ fontSize: 'inherit' }}
+                                disabled={pasteDisabled}
+                                onClick={() => {
+                                    setMenuAnchor(undefined)
+                                    onPaste()
+                                    workspace.updateExpanded(headerId, true)
+                                }}>
+                                <ListItemIcon>
+                                    <ContentPasteIcon fontSize='inherit' />
+                                </ListItemIcon>
+                                <ListItemText disableTypography>Paste from Clipboard</ListItemText>
+                            </MenuItem>
+                        </Menu>
+                    </>
+                }
             </Box>
         )}
     >
@@ -157,10 +171,10 @@ const ParameterSubsection = observer(({
                     key={e.id}
                     depth={2}
                     onSelect={onSelect}
-                    isDraggable={true}
-                    acceptDropTypes={[type]}
-                    onMenu={onItemMenu}
-                    onMove={onMove}
+                    isDraggable={!locked}
+                    acceptDropTypes={locked ? [] : [type]}
+                    onMenu={locked ? undefined : onItemMenu}
+                    onMove={locked ? undefined : onMove}
                 />
             )
         }
@@ -203,6 +217,7 @@ export const ParameterSection = observer(({
     onItemMenu: (e: React.MouseEvent, persistence: Persistence, id: string) => void,
     onSelectHeader: (headerId: string, helpTopic?: string) => void
 }) => {
+    const workspace = useWorkspace()
     const Contents = () => {
         return <>
             {contextMenu}
@@ -214,6 +229,7 @@ export const ParameterSection = observer(({
                 entityIcon={icon}
                 entityIconColor={iconColor}
                 label="Public"
+                lockStatus={null}
                 singularName={singularName}
                 pasteDisabled={pasteDisabled}
                 onSelect={onSelect}
@@ -230,6 +246,7 @@ export const ParameterSection = observer(({
                 entityIcon={icon}
                 entityIconColor={iconColor}
                 label="Private"
+                lockStatus={workspace.privateLockStatus}
                 singularName={singularName}
                 pasteDisabled={pasteDisabled}
                 onSelect={onSelect}
@@ -246,6 +263,7 @@ export const ParameterSection = observer(({
                 entityIcon={icon}
                 entityIconColor={iconColor}
                 label="Vault"
+                lockStatus={workspace.vaultLockStatus}
                 singularName={singularName}
                 pasteDisabled={pasteDisabled}
                 onSelect={onSelect}
@@ -289,7 +307,7 @@ export const ParameterSection = observer(({
                     </Box>
                 </Box>
             )}>
-            <Contents />
+            {Contents()}
         </TreeItem>
-        : <Contents />
+        : <>{Contents()}</>
 })

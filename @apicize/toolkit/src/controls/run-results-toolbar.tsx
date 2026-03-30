@@ -69,23 +69,24 @@ export const RunResultsToolbar = observer((
     const selectedResultMenuItem = request.selectedResultMenuItem
     const isRunning = request.isRunning
 
-
-    if (menuItems.length < 1 || !selectedResultMenuItem) {
-        return null
-    }
-
-    if (workspace.currentExecutionDetail?.execCtr !== selectedResultMenuItem.execCtr) {
-        workspace.updateExecutionDetail(selectedResultMenuItem.execCtr)
-    }
-
-    const disableUp = selectedResultMenuItem.prevExecCtr === undefined
-    const disableDown = selectedResultMenuItem.nextExecCtr === undefined
-    const disableParent = selectedResultMenuItem.parentExecCtr === undefined
+    useEffect(() => {
+        if (selectedResultMenuItem && workspace.currentExecutionDetail?.execCtr !== selectedResultMenuItem.execCtr) {
+            workspace.updateExecutionDetail(selectedResultMenuItem.execCtr)
+        }
+    }, [selectedResultMenuItem, selectedResultMenuItem?.execCtr, workspace.currentExecutionDetail?.execCtr, workspace])
 
     const updateSelectedResult = React.useCallback((execCtr: number | undefined) => {
         if (!(execCtr && execCtr >= 0)) return
         request.changeExecCtr(execCtr)
     }, [request])
+
+    if (menuItems.length < 1 || !selectedResultMenuItem) {
+        return null
+    }
+
+    const disableUp = selectedResultMenuItem.prevExecCtr === undefined
+    const disableDown = selectedResultMenuItem.nextExecCtr === undefined
+    const disableParent = selectedResultMenuItem.parentExecCtr === undefined
 
     // Double-check the selected value actually exists in the items array before rendering
     const canRenderSelect = menuItems.findIndex(m => m.execCtr === selectedResultMenuItem.execCtr) !== -1
@@ -121,7 +122,7 @@ export const RunResultsToolbar = observer((
                                     : result.name
 
                                 if (settings.showDiagnosticInfo) {
-                                    label += ` (${result.execCtr}, prev: ${result.prevExecCtr}, next: ${result.nextExecCtr}, parent: ${result.parentExecCtr})`
+                                    label += ` (${result.execCtr}, prev: ${result.prevExecCtr ?? 'N/A'}, next: ${result.nextExecCtr ?? 'N/A'}, parent: ${result.parentExecCtr ?? 'N/A'})`
                                 }
 
                                 return (

@@ -5,6 +5,7 @@ import { EntityTypeName } from "../../contexts/workspace.context"
 export interface CertificateUpdate {
     type: EntityTypeName.Certificate
     entityType: EntityType.Certificate
+    encrypted?: boolean
     id: string
     certType?: CertificateType
     name?: string

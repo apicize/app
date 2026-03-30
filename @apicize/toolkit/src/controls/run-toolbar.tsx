@@ -72,7 +72,7 @@ export const RunToolbar = observer(({ sx, requestEntry }: { sx?: SxProps, reques
                 </ToggleButton>
             </Box>
             <ToggleButton value='Seed' size='small' title={seedingFromData ? `Seeding from ${seedingFromData}` : 'Not Seeding Data'} onClick={() =>
-                requestEntry.entityType === EntityType.Group ? workspace.changeGroupPanel('Parameters') : workspace.changeRequestPanel('Parameters')
+                requestEntry.entityType === EntityType.Group ? workspace.changeGroupPanel('Execution Parameters') : workspace.changeRequestPanel('Execution Parameters')
             }>
                 <SvgIcon className='seed-icon' color={seedingFromData ? 'success' : 'primary'}><SeedIcon /></SvgIcon>
             </ToggleButton>

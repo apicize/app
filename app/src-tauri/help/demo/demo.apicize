@@ -6,8 +6,149 @@
             "name": "CRUD Operations",
             "children": [
                 {
+                    "id": "043e3493-a768-4a27-9aaa-597c49348df3",
+                    "name": "Embedded Data",
+                    "children": [
+                        {
+                            "id": "d1d67fe1-2e56-4e37-933a-08bafe089c51",
+                            "name": "Create quote",
+                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('response', () => {\n   it('returns an ID', () => {\n      const data = (response.body.type == BodyType.JSON)\n         ? response.body.data\n         : expect.fail('Response body is not JSON')\n\n      const id = data.id\n      expect(id).not.to.be.empty\n      output('id', id)\n      console.info(`ID is ${id}`)\n   })\n})",
+                            "url": "https://sample-api.apicize.com/quote/",
+                            "method": "POST",
+                            "timeout": 30000,
+                            "headers": [
+                                {
+                                    "name": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "body": {
+                                "type": "JSON",
+                                "data": {
+                                    "author": "{{author}}",
+                                    "quote": "{{quote}}"
+                                },
+                                "formatted": "{\n  \"author\": \"{{author}}\",\n  \"quote\": \"{{quote}}\"\n}"
+                            },
+                            "numberOfRedirects": 10,
+                            "runs": 1,
+                            "multiRunExecution": "SEQUENTIAL"
+                        },
+                        {
+                            "id": "707345a2-01cf-46d3-8bbe-8e528f715761",
+                            "name": "Get original quote",
+                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('stored', () => {\n   const data = (response.body.type == BodyType.JSON)\n      ? response.body.data\n      : expect.fail('Response body is not JSON')\n\n   console.info(`Author: ${data.author}, Quote: \"${data.quote}\"`)\n\n   describe('author', () => {\n      it('equals configured author', () => {\n         expect(data.author).to.equal($.author)\n      })\n   })\n\n   describe('quote', () => {\n      it('equals original quote', () => {\n         expect(data.quote).to.equal($.quote)\n      })\n   })\n})\n",
+                            "url": "https://sample-api.apicize.com/quote/{{id}}",
+                            "method": "GET",
+                            "timeout": 30000,
+                            "numberOfRedirects": 10,
+                            "runs": 1,
+                            "multiRunExecution": "SEQUENTIAL"
+                        },
+                        {
+                            "id": "17607d0f-7e87-4d04-a76b-6261d7ce041d",
+                            "name": "Update quote to test value",
+                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})",
+                            "url": "https://sample-api.apicize.com/quote/{{id}}",
+                            "method": "PUT",
+                            "timeout": 30000,
+                            "headers": [
+                                {
+                                    "name": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "body": {
+                                "type": "JSON",
+                                "data": {
+                                    "quote": "{{test-quote}}"
+                                },
+                                "formatted": "{\n  \"quote\": \"{{test-quote}}\"\n}"
+                            },
+                            "numberOfRedirects": 10,
+                            "runs": 1,
+                            "multiRunExecution": "SEQUENTIAL"
+                        },
+                        {
+                            "id": "2959d274-9523-40a4-93f8-a6eedafb6dc7",
+                            "name": "Get updated quote",
+                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('quote', () => {\n   it('equals test quote', () => {\n      const result = (response.body.type == BodyType.JSON)\n         ? response.body.data\n         : expect.fail('Response body is not JSON')\n      console.info(`Author: ${result.author}, Quote: \"${result.quote}\"`)\n      expect(result.quote).to.equal($['test-quote'])\n   })\n})\n",
+                            "url": "https://sample-api.apicize.com/quote/{{id}}",
+                            "method": "GET",
+                            "timeout": 30000,
+                            "numberOfRedirects": 10,
+                            "runs": 1,
+                            "multiRunExecution": "SEQUENTIAL"
+                        },
+                        {
+                            "id": "105c2090-8d2d-45ce-9885-4bf7c65303ac",
+                            "name": "Restore original quote",
+                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})",
+                            "url": "https://sample-api.apicize.com/quote/{{id}}",
+                            "method": "PUT",
+                            "timeout": 30000,
+                            "headers": [
+                                {
+                                    "name": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "body": {
+                                "type": "JSON",
+                                "data": {
+                                    "quote": "{{quote}}"
+                                },
+                                "formatted": "{\n  \"quote\": \"{{quote}}\"\n}"
+                            },
+                            "numberOfRedirects": 10,
+                            "runs": 1,
+                            "multiRunExecution": "SEQUENTIAL"
+                        },
+                        {
+                            "id": "070d2b68-0a7e-4172-b787-5a826fa6f5bb",
+                            "name": "Get restored quote",
+                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('stored quote', () => {\n   it('equals original quote', () => {\n      const result = (response.body.type == BodyType.JSON)\n         ? response.body.data\n         : expect.fail('Response body is not JSON')\n      console.info(`Author: ${result.author}, Quote: \"${result.quote}\"`)\n      expect(result.quote).to.equal($.quote)\n   })\n})",
+                            "url": "https://sample-api.apicize.com/quote/{{id}}",
+                            "method": "GET",
+                            "timeout": 30000,
+                            "numberOfRedirects": 10,
+                            "runs": 1,
+                            "multiRunExecution": "SEQUENTIAL"
+                        },
+                        {
+                            "id": "d9c23cc2-3311-4382-a4fa-7494876760cf",
+                            "name": "Delete quote",
+                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n",
+                            "url": "https://sample-api.apicize.com/quote/{{id}}",
+                            "method": "DELETE",
+                            "timeout": 30000,
+                            "numberOfRedirects": 10,
+                            "runs": 1,
+                            "multiRunExecution": "SEQUENTIAL"
+                        },
+                        {
+                            "id": "e97e2845-dbeb-4ed6-8f25-c73ef53996ef",
+                            "name": "Ensure quote is deleted",
+                            "test": "describe('status', () => {\n   it('equals 404', () => {\n      expect(response.status).to.equal(404)\n   })\n})\n",
+                            "url": "https://sample-api.apicize.com/quote/{{id}}",
+                            "method": "GET",
+                            "timeout": 30000,
+                            "numberOfRedirects": 10,
+                            "runs": 1,
+                            "multiRunExecution": "SEQUENTIAL"
+                        }
+                    ],
+                    "execution": "SEQUENTIAL",
+                    "runs": 1,
+                    "multiRunExecution": "SEQUENTIAL",
+                    "selectedData": {
+                        "id": "90a39691-8f30-403d-8f92-5651ad60adb2",
+                        "name": "Embedded Data"
+                    }
+                },
+                {
                     "id": "951d3f21-e5cf-4426-90e9-0eaa3da83f11",
-                    "name": "Data from JSON Data Set",
+                    "name": "JSON Data Set",
                     "children": [
                         {
                             "id": "52c97308-6781-405c-852f-241bcf6d5157",
@@ -148,7 +289,7 @@
                 },
                 {
                     "id": "b2c6ce50-ed7a-4b41-9c69-132733f3a4ef",
-                    "name": "Data from CSV Data Set",
+                    "name": "CSV Data Set",
                     "children": [
                         {
                             "id": "1d2190b0-62e3-477d-9921-505a0c63deb0",
@@ -433,18 +574,16 @@
             "clientId": "apicize",
             "clientSecret": "",
             "scope": "image quote calc",
-            "selectedCertificate": {
-                "id": "\tNONE\t",
-                "name": "None (Off)"
-            },
-            "selectedProxy": {
-                "id": "\tNONE\t",
-                "name": "None (Off)"
-            },
             "sendCredentialsInBody": false
         }
     ],
     "data": [
+        {
+            "id": "90a39691-8f30-403d-8f92-5651ad60adb2",
+            "name": "Embedded Data",
+            "type": "JSON",
+            "source": "{\n   \"author\": \"Philip K. Dick\",\n   \"quote\": \"The basic tool for the manipulation of reality is the manipulation of words. If you can control the meaning of words, you can control the people who must use the words.\",\n   \"test-quote\": \"Reality denied comes back to haunt.\"\n}"
+        },
         {
             "id": "d5a031a1-4cda-4ffe-b78d-4f681d6507b3",
             "name": "Sample JSON Data",

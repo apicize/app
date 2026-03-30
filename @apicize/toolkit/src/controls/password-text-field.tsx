@@ -1,7 +1,7 @@
 import { TextField, TextFieldProps } from "@mui/material"
-import { useState, useCallback } from "react"
+import { useState, useCallback, forwardRef } from "react"
 
-export const PasswordTextField = ({ onFocus, onBlur, ...rest }: TextFieldProps) => {
+export const PasswordTextField = forwardRef<HTMLInputElement, TextFieldProps>(({ onFocus, onBlur, ...rest }, ref) => {
     const [focused, setFocused] = useState(false)
 
     const handleFocus = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
@@ -17,9 +17,10 @@ export const PasswordTextField = ({ onFocus, onBlur, ...rest }: TextFieldProps) 
     return (
         <TextField
             {...rest}
+            inputRef={ref}
             type={focused ? 'text' : 'password'}
             onFocus={handleFocus}
             onBlur={handleBlur}
         />
     )
-}
+})

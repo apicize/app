@@ -8,7 +8,7 @@ import { EditableNameValuePair } from "./editable-name-value-pair"
 import { GenerateIdentifier } from "../../services/random-identifier-generator"
 import { EntityType } from "./entity-type"
 import { EditableEntityContext } from "../editable"
-import { EntityTypeName, EntityUpdateNotification } from "../../contexts/workspace.context"
+import { EntityTypeName } from "../../contexts/workspace.context"
 import { EditableRequestEntry } from "./editable-request-entry"
 import { RequestDuplex } from "undici-types"
 import { EditableWarnings } from "./editable-warnings"
@@ -19,6 +19,7 @@ import { base64Encode } from "../../services/base64"
 import { BodyConversion } from "../../services/body-conversion"
 import { RequestUpdate } from "../updates/request-update"
 import { RequestBodyInfo } from "./request-body-info"
+import { EntityUpdate } from "../updates/entity-update"
 
 export class EditableRequest extends EditableRequestEntry {
     public readonly entityType = EntityType.Request
@@ -51,10 +52,14 @@ export class EditableRequest extends EditableRequestEntry {
     @observable accessor validationWarnings = new EditableWarnings()
 
     public constructor(entry: Request, workspace: EditableEntityContext, executionResultViewState: ExecutionResultViewState, requestExecution: RequestExecution) {
-        super(workspace, executionResultViewState, requestExecution)
+        super(
+            entry.id,
+            entry.name ?? '',
+            workspace,
+            executionResultViewState,
+            requestExecution
+        )
 
-        this.id = entry.id
-        this.name = entry.name ?? ''
         this.disabled = entry.disabled ?? false
 
         this.key = entry.key ?? ''
@@ -328,110 +333,108 @@ export class EditableRequest extends EditableRequestEntry {
     }
 
     @action
-    refreshFromExternalSpecificUpdate(notification: EntityUpdateNotification) {
-        if (notification.update.entityType !== EntityType.Request) {
+    refreshFromExternalSpecificUpdate(update: EntityUpdate) {
+        if (update.entityType !== EntityType.Request) {
             return
         }
-        if (notification.update.name !== undefined) {
-            this.name = notification.update.name
+        if (update.name !== undefined) {
+            this.name = update.name
         }
-        if (notification.update.disabled !== undefined) {
-            this.disabled = notification.update.disabled
+        if (update.disabled !== undefined) {
+            this.disabled = update.disabled
         }
-        if (notification.update.key !== undefined) {
-            this.key = notification.update.key
+        if (update.key !== undefined) {
+            this.key = update.key
         }
-        if (notification.update.url !== undefined) {
-            this.url = notification.update.url
+        if (update.url !== undefined) {
+            this.url = update.url
         }
-        if (notification.update.method !== undefined) {
-            this.method = notification.update.method
+        if (update.method !== undefined) {
+            this.method = update.method
         }
-        if (notification.update.runs !== undefined) {
-            this.runs = notification.update.runs
+        if (update.runs !== undefined) {
+            this.runs = update.runs
         }
-        if (notification.update.multiRunExecution !== undefined) {
-            this.multiRunExecution = notification.update.multiRunExecution
+        if (update.multiRunExecution !== undefined) {
+            this.multiRunExecution = update.multiRunExecution
         }
-        if (notification.update.timeout !== undefined) {
-            this.timeout = notification.update.timeout
+        if (update.timeout !== undefined) {
+            this.timeout = update.timeout
         }
-        if (notification.update.keepAlive !== undefined) {
-            this.keepAlive = notification.update.keepAlive
+        if (update.keepAlive !== undefined) {
+            this.keepAlive = update.keepAlive
         }
-        if (notification.update.acceptInvalidCerts !== undefined) {
-            this.acceptInvalidCerts = notification.update.acceptInvalidCerts
+        if (update.acceptInvalidCerts !== undefined) {
+            this.acceptInvalidCerts = update.acceptInvalidCerts
         }
-        if (notification.update.numberOfRedirects !== undefined) {
-            this.numberOfRedirects = notification.update.numberOfRedirects
+        if (update.numberOfRedirects !== undefined) {
+            this.numberOfRedirects = update.numberOfRedirects
         }
-        if (notification.update.queryStringParams !== undefined) {
-            this.queryStringParams = notification.update.queryStringParams.map(nv => ({
+        if (update.queryStringParams !== undefined) {
+            this.queryStringParams = update.queryStringParams.map(nv => ({
                 id: GenerateIdentifier(),
                 name: nv.name,
                 value: nv.value,
             }))
         }
-        if (notification.update.headers !== undefined) {
-            this.headers = notification.update.headers.map(nv => ({
+        if (update.headers !== undefined) {
+            this.headers = update.headers.map(nv => ({
                 id: GenerateIdentifier(),
                 name: nv.name,
                 value: nv.value,
             }))
         }
 
-        // if (notification.update.redirect !== undefined) {
-        //     this.redirect = notification.update.redirect
+        // if (update.redirect !== undefined) {
+        //     this.redirect = update.redirect
         // }
-        // if (notification.update.mode !== undefined) {
-        //     this.mode = notification.update.mode
+        // if (update.mode !== undefined) {
+        //     this.mode = update.mode
         // }
-        // if (notification.update.referrer !== undefined) {
-        //     this.referrer = notification.update.referrer
+        // if (update.referrer !== undefined) {
+        //     this.referrer = update.referrer
         // }
-        // if (notification.update.referrerPolicy !== undefined) {
-        //     this.referrerPolicy = notification.update.referrerPolicy
+        // if (update.referrerPolicy !== undefined) {
+        //     this.referrerPolicy = update.referrerPolicy
         // }
-        // if (notification.update.duplex !== undefined) {
-        //     this.duplex = notification.update.duplex
+        // if (update.duplex !== undefined) {
+        //     this.duplex = update.duplex
         // }
 
 
-        if (notification.update.test !== undefined) {
-            this.test = notification.update.test
+        if (update.test !== undefined) {
+            this.test = update.test
         }
 
-        if (notification.update.body !== undefined) {
-            if (notification.update.body.type === BodyType.None) {
+        if (update.body !== undefined) {
+            if (update.body.type === BodyType.None) {
                 this.body.type = BodyType.None
                 this.bodyMimeType = null
                 this.bodyLength = null
             } else {
-                const editable = EditableRequest.createEditableBody(notification.update.body)
+                const editable = EditableRequest.createEditableBody(update.body)
                 this.body.type = editable.type
                 this.body.data = editable.data
-                this.bodyMimeType = notification.update.bodyMimeType ?? null
-                this.bodyLength = notification.update.bodyLength ?? null
+                this.bodyMimeType = update.bodyMimeType ?? null
+                this.bodyLength = update.bodyLength ?? null
             }
         }
 
-        if (notification.update.selectedScenario !== undefined) {
-            this.selectedScenario = notification.update.selectedScenario
+        if (update.selectedScenario !== undefined) {
+            this.selectedScenario = update.selectedScenario
         }
-        if (notification.update.selectedAuthorization !== undefined) {
-            this.selectedAuthorization = notification.update.selectedAuthorization
+        if (update.selectedAuthorization !== undefined) {
+            this.selectedAuthorization = update.selectedAuthorization
         }
-        if (notification.update.selectedCertificate !== undefined) {
-            this.selectedCertificate = notification.update.selectedCertificate
+        if (update.selectedCertificate !== undefined) {
+            this.selectedCertificate = update.selectedCertificate
         }
-        if (notification.update.selectedProxy !== undefined) {
-            this.selectedProxy = notification.update.selectedProxy
+        if (update.selectedProxy !== undefined) {
+            this.selectedProxy = update.selectedProxy
         }
-        if (notification.update.selecteData !== undefined) {
-            this.selectedDataSet = notification.update.selecteData
+        if (update.selecteData !== undefined) {
+            this.selectedDataSet = update.selecteData
         }
-        this.validationWarnings.set(notification.validationWarnings)
-        this.validationErrors = notification.validationErrors ?? {}
     }
 
     @action

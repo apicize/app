@@ -171,25 +171,6 @@ export const ResourceSection = observer(({
             <MenuItem
                 className='navigation-menu-item'
                 sx={{ fontSize: 'inherit' }}
-                onClick={() => handleDupe()}>
-                <ListItemIcon>
-                    <ContentCopyOutlinedIcon color={iconColor} fontSize='inherit' />
-                </ListItemIcon>
-                <ListItemText disableTypography>Duplicate {singularName}</ListItemText>
-            </MenuItem>
-            <MenuItem
-                className='navigation-menu-item'
-                sx={{ fontSize: 'inherit' }}
-                onClick={() => handleDelete()}>
-                <ListItemIcon>
-                    <DeleteIcon color='error' fontSize='inherit' />
-                </ListItemIcon>
-                <ListItemText disableTypography>Delete {singularName}</ListItemText>
-            </MenuItem>
-            <Divider />
-            <MenuItem
-                className='navigation-menu-item'
-                sx={{ fontSize: 'inherit' }}
                 onClick={() => handleCut(menu.id)}>
                 <ListItemIcon>
                     <ContentCutIcon fontSize='inherit' />
@@ -214,6 +195,25 @@ export const ResourceSection = observer(({
                     <ContentPasteIcon fontSize='inherit' />
                 </ListItemIcon>
                 <ListItemText disableTypography>Paste from Clipboard</ListItemText>
+            </MenuItem>
+            <Divider />
+            <MenuItem
+                className='navigation-menu-item'
+                sx={{ fontSize: 'inherit' }}
+                onClick={() => handleDupe()}>
+                <ListItemIcon>
+                    <ContentCopyOutlinedIcon color={iconColor} fontSize='inherit' />
+                </ListItemIcon>
+                <ListItemText disableTypography>Duplicate {singularName}</ListItemText>
+            </MenuItem>
+            <MenuItem
+                className='navigation-menu-item'
+                sx={{ fontSize: 'inherit' }}
+                onClick={() => handleDelete()}>
+                <ListItemIcon>
+                    <DeleteIcon color='error' fontSize='inherit' />
+                </ListItemIcon>
+                <ListItemText disableTypography>Delete {singularName}</ListItemText>
             </MenuItem>
         </Menu>
         : <></>

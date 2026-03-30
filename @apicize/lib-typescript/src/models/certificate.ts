@@ -1,6 +1,18 @@
 import { Identifiable } from "./identifiable"
 import { Named } from "./named"
+import { ParameterCipher } from "./parameter-cipher"
 import { ValidationErrors } from "./validation"
+
+
+/**
+ * Request certificate configuration
+ */
+export type Certificate = ParameterCipher | CertificatePlain
+
+/**
+ * Request certificate configuration (unencrypted)
+ */
+export type CertificatePlain = Pkcs12Certificate | Pkcs8PemCertificate | PemCertificate
 
 /**
  * Specifies the type of certificate used for a request
@@ -10,8 +22,6 @@ export enum CertificateType {
     PKCS8_PEM = 'PKCS8_PEM',
     PEM = 'PEM',
 }
-
-export type Certificate = Pkcs12Certificate | Pkcs8PemCertificate | PemCertificate
 
 /**
  * Information required for PFX certificate

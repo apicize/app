@@ -1,9 +1,12 @@
 use apicize_lib::{
-    Authorization, Certificate, DataSet, DataSourceType, ExecutionReportFormat,
+    ApicizeError, Authorization, Certificate, DataSet, DataSourceType, ExecutionReportFormat,
     ExecutionResultBuilder, ExecutionResultDetail, ExecutionResultSuccess, ExecutionResultSummary,
-    ExecutionState, Identifiable, IndexedEntities, Proxy, Request, RequestBody, RequestEntry,
-    RequestGroup, Scenario, SelectedParameters, Selection, StoredRequestEntry, Validated,
-    ValidationState, WorkbookDefaultParameters, Workspace,
+    ExecutionState, Identifiable, IndexedEntities, PERSIST_PRIVATE, PERSIST_VAULT,
+    ParameterLockStatus, ParameterStore, Parameters, Proxy, Request, RequestBody, RequestEntry,
+    RequestGroup, SaveWorkspaceParameters, Scenario, SelectedParameters, Selection,
+    StoredRequestEntry, Validated, ValidationState, WorkbookDefaultParameters, Workspace,
+    authorization::AuthorizationPlain,
+    certificate::CertificatePlain,
     editing::indexed_entities::IndexedEntityPosition,
     identifiable::CloneIdentifiable,
     workspace::{InvalidSelections, SelectedOption},
@@ -16,6 +19,7 @@ use serde_json::ser::PrettyFormatter;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::{
     collections::{HashMap, HashSet, VecDeque},
+    env,
     fmt::Display,
     fs,
     path::PathBuf,
@@ -32,8 +36,8 @@ use crate::{
     settings::ApicizeSettings,
     updates::{
         AuthorizationUpdate, AuthorizationUpdateType, CertificateUpdate, CertificateUpdateType,
-        DataSetUpdate, DefaultsUpdate, EntityUpdate, EntityUpdateNotification, ProxyUpdate,
-        RequestGroupUpdate, RequestUpdate, ScenarioUpdate,
+        DataSetUpdate, DefaultsUpdate, EntityUpdate, ProxyUpdate, RequestGroupUpdate,
+        RequestUpdate, ScenarioUpdate,
     },
 };
 
@@ -112,9 +116,24 @@ pub struct WorkspaceSaveStatus {
     pub directory: String,
 }
 
-#[derive(Default)]
 pub struct Workspaces {
     pub workspaces: FxHashMap<String, WorkspaceInfo>,
+    pub vault_env_var_set: bool,
+    pub private_env_var_set: bool,
+    pub vault_password: Option<String>,
+}
+
+impl Default for Workspaces {
+    fn default() -> Self {
+        Self {
+            workspaces: Default::default(),
+            vault_env_var_set: !env::var("APICIZE_VAULT_PWD").unwrap_or_default().is_empty(),
+            private_env_var_set: !env::var("APICIZE_PRIVATE_PWD")
+                .unwrap_or_default()
+                .is_empty(),
+            vault_password: None,
+        }
+    }
 }
 
 impl Workspaces {
@@ -311,6 +330,146 @@ impl Workspaces {
         }
     }
 
+    pub fn set_parameters_password(
+        &mut self,
+        workspace_id: &str,
+        workbook_path: Option<PathBuf>,
+        parameter_store: ParameterStore,
+        lock_type: PasswordLockType,
+    ) -> Result<(), ApicizeAppError> {
+        let updated_password = {
+            let workspace = self.get_workspace_mut(workspace_id)?;
+            let workspace_is_saved = workbook_path.is_some();
+
+            // Return the current value of the specified env var (if set)
+            let get_env_var = |name: &str| {
+                let pw = env::var(name).unwrap_or_default();
+                if pw.is_empty() {
+                    Err(ApicizeAppError::ApicizeError(ApicizeError::Encryption {
+                        description: "{name} is not defined".to_string(),
+                    }))
+                } else {
+                    Ok(pw)
+                }
+            };
+
+            let (old_password, old_status) = match parameter_store {
+                ParameterStore::Vault => {
+                    if workspace.vault_lock_status.is_locked() {
+                        Err(ApicizeAppError::ApicizeError(ApicizeError::Encryption {
+                            description: "Vault password cannot be changed while encrypted"
+                                .to_string(),
+                        }))
+                    } else {
+                        let old_password = workspace.vault_password.clone();
+                        let old_status = workspace.vault_lock_status;
+
+                        let (new_password, new_status) = match lock_type {
+                            PasswordLockType::Password { password } => Ok::<_, ApicizeAppError>((
+                                Some(password),
+                                ParameterLockStatus::UnlockedWithPassword,
+                            )),
+                            PasswordLockType::EnvVar => Ok((
+                                Some(get_env_var("APICIZE_VAULT_PWD")?),
+                                ParameterLockStatus::UnlockedWithEnvVar,
+                            )),
+                            PasswordLockType::None => {
+                                Ok((None, ParameterLockStatus::UnlockedNoPassword))
+                            }
+                        }?;
+
+                        workspace.vault_password = new_password;
+                        workspace.vault_lock_status = new_status;
+                        Ok((old_password, old_status))
+                    }
+                }
+                ParameterStore::Private => {
+                    if workspace.private_lock_status.is_locked() {
+                        Err(ApicizeAppError::ApicizeError(ApicizeError::Encryption {
+                            description:
+                                "Private parameter store password cannot be changed while encrypted"
+                                    .to_string(),
+                        }))
+                    } else {
+                        let old_password = workspace.private_password.clone();
+                        let old_status = workspace.private_lock_status;
+
+                        let (new_password, new_status) = match lock_type {
+                            PasswordLockType::Password { password } => Ok::<_, ApicizeAppError>((
+                                Some(password),
+                                ParameterLockStatus::UnlockedWithPassword,
+                            )),
+                            PasswordLockType::EnvVar => Ok((
+                                Some(get_env_var("APICIZE_PRIVATE_PWD")?),
+                                ParameterLockStatus::UnlockedWithEnvVar,
+                            )),
+                            PasswordLockType::None => {
+                                Ok((None, ParameterLockStatus::UnlockedNoPassword))
+                            }
+                        }?;
+                        workspace.private_password = new_password;
+                        workspace.private_lock_status = new_status;
+                        Ok((old_password, old_status))
+                    }
+                }
+            }?;
+
+            println!(
+                "Vault password: {}",
+                match &workspace.vault_password {
+                    Some(pw) => pw,
+                    None => "NONE",
+                }
+            );
+
+            let result = workspace.save(&SaveWorkspaceParameters {
+                workbook_path,
+                include_workbook: false,
+                include_private: parameter_store == ParameterStore::Private && workspace_is_saved,
+                include_vault: parameter_store == ParameterStore::Vault,
+            });
+
+            match result {
+                Ok(_) => match parameter_store {
+                    ParameterStore::Vault => Ok(workspace.vault_password.clone()),
+                    ParameterStore::Private => Ok(None),
+                },
+                Err(err) => {
+                    match parameter_store {
+                        ParameterStore::Vault => {
+                            workspace.vault_password = old_password;
+                            workspace.vault_lock_status = old_status;
+                        }
+                        ParameterStore::Private => {
+                            workspace.private_password = old_password;
+                            workspace.private_lock_status = old_status;
+                        }
+                    }
+                    Err(ApicizeAppError::ApicizeError(err))
+                }
+            }
+        }?;
+
+        // Save the Vault password for subsequent opens
+        if parameter_store == ParameterStore::Vault {
+            self.vault_password = updated_password;
+        }
+
+        Ok(())
+    }
+
+    pub fn decrypt_parameters(
+        &mut self,
+        workspace_id: &str,
+        store: ParameterStore,
+        password: &str,
+    ) -> Result<Parameters, ApicizeAppError> {
+        let info = self.get_workspace_info_mut(workspace_id)?;
+        let workspace = &mut info.workspace;
+        let parameters = workspace.decrypt_parameters(store, password)?;
+        Ok(parameters)
+    }
+
     pub fn get_execution(
         &mut self,
         workspace_id: &str,
@@ -318,18 +477,6 @@ impl Workspaces {
     ) -> Result<RequestExecution, ApicizeAppError> {
         let info = self.get_workspace_info_mut(workspace_id)?;
         Ok(info.get_execution_mut(request_or_group_id).clone())
-    }
-
-    pub fn clear_execution(
-        &mut self,
-        workspace_id: &str,
-        request_or_group_id: &str,
-    ) -> Result<(), ApicizeAppError> {
-        let info = self.get_workspace_info_mut(workspace_id)?;
-        info.executions.remove(request_or_group_id);
-        info.execution_results
-            .delete_indexed_request_results(request_or_group_id);
-        Ok(())
     }
 
     pub fn get_execution_result(
@@ -968,7 +1115,7 @@ impl Workspaces {
         &self,
         workspace_id: &str,
         request_or_group_id: &str,
-    ) -> Result<(EntityUpdateNotification, UpdatedNavigationEntry), ApicizeAppError> {
+    ) -> Result<(EntityUpdate, UpdatedNavigationEntry), ApicizeAppError> {
         let info = self.get_workspace_info(workspace_id)?;
         let workspace = &info.workspace;
 
@@ -986,12 +1133,7 @@ impl Workspaces {
 
         match request_or_group {
             RequestEntry::Request(request) => {
-                let notification = EntityUpdateNotification {
-                    update: EntityUpdate::Request(RequestUpdate::from_selections(request)),
-                    validation_warnings: request.validation_warnings.clone(),
-                    validation_errors: request.validation_errors.clone(),
-                };
-
+                let notification = EntityUpdate::Request(RequestUpdate::from_selections(request));
                 let navigation = UpdatedNavigationEntry {
                     id: request.id.to_string(),
                     name: request.get_title(),
@@ -999,17 +1141,15 @@ impl Workspaces {
                     validation_state: request.validation_state,
                     execution_state,
                     disabled: request.disabled,
+                    encrypted: false,
+                    parameter_store: None,
                 };
 
                 Ok((notification, navigation))
             }
             RequestEntry::Group(group) => {
-                let notification = EntityUpdateNotification {
-                    update: EntityUpdate::RequestGroup(RequestGroupUpdate::from_selections(group)),
-                    validation_warnings: group.validation_warnings.clone(),
-                    validation_errors: group.validation_errors.clone(),
-                };
-
+                let notification =
+                    EntityUpdate::RequestGroup(RequestGroupUpdate::from_selections(group));
                 let navigation = UpdatedNavigationEntry {
                     id: group.id.to_string(),
                     name: group.get_title(),
@@ -1017,6 +1157,8 @@ impl Workspaces {
                     validation_state: group.validation_state,
                     execution_state,
                     disabled: group.disabled,
+                    encrypted: false,
+                    parameter_store: None,
                 };
 
                 Ok((notification, navigation))
@@ -1030,48 +1172,69 @@ impl Workspaces {
         &self,
         workspace_id: &str,
         authorization_id: &str,
-    ) -> Result<(EntityUpdateNotification, UpdatedNavigationEntry), ApicizeAppError> {
+    ) -> Result<(EntityUpdate, UpdatedNavigationEntry), ApicizeAppError> {
         let info = self.get_workspace_info(workspace_id)?;
         let workspace = &info.workspace;
 
-        let Some(authorization) = workspace.authorizations.entities.get(authorization_id) else {
-            return Err(ApicizeAppError::InvalidAuthorization(
+        match workspace.authorizations.entities.get(authorization_id) {
+            Some(Authorization::Cipher(_cipher)) => {
+                Err(ApicizeAppError::ApicizeError(ApicizeError::Encryption {
+                    description: "Encyrpted authorizations may not be edited".to_string(),
+                }))
+            }
+            None => Err(ApicizeAppError::InvalidAuthorization(
                 authorization_id.to_string(),
-            ));
-        };
-
-        let Authorization::OAuth2Client {
-            id,
-            selected_certificate,
-            selected_proxy,
-            ..
-        } = authorization
-        else {
-            return Err(ApicizeAppError::InvalidAuthorization(format!(
-                "Authorization {authorization_id} is not an OAuth2 authorization"
-            )));
-        };
-
-        let notification = EntityUpdateNotification {
-            update: EntityUpdate::Authorization(AuthorizationUpdate::from_selections(
-                id,
-                selected_certificate,
-                selected_proxy,
             )),
-            validation_warnings: authorization.get_validation_warnings().clone(),
-            validation_errors: authorization.get_validation_errors().clone(),
-        };
+            Some(Authorization::Plain(auth)) => {
+                if let AuthorizationPlain::OAuth2Client {
+                    id,
+                    selected_certificate,
+                    selected_proxy,
+                    ..
+                } = auth.as_ref()
+                {
+                    let parameter_store = if workspace
+                        .authorizations
+                        .child_ids
+                        .get(PERSIST_VAULT)
+                        .is_some_and(|a| a.contains(id))
+                    {
+                        Some(ParameterStore::Vault)
+                    } else if workspace
+                        .authorizations
+                        .child_ids
+                        .get(PERSIST_PRIVATE)
+                        .is_some_and(|a| a.contains(id))
+                    {
+                        Some(ParameterStore::Private)
+                    } else {
+                        None
+                    };
 
-        let navigation = UpdatedNavigationEntry {
-            id: authorization.get_id().to_string(),
-            name: authorization.get_title(),
-            entity_type: EntityType::Authorization,
-            validation_state: authorization.get_validation_state(),
-            execution_state: ExecutionState::empty(),
-            disabled: false,
-        };
-
-        Ok((notification, navigation))
+                    Ok((
+                        EntityUpdate::Authorization(AuthorizationUpdate::from_selections(
+                            id,
+                            selected_certificate,
+                            selected_proxy,
+                        )),
+                        UpdatedNavigationEntry {
+                            id: id.to_string(),
+                            name: auth.get_title(),
+                            entity_type: EntityType::Authorization,
+                            validation_state: auth.get_validation_state(),
+                            execution_state: ExecutionState::empty(),
+                            disabled: false,
+                            encrypted: false,
+                            parameter_store,
+                        },
+                    ))
+                } else {
+                    Err(ApicizeAppError::InvalidAuthorization(format!(
+                        "Authorization {authorization_id} is not an OAuth2 authorization"
+                    )))
+                }
+            }
+        }
     }
 
     /// Update request body and return reference to request info so it can be resent
@@ -1263,7 +1426,7 @@ impl Workspaces {
         scenario: Scenario,
     ) -> Result<String, ApicizeAppError> {
         info.dirty = true;
-        let id = scenario.id.clone();
+        let id = scenario.get_id().to_string();
         info.workspace
             .scenarios
             .add_entity(scenario, relative_to, relative_position)?;
@@ -1307,7 +1470,12 @@ impl Workspaces {
         let id = update.id.to_string();
 
         let scenario = match info.workspace.scenarios.entities.get_mut(&id) {
-            Some(scenario) => scenario,
+            Some(Scenario::Plain(scenario)) => scenario.as_mut(),
+            Some(Scenario::Cipher(_cipher)) => {
+                return Err(ApicizeAppError::ApicizeError(ApicizeError::Encryption {
+                    description: "Encrypted scenarios cannot be updated".to_string(),
+                }));
+            }
             None => {
                 return Err(ApicizeAppError::InvalidScenario(id));
             }
@@ -1474,9 +1642,14 @@ impl Workspaces {
         info.dirty = true;
 
         let mut auth = match info.workspace.authorizations.entities.get_mut(&update.id) {
-            Some(auth) => auth,
+            Some(Authorization::Cipher(_cipher)) => {
+                return Err(ApicizeAppError::ApicizeError(ApicizeError::Encryption {
+                    description: "Unable to edit encrypted authorization".to_string(),
+                }));
+            }
+            Some(Authorization::Plain(auth)) => auth.as_mut(),
             None => {
-                return Err(ApicizeAppError::InvalidScenario(update.id.to_string()));
+                return Err(ApicizeAppError::InvalidAuthorization(update.id.to_string()));
             }
         };
 
@@ -1484,9 +1657,9 @@ impl Workspaces {
         match update.auth_type {
             Some(AuthorizationUpdateType::Basic) => {
                 match &mut auth {
-                    Authorization::Basic { .. } => {}
+                    AuthorizationPlain::Basic { .. } => {}
                     _ => {
-                        *auth = Authorization::Basic {
+                        *auth = AuthorizationPlain::Basic {
                             id: update.id.to_string(),
                             name: auth.get_name().to_string(),
                             username: Default::default(),
@@ -1499,9 +1672,9 @@ impl Workspaces {
                 };
             }
             Some(AuthorizationUpdateType::OAuth2Client) => match auth {
-                Authorization::OAuth2Client { .. } => {}
+                AuthorizationPlain::OAuth2Client { .. } => {}
                 _ => {
-                    *auth = Authorization::OAuth2Client {
+                    *auth = AuthorizationPlain::OAuth2Client {
                         id: update.id.to_string(),
                         name: auth.get_name().to_string(),
                         access_token_url: Default::default(),
@@ -1519,9 +1692,9 @@ impl Workspaces {
                 }
             },
             Some(AuthorizationUpdateType::OAuth2Pkce) => match auth {
-                Authorization::OAuth2Pkce { .. } => {}
+                AuthorizationPlain::OAuth2Pkce { .. } => {}
                 _ => {
-                    *auth = Authorization::OAuth2Pkce {
+                    *auth = AuthorizationPlain::OAuth2Pkce {
                         id: update.id.to_string(),
                         name: auth.get_name().to_string(),
                         authorize_url: Default::default(),
@@ -1539,9 +1712,9 @@ impl Workspaces {
                 }
             },
             Some(AuthorizationUpdateType::ApiKey) => match auth {
-                Authorization::ApiKey { .. } => {}
+                AuthorizationPlain::ApiKey { .. } => {}
                 _ => {
-                    *auth = Authorization::ApiKey {
+                    *auth = AuthorizationPlain::ApiKey {
                         id: update.id.to_string(),
                         name: auth.get_name().to_string(),
                         header: Default::default(),
@@ -1557,16 +1730,16 @@ impl Workspaces {
 
         if let Some(updated_name) = &update.name {
             match auth {
-                Authorization::Basic { name, .. } => {
+                AuthorizationPlain::Basic { name, .. } => {
                     *name = updated_name.to_string();
                 }
-                Authorization::OAuth2Client { name, .. } => {
+                AuthorizationPlain::OAuth2Client { name, .. } => {
                     *name = updated_name.to_string();
                 }
-                Authorization::OAuth2Pkce { name, .. } => {
+                AuthorizationPlain::OAuth2Pkce { name, .. } => {
                     *name = updated_name.to_string();
                 }
-                Authorization::ApiKey { name, .. } => {
+                AuthorizationPlain::ApiKey { name, .. } => {
                     *name = updated_name.to_string();
                 }
             }
@@ -1574,37 +1747,37 @@ impl Workspaces {
         }
 
         if let Some(updated_username) = &update.username
-            && let Authorization::Basic { username, .. } = auth
+            && let AuthorizationPlain::Basic { username, .. } = auth
         {
             *username = updated_username.to_string();
         }
 
         if let Some(updated_password) = &update.password
-            && let Authorization::Basic { password, .. } = auth
+            && let AuthorizationPlain::Basic { password, .. } = auth
         {
             *password = updated_password.to_string();
         }
 
         if let Some(updated_header) = &update.header
-            && let Authorization::ApiKey { header, .. } = auth
+            && let AuthorizationPlain::ApiKey { header, .. } = auth
         {
             *header = updated_header.to_string();
         }
 
         if let Some(updated_value) = &update.value
-            && let Authorization::ApiKey { value, .. } = auth
+            && let AuthorizationPlain::ApiKey { value, .. } = auth
         {
             *value = updated_value.to_string();
         }
 
         if let Some(updated_access_tokeen_url) = &update.access_token_url {
             match auth {
-                Authorization::OAuth2Client {
+                AuthorizationPlain::OAuth2Client {
                     access_token_url, ..
                 } => {
                     *access_token_url = updated_access_tokeen_url.to_string();
                 }
-                Authorization::OAuth2Pkce {
+                AuthorizationPlain::OAuth2Pkce {
                     access_token_url, ..
                 } => {
                     *access_token_url = updated_access_tokeen_url.to_string();
@@ -1614,17 +1787,17 @@ impl Workspaces {
         }
 
         if let Some(updated_authorize_url) = &update.authorize_url
-            && let Authorization::OAuth2Pkce { authorize_url, .. } = auth
+            && let AuthorizationPlain::OAuth2Pkce { authorize_url, .. } = auth
         {
             *authorize_url = updated_authorize_url.to_string();
         }
 
         if let Some(updated_client_id) = &update.client_id {
             match auth {
-                Authorization::OAuth2Client { client_id, .. } => {
+                AuthorizationPlain::OAuth2Client { client_id, .. } => {
                     *client_id = updated_client_id.to_string();
                 }
-                Authorization::OAuth2Pkce { client_id, .. } => {
+                AuthorizationPlain::OAuth2Pkce { client_id, .. } => {
                     *client_id = updated_client_id.to_string();
                 }
                 _ => {}
@@ -1632,23 +1805,23 @@ impl Workspaces {
         }
 
         if let Some(updated_client_secret) = &update.client_secret
-            && let Authorization::OAuth2Client { client_secret, .. } = auth
+            && let AuthorizationPlain::OAuth2Client { client_secret, .. } = auth
         {
             *client_secret = updated_client_secret.to_string();
         }
 
         if let Some(updated_audience) = &update.audience
-            && let Authorization::OAuth2Client { audience, .. } = auth
+            && let AuthorizationPlain::OAuth2Client { audience, .. } = auth
         {
             *audience = updated_audience.to_string();
         }
 
         if let Some(updated_scope) = &update.scope {
             match auth {
-                Authorization::OAuth2Client { scope, .. } => {
+                AuthorizationPlain::OAuth2Client { scope, .. } => {
                     *scope = updated_scope.to_string();
                 }
-                Authorization::OAuth2Pkce { scope, .. } => {
+                AuthorizationPlain::OAuth2Pkce { scope, .. } => {
                     *scope = updated_scope.to_string();
                 }
                 _ => {}
@@ -1656,7 +1829,7 @@ impl Workspaces {
         }
 
         if let Some(updated_selected_certificate) = &update.selected_certificate
-            && let Authorization::OAuth2Client {
+            && let AuthorizationPlain::OAuth2Client {
                 selected_certificate,
                 ..
             } = auth
@@ -1665,20 +1838,20 @@ impl Workspaces {
         }
 
         if let Some(updated_selected_proxy) = &update.selected_proxy
-            && let Authorization::OAuth2Client { selected_proxy, .. } = auth
+            && let AuthorizationPlain::OAuth2Client { selected_proxy, .. } = auth
         {
             *selected_proxy = updated_selected_proxy.clone();
         }
 
         if let Some(updated_send_credentials_in_body) = &update.send_credentials_in_body {
             match auth {
-                Authorization::OAuth2Client {
+                AuthorizationPlain::OAuth2Client {
                     send_credentials_in_body,
                     ..
                 } => {
                     *send_credentials_in_body = *updated_send_credentials_in_body;
                 }
-                Authorization::OAuth2Pkce {
+                AuthorizationPlain::OAuth2Pkce {
                     send_credentials_in_body,
                     ..
                 } => {
@@ -1859,9 +2032,14 @@ impl Workspaces {
         info.dirty = true;
 
         let mut cert = match info.workspace.certificates.entities.get_mut(&update.id) {
-            Some(cert) => cert,
+            Some(Certificate::Cipher(_cipher)) => {
+                return Err(ApicizeAppError::ApicizeError(ApicizeError::Encryption {
+                    description: "Unable to edit encrypted certificate".to_string(),
+                }));
+            }
+            Some(Certificate::Plain(cert)) => cert.as_mut(),
             None => {
-                return Err(ApicizeAppError::InvalidScenario(update.id.to_string()));
+                return Err(ApicizeAppError::InvalidCertificate(update.id.to_string()));
             }
         };
 
@@ -1869,9 +2047,9 @@ impl Workspaces {
         match update.cert_type {
             Some(CertificateUpdateType::PKCS12) => {
                 match &mut cert {
-                    Certificate::PKCS12 { .. } => {}
+                    CertificatePlain::PKCS12 { .. } => {}
                     _ => {
-                        *cert = Certificate::PKCS12 {
+                        *cert = CertificatePlain::PKCS12 {
                             id: update.id.to_string(),
                             name: cert.get_name().to_string(),
                             pfx: vec![],
@@ -1884,9 +2062,9 @@ impl Workspaces {
                 };
             }
             Some(CertificateUpdateType::PKCS8PEM) => match cert {
-                Certificate::PKCS8PEM { .. } => {}
+                CertificatePlain::PKCS8PEM { .. } => {}
                 _ => {
-                    *cert = Certificate::PKCS8PEM {
+                    *cert = CertificatePlain::PKCS8PEM {
                         id: update.id.to_string(),
                         name: cert.get_name().to_string(),
                         pem: vec![],
@@ -1898,9 +2076,9 @@ impl Workspaces {
                 }
             },
             Some(CertificateUpdateType::PEM) => match cert {
-                Certificate::PEM { .. } => {}
+                CertificatePlain::PEM { .. } => {}
                 _ => {
-                    *cert = Certificate::PEM {
+                    *cert = CertificatePlain::PEM {
                         id: update.id.to_string(),
                         name: cert.get_name().to_string(),
                         pem: vec![],
@@ -1915,13 +2093,13 @@ impl Workspaces {
 
         if let Some(updated_name) = &update.name {
             match cert {
-                Certificate::PKCS12 { name, .. } => {
+                CertificatePlain::PKCS12 { name, .. } => {
                     *name = updated_name.to_string();
                 }
-                Certificate::PKCS8PEM { name, .. } => {
+                CertificatePlain::PKCS8PEM { name, .. } => {
                     *name = updated_name.to_string();
                 }
-                Certificate::PEM { name, .. } => {
+                CertificatePlain::PEM { name, .. } => {
                     *name = updated_name.to_string();
                 }
             }
@@ -1929,23 +2107,23 @@ impl Workspaces {
         }
 
         if let Some(updated_pfx) = &update.pfx
-            && let Certificate::PKCS12 { pfx, .. } = cert
+            && let CertificatePlain::PKCS12 { pfx, .. } = cert
         {
             *pfx = updated_pfx.to_vec();
         }
 
         if let Some(updated_password) = &update.password
-            && let Certificate::PKCS12 { password, .. } = cert
+            && let CertificatePlain::PKCS12 { password, .. } = cert
         {
             *password = updated_password.clone();
         }
 
         if let Some(updated_pem) = &update.pem {
             match cert {
-                Certificate::PKCS8PEM { pem, .. } => {
+                CertificatePlain::PKCS8PEM { pem, .. } => {
                     *pem = updated_pem.to_vec();
                 }
-                Certificate::PEM { pem, .. } => {
+                CertificatePlain::PEM { pem, .. } => {
                     *pem = updated_pem.to_vec();
                 }
                 _ => {}
@@ -1953,7 +2131,7 @@ impl Workspaces {
         }
 
         if let Some(updated_key) = &update.key
-            && let Certificate::PKCS8PEM { key, .. } = cert
+            && let CertificatePlain::PKCS8PEM { key, .. } = cert
         {
             *key = updated_key.to_vec();
         }
@@ -2021,7 +2199,7 @@ impl Workspaces {
         let info = self.get_workspace_info_mut(workspace_id)?;
         let proxy = match clone_from_id {
             Some(other_id) => match info.workspace.proxies.get(other_id) {
-                Some(other) => other.clone_as_new(Self::create_copy_name(&other.name)),
+                Some(other) => other.clone_as_new(Self::create_copy_name(other.get_name())),
                 None => return Err(ApicizeAppError::InvalidProxy(other_id.to_owned())),
             },
             None => Proxy::default(),
@@ -2052,7 +2230,7 @@ impl Workspaces {
         proxy: Proxy,
     ) -> Result<String, ApicizeAppError> {
         info.dirty = true;
-        let id = proxy.id.clone();
+        let id = proxy.get_id().to_string();
         info.workspace
             .proxies
             .add_entity(proxy, relative_to, relative_position)?;
@@ -2094,12 +2272,15 @@ impl Workspaces {
         let info = self.get_workspace_info_mut(workspace_id)?;
         info.dirty = true;
 
-        let id = update.id.to_string();
-
-        let proxy = match info.workspace.proxies.entities.get_mut(&id) {
-            Some(proxy) => proxy,
+        let proxy = match info.workspace.proxies.entities.get_mut(&update.id) {
+            Some(Proxy::Cipher(_cipher)) => {
+                return Err(ApicizeAppError::ApicizeError(ApicizeError::Encryption {
+                    description: "Unable to edit encrypted proxy".to_string(),
+                }));
+            }
+            Some(Proxy::Plain(proxy)) => proxy.as_mut(),
             None => {
-                return Err(ApicizeAppError::InvalidProxy(id));
+                return Err(ApicizeAppError::InvalidProxy(update.id.to_string()));
             }
         };
 
@@ -2120,7 +2301,7 @@ impl Workspaces {
 
         let response = UpdateWithNavigationResponse {
             navigation: info.check_parameter_navigation_update(
-                &id,
+                &update.id,
                 &updated_name,
                 updated_validation_state,
                 EntityType::Proxy,
@@ -2132,14 +2313,14 @@ impl Workspaces {
         // Update request entry selections
         for request_entry in info.workspace.requests.entities.values_mut() {
             let proxy = request_entry.selected_proxy_as_mut();
-            if proxy.id == id {
+            if proxy.id == update.id {
                 proxy.name = updated_name.clone();
             }
         }
 
         // Update workspace default entry selection
         let proxy = info.workspace.defaults.selected_proxy_as_mut();
-        if proxy.id == id {
+        if proxy.id == update.id {
             proxy.name = updated_name;
         }
 
@@ -2204,6 +2385,8 @@ impl Workspaces {
                     validation_state: updated_validation_state,
                     execution_state: ExecutionState::empty(),
                     disabled: false,
+                    encrypted: false,
+                    parameter_store: None,
                 })
             } else {
                 None
@@ -2806,6 +2989,8 @@ impl WorkspaceInfo {
                     validation_state: updated_validation_state,
                     execution_state: entry.execution_state,
                     disabled: false,
+                    encrypted: entry.encrypted,
+                    parameter_store: entry.parameter_store,
                 })
             } else {
                 None
@@ -2816,8 +3001,8 @@ impl WorkspaceInfo {
     }
 
     /// Build a request execution struct
-    pub fn build_request_execution(
-        &self,
+    pub fn rebuild_request_execution(
+        &mut self,
         request_or_group_id: &str,
     ) -> Result<RequestExecution, ApicizeAppError> {
         let menu = self.build_result_menu_items(request_or_group_id)?;
@@ -2838,11 +3023,13 @@ impl WorkspaceInfo {
             })
             .collect::<IndexMap<usize, ExecutionResultSummary>>();
 
-        Ok(RequestExecution {
+        let execution = RequestExecution {
             menu,
             execution_state,
             active_summaries,
-        })
+        };
+        self.executions.insert(request_or_group_id.to_string(), execution.clone());
+        Ok(execution)
     }
 
     pub fn check_request_navigation_update(
@@ -2891,6 +3078,8 @@ impl WorkspaceInfo {
                         validation_state: updated_validation_state,
                         execution_state: updated_execution_state,
                         disabled: entry.disabled,
+                        encrypted: false,
+                        parameter_store: None,
                     }))
                 } else {
                     Ok(None)
@@ -2959,38 +3148,52 @@ impl WorkspaceInfo {
             }
         };
 
-        let get_request_entry = |request_id: &str| -> Result<RequestEntry, ApicizeAppError> {
-            let entry = self
+        let get_group = |group_id: &str| {
+            let request_entry = self
                 .workspace
                 .requests
                 .entities
-                .get(request_id)
-                .ok_or(ApicizeAppError::InvalidRequest(request_id.to_string()))?;
-            let mut result = entry.clone();
-            if let RequestEntry::Group(group) = &mut result {
-                group.children = if let Some(child_ids) =
-                    self.workspace.requests.child_ids.get(request_id)
-                    && !child_ids.is_empty()
-                {
-                    Some(
-                        child_ids
-                            .iter()
-                            .map(|child_id| {
-                                self.workspace
-                                    .requests
-                                    .entities
-                                    .get(child_id)
-                                    .ok_or(ApicizeAppError::InvalidRequest(child_id.to_string()))
-                                    .cloned()
-                            })
-                            .collect::<Result<Vec<RequestEntry>, ApicizeAppError>>()?,
-                    )
-                } else {
-                    None
-                };
+                .get(group_id)
+                .ok_or(ApicizeAppError::InvalidRequest(group_id.to_string()))?;
+            if let RequestEntry::Group(group) = request_entry {
+                Ok(group)
+            } else {
+                Err(ApicizeAppError::InvalidGroup(group_id.to_string()))
             }
-            Ok(result)
         };
+
+        let get_request_entry_recursive =
+            |request_id: &str| -> Result<RequestEntry, ApicizeAppError> {
+                fn recurse(
+                    request_id: &str,
+                    entities: &std::collections::HashMap<String, RequestEntry>,
+                    child_ids: &std::collections::HashMap<String, Vec<String>>,
+                ) -> Result<RequestEntry, ApicizeAppError> {
+                    let entry = entities
+                        .get(request_id)
+                        .ok_or(ApicizeAppError::InvalidRequest(request_id.to_string()))?;
+                    let mut result = entry.clone();
+                    if let RequestEntry::Group(group) = &mut result {
+                        group.children = if let Some(ids) = child_ids.get(request_id)
+                            && !ids.is_empty()
+                        {
+                            Some(
+                                ids.iter()
+                                    .map(|child_id| recurse(child_id, entities, child_ids))
+                                    .collect::<Result<Vec<RequestEntry>, ApicizeAppError>>()?,
+                            )
+                        } else {
+                            None
+                        };
+                    }
+                    Ok(result)
+                }
+                recurse(
+                    request_id,
+                    &self.workspace.requests.entities,
+                    &self.workspace.requests.child_ids,
+                )
+            };
 
         let get_execution_summaries =
             |exec_ctr: &usize| self.execution_results.get_result_summaries(exec_ctr);
@@ -3005,59 +3208,63 @@ impl WorkspaceInfo {
 
         match payload_request {
             ClipboardPayloadRequest::Request { request_id } => {
-                let entry = get_request_entry(&request_id)?;
+                let entry = get_request_entry_recursive(&request_id)?;
                 let data = ClipboardData::RequestEntry {
-                    entry: StoredRequestEntry::from(entry),
+                    entry: Box::new(StoredRequestEntry::from(entry)),
                 };
                 Ok(Some(PersistableData::Text(serde_json::to_string(&data)?)))
             }
             ClipboardPayloadRequest::Scenario { scenario_id } => {
                 let data = ClipboardData::Scenario {
-                    scenario: self
-                        .workspace
-                        .scenarios
-                        .entities
-                        .get(&scenario_id)
-                        .ok_or(ApicizeAppError::InvalidScenario(scenario_id))?
-                        .clone(),
+                    scenario: Box::new(
+                        self.workspace
+                            .scenarios
+                            .entities
+                            .get(&scenario_id)
+                            .ok_or(ApicizeAppError::InvalidScenario(scenario_id))?
+                            .clone(),
+                    ),
                 };
                 Ok(Some(PersistableData::Text(serde_json::to_string(&data)?)))
             }
             ClipboardPayloadRequest::Authorization { authorization_id } => {
                 let data = ClipboardData::Authorization {
-                    authorization: self
-                        .workspace
-                        .authorizations
-                        .entities
-                        .get(&authorization_id)
-                        .ok_or(ApicizeAppError::InvalidAuthorization(authorization_id))?
-                        .clone(),
+                    authorization: Box::new(
+                        self.workspace
+                            .authorizations
+                            .entities
+                            .get(&authorization_id)
+                            .ok_or(ApicizeAppError::InvalidAuthorization(authorization_id))?
+                            .clone(),
+                    ),
                 };
 
                 Ok(Some(PersistableData::Text(serde_json::to_string(&data)?)))
             }
             ClipboardPayloadRequest::Certificate { certificate_id } => {
                 let data = ClipboardData::Certificate {
-                    certificate: self
-                        .workspace
-                        .certificates
-                        .entities
-                        .get(&certificate_id)
-                        .ok_or(ApicizeAppError::InvalidCertificate(certificate_id))?
-                        .clone(),
+                    certificate: Box::new(
+                        self.workspace
+                            .certificates
+                            .entities
+                            .get(&certificate_id)
+                            .ok_or(ApicizeAppError::InvalidCertificate(certificate_id))?
+                            .clone(),
+                    ),
                 };
 
                 Ok(Some(PersistableData::Text(serde_json::to_string(&data)?)))
             }
             ClipboardPayloadRequest::Proxy { proxy_id } => {
                 let data = ClipboardData::Proxy {
-                    proxy: self
-                        .workspace
-                        .proxies
-                        .entities
-                        .get(&proxy_id)
-                        .ok_or(ApicizeAppError::InvalidProxy(proxy_id))?
-                        .clone(),
+                    proxy: Box::new(
+                        self.workspace
+                            .proxies
+                            .entities
+                            .get(&proxy_id)
+                            .ok_or(ApicizeAppError::InvalidProxy(proxy_id))?
+                            .clone(),
+                    ),
                 };
 
                 Ok(Some(PersistableData::Text(serde_json::to_string(&data)?)))
@@ -3097,6 +3304,16 @@ impl WorkspaceInfo {
                     && !test.is_empty()
                 {
                     Ok(Some(PersistableData::Text(test.to_string())))
+                } else {
+                    Ok(None)
+                }
+            }
+            ClipboardPayloadRequest::GroupSetup { group_id } => {
+                let group = get_group(&group_id)?;
+                if let Some(setup) = &group.setup
+                    && !setup.is_empty()
+                {
+                    Ok(Some(PersistableData::Text(setup.to_string())))
                 } else {
                     Ok(None)
                 }
@@ -3185,12 +3402,28 @@ impl WorkspaceInfo {
                 }
             }
             ClipboardPayloadRequest::ResponseDetail { exec_ctr } => {
+                let mut detail: ExecutionResultDetail =
+                    self.execution_results.get_detail(&exec_ctr)?.clone();
+                if let ExecutionResultDetail::Request(detail) = &mut detail {
+                    detail.curl = None;
+                }
+                Ok(Some(PersistableData::Text(serde_json::to_string_pretty(
+                    &detail,
+                )?)))
+            }
+            ClipboardPayloadRequest::ResponseCurl { exec_ctr } => {
                 let detail: &ExecutionResultDetail =
                     self.execution_results.get_detail(&exec_ctr)?;
-
-                Ok(Some(PersistableData::Text(serde_json::to_string_pretty(
-                    detail,
-                )?)))
+                if let ExecutionResultDetail::Request(detail) = detail
+                    && let Some(curl) = &detail.curl
+                    && !curl.is_empty()
+                {
+                    Ok(Some(PersistableData::Text(curl.to_string())))
+                } else {
+                    Err(ApicizeAppError::ClipboardError(
+                        "CURL command not available".to_string(),
+                    ))
+                }
             }
         }
     }
@@ -3209,17 +3442,19 @@ impl WorkspaceInfo {
     fn perform_delete_executions(
         &mut self,
         request_or_group_id: &str,
+        include_children: bool,
         deleted_ids: &mut Vec<String>,
     ) {
-        if let Some(child_ids) = &self
-            .workspace
-            .requests
-            .child_ids
-            .get(request_or_group_id)
-            .map(|ids| ids.iter().map(|id| id.to_string()).collect::<Vec<String>>())
+        if include_children
+            && let Some(child_ids) = &self
+                .workspace
+                .requests
+                .child_ids
+                .get(request_or_group_id)
+                .map(|ids| ids.iter().map(|id| id.to_string()).collect::<Vec<String>>())
         {
             for child_id in child_ids {
-                self.delete_executions(child_id);
+                self.delete_executions(child_id, include_children);
             }
         }
 
@@ -3227,12 +3462,21 @@ impl WorkspaceInfo {
             self.executions.remove(request_or_group_id);
             deleted_ids.push(request_or_group_id.to_string());
         }
+        deleted_ids.extend(
+            self.execution_results
+                .delete_indexed_request_results(request_or_group_id),
+        );
     }
 
     /// Clear executions of request/group (including children), return IDs of executions cleared
-    pub fn delete_executions(&mut self, request_or_group_id: &str) -> Vec<String> {
+    pub fn delete_executions(
+        &mut self,
+        request_or_group_id: &str,
+        include_children: bool,
+    ) -> Vec<String> {
         let mut deleted_ids = Vec::<String>::new();
-        self.perform_delete_executions(request_or_group_id, &mut deleted_ids);
+
+        self.perform_delete_executions(request_or_group_id, include_children, &mut deleted_ids);
         deleted_ids
     }
 
@@ -3534,6 +3778,8 @@ pub enum ClipboardPayloadRequest {
     #[serde(rename_all = "camelCase")]
     RequestTest { request_id: String },
     #[serde(rename_all = "camelCase")]
+    GroupSetup { group_id: String },
+    #[serde(rename_all = "camelCase")]
     ResponseSummaryJson { exec_ctr: usize },
     #[serde(rename_all = "camelCase")]
     ResponseSummaryCsv { exec_ctr: usize },
@@ -3543,6 +3789,8 @@ pub enum ClipboardPayloadRequest {
     ResponseBodyPreview { exec_ctr: usize },
     #[serde(rename_all = "camelCase")]
     ResponseDetail { exec_ctr: usize },
+    #[serde(rename_all = "camelCase")]
+    ResponseCurl { exec_ctr: usize },
 }
 
 /// Describe data to read and write from clipboard or file
@@ -3592,7 +3840,7 @@ pub enum ExecutionEvent {
     #[serde(rename_all = "camelCase")]
     Complete(RequestExecution),
     #[serde(rename_all = "camelCase")]
-    Clear(RequestExecution),
+    Reset(RequestExecution),
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -3605,6 +3853,14 @@ pub struct WorkspaceInitialization {
     pub navigation: Navigation,
     /// State information for saving the workbook
     pub save_state: SessionSaveState,
+    /// Indicates the Vault file's password protection status
+    pub private_lock_status: ParameterLockStatus,
+    /// Indicates the Vault file's password protection status
+    pub vault_lock_status: ParameterLockStatus,
+    /// Indicates that an environment variable to set Private store passwords exists
+    pub private_env_var_set: bool,
+    /// Indicates that an environment variable to set the Vault password exists
+    pub vault_env_var_set: bool,
     /// Execution information cached client-side
     pub executions: FxHashMap<String, ExecutionEvent>,
     /// Workbook default parameters
@@ -3624,7 +3880,7 @@ pub enum WorkspaceMode {
     Normal = 0,
     Help = 1,
     Settings = 2,
-    Defaults = 3,
+    // Defaults = 3,
     // Warnings,
     Console = 4,
     RequestList = 5,
@@ -3649,7 +3905,7 @@ impl TryFrom<u8> for WorkspaceMode {
             0 => Ok(WorkspaceMode::Normal),
             1 => Ok(WorkspaceMode::Help),
             2 => Ok(WorkspaceMode::Settings),
-            3 => Ok(WorkspaceMode::Defaults),
+            // 3 => Ok(WorkspaceMode::Defaults),
             // Warnings,
             4 => Ok(WorkspaceMode::Console),
             5 => Ok(WorkspaceMode::RequestList),
@@ -3684,4 +3940,18 @@ pub struct OpenDataSetFileResponse {
     pub data_set_content: Option<DataSetContent>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub validation_errors: Option<HashMap<String, String>>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub enum EncryptionFile {
+    Private,
+    Vault,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(tag = "lock")]
+pub enum PasswordLockType {
+    Password { password: String },
+    EnvVar,
+    None,
 }

@@ -7,7 +7,7 @@ import LogIcon from "../../icons/log-icon"
 import CloseIcon from '@mui/icons-material/Close';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import ClearAllIcon from '@mui/icons-material/ClearAll';
-import React, { useEffect, useRef } from "react"
+import { useEffect, useRef } from "react"
 import { useClipboard } from "../../contexts/clipboard.context"
 import { useWorkspace } from "../../contexts/workspace.context"
 import { reaction, runInAction } from "mobx"
@@ -87,7 +87,9 @@ export const LogViewer = observer(({
             .catch(e => feedback.toastError(e))
     }
 
-    return <Stack display='flex' direction='column' className='log-panel' width='100%' sx={sx}>
+    const isEmpty = log.events.length === 0
+
+    return <Stack direction='column' className='log-panel' width='100%' sx={sx}>
         <Box className='editor-panel-header' sx={{ maxWidth: 'None' }} flexGrow={0}>
             <EditorTitle icon={<SvgIcon><LogIcon /></SvgIcon>} name='Communication Logs'>
                 <Box>
@@ -97,12 +99,13 @@ export const LogViewer = observer(({
                         size='medium'
                         color='primary'
                         sx={{ marginLeft: '1rem' }}
+                        disabled={isEmpty}
                         onClick={_ => {
                             clipboard.writeTextToClipboard(eventsToText()).catch(err => feedback.toastError(err))
                         }}>
                         <ContentCopyIcon />
                     </IconButton>
-                    <IconButton color='primary' size='medium' aria-label='Clear' title='Clear Entries' onClick={() => clear()}><ClearAllIcon fontSize='inherit' color='warning' /></IconButton>
+                    <IconButton color='primary' size='medium' aria-label='Clear' title='Clear Entries' disabled={isEmpty} onClick={() => clear()}><ClearAllIcon fontSize='inherit' color={isEmpty ? 'disabled' : 'warning'} /></IconButton>
                     <IconButton color='primary' size='medium' aria-label='Close' title='Close' onClick={() => workspace.returnToNormal()}><CloseIcon fontSize='inherit' color='error' /></IconButton>
                 </Box>
             </EditorTitle>
@@ -110,7 +113,7 @@ export const LogViewer = observer(({
                 <FormControlLabel control={<Checkbox checked={log.follow} onChange={(e) => log.setFollow(e.target.checked)} />} label="Follow Log" />
             </FormControl>
         </Box>
-        <Box className='editor-panel' display='flex' flexGrow={1} bottom={0} position='relative' maxWidth='None'>
+        <Box className='editor-panel' display='flex' flexGrow={1} minHeight={0} bottom={0} position='relative' maxWidth='None'>
             <Stack ref={bottomRef} direction={'column'} spacing={1} className='console' paddingBottom='2em' paddingRight='2em' flexGrow='1'>
                 {log.events.map(renderEvent)}
             </Stack>

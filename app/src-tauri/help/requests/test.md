@@ -11,5 +11,5 @@ Read the section on [**Authoring Tests**](help:authoring-tests) for information 
 ### See Also
 
 * [**Running Tests**](help:running-tests)
-* [**Requests**](help:requests)
+* [**Requests**](help:workspace/requests)
 * [**Workspace**](help:home)

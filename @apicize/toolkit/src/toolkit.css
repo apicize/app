@@ -3,7 +3,7 @@
 }
 
 .resize-handle {
-  width: 4em;
+  width: 4rem;
 }
 
 body .light {
@@ -26,7 +26,7 @@ body .light {
 
 @media (pointer: coarse) {
   .resize-handle {
-    flex: 0 0 2em;
+    flex: 0 0 2rem;
   }
 }
 
@@ -36,32 +36,37 @@ body .light {
   height: 100vh;
   background-color: #03021f;
   color: #fff;
-  padding: 0.5em 1em;
+  padding: 0.5rem 1rem;
 }
 
 .help>* {
-  padding: 0 1em;
+  padding: 0 1rem;
 }
 
 .help .logo {
-  margin-top: 0.5em;
-  margin-right: 1em;
+  margin-top: 0.5rem;
+  margin-right: 1rem;
 }
 
 .help .MuiTypography-h1:first-of-type {
-  min-height: 4em;
-  margin: 0 0 1em 0;
+  min-height: 4rem;
+  margin: 0 0 1rem 0;
   padding: 0;
   display: flex;
-  font-size: 1.5em;
+  font-size: 1.5rem;
   width: 100%;
   align-items: center;
   justify-content: start;
 }
 
+.help .MuiTypography-h1:first-of-type svg.help-icon {
+  font-size: 1.5rem;
+}
+
 
 .help-icon {
   vertical-align: middle;
+  margin-right: 0.5rem;
 }
 
 .help .logo-icon {
@@ -78,8 +83,14 @@ body .light {
 }
 
 .help .logo-header .MuiTypography-h1 {
-  font-size: 2em;
+  font-size: 3rem;
   height: auto;
+}
+
+.help .logo-header .MuiTypography-h2 {
+  font-size: 2rem;
+  height: auto;
+  margin-bottom: 1rem;
 }
 
 
@@ -93,15 +104,6 @@ body .light {
   min-height: 0;
 }
 
-
-/* 
-
-.help .MuiTypography-h1:first-of-type svg.help-icon {
-  height: 1.5em;
-  width: 1.5em;
-} */
-
-
 .help-toolbar {
   display: flex;
   flex-direction: row;
@@ -113,7 +115,7 @@ body .light {
   flex-direction: row;
   flex-grow: 0;
   justify-content: start;
-  margin-left: 1em;
+  margin-left: 1rem;
 }
 
 .help-toolbar-start .MuiIconButton-root:first-child {
@@ -135,18 +137,17 @@ body .light {
   align-self: start;
 }
 
-.help-toolbar button {
-  font-size: 1em;
+.help-toolbar .MuiSvgIcon-root {
+  font-size: 2rem;
 }
 
-.MuiTypeography-h1 .help-icon {
-  margin-right: 0.25em;
-}
+/* .MuiTypography-h1 .help-icon {
+  margin-left: 1.5rem;
+} */
 
-.MuiTypeography-h2 .help-icon {
-  margin-left: 0.25em;
+.MuiTypography-h2 .help-icon {
+  margin-left: 1.5rem;
 }
-
 
 .help .MuiTypography-body1,
 .help pre,
@@ -156,15 +157,17 @@ body .light {
 }
 
 .help .MuiTypography-h1 {
+  display: flex;
+  justify-items: center;
   margin: 1.0rem 0 1.0rem 0;
 }
 
 .help .MuiTypography-h2 {
-  font-size: 1.3em;
+  font-size: 1.6rem;
 }
 
 .help .MuiTypography-h3 {
-  font-size: 1.15em;
+  font-size: 1.2rem;
 }
 
 
@@ -172,6 +175,16 @@ body .light {
 .help .MuiTypography-h3 {
   margin: 1.0rem 0 0.5rem 0;
   padding: 0;
+}
+
+.help .MuiTypography-h1,
+.help .MuiTypography-h2,
+.help .MuiTypography-h3,
+.help .MuiTypography-h4,
+.help .MuiTypography-h5,
+.help .MuiTypography-h6 {
+  display: flex;
+  align-items: center;
 }
 
 .help blockquote {
@@ -183,14 +196,14 @@ body .light {
   display: block;
   align-items: center;
   background-color: #3a3886;
-  padding: 1em;
+  padding: 1rem;
   margin: 0;
 }
 
 .help img {
   position: relative;
   max-width: 80%;
-  margin: 2em 0;
+  margin: 2rem 0;
 }
 
 .help table {
@@ -203,24 +216,24 @@ body .light {
 
 .help td,
 .help th {
-  padding: 0.5em;
+  padding: 0.5rem;
 }
 
 .help-contents .MuiMenuItem-root {
-  padding-top: 0.3em;
-  padding-bottom: 0.3em;
+  padding-top: 0.3rem;
+  padding-bottom: 0.3rem;
 }
 
 .help-contents .MuiListSubheader-root {
   font-size: inherit;
   font-weight: bold !important;
-  padding-top: 0.3em;
-  padding-bottom: 0.3em;
+  padding-top: 0.3rem;
+  padding-bottom: 0.3rem;
   line-height: normal;
 }
 
 .help-contents .child-menu {
-  padding-left: 2em;
+  padding-left: 2rem;
 }
 
 
@@ -241,7 +254,8 @@ pre,
 }
 
 .console {
-  bottom: 0;
+  flex: 1;
+  min-height: 0;
   overflow: auto;
 }
 
@@ -253,7 +267,7 @@ pre.log {
   margin-bottom: 0;
   white-space: normal;
   word-break: break-word;
-  /* font-size: 0.9em; */
+  /* font-size: 0.9rem; */
   /* line-height: 1.1; */
 }
 
@@ -261,7 +275,7 @@ pre.log {
 .navigation-narrow {
   top: 0;
   left: 0;
-  width: 4em;
+  width: 4rem;
   padding: 0;
   background-color: #202020;
   display: flex;
@@ -276,15 +290,15 @@ pre.log {
 }
 
 .MuiCollapse-root.MuiTreeItem-groupTransition {
-  padding-left: 2em;
+  padding-left: 2rem;
 }
 
 .MuiTreeItem-iconContainer {
-  padding: 0.1rem 0.5rem 0.1rem 1.0em;
+  padding: 0.1rem 0.5rem 0.1rem 1.0rem;
 }
 
 .nav-item {
-  padding: 0.35em;
+  padding: 0.35rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -306,8 +320,8 @@ pre.log {
   flex-direction: row;
   justify-items: center;
   align-items: center;
-  height: 1.5em;
-  width: 3em;
+  height: 1.5rem;
+  width: 3rem;
 }
 
 .nav-state-icon-container {
@@ -315,11 +329,11 @@ pre.log {
   flex-direction: row;
   justify-content: center;
   align-items: center;
-  margin-left: 0.5em;
+  margin-left: 0.5rem;
 }
 
 .nav-state-icon-container .MuiSvgIcon-fontSizeSmall {
-  font-size: 1.0em;
+  font-size: 1.0rem;
 }
 
 .run-toolbar-menuitem,
@@ -331,22 +345,22 @@ pre.log {
 .run-toolbar-menuitem .MuiSvgIcon-fontSizeSmall,
 .run-toolbar .MuiInputBase-input .MuiSvgIcon-fontSizeSmall {
   display: inline-flex;
-  margin-left: 0.5em;
-  font-size: 1.0em;
+  margin-left: 0.5rem;
+  font-size: 1.0rem;
 }
 
 .nav-icon-box {
   flex-grow: 0;
   display: flex;
   justify-items: center;
-  width: 2em;
+  width: 2rem;
 }
 
 .nav-icon-context {
   flex-grow: 0;
   display: flex;
   justify-items: center;
-  padding: 0.1em;
+  padding: 0.1rem;
 }
 
 .nav-toolbar {
@@ -357,7 +371,7 @@ pre.log {
 .nav-toolbar .MuiSvgIcon-root,
 .nav-toolbar svg,
 .nav-toolbar Button {
-  font-size: 1.3em;
+  font-size: 1.5rem;
 }
 
 .nav-toolbar Button {
@@ -388,16 +402,16 @@ pre.log {
 .navigation-tree {
   height: 100vh;
   flex-grow: 1;
-  max-width: 50em;
+  max-width: 50rem;
   overflow-y: auto;
-  padding-left: 1em !important;
+  padding-left: 1rem !important;
 }
 
 .nav-selection-pane {
   flex-shrink: 0;
   bottom: 0;
   overflow: auto;
-  margin-right: 0.1em;
+  margin-right: 0.1rem;
 }
 
 .namevalue-col-btn {
@@ -405,7 +419,7 @@ pre.log {
 }
 
 .button-column {
-  width: 3em;
+  width: 3rem;
 }
 
 .editor {
@@ -425,20 +439,20 @@ pre.log {
   flex-direction: column;
 }
 
-.editor.single-panel {
-  max-width: 70em;
+.single-panel {
+  max-width: 70rem;
 }
 
 .editor-panel-header {
   display: flex;
   justify-content: space-between;
-  /* max-width: 70em; */
+  /* max-width: 70rem; */
   flex-direction: row;
   align-items: center;
-  min-height: 4em;
+  min-height: 4rem;
   margin: 0;
-  padding: 0 1em;
-  height: 4em;
+  padding: 0 1rem;
+  height: 4rem;
 }
 
 .editor-title {
@@ -447,7 +461,7 @@ pre.log {
 }
 
 .editor-title .icon {
-  margin: auto 1em auto 0;
+  margin: auto 1rem auto 0;
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -464,8 +478,8 @@ pre.log {
   flex-direction: column;
   overflow: auto;
   margin: 0;
-  /* max-width: 70em; */
-  padding: 3em 1em 1em 1em;
+  /* max-width: 70rem; */
+  padding: 3rem 1rem 1rem 1rem;
 }
 
 .editor-content {
@@ -478,17 +492,18 @@ pre.log {
   flex-direction: column;
   overflow: auto;
   margin: 0;
-  padding: 1em 1em 1em 1em;
+  padding: 1rem 1rem 1rem 1rem;
 }
 
 .panels {
-  /* padding: 0 1em 0 0; */
-  /* max-width: 65em; */
-  margin-bottom: 1.5em;
+  /* padding: 0 1rem 0 0; */
+  /* max-width: 65rem; */
+  margin-bottom: 1.5rem;
 }
 
 .panels.full-width {
   max-width: None;
+  width: 100%;
 }
 
 .split-left {
@@ -514,17 +529,17 @@ pre.log {
 }
 
 .panels {
-  padding: 0.5em 0 0 0;
+  padding: 0.5rem 0 0 0;
   margin: 0;
 }
 
 .split-left .editor-panel-header {
-  padding: 1em 0 1em 1em;
+  padding: 1rem 0 1rem 1rem;
   margin: 0;
 }
 
 .split-right .editor-panel-header {
-  padding: 1em 1em 1em 0;
+  padding: 1rem 1rem 1rem 0;
   margin: 0;
 }
 
@@ -544,9 +559,14 @@ pre.log {
   flex-direction: column;
   overflow: none;
   margin: 0;
-  padding: 0 0 0 12px;
+  padding: 12px 0 0 12px;
 }
 
+.settings-panel {
+  padding: 0 0 0 12px;
+  display: flex;
+  flex-grow: 1;
+}
 
 .nav-selection-pane button {
   border-bottom-left-radius: 0;
@@ -556,7 +576,7 @@ pre.log {
 }
 
 .recent-file .filename {
-  margin-right: 0.5em;
+  margin-right: 0.5rem;
   display: inline-block;
 }
 
@@ -566,15 +586,15 @@ pre.log {
 
 .drop-down-menu .MuiPaper-root {
   opacity: 0.85 !important;
-  margin-top: 1em;
+  margin-top: 1rem;
 }
 
 .test-details {
-  padding-left: 1.5em;
+  padding-left: 1.5rem;
 }
 
 .diag.id {
-  font-size: 0.8em;
+  font-size: 0.8rem;
 }
 
 .results-panel {
@@ -583,7 +603,7 @@ pre.log {
   flex-direction: column;
   overflow: auto;
   margin: 0;
-  padding: 3em 1em 1em 1em;
+  padding: 3rem 1rem 1rem 1rem;
 }
 
 .results-info {
@@ -595,7 +615,7 @@ pre.log {
 }
 
 .results-test-section {
-  margin: 1rem 0rem 1.5rem 1.5em;
+  margin: 1rem 0rem 1.5rem 1.5rem;
 }
 
 .results-test-name {
@@ -604,11 +624,12 @@ pre.log {
 }
 
 .results-test-timing {
-  margin-top: 0.2em;
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
 }
 
 .results-test-timing>div:nth-child(2) {
-  margin-top: 0.25em;
+  margin-top: 0.25rem;
 }
 
 .test-result {
@@ -630,11 +651,11 @@ pre.log {
 }
 
 .test-result-detail-info {
-  margin: 0.2em 0;
+  margin: 0.2rem 0;
 }
 
 .test-result-behavior {
-  margin-top: 0.5em;
+  margin-top: 0.5rem;
 }
 
 /* .test-result.behavior:not(:first-child) {
@@ -642,7 +663,7 @@ pre.log {
 } */
 
 .test-result-icon {
-  width: 2.0em;
+  width: 2.0rem;
   display: flex;
   flex-flow: column;
   align-items: left;
@@ -663,10 +684,10 @@ pre.log {
 
 code.results-log {
   padding-top: 0;
-  margin-top: 0.25em;
+  margin-top: 0.25rem;
   filter: brightness(70%);
-  font-size: 0.8em;
-  line-height: 1.3em;
+  font-size: 0.8rem;
+  line-height: 1.3rem;
   white-space: pre-wrap;
 }
 
@@ -686,7 +707,7 @@ code.results-log {
 }
 
 .section .childrenContainer {
-  padding: 1em;
+  padding: 1rem;
 }
 
 .section .header {
@@ -697,7 +718,7 @@ code.results-log {
 
 .section .header .headerBorderBefore {
   border-top: 1px default;
-  width: 1em;
+  width: 1rem;
   border-top-left-radius: 5px;
 }
 
@@ -706,19 +727,19 @@ code.results-log {
   flex-direction: row;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 0.25em;
+  gap: 0.25rem;
   width: fit-content;
-  height: 2em;
-  margin: -1em 0.5em 0em 0.5em;
+  height: 2rem;
+  margin: -1rem 0.5rem 0rem 0.5rem;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 1em;
+  font-size: 1rem;
   font-weight: 600;
 }
 
 .section .header .headerBorderAfter {
   border-top: 1px default;
-  width: 1em;
+  width: 1rem;
   flex-grow: 2;
   border-top-right-radius: 5px;
 } */
@@ -749,7 +770,7 @@ code.results-log {
 }
 
 .dark .resize-handle {
-  flex: 0 0 2em;
+  flex: 0 0 2rem;
   display: flex;
   justify-content: stretch;
   align-items: stretch;
@@ -780,7 +801,7 @@ code.results-log {
 
 
 .light .resize-handle {
-  flex: 0 0 2em;
+  flex: 0 0 2rem;
   display: flex;
   justify-content: stretch;
   align-items: stretch;

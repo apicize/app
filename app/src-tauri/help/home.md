@@ -11,17 +11,13 @@ of unintentionally sharing sensitive authorization credentials or certificates. 
 
 ## Workspace Elements
 
-### :icon[request] [Requests](help:workspace/requests) and [Groups](workspace/groups)
+### :icon[request] [Requests](help:workspace/requests) and [Groups](help:workspace/groups)
 
 Information about HTTP calls to send and how to test them
 
 ### :icon[scenario] [Scenarios](help:workspace/scenarios)
 
 Key-value pairs that can be substituted for Request URLs, headers, body content, etc. using `{{handlebars}}` placeholders for Keys
-
-### :icon[dataset] [Data Sets](help:workspace/data-sets)
-
-Blocks of data to inject into Requests during testing.
 
 ### :icon[authorization] [Authorizations](help:workspace/authorizations)
 
@@ -35,9 +31,9 @@ Client SSL certificates used for authentication
 
 SOCKS5 or HTTP proxies used to connect to HTTP resources
 
-### :icon[defaults] [Defaults](help:workspace/defaults)
+### :icon[dataset] [Data Sets](help:workspace/data-sets)
 
-Default Parameter values to use when testing Requests (which can be overriden on individual Requests or Groups)
+Blocks of data to inject into Requests during testing.
 
 # Toolbar
 
@@ -52,5 +48,5 @@ The toolbar at the top left (or left side if hiding navigation) supports the fol
 
 ## Other Operations
 
-* :icon[settings] [Settings](help:settings)
+* :icon[settings] [Application Settings](help:settings/app-settings)
 * :icon[logs] [Communication Logs](help:logs)

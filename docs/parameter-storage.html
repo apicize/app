@@ -16,9 +16,8 @@
     </nav>
     <main class="doc-main help">
       <h1>Parameter Storage in Apicize </h1>
-<p><a href="./requests.html">Requests</a> and <a href="./groups.html">Groups</a> are always stored in Workbooks.  Parameters including
-<a href="./authorizations.html">Authorizations</a>, <a href="./scenarios.html">Scenarios</a>, <a href="./certificates.html">Certificates</a> and <a href="./proxies.html">Proxies</a>
-can be stored in Workbooks but also in Workbook private parameter files or the Local Vault.</p>
+<p><a href="./workspace/requests.html">Requests</a> and <a href="./workspace/groups.html">Groups</a> are always stored in Workbooks.  Parameters including
+<a href="./workspace/scenarios.html">Scenarios</a>, <a href="./workspace/authorizations.html">Authorizations</a>, <a href="./workspace/certificates.html">Certificates</a> and <a href="./workspace/proxies.html">Proxies</a> can be stored in Workbooks but also in Workbook Private Parameter files or the Local Vault.</p>
 <p>Where you store Parameters depends upon how you want to use these values and who you want to share them with, if anybody.</p>
 <h2>Types of Storage</h2>
 <h3><span class="help-icon" style="color: #009933;"><svg width="24" height="24" fill="currentColor" viewBox="0 0 96 96">
@@ -27,21 +26,19 @@ can be stored in Workbooks but also in Workbook private parameter files or the L
                 <path d="M48,36A12,12,0,1,0,60,48,12.0161,12.0161,0,0,0,48,36Z" />
             </g>
         </svg></span> Workbook Files</h3>
-<p>Store parameters in Workbooks along with your Requests when you want to share those values with other developers.  When you distribute
-your Workbook, the parameters will be included.  This is useful for demonstration or test values.  You should <em>not</em> store production
-credentials or sensitive information in Workbooks.  You should use one of the following two methods.</p>
+<p>Store parameters in Workbooks along with your Requests when you want to share those values with other developers.  When you distribute your Workbook, the parameters will be included.  This is useful for demonstration or test values.</p>
+<p>You should <em>not</em> store production credentials or sensitive information in Workbooks.  You should use one of the following two methods.</p>
 <h3><span class="help-icon" style="color: #cfb53b;"><svg width="24" height="24" fill="currentColor" viewBox="0 0 96 96">
             <g>
                 <path d="M82.24,22.2438A5.999,5.999,0,1,0,73.7562,13.76L69.455,18.0612A41.15,41.15,0,0,0,48,12.0022c-22.1588,0-35.6814,15.7022-46.9893,32.67a5.9842,5.9842,0,0,0,0,6.6558,110.6522,110.6522,0,0,0,15.8105,19.367L13.76,73.7562A5.999,5.999,0,1,0,22.2438,82.24ZM13.2677,48C25.3256,30.7921,35.2742,24.0015,48,24.0015a29.3537,29.3537,0,0,1,12.6716,2.8431l-9.5927,9.5926A11.1546,11.1546,0,0,0,48,36.0007,12.0112,12.0112,0,0,0,36.0007,48a11.1589,11.1589,0,0,0,.4365,3.0789L25.3014,62.2147A88.0132,88.0132,0,0,1,13.2677,48Z" />
                 <path d="M94.9893,44.6721c-2.4234-3.6363-4.9809-7.1751-7.6709-10.5528l-8.5461,8.5461c1.3007,1.6669,2.6131,3.4128,3.96,5.3346C71.1761,64.4924,61.5307,71.3423,49.5475,71.89L38.5714,82.8663A42.5472,42.5472,0,0,0,48,83.9978c22.1588,0,35.6814-15.7022,46.9893-32.67A5.9842,5.9842,0,0,0,94.9893,44.6721Z" />
             </g>
         </svg></span> Workbook Private Parameter Files</h3>
-<p>These files are stored along with Workbook files with the extension <code>.apicize-priv</code>.   These files can be used to store parameters
-that you want to keep with your Workbooks but you do not want to share with others.</p>
+<p>These files are stored along with Workbook files with the extension <code>.apicize-priv</code>.   These files can be used to store parameters that you want to keep with your Workbooks but you do not want to share with others.</p>
 <blockquote>
-<p>Note: You should exclude <code>*.apicize-priv</code> in your source control configuration (such as <code>.gitignore</code>) to ensure they do not end up in
-shared code repositories.</p>
+<p>Note: You should exclude <code>*.apicize-priv</code> in your source control configuration (such as <code>.gitignore</code>) to ensure they do not end up in shared code repositories.</p>
 </blockquote>
+<p>Private Parameter files can be encrypted.  See the section on <a href="#encryption">Encyrption</a> for more details.</p>
 <h3><span class="help-icon" style="color: #cc2900;"><svg
             version="1.1"
             viewBox="0 0 60 60"
@@ -67,11 +64,23 @@ shared code repositories.</p>
                     id="path4" />
             </g>
         </svg></span> Local Vault Parameter Storage</h3>
-<p>Any parameters stored in the Local Vault will be available for use by any Apicize workbook loaded into a workspace.  This storage
-is tied to the user logged into the operating system, and is located user's home directory under <code>.config/apicize</code>.  This is a useful
-mechanism if you work in an enterprise and need to share credentials amongst multiple workbook.</p>
-<p>Workbooks include both IDs and Names of parameters configured for Requests and Groups.  If you open a Workbook copied from another system,
-Apicize will look for parameters with matching names in the Local Vault for any configured paraemters, and select them if they match.</p>
+<p>Any parameters stored in the Local Vault will be available for use by any Apicize workbook loaded into a workspace.  This storage is tied to the user logged into the operating system, and is located in your Home directory under <code>.config/apicize</code>.  This is a useful mechanism if you work in an enterprise and need to share credentials amongst multiple workbook.</p>
+<p>Vault files can be encrypted.  See the section on <a href="#encryption">Encyrption</a> for more details.</p>
+<h2>Resolution of Parameters</h2>
+<p>Requests, Group and Workbook Default parameters contain both an ID and Name for every configured parameters.  If you open a Workbook copied from another system, Apicize will look for parameters with matching names in the Local Vault for any configured paraemters, and select them if they match.</p>
+<p>If you work in a group and use consistent naming for parameters stored in your Vaults, you can exchange workbooks and parameters will be recognized by name, even if the IDs for Vault parameters between systems are different.</p>
+<h2>Encryption <span class="help-icon">[key]</span></h2>
+<p>Private and Vault parameter files can be optionally encrypted using symetric (password) encryption.  To add or remove encryption from a parameter file, go to the Settings screen and select the Lock panel.</p>
+<p><img src="./images/settings/lock.webp" class="help-image"></p>
+<p>From this screen, you can add, modify or clear passwords from an unencrypted or unlocked file.  A parameter file cannot be modified until it is unlocked with the correct password.</p>
+<h3>Encryption Environment Variables</h3>
+<p>You can store default Vault and Private parameter passwords using environment variables.</p>
+<ul>
+<li><strong>APICIZE_VAULT_PWD</strong>:  Default password to decrypt vault parameter files</li>
+<li><strong>APICIZE_PRIVATE_PWD</strong>:  Default password to decrypt workbook private parameter files</li>
+</ul>
+<p>If a parameter file was encrypted using a different password than what is stored in these environment variables, the Settings icon will be colored yellow when you open the workbook, prompting you to enter the correct password.</p>
+<p>Envrionment variables themesleves are typically not stored securely unless you are encrypting your home directory, user configuration files, etc.</p>
     </main>
   </div>
 </body>

@@ -7,7 +7,6 @@ import { AuthorizationEditor } from "./editors/authorization-editor";
 import { CertificateEditor } from "./editors/certificate-editor";
 import { ProxyEditor } from "./editors/proxy-editor";
 import { SettingsEditor } from "./editors/settings-editor";
-import { DefaultsEditor } from "./editors/defaults-editor";
 import { useWorkspace, WorkspaceMode } from "../contexts/workspace.context";
 import { EntityType } from "../models/workspace/entity-type";
 import { LogViewer } from "./viewers/log-viewer";
@@ -53,11 +52,9 @@ export const MainPanel = observer(() => {
             case WorkspaceMode.Settings:
                 return <SettingsEditor sx={{ display: 'block', flexGrow: 1 }} />
             case WorkspaceMode.Console:
-                return <LogViewer />
+                return <LogViewer sx={{ display: 'flex', flexGrow: 1 }} />
             // case WorkspaceMode.Warnings:
             //     return <WarningsEditor sx={{ display: 'block', flexGrow: 1 }} />
-            case WorkspaceMode.Defaults:
-                return <DefaultsEditor sx={{ display: 'block', flexGrow: 1 }} />
             case WorkspaceMode.RequestList:
                 return <RequestList sx={{ display: 'block', flexGrow: 1 }} />
             case WorkspaceMode.ScenarioList:
@@ -71,27 +68,23 @@ export const MainPanel = observer(() => {
             case WorkspaceMode.ProxyList:
                 return <ProxyList sx={{ display: 'block', flexGrow: 1 }} />
             default:
-                if (activeSelection) {
-                    switch (activeSelection.entityType) {
-                        case EntityType.Request:
-                            return <RequestEditor request={activeSelection} sx={{ display: 'block', flexGrow: 1 }} />
-                        case EntityType.Group:
-                            return <RequestGroupEditor group={activeSelection} sx={{ display: 'block', flexGrow: 1 }} />
-                        case EntityType.Scenario:
-                            return <ScenarioEditor scenario={activeSelection} sx={{ display: 'block', flexGrow: 1 }} />
-                        case EntityType.DataSet:
-                            return <DataSetEditor dataSet={activeSelection} sx={{ display: 'block', flexGrow: 1 }} />
-                        case EntityType.Authorization:
-                            return <AuthorizationEditor authorization={activeSelection} sx={{ display: 'block', flexGrow: 1 }} />
-                        case EntityType.Certificate:
-                            return <CertificateEditor certificate={activeSelection} sx={{ display: 'block', flexGrow: 1 }} />
-                        case EntityType.Proxy:
-                            return <ProxyEditor proxy={activeSelection} sx={{ display: 'block', flexGrow: 1 }} />
-                        default:
-                            return <></>
-                    }
-                } else {
-                    return <></>
+                switch (activeSelection?.entityType) {
+                    case EntityType.Request:
+                        return <RequestEditor request={activeSelection} sx={{ display: 'block', flexGrow: 1 }} />
+                    case EntityType.Group:
+                        return <RequestGroupEditor group={activeSelection} sx={{ display: 'block', flexGrow: 1 }} />
+                    case EntityType.Scenario:
+                        return <ScenarioEditor scenario={activeSelection} sx={{ display: 'block', flexGrow: 1 }} />
+                    case EntityType.DataSet:
+                        return <DataSetEditor dataSet={activeSelection} sx={{ display: 'block', flexGrow: 1 }} />
+                    case EntityType.Authorization:
+                        return <AuthorizationEditor authorization={activeSelection} sx={{ display: 'block', flexGrow: 1 }} />
+                    case EntityType.Certificate:
+                        return <CertificateEditor certificate={activeSelection} sx={{ display: 'block', flexGrow: 1 }} />
+                    case EntityType.Proxy:
+                        return <ProxyEditor proxy={activeSelection} sx={{ display: 'block', flexGrow: 1 }} />
+                    default:
+                        return <></>
                 }
         }
     }, [mode, activeSelection])

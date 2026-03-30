@@ -2,9 +2,11 @@
  * Payload type to serialize to file or clipboard
  */
 export type ClipboardPaylodRequest = ClipboardPayloadRequest | ClipboardPayloadScenario | ClipboardPayloadAuthorization
-    | ClipboardPayloadCertificate | ClipboardPayloadProxy | ClipboardPayloadRequestBody | ClipboardPayloadRequestTest
+    | ClipboardPayloadCertificate | ClipboardPayloadProxy | ClipboardPayloadRequestBody
+    | ClipboardPayloadRequestTest | ClipboardPayloadGroupSetup
     | ClipboardPayloadResponseSummaryJson | ClipboardPayloadResponseSummaryCsv
     | ClipboardPayloadResponseBodyRaw | ClipboardPayloadResponseBodyPreview | ClipboardPayloadResponseDetail
+    | ClipboardPayloadResponseCurl
 
 export interface ClipboardPayloadRequest {
     payloadType: 'Request'
@@ -41,6 +43,11 @@ export interface ClipboardPayloadRequestTest {
     requestId: string
 }
 
+export interface ClipboardPayloadGroupSetup {
+    payloadType: 'GroupSetup'
+    groupId: string
+}
+
 export interface ClipboardPayloadResponseSummaryJson {
     payloadType: 'ResponseSummaryJson'
     execCtr: number
@@ -63,5 +70,10 @@ export interface ClipboardPayloadResponseBodyPreview {
 
 export interface ClipboardPayloadResponseDetail {
     payloadType: 'ResponseDetail'
+    execCtr: number
+}
+
+export interface ClipboardPayloadResponseCurl {
+    payloadType: 'ResponseCurl'
     execCtr: number
 }

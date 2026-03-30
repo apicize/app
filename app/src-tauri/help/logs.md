@@ -1,9 +1,11 @@
 # :icon[logs] Communication Logs :toolbar
 
-Click on the Toolbar :icon[logs] button to view socket reads and writes.  This log is global for Apicize, it reflect communication for
+Click on the Toolbar :icon[logs] button to view HTTP reads and writes.  This log is global for Apicize, it reflect communication for
 all active Workspaces.
 
 :image[logs.webp]
+
+You can clear the logs by clicking on the :icon[clear] button.
 
 ## Follow (Tail)
 

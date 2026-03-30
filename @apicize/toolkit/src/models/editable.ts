@@ -35,13 +35,20 @@ export interface UpdateResponse {
  * Interface to track state of editable entity
  */
 export abstract class Editable {
-    @observable accessor id: string = ''
-    @observable accessor name: string = ''
-    @observable accessor dirty: boolean = false
+    @observable accessor id
+    @observable accessor name
+    @observable accessor dirty = false
 
     public abstract readonly entityType: EntityType
 
-    constructor(protected workspace: EditableEntityContext) { }
+    constructor(
+        id: string,
+        name: string,
+        protected workspace: EditableEntityContext
+    ) { 
+        this.id = id
+        this.name = name
+    }
 
     markAsDirty() {
         this.dirty = true

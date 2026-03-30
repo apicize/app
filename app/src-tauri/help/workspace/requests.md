@@ -2,7 +2,7 @@
 
 In Apicize, Requests define the webservice endpoint you want to call and test.  At a minimum, each request requires a URL and method to be defined.
 
-Requests can optionally be [*grouped*](help:groups), which allows request tests to be run in concurrently or in sequence, which facilitates passing values between them.  This can be useful, for example, when testing a sequence of API calls to create, retrieve, update and delete a record (i.e. CRUD).
+Requests can optionally be [*grouped*](help:workspace/groups), which allows request tests to be run in concurrently or in sequence, which facilitates passing values between them.  This can be useful, for example, when testing a sequence of API calls to create, retrieve, update and delete a record (i.e. CRUD).
 
 :image[request-overview.webp]
 

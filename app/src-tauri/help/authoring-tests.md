@@ -74,7 +74,7 @@ describe('status', () => {
         expect(response.status).to.equal(200)
         const data = response.body.data
         output('id', data.id)
-        console.log(`New record ID is ${data.id}`)
+        console.info(`New record ID is ${data.id}`)
     })
 })
 ```
@@ -133,6 +133,6 @@ risks that could materialize if somebody were to send out a malicious Apicize te
 ### See Also
 
 * [**Running Tests**](help:running-tests)
-* [**Requests**](help:requests)
+* [**Requests**](help:workspace/requests)
 * [**Workspace**](help:home)
 

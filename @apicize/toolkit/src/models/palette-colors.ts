@@ -11,7 +11,7 @@ export const PALETTE_COLORS = {
     scenario: '#0073e6',
     authorization: '#daa520',
     certificate: '#FF8C00',
-    data: '#663399',
+    data: '#41ac88',
     proxy: '#cc0099',
     defaults: '#86b300',
     public: '#009933',

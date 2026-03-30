@@ -19,6 +19,7 @@ export interface ExecutionResultSummary {
     logs?: string[]
     status?: number
     statusText: string
+    hasCurl: boolean
     hasResponseHeaders: boolean
     responseBodyLength?: number
     success: ExecutionResultSuccess

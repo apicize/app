@@ -11,8 +11,8 @@ import {
     Request,
     RequestGroup,
     Authorization,
-    Scenario,
-    Proxy,
+    ScenarioPlain,
+    ProxyPlain,
     DataSet,
     WorkspaceDefaultParameters,
     BasicAuthorization,
@@ -28,6 +28,8 @@ import {
     Body,
     TokenResult,
     NO_SELECTION,
+    ParameterLockStatus,
+    ParameterStore,
 } from "@apicize/lib-typescript"
 import { EntityType } from "../models/workspace/entity-type"
 import { createContext, useContext } from "react"
@@ -57,7 +59,7 @@ export enum WorkspaceMode {
     Normal = 0,
     Help = 1,
     Settings = 2,
-    Defaults = 3,
+    // Defaults = 3,
     // Warnings,
     Console = 4,
     RequestList = 5,
@@ -68,9 +70,10 @@ export enum WorkspaceMode {
     DataSetList = 10,
 }
 
-export type ResultsPanel = 'Info' | 'Headers' | 'Preview' | 'Text' | 'Details'
-export type RequestPanel = 'Info' | 'Headers' | 'Query String' | 'Body' | 'Test' | 'Parameters' | 'Warnings'
-export type GroupPanel = 'Info' | 'Setup' | 'Parameters' | 'Warnings'
+export type ResultsPanel = 'Info' | 'Headers' | 'Preview' | 'Text' | 'Curl' | 'Details'
+export type RequestPanel = 'Info' | 'Headers' | 'Query String' | 'Body' | 'Test Script' | 'Execution Parameters' | 'Warnings'
+export type GroupPanel = 'Info' | 'Test Setup Script' | 'Execution Parameters' | 'Warnings'
+export type SettingsPanel = 'Workspace Defaults' | 'Locks' | 'Application' | 'Warnings'
 
 export type ActiveSelection = EditableRequest | EditableRequestGroup | EditableScenario |
     EditableAuthorization | EditableCertificate | EditableProxy | EditableDataSet |
@@ -97,6 +100,10 @@ export class WorkspaceStore implements EditableEntityContext {
 
     @observable accessor activeSelection: ActiveSelection | null = null
     @observable accessor activeParameters: ActiveParameters | null = null
+    @observable accessor privateLockStatus: ParameterLockStatus = ParameterLockStatus.UnlockedNoPassword
+    @observable accessor vaultLockStatus: ParameterLockStatus = ParameterLockStatus.UnlockedNoPassword
+    public vaultEnvVarSet = false
+    public privateEnvVarSet = false
 
     @observable accessor defaults = new EditableDefaults({
         selectedScenario: NO_SELECTION,
@@ -111,6 +118,7 @@ export class WorkspaceStore implements EditableEntityContext {
 
     @observable accessor requestPanel: RequestPanel = 'Info'
     @observable accessor groupPanel: GroupPanel = 'Info'
+    @observable accessor settingsPanel: SettingsPanel = 'Workspace Defaults'
 
     @observable accessor executingRequestIDs: string[] = []
 
@@ -145,6 +153,8 @@ export class WorkspaceStore implements EditableEntityContext {
             updateActiveEntity: (entity?: SessionEntity) => Promise<undefined>,
             updateExpandedItems: (ids?: string[]) => Promise<undefined>,
             updateMode: (mode: WorkspaceMode) => Promise<undefined>,
+            setParametersPassword: (store: ParameterStore, lockType: PasswordLockType) => Promise<undefined>,
+            decryptParameters: (store: ParameterStore, password: string) => Promise<undefined>,
             getTitle: (entityType: EntityType, id: string) => Promise<string>,
             getExecution: (requestOrGroupId: string) => Promise<RequestExecution>,
             getDirty: () => Promise<boolean>,
@@ -193,6 +203,11 @@ export class WorkspaceStore implements EditableEntityContext {
         this.dirty = initialization.saveState.dirty
         this.editorCount = initialization.saveState.editorCount
         this.navigation = initialization.navigation
+        this.privateLockStatus = initialization.privateLockStatus
+        this.vaultLockStatus = initialization.vaultLockStatus
+        this.privateEnvVarSet = initialization.privateEnvVarSet
+        this.vaultEnvVarSet = initialization.vaultEnvVarSet
+
         this.updateIndexedNames()
         this.warnOnWorkspaceCreds = true
         // this.invalidItems.clear()
@@ -231,13 +246,30 @@ export class WorkspaceStore implements EditableEntityContext {
     }
 
     updateSaveState(state: SessionSaveState) {
-        runInAction(() => {
-            this.fileName = state.fileName
-            this.directory = state.directory
-            this.displayName = state.displayName
-            this.dirty = state.dirty
-            this.editorCount = state.editorCount
-        })
+        this.fileName = state.fileName
+        this.directory = state.directory
+        this.displayName = state.displayName
+        this.dirty = state.dirty
+        this.editorCount = state.editorCount
+    }
+
+    @action
+    updateLockStatus(update: LockStatusUpdate) {
+        switch (update.store) {
+            case 'Vault':
+                this.vaultLockStatus = update.status
+                break
+            case 'Private':
+                this.privateLockStatus = update.status
+        }
+    }
+
+    setParametersPassword(parameterStore: ParameterStore, lockType: PasswordLockType) {
+        return this.callbacks.setParametersPassword(parameterStore, lockType)
+    }
+
+    decryptParameters(store: ParameterStore, password: string) {
+        return this.callbacks.decryptParameters(store, password)
     }
 
     @action
@@ -276,58 +308,40 @@ export class WorkspaceStore implements EditableEntityContext {
 
         if (this.activeSelection?.entityType !== type || this.activeSelection?.id !== id) {
             this.setMode(WorkspaceMode.Normal)
-            this.performChangeActive(type, id, () => runInAction(() => {
+            this.performChangeActive(type, id, () => {
                 if (updateExpandedToValue !== null) {
                     this.updateExpanded(expandId, updateExpandedToValue)
                 }
-            }))
+            })
         } else if (updateExpandedToValue !== null) {
             this.updateExpanded(expandId, updateExpandedToValue)
         }
     }
 
     performChangeActive(type: EntityType, id: string, onChange?: () => void) {
-        (async () => {
-            try {
-                const selection = await this.generateActiveSelection(id, type)
+        this.generateActiveSelection(id, type)
+            .then((selection) => {
                 runInAction(() => {
-                    this.activeSelection = selection
-
                     // Trigger request body update when retrieving a request
-                    if (selection.entityType === EntityType.Request) {
-                        this.changeRequestBody(selection.id)
+                    if (selection.entityType === EntityType.Request && !selection.isBodyInitialized) {
+                        this.callbacks.getRequestBody(id)
+                            .then(bodyInfo => {
+                                selection.initializeBody(bodyInfo)
+                            })
+                            .catch(err1 => this.feedback.toastError(err1))
                     }
-
+                    this.activeSelection = selection
                     if (onChange) {
                         onChange()
                     }
-                })
-
-                await this.callbacks.updateActiveEntity({
-                    entityType: type,
-                    entityId: id
-                })
-            } catch (e) {
-                this.feedback.toastError(e)
-            }
-        })().catch(e => this.feedback.toastError(e))
-    }
-
-    changeRequestBody(id: string) {
-        if (this.activeSelection?.entityType === EntityType.Request && this.activeSelection.id === id &&
-            this.activeSelection.isBodyInitialized) {
-            return this.activeSelection.body
-        }
-
-        this.callbacks.getRequestBody(id)
-            .then(bodyInfo => {
-                runInAction(() => {
-                    if (this.activeSelection?.entityType === EntityType.Request && this.activeSelection.id === id) {
-                        this.activeSelection.initializeBody(bodyInfo)
-                    }
+                    this.callbacks.updateActiveEntity({
+                        entityType: type,
+                        entityId: id
+                    }).catch(err1 => console.error(`Error on updateActiveEntity: ${err1}`))
                 })
             })
-            .catch(e => this.feedback.toastError(e))
+            .catch(err => this.feedback.toastError(err))
+
     }
 
     @action
@@ -511,7 +525,7 @@ export class WorkspaceStore implements EditableEntityContext {
         this.updateIndexedNames()
 
         // When updating all of navigation, we should just redraw parameter lists being displayed
-        if (this.mode === WorkspaceMode.Defaults || (
+        if (this.mode === WorkspaceMode.Settings || (
             this.activeSelection && [EntityType.RequestEntry, EntityType.Request, EntityType.Group].includes(this.activeSelection.entityType)
         )) {
             this.clearParameterList()
@@ -527,21 +541,29 @@ export class WorkspaceStore implements EditableEntityContext {
         }
     }
 
-    findNavigationEntry(id: string, entityType: EntityType) {
-        if (entityType === EntityType.Defaults) {
-            return this.defaults
-        }
-        return this.indexedNavigationEntries.get(id) ?? null
-    }
-
     @action
-    updateNavigationState(entry: UpdatedNavigationEntry) {
-        const match = this.findNavigationEntry(entry.id, entry.entityType)
-        if (match) {
-            match.name = entry.disabled ? entry.name : entry.name
-            match.validationState = entry.validationState
-            match.executionState = entry.executionState
-            match.disabled = entry.disabled
+    updateNavigationState(notification: UpdatedNavigationEntry | UpdatedNavigationEntry[]) {
+        const processEntry = (entry: UpdatedNavigationEntry) => {
+            if (entry.entityType === EntityType.Defaults) {
+                this.defaults.validationState = entry.validationState
+            } else {
+                const match = this.indexedNavigationEntries.get(entry.id)
+                if (match) {
+                    match.name = entry.disabled ? entry.name : entry.name
+                    match.validationState = entry.validationState
+                    match.executionState = entry.executionState
+                    match.disabled = entry.disabled
+                    match.parameterStore = entry.parameterStore
+                    match.encrypted = entry.encrypted
+                }
+            }
+        }
+        if (Array.isArray(notification)) {
+            for (const entry of notification) {
+                processEntry(entry)
+            }
+        } else {
+            processEntry(notification)
         }
     }
 
@@ -934,6 +956,7 @@ export class WorkspaceStore implements EditableEntityContext {
     /**
      * Reset parameter list to force a re-render
      */
+    @action
     clearParameterList() {
         this.activeParameters = null
     }
@@ -986,7 +1009,7 @@ export class WorkspaceStore implements EditableEntityContext {
                     }
                 }))
                 .catch(e => this.feedback.toastError(e))
-            const navigation = this.findNavigationEntry(requestOrGroupId, EntityType.Request)
+            const navigation = this.indexedNavigationEntries.get(requestOrGroupId) ?? null
             if (navigation) {
                 navigation.executionState = event.executionState
             }
@@ -1009,7 +1032,7 @@ export class WorkspaceStore implements EditableEntityContext {
 
             // Check if PKCE and initialize PKCE flow, queuing request upon completion
             const auth = await this.getRequestActiveAuthorization(requestEntry)
-            if (auth?.type === AuthorizationType.OAuth2Pkce) {
+            if (auth && !('data' in auth) && auth.type === AuthorizationType.OAuth2Pkce) {
                 const tokenInfo = this.pkceTokens.get(auth.id)
                 if (tokenInfo === undefined) {
                     this.addPendingPkceRequest(auth.id, requestOrGroupId, singleRun)
@@ -1088,6 +1111,11 @@ export class WorkspaceStore implements EditableEntityContext {
     @action
     changeGroupPanel(panel: GroupPanel) {
         this.groupPanel = panel
+    }
+
+    @action
+    changeSettingsPanel(panel: SettingsPanel) {
+        this.settingsPanel = panel
     }
 
     @action
@@ -1219,6 +1247,9 @@ export class WorkspaceStore implements EditableEntityContext {
         switch (detail.entityType) {
             case 'request':
                 switch (type) {
+                    case ResultEditSessionType.Curl:
+                        text = detail.curl ?? ''
+                        break
                     case ResultEditSessionType.Base64:
                         text = (detail.testContext.response?.body?.type === 'Binary')
                             ? detail.testContext.response.body.data
@@ -1279,28 +1310,6 @@ export class WorkspaceStore implements EditableEntityContext {
         return model
     }
 
-    @action
-    clearAllEditSessions() {
-        for (const [, resultMap] of this.resultModels) {
-            for (const [, typeMap] of resultMap) {
-                for (const [, model] of typeMap) {
-                    model.dispose()
-                }
-            }
-        }
-        this.resultModels.clear()
-        this.dataSetModels.clear()
-    }
-
-    /**
-     * Clear all of the result edit sessions for the specified request or group
-     * @param requestOrGroupId 
-     */
-    @action
-    clearResultEditSessions(requestOrGroupId: string) {
-        this.resultModels.delete(requestOrGroupId)
-    }
-
     public listLogs(): Promise<ReqwestEvent[]> {
         return this.callbacks.listLogs()
     }
@@ -1332,14 +1341,12 @@ export class WorkspaceStore implements EditableEntityContext {
         runInAction(() => {
             if (this.activeSelection?.entityType === EntityType.Request && this.activeSelection.id === bodyInfo.id) {
                 this.activeSelection.refreshFromExternalSpecificUpdate({
-                    update: {
-                        type: EntityTypeName.Request,
-                        entityType: EntityType.Request,
-                        id: bodyInfo.id,
-                        body: bodyInfo.body,
-                        bodyLength: bodyInfo.bodyLength,
-                        bodyMimeType: bodyInfo.bodyMimeType,
-                    }
+                    type: EntityTypeName.Request,
+                    entityType: EntityType.Request,
+                    id: bodyInfo.id,
+                    body: bodyInfo.body,
+                    bodyLength: bodyInfo.bodyLength,
+                    bodyMimeType: bodyInfo.bodyMimeType,
                 })
             }
         })
@@ -1367,25 +1374,34 @@ export class WorkspaceStore implements EditableEntityContext {
     }
 
     @action
-    refreshFromExternalUpdate(notification: EntityUpdateNotification) {
-        const update = notification.update
-        switch (update.entityType) {
-            case EntityType.Scenario:
-            case EntityType.DataSet:
-            case EntityType.Authorization:
-            case EntityType.Certificate:
-            case EntityType.Proxy:
-                this.activeParameters = null
-                break
+    refreshFromExternalUpdate(notification: EntityUpdate | EntityUpdate[]) {
+        const performUpdate = (update: EntityUpdate) => {
+            switch (update.entityType) {
+                case EntityType.Scenario:
+                case EntityType.DataSet:
+                case EntityType.Authorization:
+                case EntityType.Certificate:
+                case EntityType.Proxy:
+                    this.activeParameters = null
+                    break
+            }
+
+            if (update.entityType === EntityType.Defaults) {
+                this.defaults.refreshFromExternalSpecificUpdate(update)
+            } else {
+                const activeSelection = this.activeSelection
+                if (activeSelection && activeSelection.entityType === update.entityType && activeSelection.id === update.id) {
+                    activeSelection.refreshFromExternalSpecificUpdate(update)
+                }
+            }
         }
 
-        if (notification.update.entityType === EntityType.Defaults) {
-            this.defaults.refreshFromExternalSpecificUpdate(notification)
-        } else {
-            const activeSelection = this.activeSelection
-            if (activeSelection && activeSelection.entityType === notification.update.entityType && activeSelection.id === notification.update.id) {
-                activeSelection.refreshFromExternalSpecificUpdate(notification)
+        if (Array.isArray(notification)) {
+            for (const update of notification) {
+                performUpdate(update)
             }
+        } else {
+            performUpdate(notification)
         }
     }
 }
@@ -1430,7 +1446,7 @@ export interface EntityGroup extends RequestGroup {
     entityTypeName: EntityTypeName.Group
 }
 
-export interface EntityScenario extends Scenario {
+export interface EntityScenario extends ScenarioPlain {
     entityTypeName: EntityTypeName.Scenario
 }
 
@@ -1471,7 +1487,7 @@ export interface EntityPemCertificate extends PemCertificate {
 
 export type EntityCertificate = EntityPkcs12Certificate | EntityPkcs8PemCertificate | EntityPemCertificate
 
-export interface EntityProxy extends Proxy {
+export interface EntityProxy extends ProxyPlain {
     entityTypeName: EntityTypeName.Proxy
 }
 
@@ -1490,6 +1506,8 @@ export interface UpdatedNavigationEntry {
     validationState?: ValidationState
     executionState?: ExecutionState
     disabled: boolean
+    parameterStore?: ParameterStore
+    encrypted: boolean
 }
 
 export interface Session {
@@ -1523,6 +1541,10 @@ export interface WorkspaceInitialization {
     session: Session
     navigation: Navigation
     saveState: SessionSaveState
+    privateLockStatus: ParameterLockStatus
+    vaultLockStatus: ParameterLockStatus
+    privateEnvVarSet: boolean
+    vaultEnvVarSet: boolean
     executions: { [requestOrGroupId: string]: ExecutionEvent }
     defaults: WorkspaceDefaultParameters
     settings: EditableSettings
@@ -1538,6 +1560,18 @@ export interface SessionSaveState {
     editorCount: number
 }
 
+export type LockStatusUpdate = VaultLockStatusUpdate | PrivateLockStatusUpdate
+
+export interface VaultLockStatusUpdate {
+    store: 'Vault',
+    status: ParameterLockStatus
+}
+
+export interface PrivateLockStatusUpdate {
+    store: 'Private'
+    status: ParameterLockStatus
+}
+
 export interface RequestEntryInfo {
     request?: Request
     group?: RequestGroup
@@ -1550,12 +1584,6 @@ export interface SessionEntity {
 
 // UpdateResponse is exported from ../models/editable.ts
 
-export interface EntityUpdateNotification {
-    update: EntityUpdate
-    validationWarnings?: string[]
-    validationErrors?: { [name: string]: string },
-}
-
 export interface OpenDataSetFileResponse {
     relativeFileName: string
     dataSetContent?: DataSetContent
@@ -1564,4 +1592,19 @@ export interface OpenDataSetFileResponse {
 export interface ActiveParameters {
     requestOrGroupId: string | null
     parameters: WorkspaceParameters
+}
+
+export type PasswordLockType = LockWithPassword | LockWithEnvVar | Unlock
+
+export interface LockWithPassword {
+    lock: 'Password'
+    password: string
+}
+
+export interface LockWithEnvVar {
+    lock: 'EnvVar'
+}
+
+export interface Unlock {
+    lock: 'None'
 }

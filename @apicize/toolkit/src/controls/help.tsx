@@ -18,15 +18,17 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CloseIcon from '@mui/icons-material/Close';
 import AltRouteIcon from '@mui/icons-material/AltRoute'
 import MenuIcon from '@mui/icons-material/Menu';
-import { createElement, Fragment, HTMLAttributes, useRef, useState, JSX } from 'react'
+import { createElement, Fragment, HTMLAttributes, useRef, useState, JSX, useEffect } from 'react'
 import { jsx, jsxs } from 'react/jsx-runtime'
 import SettingsIcon from '@mui/icons-material/Settings';
 import DisplaySettingsIcon from '@mui/icons-material/DisplaySettings'
+import KeyIcon from '@mui/icons-material/Key';
 import ViewListIcon from '@mui/icons-material/ViewList'
 import ViewListOutlinedIcon from '@mui/icons-material/ViewListOutlined'
 import ScienceIcon from '@mui/icons-material/Science';
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined'
 import QuestionMarkIcon from '@mui/icons-material/QuestionMark';
+import ClearAllIcon from '@mui/icons-material/ClearAll';
 import { Logo } from './logo';
 import remarkParse from 'remark-parse'
 import remarkRehype from 'remark-rehype'
@@ -38,7 +40,7 @@ import { unified } from 'unified';
 import remarkDirective from 'remark-directive';
 import { ExtraProps } from 'hast-util-to-jsx-runtime';
 import { observer } from 'mobx-react-lite';
-import { ToastSeverity, useFeedback } from '../contexts/feedback.context';
+import { useFeedback } from '../contexts/feedback.context';
 import { useFileOperations } from '../contexts/file-operations.context';
 import AuthIcon from '../icons/auth-icon';
 import DataSetIcon from '@mui/icons-material/Dataset';
@@ -51,6 +53,7 @@ import PublicIcon from '../icons/public-icon';
 import PrivateIcon from '../icons/private-icon';
 import VaultIcon from '../icons/vault-icon';
 import ApicizeIcon from '../icons/apicize-icon';
+import TuneIcon from '@mui/icons-material/Tune'
 import FolderIcon from '../icons/folder-icon';
 import LogIcon from "../icons/log-icon";
 import PlayCircleOutlined from '@mui/icons-material/PlayCircleOutlined'
@@ -65,6 +68,7 @@ import { useWorkspace } from '../contexts/workspace.context';
 import { DropdownMenu } from './navigation/dropdown-menu';
 import { HelpContents } from '../models/help-contents';
 import { createRemarkApicizeDirectives } from '../services/help-formatter';
+import SeedIcon from '../icons/seed-icon'
 
 export const HelpPanel = observer(({ sx }: { sx?: SxProps }) => {
     const settings = useApicizeSettings()
@@ -117,6 +121,8 @@ export const HelpPanel = observer(({ sx }: { sx?: SxProps }) => {
             if (Array.isArray(attrs.children)) {
                 const first = attrs.children[0]
                 if (first) id = first.toString()
+            } else if (typeof (attrs.children) === 'string') {
+                id = attrs.children
             } else {
                 id = null // attrs.children.toString()
             }
@@ -126,7 +132,7 @@ export const HelpPanel = observer(({ sx }: { sx?: SxProps }) => {
             const name = (attrs.node as Element).tagName as OverridableStringUnion<TypographyVariant | 'inherit', TypographyPropsVariantOverrides>
             return <Typography id={id} component='div' variant={name} {...attrs} />
         } else {
-            return <></>
+            return null
         }
     }
 
@@ -135,61 +141,67 @@ export const HelpPanel = observer(({ sx }: { sx?: SxProps }) => {
         const name = (attrsWithNode.node).properties.name
         switch (name) {
             case 'request':
-                return <SvgIcon className='help-icon' color='request' sx={{ marginRight: '0.5em' }}><RequestIcon /></SvgIcon>
+                return <SvgIcon className='help-icon' color='request'><RequestIcon /></SvgIcon>
             case 'group':
-                return <SvgIcon className='help-icon' color='request' sx={{ marginRight: '0.5em' }}><FolderIcon /></SvgIcon>
+                return <SvgIcon className='help-icon' color='request'><FolderIcon /></SvgIcon>
             case 'info':
-                return <DisplaySettingsIcon className='help-icon' color='request' sx={{ marginRight: '0.5em' }} />
+                return <DisplaySettingsIcon className='help-icon' />
             case 'query':
-                return <ViewListIcon className='help-icon' color='request' sx={{ marginRight: '0.5em' }} />
+                return <ViewListIcon className='help-icon' />
             case 'headers':
-                return <ViewListOutlinedIcon className='help-icon' color='request' sx={{ marginRight: '0.5em' }} />
+                return <ViewListOutlinedIcon className='help-icon' />
             case 'body':
-                return <ArticleOutlinedIcon className='help-icon' color='request' sx={{ marginRight: '0.5em' }} />
+                return <ArticleOutlinedIcon className='help-icon' />
             case 'parameters':
-                return <AltRouteIcon className='help-icon' color='request' sx={{ marginRight: '0.5em' }} />
+                return <AltRouteIcon className='help-icon' />
             case 'test':
-                return <ScienceIcon className='help-icon' color='request' sx={{ marginRight: '0.5em' }} />
+                return <ScienceIcon className='help-icon' />
             case 'dataset':
-                return <SvgIcon className='help-icon' color='data' sx={{ marginRight: '0.5em' }}><DataSetIcon /></SvgIcon>
+                return <SvgIcon className='help-icon' color='data'><DataSetIcon /></SvgIcon>
             case 'authorization':
-                return <SvgIcon className='help-icon' color='authorization' sx={{ marginRight: '0.5em' }}><AuthIcon /></SvgIcon>
+                return <SvgIcon className='help-icon' color='authorization'><AuthIcon /></SvgIcon>
             case 'scenario':
-                return <SvgIcon className='help-icon' color='scenario' sx={{ marginRight: '0.5em' }}><ScenarioIcon /></SvgIcon>
+                return <SvgIcon className='help-icon' color='scenario'><ScenarioIcon /></SvgIcon>
             case 'certificate':
-                return <SvgIcon className='help-icon' color='certificate' sx={{ marginRight: '0.5em' }}><CertificateIcon /></SvgIcon>
+                return <SvgIcon className='help-icon' color='certificate'><CertificateIcon /></SvgIcon>
             case 'proxy':
-                return <SvgIcon className='help-icon' color='proxy' sx={{ marginRight: '0.5em' }}><ProxyIcon /></SvgIcon>
+                return <SvgIcon className='help-icon' color='proxy'><ProxyIcon /></SvgIcon>
             case 'defaults':
-                return <SvgIcon className='help-icon' color='defaults' sx={{ marginRight: '0.5em' }}><DefaultsIcon /></SvgIcon>
+                return <SvgIcon className='help-icon'><DefaultsIcon /></SvgIcon>
             case 'settings':
-                return <SvgIcon className='help-icon' sx={{ marginRight: '0.5em' }}><SettingsIcon /></SvgIcon>
+                return <SvgIcon className='help-icon'><SettingsIcon /></SvgIcon>
             case 'logs':
-                return <SvgIcon className='help-icon' sx={{ marginRight: '0.5em' }}><LogIcon /></SvgIcon>
+                return <SvgIcon className='help-icon'><LogIcon /></SvgIcon>
             case 'display':
-                return <SvgIcon className='help-icon' sx={{ marginRight: '0.5em' }}><DisplaySettingsIcon className='help-icon' /></SvgIcon>
+                return <SvgIcon className='help-icon'><DisplaySettingsIcon className='help-icon' /></SvgIcon>
             case 'public':
-                return <SvgIcon className='help-icon' color='public' sx={{ marginRight: '0.5em' }}><PublicIcon /></SvgIcon>
+                return <SvgIcon className='help-icon' color='public'><PublicIcon /></SvgIcon>
             case 'private':
-                return <SvgIcon className='help-icon' color='private' sx={{ marginRight: '0.5em' }}><PrivateIcon /></SvgIcon>
+                return <SvgIcon className='help-icon' color='private'><PrivateIcon /></SvgIcon>
             case 'vault':
-                return <SvgIcon className='help-icon' color='vault' sx={{ marginRight: '0.5em' }}><VaultIcon /></SvgIcon>
+                return <SvgIcon className='help-icon' color='vault'><VaultIcon /></SvgIcon>
             case 'apicize':
-                return <SvgIcon className='help-icon' sx={{ marginRight: '0.5em' }}><ApicizeIcon /></SvgIcon>
+                return <SvgIcon className='help-icon'><ApicizeIcon /></SvgIcon>
             case 'runonce':
-                return <SvgIcon className='help-icon' sx={{ marginRight: '0.5em' }}><PlayCircleOutlined color='success' /></SvgIcon>
+                return <SvgIcon className='help-icon'><PlayCircleOutlined color='success' /></SvgIcon>
             case 'run':
-                return <SvgIcon className='help-icon' sx={{ marginRight: '0.5em' }}><PlayCircleFilledIcon color='success' /></SvgIcon>
+                return <SvgIcon className='help-icon'><PlayCircleFilledIcon color='success' /></SvgIcon>
             case 'seed':
-                return <SvgIcon className='help-icon' sx={{ marginRight: '0.5em' }}><SvgIcon color='primary' /></SvgIcon>
+                return <SvgIcon className='help-icon' color='primary'><SeedIcon /></SvgIcon>
             case 'workbook-new':
-                return <SvgIcon className='help-icon' sx={{ marginRight: '0.5em' }}><PostAddIcon /></SvgIcon>
+                return <SvgIcon className='help-icon'><PostAddIcon /></SvgIcon>
             case 'workbook-open':
-                return <SvgIcon className='help-icon' sx={{ marginRight: '0.5em' }}><FileOpenIcon /></SvgIcon>
+                return <SvgIcon className='help-icon'><FileOpenIcon /></SvgIcon>
             case 'workbook-save':
-                return <SvgIcon className='help-icon' sx={{ marginRight: '0.5em' }}><SaveIcon /></SvgIcon>
+                return <SvgIcon className='help-icon'><SaveIcon /></SvgIcon>
             case 'workbook-save-as':
-                return <SvgIcon className='help-icon' sx={{ marginRight: '0.5em' }}><SaveAsIcon /></SvgIcon>
+                return <SvgIcon className='help-icon'><SaveAsIcon /></SvgIcon>
+            case 'app-settings':
+                return <SvgIcon className='help-icon'><TuneIcon /></SvgIcon>
+            case 'lock':
+                return <SvgIcon className='help-icon'><KeyIcon /></SvgIcon>
+            case 'clear':
+                return <SvgIcon className='help-icon'><ClearAllIcon color='warning' /></SvgIcon>
             default:
                 return null
         }
@@ -231,18 +243,18 @@ export const HelpPanel = observer(({ sx }: { sx?: SxProps }) => {
                             ? <IconButton color='primary' size='medium' aria-label='Back' title='Back' onClick={() => workspace.helpBack()}><ArrowBackIcon fontSize='inherit' /></IconButton>
                             : <></>
                     }
-                    <IconButton id='close-button' color='primary' size='medium' aria-label='Close' title='Close' onClick={() => workspace.returnToNormal()}><CloseIcon fontSize='inherit' color='error' /></IconButton>
+                    <IconButton id='close-button' color='primary' size='large' aria-label='Close' title='Close' onClick={() => workspace.returnToNormal()}><CloseIcon fontSize='inherit' color='error' /></IconButton>
                 </Box>
                 <Box className='help-toolbar-end'>
                     {
                         workspace.allowHelpHome
-                            ? <IconButton color='primary' size='medium' aria-label='Home' title='Home' onClick={() => workspace.showHelp('home')}><HomeIcon fontSize='inherit' /></IconButton>
+                            ? <IconButton color='primary' size='large' aria-label='Home' title='Home' onClick={() => workspace.showHelp('home')}><HomeIcon fontSize='inherit' /></IconButton>
                             : <></>
                     }
-                    <IconButton id='help-contents-button' color='primary' size='medium' aria-label='Contents' title='Contents' onClick={() => handleShowContents()}><MenuIcon fontSize='inherit' /></IconButton>
+                    <IconButton id='help-contents-button' color='default' size='large' aria-label='Contents' title='Contents' onClick={() => handleShowContents()}><MenuIcon fontSize='inherit' /></IconButton>
                     {
                         workspace.allowHelpAbout
-                            ? <IconButton color='primary' size='medium' aria-label='About' title='About' onClick={() => workspace.showHelp('about')}><QuestionMarkIcon fontSize='inherit' /></IconButton>
+                            ? <IconButton color='primary' size='large' aria-label='About' title='About' onClick={() => workspace.showHelp('about')}><QuestionMarkIcon fontSize='inherit' /></IconButton>
                             : <></>
                     }
                 </Box>
@@ -251,85 +263,99 @@ export const HelpPanel = observer(({ sx }: { sx?: SxProps }) => {
     }
 
     // Make sure we do not go through overhead of re-rendering the existing topic
-    if (workspace.helpTopic !== activeTopic.current) {
-        activeTopic.current = workspace.helpTopic ?? '';
-
-        (async () => {
-            try {
-                setIsLoading(true)
-                const contents = await fileOps.retrieveHelpTopic(activeTopic.current)
-                const r = await unified()
-                    .use(remarkParse)
-                    .use(remarkGfm)
-                    .use(remarkDirective)
-                    .use(remarkApicizeDirectives)
-                    .use(remarkRehype)
-                    // @ts-expect-error rehypeReact typing issue 
-                    .use(rehypeReact, {
-                        Fragment,
-                        jsx,
-                        jsxs,
-                        passNode: true,
-                        components: {
-                            logo: Logo,
-                            icon: rehypeTransformIcon,
-                            toolbar: rehypeTransformToolbar,
-                            toolbarTop: rehypeTransformToolbarTop,
-                            h1: rehypeTransformHeader,
-                            h2: rehypeTransformHeader,
-                            h3: rehypeTransformHeader,
-                            h4: rehypeTransformHeader,
-                            h5: rehypeTransformHeader,
-                            h6: rehypeTransformHeader,
-                            a: rehypeTranformAnchor,
-                            p: rehypeTransformParagraph,
-                        }
-                    })
-                    .process(contents)
-                setIsLoading(false)
-                setContent(r.result)
-            } catch (e) {
-                feedback.toast(`Unable to render help topic "${activeTopic.current} - ${e}}`, ToastSeverity.Error)
-            }
-        })().catch(err => feedback.toastError(err));
-    }
+    useEffect(() => {
+        if (workspace.helpTopic !== activeTopic.current) {
+            activeTopic.current = workspace.helpTopic ?? ''
+            setIsLoading(true)
+            fileOps.retrieveHelpTopic(activeTopic.current)
+                .then(contents =>
+                    unified()
+                        .use(remarkParse)
+                        .use(remarkGfm)
+                        .use(remarkDirective)
+                        .use(remarkApicizeDirectives)
+                        .use(remarkRehype)
+                        // @ts-expect-error rehypeReact typing issue 
+                        .use(rehypeReact, {
+                            Fragment,
+                            jsx,
+                            jsxs,
+                            passNode: true,
+                            components: {
+                                logo: Logo,
+                                icon: rehypeTransformIcon,
+                                toolbar: rehypeTransformToolbar,
+                                toolbarTop: rehypeTransformToolbarTop,
+                                h1: rehypeTransformHeader,
+                                h2: rehypeTransformHeader,
+                                h3: rehypeTransformHeader,
+                                h4: rehypeTransformHeader,
+                                h5: rehypeTransformHeader,
+                                h6: rehypeTransformHeader,
+                                a: rehypeTranformAnchor,
+                                p: rehypeTransformParagraph,
+                            }
+                        })
+                        .process(contents)
+                ).then(r => {
+                    setIsLoading(false)
+                    setContent(r.result)
+                }).catch(err => {
+                    setIsLoading(false)
+                    setContent(<></>)
+                    feedback.toastError(err)
+                });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [workspace.helpTopic])
 
     const HelpContents = () => {
         if (helpContents === null) {
             return null
         }
 
-        const renderHelpContent = ([name, value]: [string, string | HelpContents]): any =>
-            (typeof value == 'string')
-                ? <MenuItem disableRipple onClick={() => handleShowHelp(value)}>
+        let idx = 0
+        const nextKey = () => {
+            idx += 1
+            return `helpCnt-${idx}`
+        }
+
+        const renderHelpContent = ([name, value]: [string, string | HelpContents]): any => {
+            return (typeof value == 'string')
+                ? <MenuItem key={nextKey()} disableRipple onClick={() => handleShowHelp(value)}>
                     <Box display='block'>
                         {name}
                     </Box>
                 </MenuItem>
-                : <Box>
-                    <ListSubheader>{name}</ListSubheader>
-                    <Box className='child-menu'>
+                : <Box key={nextKey()}>
+                    <ListSubheader key={nextKey()}>{name}</ListSubheader>
+                    <Box key={nextKey()} className='child-menu'>
                         {Object.entries(value).map(renderHelpContent)}
                     </Box>
                 </Box >
-
+        }
         return Object.entries(helpContents).map(renderHelpContent)
     }
 
     return <Box className='help' sx={sx}>
-        <Typography variant='h2' display={isLoading ? 'block' : 'none'}>Loading Help, One Moment Please...</Typography>
-        <Box className='help-text'>
-            {content}
-        </Box>
-        <DropdownMenu
-            id="help-contents-menu"
-            autoFocus
-            className="drop-down-menu help-contents"
-            anchorEl={contentsMenu}
-            open={contentsMenu !== null}
-            onClose={handleContentsMenuClose}
-        >
-            <HelpContents />
-        </DropdownMenu>
+        {
+            isLoading
+                ? <Box display='flex' alignItems='center' justifyContent='center' height='100%' width='100%'><Typography variant='h2'>Loading Help, One Moment Please...</Typography></Box>
+                : <>
+                    <Box className='help-text'>
+                        {content}
+                    </Box>
+                    <DropdownMenu
+                        id="help-contents-menu"
+                        autoFocus
+                        className="drop-down-menu help-contents"
+                        anchorEl={contentsMenu}
+                        open={contentsMenu !== null}
+                        onClose={handleContentsMenuClose}
+                    >
+                        <HelpContents />
+                    </DropdownMenu>
+                </>
+        }
     </Box>
 })

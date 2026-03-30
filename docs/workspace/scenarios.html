@@ -23,7 +23,7 @@
                 </g>
             </g>
         </svg></span> Scenarios </h1>
-<p>A Scenario is a set of variables that are available when testing <a href="../requests.html">requests</a>.  These can be set for any <a href="../requests.html">Request</a> or Group.  If they are set for a Group, they will apply to call child Requests or Groups.  At the simplest level, you can use this capability to inject different values into the same Request(s), without having to modify them.</p>
+<p>A Scenario is a set of variables that are available when testing <a href="../workspace/requests.html">requests</a>.  These can be set for any <a href="../workspace/requests.html">Request</a> or <a href="../workspace/groups.html">Group</a>.  If they are set for a Group, they will apply to call child Requests or Groups.  At the simplest level, you can use this capability to inject different values into the same Request(s), without having to modify them.</p>
 <p>Scenario variables can be used to dynamically set URLs and posted body content.  Assume you have a Scenario variables called <code>author</code> and <code>quote</code>.  You can inject those into a <a href="../requests/body.html">Requests's body</a> by using handlebar syntax:</p>
 <pre><code class="language-json">{
     "author":"{{author}}",

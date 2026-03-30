@@ -11,6 +11,7 @@ import { useWorkspace } from '../../contexts/workspace.context';
 import { useApicizeSettings } from '../../contexts/apicize-settings.context';
 import { useFeedback } from '../../contexts/feedback.context';
 import { useState, useEffect } from 'react';
+import { EncyrptedViewer } from '../viewers/encrypted-viewer';
 
 export const ScenarioEditor = observer(({ scenario, sx }: { scenario: EditableScenario, sx?: SxProps }) => {
 
@@ -48,111 +49,115 @@ export const ScenarioEditor = observer(({ scenario, sx }: { scenario: EditableSc
     }
 
     return (
-        <Stack direction='column' className='editor scenario' sx={sx}>
-            <Box className='editor-panel-header'>
-                <EditorTitle
-                    icon={<SvgIcon color='scenario'><ScenarioIcon /></SvgIcon>}
-                    name={scenario.name.length > 0 ? scenario.name : '(Unnamed)'}
-                    diag={settings.showDiagnosticInfo ? scenario.id : undefined}
-                />
+        scenario.encrypted
+            ? <Box className='editor-panel single-panel'>
+                <EncyrptedViewer id={scenario.id} entityType={scenario.entityType} />
             </Box>
-            <Box className='editor-panel'>
-                <Stack className='editor-content' direction='column' spacing={3}>
-                    <TextField
-                        id='scenario-name'
-                        label='Name'
-                        aria-label='scenario name'
-                        size='small'
-                        value={scenario.name}
-                        autoFocus={scenario.name === ''}
-                        onChange={e => {
-                            scenario.setName(e.target.value).catch(err => feedback.toastError(err))
-                        }}
-                        error={!!scenario.nameError}
-                        helperText={scenario.nameError ?? ''}
-                        fullWidth
+            : <Stack direction='column' className='editor scenario' sx={sx}>
+                <Box className='editor-panel-header'>
+                    <EditorTitle
+                        icon={<SvgIcon color='scenario'><ScenarioIcon /></SvgIcon>}
+                        name={scenario.name.length > 0 ? scenario.name : '(Unnamed)'}
+                        diag={settings.showDiagnosticInfo ? scenario.id : undefined}
                     />
-                    <Stack direction='column' paddingTop='2em'>
-                        <Grid container spacing={3}>
-                            {
-                                (scenario.variables ?? []).map(variable => [
-                                    <Grid container rowSpacing={2} spacing={1} size={12} columns={12}>
-                                        <Grid size={{ md: 3 }}>
-                                            <TextField
-                                                id={`${variable.id}-name`}
-                                                label='Variable Name'
-                                                aria-label='variable-name'
-                                                size="small"
-                                                value={variable.name}
-                                                error={variable.nameInvalid}
-                                                helperText={variable.nameInvalid ? 'Variable name is required' : ''}
-                                                onChange={(e) => {
-                                                    variable.updateName(e.target.value)
-                                                    scenario.setVariables(scenario.variables).catch(err => feedback.toastError(err))
-                                                }}
-                                                fullWidth
-                                            />
-                                        </Grid>
-                                        <Grid size={{ md: 2 }}>
-                                            <FormControl sx={{ width: '100%' }}>
-                                                <InputLabel id={`${variable.id}-type-lbl`}>Type</InputLabel>
-                                                <Select
-                                                    id={`${variable.id}-type`}
-                                                    labelId={`${variable.id}-type-lbl`}
-                                                    label='Type'
-                                                    arial-label='variable-type'
-                                                    size='small'
-                                                    value={variable.type}
-                                                    open={openVariableTypeMenuId === variable.id}
-                                                    onClose={() => setOpenVariableTypeMenuId(null)}
-                                                    onOpen={() => setOpenVariableTypeMenuId(variable.id)}
-                                                    onChange={e => {
-                                                        variable.updateSourceType(e.target.value as VariableSourceType)
+                </Box>
+                <Box className='editor-panel'>
+                    <Stack className='editor-content' direction='column' spacing={3}>
+                        <TextField
+                            id='scenario-name'
+                            label='Name'
+                            aria-label='scenario name'
+                            size='small'
+                            value={scenario.name}
+                            autoFocus={scenario.name === ''}
+                            onChange={e => {
+                                scenario.setName(e.target.value).catch(err => feedback.toastError(err))
+                            }}
+                            error={!!scenario.nameError}
+                            helperText={scenario.nameError ?? ''}
+                            fullWidth
+                        />
+                        <Stack direction='column' paddingTop='2em'>
+                            <Grid container spacing={3}>
+                                {
+                                    (scenario.variables ?? []).map(variable => [
+                                        <Grid container rowSpacing={2} spacing={1} size={12} columns={12}>
+                                            <Grid size={{ md: 3 }}>
+                                                <TextField
+                                                    id={`${variable.id}-name`}
+                                                    label='Variable Name'
+                                                    aria-label='variable-name'
+                                                    size="small"
+                                                    value={variable.name}
+                                                    error={variable.nameInvalid}
+                                                    helperText={variable.nameInvalid ? 'Variable name is required' : ''}
+                                                    onChange={(e) => {
+                                                        variable.updateName(e.target.value)
                                                         scenario.setVariables(scenario.variables).catch(err => feedback.toastError(err))
                                                     }}
-                                                >
-                                                    <MenuItem key={`${variable.id}-type-text`} value={VariableSourceType.Text}>Text Value</MenuItem>
-                                                    <MenuItem key={`${variable.id}-type-json`} value={VariableSourceType.JSON}>JSON Value</MenuItem>
-                                                    <MenuItem key={`${variable.id}-type-file-json`} value={VariableSourceType.FileJSON}>JSON File</MenuItem>
-                                                    <MenuItem key={`${variable.id}-type-file-csv`} value={VariableSourceType.FileCSV}>CSV File</MenuItem>
-                                                </Select>
-                                            </FormControl>
+                                                    fullWidth
+                                                />
+                                            </Grid>
+                                            <Grid size={{ md: 2 }}>
+                                                <FormControl sx={{ width: '100%' }}>
+                                                    <InputLabel id={`${variable.id}-type-lbl`}>Type</InputLabel>
+                                                    <Select
+                                                        id={`${variable.id}-type`}
+                                                        labelId={`${variable.id}-type-lbl`}
+                                                        label='Type'
+                                                        arial-label='variable-type'
+                                                        size='small'
+                                                        value={variable.type}
+                                                        open={openVariableTypeMenuId === variable.id}
+                                                        onClose={() => setOpenVariableTypeMenuId(null)}
+                                                        onOpen={() => setOpenVariableTypeMenuId(variable.id)}
+                                                        onChange={e => {
+                                                            variable.updateSourceType(e.target.value as VariableSourceType)
+                                                            scenario.setVariables(scenario.variables).catch(err => feedback.toastError(err))
+                                                        }}
+                                                    >
+                                                        <MenuItem key={`${variable.id}-type-text`} value={VariableSourceType.Text}>Text Value</MenuItem>
+                                                        <MenuItem key={`${variable.id}-type-json`} value={VariableSourceType.JSON}>JSON Value</MenuItem>
+                                                        <MenuItem key={`${variable.id}-type-file-json`} value={VariableSourceType.FileJSON}>JSON File</MenuItem>
+                                                        <MenuItem key={`${variable.id}-type-file-csv`} value={VariableSourceType.FileCSV}>CSV File</MenuItem>
+                                                    </Select>
+                                                </FormControl>
+                                            </Grid>
+                                            <Grid size={{ md: 6 }}>
+                                                <TextField
+                                                    id={`${variable.id}-value`}
+                                                    label='Value'
+                                                    className='code'
+                                                    aria-label='variable-value'
+                                                    sx={{ width: '100%' }}
+                                                    rows={10}
+                                                    multiline={variable.type == VariableSourceType.JSON}
+                                                    size="small"
+                                                    value={variable.value}
+                                                    error={variable.valueError !== null}
+                                                    helperText={variable.valueError ?? ''}
+                                                    onChange={(e) => {
+                                                        variable.updateValue(e.target.value)
+                                                        scenario.setVariables(scenario.variables).catch(err => feedback.toastError(err))
+                                                    }}
+                                                    fullWidth
+                                                />
+                                            </Grid>
+                                            <Grid className='namevalue-col-btn' size={{ md: 1 }}>
+                                                <IconButton aria-label="delete" onClick={() => onDeleteVariable(variable.id)}>
+                                                    <DeleteIcon color='primary' />
+                                                </IconButton>
+                                            </Grid>
                                         </Grid>
-                                        <Grid size={{ md: 6 }}>
-                                            <TextField
-                                                id={`${variable.id}-value`}
-                                                label='Value'
-                                                className='code'
-                                                aria-label='variable-value'
-                                                sx={{ width: '100%' }}
-                                                rows={10}
-                                                multiline={variable.type == VariableSourceType.JSON}
-                                                size="small"
-                                                value={variable.value}
-                                                error={variable.valueError !== null}
-                                                helperText={variable.valueError ?? ''}
-                                                onChange={(e) => {
-                                                    variable.updateValue(e.target.value)
-                                                    scenario.setVariables(scenario.variables).catch(err => feedback.toastError(err))
-                                                }}
-                                                fullWidth
-                                            />
-                                        </Grid>
-                                        <Grid className='namevalue-col-btn' size={{ md: 1 }}>
-                                            <IconButton aria-label="delete" onClick={() => onDeleteVariable(variable.id)}>
-                                                <DeleteIcon color='primary' />
-                                            </IconButton>
-                                        </Grid>
-                                    </Grid>
-                                ])
-                            }
-                            <Box>
-                                <Button variant="outlined" aria-label="add" startIcon={<AddIcon />} size='small' onClick={() => onAddVariable()}>Add Scenario Variable</Button>
-                            </Box>
-                        </Grid>
+                                    ])
+                                }
+                                <Box>
+                                    <Button variant="outlined" aria-label="add" startIcon={<AddIcon />} size='small' onClick={() => onAddVariable()}>Add Scenario Variable</Button>
+                                </Box>
+                            </Grid>
+                        </Stack>
                     </Stack>
-                </Stack>
-            </Box>
-        </Stack >
+                </Box>
+            </Stack >
     )
 })

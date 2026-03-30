@@ -1,4 +1,5 @@
 {
+    "About Apicize": "about",
     "Workspaces": "home",
     "Workspace Entities": {
         "Requests": {
@@ -10,25 +11,33 @@
             "Testing": "requests/test",
             "Parameters": "requests/parameters"
         },
-        "Groups": "workspace/groups",
+        "Groups": {
+            "Overview": "workspace/groups",
+            "Information": "groups/info",
+            "Setup Script": "groups/setup",
+            "Parameters": "groups/parameters"
+        },
         "Scenarios": "workspace/scenarios",
+        "Data Sets": "workspace/data-sets",
         "Authorizations": {
             "Overview": "workspace/authorizations",
-            "Basic Auth": "authorization/basic",
-            "API Key": "authorization/api-key",
-            "OAuth2 Client Flow": "authorization/oauth2-client",
-            "OAuth2 PKCE Flow": "authorization/oauth2-pkce"
+            "Basic Auth": "authorizations/basic",
+            "API Key": "authorizations/api-key",
+            "OAuth2 Client Flow": "authorizations/oauth2-client",
+            "OAuth2 PKCE Flow": "authorizations/oauth2-pkce"
         },
         "Certificates": "workspace/certificates",
         "Proxies": "workspace/proxies",
-        "Workspace Defaults": "workspace/defaults"
+        "Storing Parameters": "parameter-storage"
     },
     "Testing": {
         "Authoriing Tests": "authoring-tests",
         "Running Tests": "running-tests",
         "View Communication Logs": "logs"
     },
-    "Storing Parameters": "parameter-storage",
-    "Settings": "settings",
-    "About Apicize": "about"
+    "Settings": {
+        "Workspace Defaults": "settings/defaults",
+        "Application Seettings": "settings/app-settings",
+        "Lock Parameters": "settings/lock"
+    }
 }

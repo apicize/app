@@ -157,11 +157,11 @@ pub enum ClipboardData {
     Text { text: String },
     Image,
     Files { files: Vec<String> },
-    RequestEntry { entry: StoredRequestEntry },
-    Scenario { scenario: Scenario },
-    Authorization { authorization: Authorization },
-    Certificate { certificate: Certificate },
-    Proxy { proxy: Proxy },
+    RequestEntry { entry: Box<StoredRequestEntry> },
+    Scenario { scenario: Box<Scenario> },
+    Authorization { authorization: Box<Authorization> },
+    Certificate { certificate: Box<Certificate> },
+    Proxy { proxy: Box<Proxy> },
 }
 
 #[derive(Serialize_repr, Deserialize_repr, Copy, Clone, PartialEq)]

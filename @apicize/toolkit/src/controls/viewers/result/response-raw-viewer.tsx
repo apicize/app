@@ -18,7 +18,6 @@ export function ResultRawPreview({ detail }: { detail: ExecutionResultDetail | n
 
     const body = detail.testContext.response?.body ?? { type: 'Text', text: '' }
 
-
     const contentType = detail.testContext.response?.headers
         ? Object.entries(detail.testContext.response.headers).find(([k]) => k.toLowerCase() === 'content-type')?.[1]?.toLowerCase() ?? ''
         : ''

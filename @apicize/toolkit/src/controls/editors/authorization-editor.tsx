@@ -26,6 +26,7 @@ import { useState, useEffect } from 'react'
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import SettingsIcon from '@mui/icons-material/Settings';
 import { WarningsEditor } from './warnings-editor';
+import { EncyrptedViewer } from '../viewers/encrypted-viewer'
 
 type AuthorizationPanels = 'Settings' | 'Warnings'
 
@@ -128,37 +129,39 @@ export const AuthorizationEditor = observer(({ authorization, sx }: { authorizat
                 />
             </Box>
             {
-                hasWarnings
-                    ? (
-                        <Box className='editor-panel single-panel'>
-                            <Stack className='editor-content' direction='row' flexGrow={1}>
-                                <ToggleButtonGroup
-                                    orientation='vertical'
-                                    exclusive
-                                    onChange={handlePanelChanged}
-                                    value={panel}
-                                    sx={{ marginRight: '24px' }}
-                                    aria-label="text alignment">
-                                    <ToggleButton value="Settings" title="Show Authorization Settings" aria-label='show settings' size='small'><SettingsIcon /></ToggleButton>
-                                    <ToggleButton value="Warnings" title="Authorization Warnings" aria-label='show warnings' size='small'><WarningAmberIcon color='warning' /></ToggleButton>
-                                </ToggleButtonGroup>
-                                <Box flexGrow={1} flexDirection='row' className='panels'>
-                                    {
-                                        panel == 'Settings'
-                                            ? settingsContent()
-                                            : panel == 'Warnings'
-                                                ? <WarningsEditor warnings={authorization.validationWarnings} onDelete={(id) => {
-                                                    authorization.deleteWarning(id).catch(err => feedback.toastError(err))
-                                                }} />
-                                                : <></>
-                                    }
-                                </Box>
-                            </Stack>
+                authorization.encrypted
+                    ? <Box className='panels single-panel'><EncyrptedViewer id={authorization.id} entityType={authorization.entityType} /></Box>
+                    : hasWarnings
+                        ? (
+                            <Box className='editor-panel single-panel'>
+                                <Stack className='editor-content' direction='row' flexGrow={1}>
+                                    <ToggleButtonGroup
+                                        orientation='vertical'
+                                        exclusive
+                                        onChange={handlePanelChanged}
+                                        value={panel}
+                                        sx={{ marginRight: '24px' }}
+                                        aria-label="text alignment">
+                                        <ToggleButton value="Settings" title="Show Authorization Settings" aria-label='show settings' size='small'><SettingsIcon /></ToggleButton>
+                                        <ToggleButton value="Warnings" title="Authorization Warnings" aria-label='show warnings' size='small'><WarningAmberIcon color='warning' /></ToggleButton>
+                                    </ToggleButtonGroup>
+                                    <Box flexGrow={1} flexDirection='row' className='panels'>
+                                        {
+                                            panel == 'Settings'
+                                                ? settingsContent()
+                                                : panel == 'Warnings'
+                                                    ? <WarningsEditor warnings={authorization.validationWarnings} onDelete={(id) => {
+                                                        authorization.deleteWarning(id).catch(err => feedback.toastError(err))
+                                                    }} />
+                                                    : <></>
+                                        }
+                                    </Box>
+                                </Stack>
+                            </Box>
+                        )
+                        : <Box className='editor-panel'>
+                            {settingsContent('editor-content')}
                         </Box>
-                    )
-                    : <Box className='editor-panel'>
-                        {settingsContent('editor-content')}
-                    </Box>
             }
         </Stack>
     )

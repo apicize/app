@@ -1,36 +1,46 @@
 import { Scenario, ValidationErrorList, Variable, VariableSourceType } from "@apicize/lib-typescript"
 import { Editable } from "../editable"
-import { action, computed, observable } from "mobx"
+import { action, computed, observable, runInAction } from "mobx"
 import { GenerateIdentifier } from "../../services/random-identifier-generator"
 import { EntityType } from "./entity-type"
 import { EditableEntityContext } from "../editable"
-import { EntityTypeName, EntityUpdateNotification } from "../../contexts/workspace.context"
+import { EntityTypeName } from "../../contexts/workspace.context"
 import { ScenarioUpdate } from "../updates/scenario-update"
+import { EntityUpdate } from "../updates/entity-update"
 
 export class EditableScenario extends Editable {
     public readonly entityType = EntityType.Scenario
+    @observable accessor encrypted: boolean
+
     @observable accessor variables: EditableVariable[] = []
+
     @observable accessor validationErrors: ValidationErrorList = {}
 
-    public constructor(entry: Scenario, workspace: EditableEntityContext) {
-        super(workspace)
-        this.id = entry.id
-        this.name = entry.name ?? ''
-        this.validationErrors = entry.validationErrors ?? {}
-        this.variables = entry.variables?.map(v => new EditableVariable(
-            GenerateIdentifier(),
-            v.name,
-            v.type ?? VariableSourceType.Text,
-            v.value,
-            v.disabled
-        )) ?? []
+    public constructor(scenario: Scenario, workspace: EditableEntityContext) {
+        super(scenario.id, scenario.name ?? '', workspace)
+        if ('data' in scenario) {
+            this.encrypted = true
+        } else {
+            this.encrypted = false
+            this.validationErrors = scenario.validationErrors ?? {}
+
+            this.variables = scenario.variables?.map(v => new EditableVariable(
+                GenerateIdentifier(),
+                v.name,
+                v.type ?? VariableSourceType.Text,
+                v.value,
+                v.disabled
+            )) ?? []
+        }
     }
 
     protected async performUpdate(update: ScenarioUpdate) {
         this.markAsDirty()
         const updates = await this.workspace.update(update)
         if (updates) {
-            this.validationErrors = updates.validationErrors || {}
+            runInAction(() => {
+                this.validationErrors = updates.validationErrors || {}
+            })
         }
     }
 
@@ -47,15 +57,18 @@ export class EditableScenario extends Editable {
     }
 
     @action
-    refreshFromExternalSpecificUpdate(notification: EntityUpdateNotification) {
-        if (notification.update.entityType !== EntityType.Scenario) {
+    refreshFromExternalSpecificUpdate(update: EntityUpdate) {
+        if (update.entityType !== EntityType.Scenario) {
             return
         }
-        if (notification.update.name !== undefined) {
-            this.name = notification.update.name
+        if (update.encrypted !== undefined) {
+            this.encrypted = update.encrypted
         }
-        if (notification.update.variables !== undefined) {
-            this.variables = notification.update.variables.map(
+        if (update.name !== undefined) {
+            this.name = update.name
+        }
+        if (update.variables !== undefined) {
+            this.variables = update.variables.map(
                 v => new EditableVariable(
                     GenerateIdentifier(),
                     v.name ?? '',
@@ -65,7 +78,6 @@ export class EditableScenario extends Editable {
                 )
             )
         }
-        this.validationErrors = notification.validationErrors ?? {}
     }
 
     @computed get nameError() {

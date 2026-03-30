@@ -4,6 +4,7 @@ import { EntityType } from "../workspace/entity-type"
 export interface ProxyUpdate {
     type: EntityTypeName.Proxy
     entityType: EntityType.Proxy
+    encrypted?: boolean
     id: string
     name?: string
     url?: string

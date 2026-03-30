@@ -157,6 +157,9 @@ impl OAuth2PkceService {
         client_id: &str,
         verifier: &str,
     ) -> Result<PkceTokenResult, String> {
+        println!(
+            "Retriving access token (redirect: {redirect_url}, client_id: {client_id}, code: {code}, verifier: {verifier})"
+        );
         retrieve_access_token(token_url, redirect_url, client_id, code, verifier, true).await
     }
 
@@ -229,6 +232,7 @@ async fn process_pkce_response(
     if let Ok(params) = Query::<PkceAuthParams>::from_query(request.query_string()) {
         // Get query string....
         // ?code=0b32dbe7-30f7-433b-9f81-05e8851627ab&state=aaabbbccc
+        println!("PKCE response: {:?}", params.0);
         data.tauri
             .emit("oauth2-pkce-auth-response", params.0)
             .unwrap();

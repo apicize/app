@@ -5,7 +5,7 @@ Apicize supports the following types of client certificates for authorization:
 * PKCS #8: With either separate or embedded certificate key
 * PKCS #12:  PFX with password
 
-Certificates may be used in conjunction with other types of [authorization](help:authorizations)
+Certificates may be used in conjunction with other types of [authorization](help:workspace/authorizations)
 
 ## Configuration
 
@@ -17,4 +17,4 @@ To delete a Certificate, select it in the navigation pane, and in its context me
 
 ### See Also
 
-* [**Requests**](help:requests)
+* [**Requests**](help:workspace/requests)

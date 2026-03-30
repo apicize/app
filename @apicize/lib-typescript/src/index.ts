@@ -10,6 +10,7 @@ export * from './models/authorization'
 export * from './models/certificate'
 export * from './models/proxy'
 export * from './models/data-set'
+export * from './models/parameter-cipher'
 export * from './models/persistence'
 export * from './models/name-value-pair';
 export * from './models/selected-parameters'

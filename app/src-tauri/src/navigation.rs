@@ -1,6 +1,8 @@
 use apicize_lib::{
-    Disabled, Executable, ExecutionState, Identifiable, IndexedEntities, RequestEntry, Selection,
-    Validated, ValidationState, Workspace, editing::indexed_entities::IndexedEntityPosition,
+    Disabled, Executable, ExecutionState, Identifiable, IndexedEntities, PERSIST_PRIVATE,
+    PERSIST_VAULT, PERSIST_WORKBOOK, ParameterStore, RequestEntry, Selection, Validated,
+    ValidationState, Workspace, editing::indexed_entities::IndexedEntityPosition,
+    parameters::EncryptableParameter,
 };
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -26,6 +28,8 @@ pub struct NavigationEntry {
     pub name: String,
     pub validation_state: ValidationState,
     pub execution_state: ExecutionState,
+    pub parameter_store: Option<ParameterStore>,
+    pub encrypted: bool,
 }
 
 impl Executable for NavigationEntry {
@@ -50,6 +54,8 @@ pub struct UpdatedNavigationEntry {
     pub validation_state: ValidationState,
     pub execution_state: ExecutionState,
     pub disabled: bool,
+    pub encrypted: bool,
+    pub parameter_store: Option<ParameterStore>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -89,28 +95,32 @@ pub struct Navigation {
 }
 
 impl ParamNavigationSection {
-    pub fn new<T: Identifiable + Validated>(
+    pub fn new<T: Identifiable + Validated + EncryptableParameter>(
         parameters: &IndexedEntities<T>,
     ) -> ParamNavigationSection {
         ParamNavigationSection {
             public: Self::map_entities(
                 &parameters.entities,
                 parameters.child_ids.get("W").map_or(&[], |e| e),
+                None,
             ),
             private: Self::map_entities(
                 &parameters.entities,
                 parameters.child_ids.get("P").map_or(&[], |e| e),
+                Some(ParameterStore::Private),
             ),
             vault: Self::map_entities(
                 &parameters.entities,
                 parameters.child_ids.get("V").map_or(&[], |e| e),
+                Some(ParameterStore::Vault),
             ),
         }
     }
 
-    pub fn map_entities<T: Identifiable + Validated>(
+    pub fn map_entities<T: Identifiable + Validated + EncryptableParameter>(
         entities: &std::collections::HashMap<String, T>,
         ids: &[String],
+        parameter_store: Option<ParameterStore>,
     ) -> Vec<NavigationEntry> {
         ids.iter()
             .map(|id| {
@@ -120,6 +130,8 @@ impl ParamNavigationSection {
                     name: entity.get_title(),
                     validation_state: entity.get_validation_state(),
                     execution_state: ExecutionState::empty(),
+                    parameter_store,
+                    encrypted: entity.is_encrypted(),
                 }
             })
             .collect()
@@ -267,15 +279,29 @@ impl Navigation {
             authorizations: ParamNavigationSection::new(&workspace.authorizations),
             certificates: ParamNavigationSection::new(&workspace.certificates),
             proxies: ParamNavigationSection::new(&workspace.proxies),
-            data_sets: ParamNavigationSection::map_entities(
-                &workspace.data.entities,
-                &workspace.data.top_level_ids,
-            ),
+            data_sets: workspace
+                .data
+                .top_level_ids
+                .iter()
+                .map(|id| {
+                    let entity = &workspace.data.entities.get(id).unwrap();
+                    NavigationEntry {
+                        id: id.clone(),
+                        name: entity.get_title(),
+                        validation_state: entity.get_validation_state(),
+                        execution_state: ExecutionState::empty(),
+                        parameter_store: None,
+                        encrypted: false,
+                    }
+                })
+                .collect(),
             defaults: NavigationEntry {
                 id: Self::DEFAULTS_ID.to_string(),
                 name: Self::DEFAULTS_NAME.to_string(),
                 validation_state: workspace.defaults.validation_state,
                 execution_state: ExecutionState::empty(),
+                parameter_store: None,
+                encrypted: false,
             },
         }
     }
@@ -479,18 +505,34 @@ impl Navigation {
         };
 
         // Insert at new position
-        for list in [
-            &mut section.public,
-            &mut section.private,
-            &mut section.vault,
-        ] {
-            if let Some(idx) = list.iter().position(|e| e.id == relative_to_id) {
-                let insert_idx = match position {
-                    IndexedEntityPosition::Before => idx,
-                    _ => idx + 1,
-                };
-                list.insert(insert_idx, entry);
+        match relative_to_id {
+            PERSIST_WORKBOOK => {
+                section.public.push(entry);
                 return true;
+            },
+            PERSIST_PRIVATE => {
+                section.private.push(entry);
+                return true;
+            },
+            PERSIST_VAULT => {
+                section.vault.push(entry);
+                return true;
+            },
+            _ => {
+                for list in [
+                    &mut section.public,
+                    &mut section.private,
+                    &mut section.vault,
+                ] {
+                    if let Some(idx) = list.iter().position(|e| e.id == relative_to_id) {
+                        let insert_idx = match position {
+                            IndexedEntityPosition::Before => idx,
+                            _ => idx + 1,
+                        };
+                        list.insert(insert_idx, entry);
+                        return true;
+                    }
+                }
             }
         }
 

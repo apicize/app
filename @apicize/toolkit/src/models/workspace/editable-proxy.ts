@@ -3,21 +3,27 @@ import { Editable } from "../editable"
 import { action, computed, observable, runInAction } from "mobx"
 import { EntityType } from "./entity-type"
 import { EditableEntityContext } from "../editable"
-import { EntityTypeName, EntityUpdateNotification } from "../../contexts/workspace.context"
+import { EntityTypeName } from "../../contexts/workspace.context"
 import { ProxyUpdate } from "../updates/proxy-update"
+import { EntityUpdate } from "../updates/entity-update"
 
 export class EditableProxy extends Editable {
     public readonly entityType = EntityType.Proxy
+    @observable accessor encrypted: boolean
+
     @observable accessor url = ''
 
-    @observable accessor validationErrors: ValidationErrorList
+    @observable accessor validationErrors: ValidationErrorList = {}
 
-    public constructor(entry: Proxy, workspace: EditableEntityContext) {
-        super(workspace)
-        this.id = entry.id
-        this.name = entry.name ?? ''
-        this.url = entry.url
-        this.validationErrors = entry.validationErrors ?? {}
+    public constructor(proxy: Proxy, workspace: EditableEntityContext) {
+        super(proxy.id, proxy.name ?? '', workspace)
+        if ('data' in proxy) {
+            this.encrypted = true
+        } else {
+            this.encrypted = false
+            this.url = proxy.url
+            this.validationErrors = proxy.validationErrors ?? {}
+        }
     }
 
     protected async performUpdate(update: ProxyUpdate) {
@@ -43,17 +49,19 @@ export class EditableProxy extends Editable {
     }
 
     @action
-    refreshFromExternalSpecificUpdate(notification: EntityUpdateNotification) {
-        if (notification.update.entityType !== EntityType.Proxy) {
+    refreshFromExternalSpecificUpdate(update: EntityUpdate) {
+        if (update.entityType !== EntityType.Proxy) {
             return
         }
-        if (notification.update.name !== undefined) {
-            this.name = notification.update.name
+        if (update.encrypted !== undefined) {
+            this.encrypted = update.encrypted
         }
-        if (notification.update.url !== undefined) {
-            this.name = notification.update.url
+        if (update.name !== undefined) {
+            this.name = update.name
         }
-        this.validationErrors = notification.validationErrors ?? {}
+        if (update.url !== undefined) {
+            this.name = update.url
+        }
     }
 
     @computed get nameError() {

@@ -1,7 +1,20 @@
 import { Identifiable } from "./identifiable"
 import { Named } from "./named"
+import { ParameterCipher } from "./parameter-cipher"
 import { Selection } from "./selection"
 import { ValidationErrors } from "./validation"
+
+/**
+ * Request authorization configuration
+ */
+export type Authorization = ParameterCipher | AuthorizationPlain
+
+/**
+ * Request authorization configuration (unencrypted)
+ */
+export type AuthorizationPlain = BasicAuthorization | OAuth2ClientAuthorization
+    | OAuth2PkceAuthorization | ApiKeyAuthorization
+
 
 /**
  * Specifies the type of authorization used for a request
@@ -12,13 +25,6 @@ export enum AuthorizationType {
     OAuth2Pkce = 'OAuth2Pkce',
     ApiKey = 'ApiKey'
 };
-
-/**
- * Specifies how to persist sensitive information
- */
-
-export type Authorization = BasicAuthorization | OAuth2ClientAuthorization
-    | OAuth2PkceAuthorization | ApiKeyAuthorization
 
 /**
  * Information required for basic authentication

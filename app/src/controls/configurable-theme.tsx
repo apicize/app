@@ -1,7 +1,7 @@
 import { useApicizeSettings, PALETTE_COLORS } from "@apicize/toolkit"
 import { createTheme, ThemeProvider, TypographyVariantsOptions } from "@mui/material/styles"
 import { observer } from "mobx-react-lite"
-import { ReactNode, useMemo } from "react"
+import { ReactNode, useEffect, useMemo } from "react"
 import "@mui/x-tree-view/themeAugmentation"
 
 export const ConfigurableTheme = observer(({ children }: {
@@ -12,6 +12,10 @@ export const ConfigurableTheme = observer(({ children }: {
   const isDark = settings.colorScheme === 'dark'
   const fontSize = settings.fontSize
   const navigationFontSize = settings.navigationFontSize
+
+  useEffect(() => {
+      document.documentElement.style.fontSize = `${settings.fontSize}px`;
+  }, [settings.fontSize])
 
   const theme = useMemo(() => {
     const palette = createTheme()
@@ -108,15 +112,15 @@ export const ConfigurableTheme = observer(({ children }: {
     typography: {
       body: {
         fontFamily: "'Roboto Flex','sans'",
-        fontSize: fontSize
+        fontSize: '1.0rem'
       },
       body1: {
         fontFamily: "'Roboto Flex','sans'",
-        fontSize: fontSize
+        fontSize: '1.0rem'
       },
       body2: {
         fontFamily: "'Roboto Flex','sans'",
-        fontSize: fontSize
+        fontSize: '1.0rem'
       },
       fontSize: fontSize,
       fontFamily: "'Roboto Flex','sans'",
@@ -144,6 +148,7 @@ export const ConfigurableTheme = observer(({ children }: {
         }
       },
 
+
       //   MuiIconButton: {
       //     defaultProps: {
       //       sx: { padding: '0.05em' }
@@ -165,6 +170,27 @@ export const ConfigurableTheme = observer(({ children }: {
       //       }
       //     }
       //   },
+      MuiIconButton: {
+        styleOverrides: {
+          root: {
+            fontSize: '1rem'
+          }
+        }
+      },
+      MuiSvgIcon: {
+        styleOverrides: {
+          root: {
+            fontSize: '1.5rem'
+          }
+        }
+      },
+      MuiButton: {
+        styleOverrides: {
+          root: {
+            fontSize: '1rem'
+          }
+        }
+      },
       MuiTypography: {
         styleOverrides: {
           h1: {

@@ -1,10 +1,11 @@
 import { Selection, WorkspaceDefaultParameters, ExecutionState, ValidationState, NO_SELECTION, NO_SELECTION_ID } from "@apicize/lib-typescript"
 import { action, makeObservable, observable } from "mobx"
 import { EditableEntityContext } from "../editable"
-import { EntityTypeName, EntityUpdateNotification } from "../../contexts/workspace.context"
+import { EntityTypeName } from "../../contexts/workspace.context"
 import { EditableWarnings } from "./editable-warnings"
 import { EntityType } from "./entity-type"
 import { DefaultsUpdate } from "../updates/defaults-update"
+import { EntityUpdate } from "../updates/entity-update"
 
 export class EditableDefaults {
     public readonly entityType = EntityType.Defaults
@@ -93,26 +94,24 @@ export class EditableDefaults {
     }
 
     @action
-    refreshFromExternalSpecificUpdate(notification: EntityUpdateNotification) {
-        if (notification.update.entityType !== EntityType.Defaults) {
+    refreshFromExternalSpecificUpdate(update: EntityUpdate) {
+        if (update.entityType !== EntityType.Defaults) {
             return
         }
-        const updatedDefaults = notification.update;
-        if (updatedDefaults.selectedScenario !== undefined) {
-            this.selectedScenario = updatedDefaults.selectedScenario
+        if (update.selectedScenario !== undefined) {
+            this.selectedScenario = update.selectedScenario
         }
-        if (updatedDefaults.selectedAuthorization !== undefined) {
-            this.selectedAuthorization = updatedDefaults.selectedAuthorization
+        if (update.selectedAuthorization !== undefined) {
+            this.selectedAuthorization = update.selectedAuthorization
         }
-        if (updatedDefaults.selectedCertificate !== undefined) {
-            this.selectedCertificate = updatedDefaults.selectedCertificate
+        if (update.selectedCertificate !== undefined) {
+            this.selectedCertificate = update.selectedCertificate
         }
-        if (updatedDefaults.selectedProxy !== undefined) {
-            this.selectedProxy = updatedDefaults.selectedProxy
+        if (update.selectedProxy !== undefined) {
+            this.selectedProxy = update.selectedProxy
         }
-        if (updatedDefaults.selectedData !== undefined) {
-            this.selectedData = updatedDefaults.selectedData
+        if (update.selectedData !== undefined) {
+            this.selectedData = update.selectedData
         }
-        this.validationWarnings.set(notification.validationWarnings)
     }
 }

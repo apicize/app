@@ -34,7 +34,7 @@ const GroupPanelView = observer(({ group, settings, usePanel, hasWarnings, onPan
     const feedback = useFeedback()
 
     const panelsClass = React.useMemo(() =>
-        (usePanel === 'Setup') ? 'panels full-width' : 'panels',
+        (usePanel === 'Test Setup Script') ? 'panels full-width' : 'panels',
         [usePanel]
     )
     return <>
@@ -58,9 +58,9 @@ const GroupPanelView = observer(({ group, settings, usePanel, hasWarnings, onPan
                     value={usePanel}
                     sx={{ marginRight: '12px', zIndex: 100 }}
                     aria-label="text alignment">
-                    <ToggleButton value="Info" title="Show Group Info" aria-label='show info' size='small'><DisplaySettingsIcon /></ToggleButton>
-                    <ToggleButton value="Setup" title="Show Group Setup" aria-label='show testsetup' size='small'><ScienceIcon /></ToggleButton>
-                    <ToggleButton value="Parameters" title="Show Group Parameters" aria-label='show test' size='small'><AltRouteIcon /></ToggleButton>
+                    <ToggleButton value="Info" title="Information" aria-label='show info' size='small'><DisplaySettingsIcon /></ToggleButton>
+                    <ToggleButton value="Test Setup Script" title="Test Setup Script" aria-label='show testsetup' size='small'><ScienceIcon /></ToggleButton>
+                    <ToggleButton value="Execution Parameters" title="Execution Parameters" aria-label='show test' size='small'><AltRouteIcon /></ToggleButton>
                     {
                         hasWarnings
                             ? <ToggleButton hidden={true} value="Warnings" title="Request Warnings" aria-label='show warnings'><WarningAmberIcon color="warning" /></ToggleButton>
@@ -69,8 +69,8 @@ const GroupPanelView = observer(({ group, settings, usePanel, hasWarnings, onPan
                 </ToggleButtonGroup>
                 <Box flexGrow={1} className={panelsClass}>
                     {usePanel === 'Info' ? <RequestGroupInfoEditor group={group} />
-                        : usePanel === 'Setup' ? <RequestSetupEditor group={group} />
-                            : usePanel === 'Parameters' ? <RequestParametersEditor requestOrGroup={group} />
+                        : usePanel === 'Test Setup Script' ? <RequestSetupEditor group={group} />
+                            : usePanel === 'Execution Parameters' ? <RequestParametersEditor requestOrGroup={group} />
                                 : usePanel === 'Warnings' ? <WarningsEditor warnings={group.validationWarnings} onDelete={(id) => {
                                     group.deleteWarning(id).catch(err => feedback.toastError(err))
                                 }} />
@@ -150,7 +150,7 @@ export const RequestGroupEditor = observer(({ group, sx }: { group: EditableRequ
     const settings = useApicizeSettings()
     const workspace = useWorkspace()
 
-    workspace.nextHelpTopic = 'workspace/groups'
+    workspace.nextHelpTopic = 'groups/info'
 
     const handlePanelChanged = (_: React.SyntheticEvent, newValue: GroupPanel) => {
         if (newValue) {

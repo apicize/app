@@ -3,10 +3,11 @@ import { Editable } from "../editable"
 import { action, computed, observable, runInAction } from "mobx"
 import { EntityType } from "./entity-type"
 import { EditableEntityContext } from "../editable"
-import { EntityTypeName, EntityUpdateNotification } from "../../contexts/workspace.context"
+import { EntityTypeName } from "../../contexts/workspace.context"
 import { csvToObject, csvFromObject, toCsvString, CsvRow } from "../../services/csv-conversion"
 import { GenerateIdentifier } from "../../services/random-identifier-generator"
 import { DataSetContent, DataSetUpdate } from "../updates/data-set-update"
+import { EntityUpdate } from "../updates/entity-update"
 
 export enum EditableDataSetType {
     None,
@@ -28,9 +29,7 @@ export class EditableDataSet extends Editable {
     @observable accessor validationErrors: ValidationErrorList
 
     public constructor(entry: DataSet, workspace: EditableEntityContext, content?: DataSetContent) {
-        super(workspace)
-        this.id = entry.id
-        this.name = entry.name ?? ''
+        super(entry.id, entry.name ?? '', workspace)
         this.type = entry.type
         this.csvColumns = content?.csvColumns ?? []
         this.csvRows = content?.csvRows ?? []
@@ -283,31 +282,30 @@ export class EditableDataSet extends Editable {
     }
 
     @action
-    refreshFromExternalSpecificUpdate(notification: EntityUpdateNotification) {
-        if (notification.update.entityType !== EntityType.DataSet) {
+    refreshFromExternalSpecificUpdate(update: EntityUpdate) {
+        if (update.entityType !== EntityType.DataSet) {
             return
         }
-        if (notification.update.name !== undefined) {
-            this.name = notification.update.name
+        if (update.name !== undefined) {
+            this.name = update.name
         }
-        if (notification.update.sourceType !== undefined) {
-            this.type = notification.update.sourceType
-            this.editType = notification.update.sourceType === DataSourceType.FileCSV
+        if (update.sourceType !== undefined) {
+            this.type = update.sourceType
+            this.editType = update.sourceType === DataSourceType.FileCSV
                 ? EditableDataSetType.CSV : EditableDataSetType.JSON
         }
-        if (notification.update.sourceFileName !== undefined) {
-            this.sourceFileName = notification.update.sourceFileName
+        if (update.sourceFileName !== undefined) {
+            this.sourceFileName = update.sourceFileName
         }
-        if (notification.update.sourceText !== undefined) {
-            this.text = notification.update.sourceText
+        if (update.sourceText !== undefined) {
+            this.text = update.sourceText
         }
-        if (notification.update.csvColumns !== undefined) {
-            this.csvColumns = notification.update.csvColumns
+        if (update.csvColumns !== undefined) {
+            this.csvColumns = update.csvColumns
         }
-        if (notification.update.csvRows !== undefined) {
-            this.csvRows = notification.update.csvRows
+        if (update.csvRows !== undefined) {
+            this.csvRows = update.csvRows
         }
-        this.validationErrors = notification.validationErrors ?? {}
     }
 
     @computed get nameError() {

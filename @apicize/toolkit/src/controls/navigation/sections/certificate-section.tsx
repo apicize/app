@@ -1,11 +1,10 @@
 import CertificateIcon from "../../../icons/certificate-icon"
 import { EntityType } from "../../../models/workspace/entity-type"
 import { useWorkspace } from "../../../contexts/workspace.context"
-import { observer } from "mobx-react-lite"
 import { ClipboardDataType } from "../../../contexts/clipboard.context"
 import { ResourceSection } from "./resource-section"
 
-export const CertificateSection = observer(({ includeHeader }: { includeHeader: boolean }) => {
+export const CertificateSection = ({ includeHeader }: { includeHeader: boolean }) => {
     const workspace = useWorkspace()
 
     return <ResourceSection
@@ -23,4 +22,4 @@ export const CertificateSection = observer(({ includeHeader }: { includeHeader: 
         moveEntity={workspace.moveCertificate.bind(workspace)}
         buildClipboardPayload={(id) => ({ payloadType: 'Certificate', certificateId: id })}
     />
-})
+}

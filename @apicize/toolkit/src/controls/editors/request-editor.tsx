@@ -36,7 +36,7 @@ const RequestPanel = observer(({
     const feedback = useFeedback()
     const settings = useApicizeSettings()
 
-    let selectedPanel = workspace.requestPanel
+    const selectedPanel = workspace.requestPanel
     const hasWarnings = request.validationWarnings.hasEntries
 
     const handlePanelChanged = (_: React.SyntheticEvent, newValue: RequestPanel) => {
@@ -46,12 +46,12 @@ const RequestPanel = observer(({
     }
 
     const panelsClass = useMemo(() =>
-        (selectedPanel === 'Body' || selectedPanel === 'Test') ? 'panels full-width' : 'panels',
+        (selectedPanel === 'Body' || selectedPanel === 'Test Script') ? 'panels full-width' : 'panels',
         [selectedPanel]
     )
 
     if (!hasWarnings && selectedPanel === 'Warnings') {
-        selectedPanel = 'Info'
+        workspace.changeRequestPanel('Info')
         return null
     }
 
@@ -76,15 +76,15 @@ const RequestPanel = observer(({
                     value={selectedPanel}
                     sx={{ marginRight: '12px', zIndex: 100 }}
                     aria-label="text alignment">
-                    <ToggleButton value="Info" title="Show Request Info" aria-label='show info' size='small'><DisplaySettingsIcon /></ToggleButton>
-                    <ToggleButton value="Query String" title="Show Request Query String" aria-label='show query string' size='small'><ViewListIcon /></ToggleButton>
-                    <ToggleButton value="Headers" title="Show Request Headers" aria-label='show headers' size='small'><ViewListOutlinedIcon /></ToggleButton>
-                    <ToggleButton value="Body" title="Show Request Body" aria-label='show body' size='small'><ArticleOutlinedIcon /></ToggleButton>
-                    <ToggleButton value="Test" title="Show Request Tests" aria-label='show test' size='small'><ScienceIcon /></ToggleButton>
-                    <ToggleButton value="Parameters" title="Show Request Parameters" aria-label='show parameters' size='small'><AltRouteIcon /></ToggleButton>
+                    <ToggleButton value="Info" title="Information" aria-label='show info' size='small'><DisplaySettingsIcon /></ToggleButton>
+                    <ToggleButton value="Query String" title="Query String Parameters" aria-label='show query string' size='small'><ViewListIcon /></ToggleButton>
+                    <ToggleButton value="Headers" title="Headers" aria-label='show headers' size='small'><ViewListOutlinedIcon /></ToggleButton>
+                    <ToggleButton value="Body" title="Body" aria-label='show body' size='small'><ArticleOutlinedIcon /></ToggleButton>
+                    <ToggleButton value="Test Script" title="Test Script" aria-label='show test' size='small'><ScienceIcon /></ToggleButton>
+                    <ToggleButton value="Execution Parameters" title="Execution Parameters" aria-label='show parameters' size='small'><AltRouteIcon /></ToggleButton>
                     {
                         hasWarnings
-                            ? <ToggleButton hidden={true} value="Warnings" title="Request Warnings" aria-label='show warnings' size='small'><WarningAmberIcon sx={{ color: '#FFFF00' }} /></ToggleButton>
+                            ? <ToggleButton hidden={true} value="Warnings" title="Request Warnings" aria-label='show warnings' size='small'><WarningAmberIcon color="warning" /></ToggleButton>
                             : null
                     }
                 </ToggleButtonGroup>
@@ -95,8 +95,8 @@ const RequestPanel = observer(({
                         : selectedPanel === 'Headers' ? <RequestHeadersEditor request={request} />
                             : selectedPanel === 'Query String' ? <RequestQueryStringEditor request={request} />
                                 : selectedPanel === 'Body' ? <RequestBodyEditor request={request} />
-                                    : selectedPanel === 'Test' ? <RequestTestEditor request={request} />
-                                        : selectedPanel === 'Parameters' ? <RequestParametersEditor requestOrGroup={request} />
+                                    : selectedPanel === 'Test Script' ? <RequestTestEditor request={request} />
+                                        : selectedPanel === 'Execution Parameters' ? <RequestParametersEditor requestOrGroup={request} />
                                             : selectedPanel === 'Warnings' ? <WarningsEditor warnings={request.validationWarnings} onDelete={(id) => {
                                                 request.deleteWarning(id).catch(err => feedback.toastError(err))
                                             }} />
@@ -137,7 +137,7 @@ export const RequestEditor = observer(({ sx, request }: { sx?: SxProps, request:
     const selectedResultMenuItem = request.selectedResultMenuItem
     const detail = workspace.currentExecutionDetail
 
-    return resultMenuItems.length > 0 && selectedResultMenuItem
+    return (resultMenuItems.length > 0 && selectedResultMenuItem)
         ? <Box sx={sx}>
             <PanelGroup defaultLayout={defaultLayout} onLayoutChange={onLayoutChanged} orientation='horizontal' className='editor split'>
                 <Panel id='request-editor' defaultSize={50} minSize={400} className='split-left'>

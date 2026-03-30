@@ -17,6 +17,5 @@ For more information about executing tests, see [**Running Tests and Viewing Res
 
 ### See Also
 
-* [**Requests**](help:requests)
+* [**Requests**](help:workspace/requests)
 * [**Workspace**](help:home)
-* [**Running Tests and Viewing Results**](help:running-tests)

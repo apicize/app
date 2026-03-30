@@ -1,4 +1,4 @@
-# :icon[data] Data Sets :toolbar
+# :icon[dataset] Data Sets :toolbar
 
 Data Sets are defined in either JSON or CSV and are used to dynamically inject data into Requests during testing.  
 

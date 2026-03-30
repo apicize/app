@@ -5,6 +5,7 @@ import { EntityTypeName } from "../../contexts/workspace.context"
 export interface ScenarioUpdate {
     type: EntityTypeName.Scenario
     entityType: EntityType.Scenario
+    encrypted?: boolean
     id: string
     name?: string
     variables?: Variable[]

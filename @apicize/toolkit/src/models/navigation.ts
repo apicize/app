@@ -1,4 +1,4 @@
-import { ExecutionState, ValidationState } from "@apicize/lib-typescript"
+import { ExecutionState, ParameterStore, ValidationState } from "@apicize/lib-typescript"
 
 export interface NavigationEntry {
     id: string
@@ -6,6 +6,8 @@ export interface NavigationEntry {
     executionState?: ExecutionState
     validationState?: ValidationState
     disabled: boolean
+    parameterStore?: ParameterStore
+    encrypted: boolean
 }
 
 export interface NavigationRequestEntry extends NavigationEntry {

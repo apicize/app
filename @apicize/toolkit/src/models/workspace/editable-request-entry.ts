@@ -28,11 +28,13 @@ export abstract class EditableRequestEntry extends Editable {
     private summaries = new Map<number, ExecutionResultSummary>
 
     constructor(
+        id: string,
+        name: string,
         workspace: EditableEntityContext,
         executionResultViewState: ExecutionResultViewState,
         requestExecution: RequestExecution
     ) {
-        super(workspace)
+        super(id, name, workspace)
 
         this.hideSuccess = executionResultViewState.hideSuccess
         this.hideFailure = executionResultViewState.hideFailure
@@ -72,6 +74,7 @@ export abstract class EditableRequestEntry extends Editable {
 
     applyExecution(execution: RequestExecution) {
         this.isRunning = execution.executionState === ExecutionState.running
+
         if (execution.menu.length < 1) {
             this.selectedResultMenuItem = null
             this.resultMenuItems = []
@@ -111,7 +114,7 @@ export abstract class EditableRequestEntry extends Editable {
                 this.isRunning = false
                 break
             case 'complete':
-            case 'clear':
+            case 'reset':
                 this.applyExecution(event)
                 this.isRunning = false
                 break

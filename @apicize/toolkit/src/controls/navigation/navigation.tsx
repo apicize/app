@@ -1,7 +1,6 @@
 import { observer } from "mobx-react-lite"
 import { AirlineStopsIcon } from '../../icons'
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView'
-import { TreeItem } from '@mui/x-tree-view/TreeItem'
 import Box from '@mui/material/Box'
 import Stack from '@mui/material/Stack'
 import SvgIcon from '@mui/material/SvgIcon'
@@ -9,7 +8,6 @@ import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import { useEffect, useCallback, useMemo } from 'react'
 import { useWorkspace, WorkspaceMode } from "../../contexts/workspace.context";
-import DefaultsIcon from "../../icons/defaults-icon";
 import { ScenarioSection } from "./sections/scenario-scection";
 import { AuthorizationSection } from "./sections/authorization-section";
 import { CertificateSection } from "./sections/certificate-section";
@@ -24,7 +22,6 @@ import RequestIcon from "../../icons/request-icon"
 import ScenarioIcon from "../../icons/scenario-icon"
 import DatasetIcon from '@mui/icons-material/Dataset';
 import { NavOpsMenu } from "./nav-ops-menu"
-import { iconsFromState } from "./nav-tree-item"
 import { DataSetSection } from "./sections/data-set-section"
 
 const PREFERRED_WIDTH = 1200
@@ -95,11 +92,6 @@ export const NavigationControl = observer(() => {
                             <AirlineStopsIcon />
                         </SvgIcon>
                     </ToggleButton>
-                    <ToggleButton title='Defaults' value={WorkspaceMode.Defaults} onClick={() => toggleMode(WorkspaceMode.Defaults)}>+
-                        <SvgIcon color='defaults'>
-                            <DefaultsIcon />
-                        </SvgIcon>
-                    </ToggleButton>
                 </ToggleButtonGroup>
                 <NavFileOpsMenu orientation='vertical' sx={{ marginTop: '5em' }} />
             </Stack>
@@ -125,20 +117,7 @@ export const NavigationControl = observer(() => {
                     workspace.updateExpanded(itemId, isExpanded)
                 }}
                 onSelectedItemsChange={(_, itemId) => {
-                    if (itemId) {
-                        if (itemId === 'defaults') {
-                            workspace.setMode(WorkspaceMode.Defaults)
-                        } else {
-                            // const i = itemId.indexOf('-')
-                            // if (i !== -1) {
-                            //     const type = parseInt(itemId.substring(0, i)) as EntityType
-                            //     if (type !== EntityType.Header) {
-                            //         const id = itemId.substring(i + 1)
-                            //         workspace.changeActive(type, id)
-                            //     }
-                            // }
-                        }
-                    } else {
+                    if (! itemId) {
                         workspace.clearActive()
                     }
                 }}
@@ -150,57 +129,6 @@ export const NavigationControl = observer(() => {
                 <AuthorizationSection includeHeader={true} />
                 <CertificateSection includeHeader={true} />
                 <ProxySection includeHeader={true} />
-                <TreeItem
-                    itemId="defaults"
-                    sx={{ margin: '1.0em 0 1.0em 0', padding: 0 }}
-                    key='defaults'
-                    label={(
-                        <Box
-                            className='nav-item'
-                            typography='navigation'
-                        >
-                            <Box className='nav-icon-box'>
-                                <SvgIcon color='defaults'><DefaultsIcon /></SvgIcon>
-                            </Box>
-                            <Box className='nav-node-text' display='flex' flexGrow={1} alignItems='center'>
-                                Defaults
-                                <Box display='inline-flex' width='2em' paddingLeft='1em' justifyItems='center' justifyContent='left'>
-                                    {
-                                        iconsFromState({
-                                            id: 'defaults',
-                                            name: '',
-                                            validationState: workspace.defaults.validationState,
-                                            executionState: undefined,
-                                            disabled: false,
-                                        })
-                                    }
-                                </Box>
-                            </Box>
-                        </Box>
-                    )} />
-                {/* {
-                    workspace.warnings.hasEntries
-                        ? <TreeItem
-                            itemId="wkbk-warnings"
-                            sx={{ margin: '0.5em 0 1.0em 0', padding: 0 }}
-                            key='wkbk-warnings'
-                            label={(
-                                <Box
-                                    component='span'
-                                    display='flex'
-                                    justifyContent='space-between'
-                                    alignItems='center'
-                                >
-                                    <Box className='nav-icon-box'>
-                                        <SvgIcon color='warning' fontSize='small'><WarningAmberIcon /></SvgIcon>
-                                    </Box>
-                                    <Box className='nav-node-text' display='flex' flexGrow={1} alignItems='center'>
-                                        Warnings
-                                    </Box>
-                                </Box>
-                            )} onClick={() => workspace.changeActive(EntityType.Warnings, '')} />
-                        : null
-                }                 */}
             </SimpleTreeView>
         </Stack >
 })

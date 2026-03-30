@@ -3,11 +3,13 @@ import { Editable } from "../editable"
 import { action, computed, observable, runInAction } from "mobx"
 import { EntityType } from "./entity-type"
 import { EditableEntityContext } from "../editable"
-import { EntityTypeName, EntityUpdateNotification } from "../../contexts/workspace.context"
+import { EntityTypeName } from "../../contexts/workspace.context"
 import { CertificateUpdate } from "../updates/certificate-update"
+import { EntityUpdate } from "../updates/entity-update"
 
 export class EditableCertificate extends Editable {
     public readonly entityType = EntityType.Certificate
+    @observable accessor encrypted: boolean
 
     @observable accessor type = CertificateType.PKCS8_PEM
     @observable accessor pem = ''
@@ -15,28 +17,31 @@ export class EditableCertificate extends Editable {
     @observable accessor pfx = ''
     @observable accessor password = ''
 
-    @observable accessor validationErrors: ValidationErrorList
+    @observable accessor validationErrors: ValidationErrorList = {}
 
     public constructor(certificate: Certificate, workspace: EditableEntityContext) {
-        super(workspace)
-        this.id = certificate.id
-        this.name = certificate.name ?? ''
-        this.validationErrors = certificate.validationErrors ?? {}
+        super(certificate.id, certificate.name ?? '', workspace)
 
-        switch (certificate.type) {
-            case CertificateType.PKCS8_PEM:
-                this.pem = certificate.pem
-                this.key = certificate.key ?? ''
-                break
-            case CertificateType.PEM:
-                this.pem = certificate.pem
-                break
-            case CertificateType.PKCS12:
-                this.pfx = certificate.pfx
-                this.password = certificate.password
-                break
-            default:
-                throw new Error('Invalid certificate type')
+        if ('data' in certificate) {
+            this.encrypted = true
+        } else {
+            this.encrypted = false
+            switch (certificate.type) {
+                case CertificateType.PKCS8_PEM:
+                    this.pem = certificate.pem
+                    this.key = certificate.key ?? ''
+                    break
+                case CertificateType.PEM:
+                    this.pem = certificate.pem
+                    break
+                case CertificateType.PKCS12:
+                    this.pfx = certificate.pfx
+                    this.password = certificate.password
+                    break
+                default:
+                    throw new Error('Invalid certificate type')
+            }
+            this.validationErrors = certificate.validationErrors ?? {}
         }
     }
 
@@ -87,29 +92,31 @@ export class EditableCertificate extends Editable {
     }
 
     @action
-    refreshFromExternalSpecificUpdate(notification: EntityUpdateNotification) {
-        if (notification.update.entityType !== EntityType.Certificate) {
+    refreshFromExternalSpecificUpdate(update: EntityUpdate) {
+        if (update.entityType !== EntityType.Certificate) {
             return
         }
-        if (notification.update.name !== undefined) {
-            this.name = notification.update.name
+        if (update.encrypted !== undefined) {
+            this.encrypted = update.encrypted
         }
-        if (notification.update.certType !== undefined) {
-            this.type = notification.update.certType
+        if (update.name !== undefined) {
+            this.name = update.name
         }
-        if (notification.update.pem !== undefined) {
-            this.pem = notification.update.pem
+        if (update.certType !== undefined) {
+            this.type = update.certType
         }
-        if (notification.update.key !== undefined) {
-            this.key = notification.update.key ?? ''
+        if (update.pem !== undefined) {
+            this.pem = update.pem
         }
-        if (notification.update.pfx !== undefined) {
-            this.pfx = notification.update.pfx
+        if (update.key !== undefined) {
+            this.key = update.key ?? ''
         }
-        if (notification.update.password !== undefined) {
-            this.password = notification.update.password
+        if (update.pfx !== undefined) {
+            this.pfx = update.pfx
         }
-        this.validationErrors = notification.validationErrors ?? {}
+        if (update.password !== undefined) {
+            this.password = update.password
+        }
     }
 
     @computed get nameError() {

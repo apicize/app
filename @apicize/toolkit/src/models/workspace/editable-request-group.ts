@@ -2,12 +2,13 @@ import { RequestGroup, ExecutionConcurrency, ValidationErrorList, DEFAULT_SELECT
 import { observable, action, computed, runInAction } from "mobx"
 import { EntityType } from "./entity-type"
 import { EditableEntityContext } from "../editable"
-import { EntityTypeName, EntityUpdateNotification } from "../../contexts/workspace.context"
+import { EntityTypeName } from "../../contexts/workspace.context"
 import { EditableRequestEntry } from "./editable-request-entry"
 import { EditableWarnings } from "./editable-warnings"
 import { RequestExecution } from "../request-execution"
 import { ExecutionResultViewState } from "./execution"
 import { RequestGroupUpdate } from "../updates/request-group-update"
+import { EntityUpdate } from "../updates/entity-update"
 
 export class EditableRequestGroup extends EditableRequestEntry {
     public readonly entityType = EntityType.Group
@@ -21,7 +22,12 @@ export class EditableRequestGroup extends EditableRequestEntry {
     @observable accessor validationErrors: ValidationErrorList = {}
 
     public constructor(entry: RequestGroup, workspace: EditableEntityContext, executionResultViewState: ExecutionResultViewState, requestExecution: RequestExecution) {
-        super(workspace, executionResultViewState, requestExecution)
+        super(
+            entry.id,
+            entry.name ?? '',
+            workspace,
+            executionResultViewState,
+            requestExecution)
 
         this.id = entry.id
         this.name = entry.name ?? ''
@@ -158,48 +164,46 @@ export class EditableRequestGroup extends EditableRequestEntry {
     }
 
     @action
-    refreshFromExternalSpecificUpdate(notification: EntityUpdateNotification) {
-        if (notification.update.entityType !== EntityType.Group) {
+    refreshFromExternalSpecificUpdate(update: EntityUpdate) {
+        if (update.entityType !== EntityType.Group) {
             return
         }
-        if (notification.update.name !== undefined) {
-            this.name = notification.update.name
+        if (update.name !== undefined) {
+            this.name = update.name
         }
-        if (notification.update.disabled !== undefined) {
-            this.disabled = notification.update.disabled
+        if (update.disabled !== undefined) {
+            this.disabled = update.disabled
         }
-        if (notification.update.key !== undefined) {
-            this.key = notification.update.key
+        if (update.key !== undefined) {
+            this.key = update.key
         }
-        if (notification.update.runs !== undefined) {
-            this.runs = notification.update.runs
+        if (update.runs !== undefined) {
+            this.runs = update.runs
         }
-        if (notification.update.execution !== undefined) {
-            this.execution = notification.update.execution
+        if (update.execution !== undefined) {
+            this.execution = update.execution
         }
-        if (notification.update.multiRunExecution !== undefined) {
-            this.multiRunExecution = notification.update.multiRunExecution
+        if (update.multiRunExecution !== undefined) {
+            this.multiRunExecution = update.multiRunExecution
         }
-        if (notification.update.setup !== undefined) {
-            this.setup = notification.update.setup
+        if (update.setup !== undefined) {
+            this.setup = update.setup
         }
-        if (notification.update.selectedScenario !== undefined) {
-            this.selectedScenario = notification.update.selectedScenario
+        if (update.selectedScenario !== undefined) {
+            this.selectedScenario = update.selectedScenario
         }
-        if (notification.update.selectedAuthorization !== undefined) {
-            this.selectedAuthorization = notification.update.selectedAuthorization
+        if (update.selectedAuthorization !== undefined) {
+            this.selectedAuthorization = update.selectedAuthorization
         }
-        if (notification.update.selectedCertificate !== undefined) {
-            this.selectedCertificate = notification.update.selectedCertificate
+        if (update.selectedCertificate !== undefined) {
+            this.selectedCertificate = update.selectedCertificate
         }
-        if (notification.update.selectedProxy !== undefined) {
-            this.selectedProxy = notification.update.selectedProxy
+        if (update.selectedProxy !== undefined) {
+            this.selectedProxy = update.selectedProxy
         }
-        if (notification.update.selectedData !== undefined) {
-            this.selectedDataSet = notification.update.selectedData
+        if (update.selectedData !== undefined) {
+            this.selectedDataSet = update.selectedData
         }
-        this.validationWarnings.set(notification.validationWarnings)
-        this.validationErrors = notification.validationErrors ?? {}
     }
 
     @action

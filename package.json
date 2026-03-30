@@ -17,12 +17,13 @@
     "launch": "yarn build && yarn start",
     "watch": "concurrently \"yarn workspace @apicize/lib-typescript watch\" \"yarn workspace @apicize/toolkit watch\" \"yarn workspace app tauri dev\"",
     "clean": "rimraf node_modules @apicize/app/src-tauri/target @apicize/app/.next @apicize/app/node_modules @apicize/lib-typescript/dist @apicize/lib-typescript/node_modules @apicize/lib-typescript/tsconfig.tsbuildinfo @apicize/toolkit/dist @apicize/toolkit/node_modules @apicize/toolkit/tsconfig.tsbuildinfo",
-    "build-deps": "yarn workspace @apicize/lib-typescript build && yarn workspace @apicize/toolkit build",
-    "watch-deps": "concurrently \"yarn workspace @apicize/lib-typescript watch\" \"yarn workspace @apicize/toolkit watch\" \"yarn workspace @apicize/toolkit watch-css\"",
-    "build:release": "yarn run build-deps && yarn tauri build --verbose",
+    "build-deps": "yarn run validate-help && yarn workspace @apicize/lib-typescript build && yarn workspace @apicize/toolkit build",
+    "watch-deps": "concurrently \"yarn workspace @apicize/lib-typescript watch\" \"yarn workspace @apicize/toolkit watch\" \"yarn workspace @apicize/toolkit watch-dependencies\"",
+    "build:release": "yarn run build-deps && yarn tauri build",
     "start:release": "yarn run build:release && ./app/src-tauri/target/release/apicize",
     "icons": "echo $PWD && yarn tauri icon -o $PWD/app/src-tauri/icons $PWD/app/artwork/apicize-logo-plain.svg",
-    "generate-docs": "npx tsx generate-docs.ts",
+    "validate-help": "npx tsx --tsconfig ./utilities/tsconfig.json utilities/validate-help.ts",
+    "generate-docs": "npx tsx --tsconfig ./utilities/tsconfig.json utilities/generate-docs.ts",
     "lint": "yarn workspace @apicize/lib-typescript lint; yarn workspace @apicize/toolkit lint; yarn workspace app lint"
   },
   "devDependencies": {
@@ -48,5 +49,5 @@
     "unist-util-visit": "^5.0.0"
   },
   "packageManager": "yarn@4.12.0",
-  "version": "0.34.0"
+  "version": "0.35.0"
 }

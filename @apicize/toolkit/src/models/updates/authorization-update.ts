@@ -5,6 +5,7 @@ import { EntityType } from "../workspace/entity-type"
 export interface AuthorizationUpdate {
     type: EntityTypeName.Authorization
     entityType: EntityType.Authorization
+    encrypted?: boolean
     authType?: AuthorizationType
     id: string
     name?: string

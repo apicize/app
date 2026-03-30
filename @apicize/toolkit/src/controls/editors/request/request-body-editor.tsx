@@ -1,9 +1,10 @@
 import Box from '@mui/material/Box'
-import { Button, FormControl, Grid, IconButton, InputLabel, MenuItem, Select, Stack } from '@mui/material'
+import { FormControl, Grid, IconButton, InputLabel, MenuItem, Select, Stack } from '@mui/material'
 import { NameValueEditor } from '../name-value-editor'
 import FileOpenIcon from '@mui/icons-material/FileOpen'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import ContentPasteGoIcon from '@mui/icons-material/ContentPasteGo';
+import FormatListBulletedAddIcon from '@mui/icons-material/FormatListBulletedAdd';
 import { BodyType, BodyTypes } from '@apicize/lib-typescript'
 import { observer } from 'mobx-react-lite'
 import { useClipboard } from '../../../contexts/clipboard.context'
@@ -22,6 +23,7 @@ import { RequestEditSessionType } from '../editor-types';
 import { ImageViewer, KNOWN_IMAGE_EXTENSIONS } from '../../viewers/image-viewer';
 import { EditorMode } from '../../../models/editor-mode';
 import { IRequestEditorTextModel } from '../../../models/editor-text-model';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 
 interface RawEditorProps {
   bodyLength: number | null
@@ -211,27 +213,36 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
       value: h.value
     }))
     const contentTypeHeader = newHeaders?.find(h => h.name === 'Content-Type')
+    let action: string
     if (contentTypeHeader) {
       if (request.bodyMimeType.length === 0) {
         newHeaders = newHeaders?.filter(h => h.name !== 'Content-Type')
+        action = 'Removed Content-Type Header'
       } else {
         contentTypeHeader.value = request.bodyMimeType
-
+        action = 'Updated Content-Type Header'
       }
     } else {
       if (request.bodyMimeType.length > 0) {
-        if (!newHeaders) newHeaders = []
-        newHeaders.push({
-          id: GenerateIdentifier(),
-          isNew: true,
-          disabled: undefined,
-          name: 'Content-Type',
-          value: request.bodyMimeType
-        })
+        if (!newHeaders) {
+          newHeaders = []
+          action = ''
+        } else {
+          newHeaders.push({
+            id: GenerateIdentifier(),
+            isNew: true,
+            disabled: undefined,
+            name: 'Content-Type',
+            value: request.bodyMimeType
+          })
+          action = 'AddedContent-Type Header'
+        }
       }
     }
     // setAllowUpdateHeader(false)
-    request.setHeaders(newHeaders).catch(err => feedback.toastError(err))
+    request.setHeaders(newHeaders)
+      .then(() => { if (action.length > 0) feedback.toast(action, ToastSeverity.Info) })
+      .catch(err => feedback.toastError(err))
   }
 
   const bodyTypeMenuItems = () => {
@@ -347,8 +358,23 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
             }
           </Stack>
           <Grid container direction='row' spacing={2}>
-            <Button variant='outlined' size='small' disabled={![BodyType.JSON, BodyType.XML].includes(request.body.type)} onClick={performBeautify}>Beautify</Button>
-            <Button variant='outlined' size='small' disabled={!allowUpdateHeader} onClick={updateTypeHeader}>Update Content-Type Header</Button>
+            <IconButton
+              aria-label='beautify body'
+              id='beautify-json-btn'
+              title='"Beautify" Body'
+              color='primary'
+              onClick={performBeautify}>
+              <AutoAwesomeIcon />
+            </IconButton>
+            <IconButton
+              aria-label='update content-type header'
+              id='update-cnt-hdr-btn'
+              title='Update Content-Type Header'
+              disabled={!allowUpdateHeader}
+              color='primary'
+              onClick={updateTypeHeader}>
+              <FormatListBulletedAddIcon />
+            </IconButton>
           </Grid>
         </Grid>
         {request.body.type == BodyType.None

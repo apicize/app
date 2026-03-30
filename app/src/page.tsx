@@ -7,11 +7,12 @@ import {
   WorkspaceMode,
   UpdateResponse,
   EntityUpdate,
-  EntityUpdateNotification,
   RequestBodyInfo,
   RequestBodyMimeInfo,
   ToastSeverity,
   ClipboardDataType,
+  PasswordLockType,
+  LockStatusUpdate,
 } from '@apicize/toolkit'
 import { useEffect, useState } from 'react'
 import "@fontsource/roboto-mono/latin.css"
@@ -28,7 +29,7 @@ import { LogProvider } from './providers/log.provider';
 import { CssBaseline } from '@mui/material'
 import { FileDragDropProvider } from './providers/file-dragdrop.provider'
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
-import { TokenResult } from '@apicize/lib-typescript'
+import { ParameterStore, TokenResult } from '@apicize/lib-typescript'
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { runInAction } from 'mobx'
 
@@ -64,6 +65,16 @@ const workspaceStore = new WorkspaceStore(
       sessionId,
       entityType,
       entityId,
+    }),
+    setParametersPassword: (parameterStore: ParameterStore, lockType: PasswordLockType) => core.invoke('set_parameters_password', {
+      sessionId,
+      parameterStore,
+      lockType,
+    }),
+    decryptParameters: (parameterStore: ParameterStore, password: string) => core.invoke('decrypt_parameters', {
+      sessionId,
+      parameterStore,
+      password
     }),
     updateActiveEntity: (entity?: SessionEntity) => core.invoke('update_active_entity', {
       sessionId,
@@ -212,15 +223,22 @@ export default function Home() {
       feedbackStore.toast(data.payload.message, data.payload.severity)
     })
     // Notification sent on individual navigation entry update
-    const unlistenNavigationEntry = w.listen<UpdatedNavigationEntry>('navigation_entry', (data) => {
+    const unlistenNavigationEntry = w.listen<UpdatedNavigationEntry | UpdatedNavigationEntry[]>('navigation_entry', (data) => {
       workspaceStore.updateNavigationState(data.payload)
     })
     // Notification sent when the save state changes (file name change, dirty status change)
     const unlistenSaveState = w.listen<SessionSaveState>('save_state', (data) => {
-      workspaceStore.updateSaveState(data.payload)
+      runInAction(() => {
+        workspaceStore.updateSaveState(data.payload)
+      })
     })
-    // Notification on record changes (not sent to window/session initiating the update)
-    const unlistenUpdate = w.listen<EntityUpdateNotification>('update', (data) => {
+    // Notification sent when the lock status changes
+    const unlistenLockStatus = w.listen<LockStatusUpdate>('lock_status', (data) => {
+      runInAction(() => {
+        workspaceStore.updateLockStatus(data.payload)
+      })
+    })    // Notification on record changes (not sent to window/session initiating the update)
+    const unlistenUpdate = w.listen<EntityUpdate | EntityUpdate[]>('update', (data) => {
       runInAction(() => {
         workspaceStore.refreshFromExternalUpdate(data.payload)
       })
@@ -255,13 +273,14 @@ export default function Home() {
       unlistenToast.then(() => { }).catch(console.error)
       unlistenNavigationEntry.then(() => { }).catch(console.error)
       unlistenSaveState.then(() => { }).catch(console.error)
+      unlistenLockStatus.then(() => { }).catch(console.error)
       unlistenUpdate.then(() => { }).catch(console.error)
       unlistenExecutionResults.then(() => { }).catch(console.error)
       unlistenSettingsUpdate.then(() => { }).catch(console.error)
       unlistenListLogs.then(() => { }).catch(console.error)
       unlistenSessionOpened.then(() => { }).catch(console.error)
     }
-  })
+  }, [])
 
   return (
     <LogProvider store={logStore}>

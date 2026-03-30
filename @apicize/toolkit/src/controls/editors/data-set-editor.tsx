@@ -15,7 +15,7 @@ import { EditableDataSet, EditableDataSetType } from '../../models/workspace/edi
 import { DataSourceType } from '@apicize/lib-typescript'
 import { FormControl, InputLabel, Select, MenuItem, Button, Dialog, DialogTitle, DialogContent, DialogActions, ListItemIcon, Divider, IconButton, Box, Typography } from '@mui/material'
 import { FeedbackStore, ToastSeverity, useFeedback } from '../../contexts/feedback.context'
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useImperativeHandle, createRef, forwardRef } from 'react'
 import MonacoEditor from 'react-monaco-editor';
 import { IDataSetEditorTextModel } from '../../models/editor-text-model'
 import { useFileOperations } from '../../contexts/file-operations.context'
@@ -25,16 +25,22 @@ import { GridApiCommunity } from '@mui/x-data-grid/internals'
 import PostAddIcon from '@mui/icons-material/PostAdd'
 import FileOpenIcon from '@mui/icons-material/FileOpen'
 import SaveAsIcon from '@mui/icons-material/SaveAs'
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { EditableSettings } from '../../models/editable-settings'
+import { editor } from 'monaco-editor'
 
+interface JsonEditorHandle {
+    performBeautify: () => void
+}
 
-const JsonEditor = observer(({ dataSet, feedback, settings, workspace }: {
+const JsonEditor = observer(forwardRef<JsonEditorHandle, {
     dataSet: EditableDataSet
     feedback: FeedbackStore
     settings: EditableSettings
     workspace: WorkspaceStore
-}) => {
+}>(({ dataSet, feedback, settings, workspace }, ref) => {
     const [model, setModel] = useState<IDataSetEditorTextModel | null>(null)
+    const editor = useRef<editor.IStandaloneCodeEditor | null>(null)
 
     // Make sure we have the editor test model
     if (!model || model.dataSetId !== dataSet.id) {
@@ -45,12 +51,29 @@ const JsonEditor = observer(({ dataSet, feedback, settings, workspace }: {
         }
     }
 
+    function performBeautify() {
+        if (editor.current) {
+            try {
+                const action = editor.current.getAction('editor.action.formatDocument')
+                if (!action) throw new Error('Format action not found')
+                action.run().catch(err => feedback.toastError(err))
+            } catch (e) {
+                feedback.toastError(e)
+            }
+        }
+    }
+
+    useImperativeHandle(ref, () => ({ performBeautify }))
+
     return <MonacoEditor
         language='json'
         theme={settings.colorScheme === "dark" ? 'vs-dark' : 'vs-light'}
         value={dataSet.text}
         onChange={(text: string) => {
             dataSet.setJson(text, true).catch(err => feedback.toastError(err))
+        }}
+        editorDidMount={(me) => {
+            editor.current = me
         }}
         options={{
             automaticLayout: true,
@@ -64,7 +87,7 @@ const JsonEditor = observer(({ dataSet, feedback, settings, workspace }: {
             fontSize: settings.fontSize
         }}
     />
-})
+}))
 
 
 const CsvEditor = observer(({ dataSet, feedback, csvColumnWidths }: {
@@ -272,6 +295,7 @@ export const DataSetEditor = observer(({ dataSet, sx }: { dataSet: EditableDataS
     const feedback = useFeedback()
 
     const csvColumnWidths = useRef<{ [field: string]: number }>({})
+    const jsonEditor = createRef<JsonEditorHandle>()
 
     workspace.nextHelpTopic = 'workspace/data-sets'
 
@@ -447,6 +471,19 @@ export const DataSetEditor = observer(({ dataSet, sx }: { dataSet: EditableDataS
                                         onClick={() => openDataFileFrom()}>
                                         <FileOpenIcon />
                                     </IconButton>
+                                    {
+                                        dataSet.editType === EditableDataSetType.JSON
+                                            ? <IconButton
+                                                size="large"
+                                                aria-label='beautify json'
+                                                id='beautify-body-btn'
+                                                color='primary'
+                                                title='"Beautify" JSON'
+                                                onClick={() => jsonEditor.current?.performBeautify()}>
+                                                <AutoAwesomeIcon />
+                                            </IconButton>
+                                            : null
+                                    }
                                 </Grid>)
                                 : (<Grid container justifyContent='center'>
                                     <Grid alignContent='center'>
@@ -479,6 +516,18 @@ export const DataSetEditor = observer(({ dataSet, sx }: { dataSet: EditableDataS
                                             onClick={() => saveDataFileAs()}>
                                             <SaveAsIcon />
                                         </IconButton>
+                                        {
+                                            dataSet.editType === EditableDataSetType.JSON
+                                                ? <IconButton
+                                                    size="large"
+                                                    aria-label='save'
+                                                    id='datasource-save-as-btn'
+                                                    title='"Beautify" JSON'
+                                                    onClick={() => jsonEditor.current?.performBeautify()}>
+                                                    <AutoAwesomeIcon />
+                                                </IconButton>
+                                                : null
+                                        }
                                     </Grid>
                                 </Grid>)}
                             {
@@ -507,7 +556,7 @@ export const DataSetEditor = observer(({ dataSet, sx }: { dataSet: EditableDataS
                     <Grid flexGrow={1}>
                         {
                             dataSet.editType === EditableDataSetType.JSON
-                                ? <JsonEditor dataSet={dataSet} feedback={feedback} settings={settings} workspace={workspace} />
+                                ? <JsonEditor ref={jsonEditor} dataSet={dataSet} feedback={feedback} settings={settings} workspace={workspace} />
                                 : dataSet.editType === EditableDataSetType.CSV
                                     ? <CsvEditor dataSet={dataSet} feedback={feedback} csvColumnWidths={csvColumnWidths} />
                                     : <></>

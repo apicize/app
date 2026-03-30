@@ -82,7 +82,7 @@ and returns the new <code>id</code> in the response.</p>
         expect(response.status).to.equal(200)
         const data = response.body.data
         output('id', data.id)
-        console.log(`New record ID is ${data.id}`)
+        console.info(`New record ID is ${data.id}`)
     })
 })
 </code></pre>
@@ -128,7 +128,7 @@ risks that could materialize if somebody were to send out a malicious Apicize te
 <h3>See Also</h3>
 <ul>
 <li><a href="./running-tests.html"><strong>Running Tests</strong></a></li>
-<li><a href="./requests.html"><strong>Requests</strong></a></li>
+<li><a href="./workspace/requests.html"><strong>Requests</strong></a></li>
 <li><a href="./home.html"><strong>Workspace</strong></a></li>
 </ul>
     </main>

@@ -36,6 +36,9 @@ export interface ExecutionResultDetailRequest {
     /// Variables to update at the end of the request
     outputVariables?: Map<string, JsonValue>,
 
+    /// Curl command to execute the request
+    curl?: string
+
     /// Test results (if executed)
     tests?: ApicizeTestResult[],
 

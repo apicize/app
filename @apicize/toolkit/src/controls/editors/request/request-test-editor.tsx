@@ -2,9 +2,10 @@ import { EditableRequest } from "../../../models/workspace/editable-request";
 import { observer } from "mobx-react-lite";
 import { createRef, useEffect, useRef, useState } from "react";
 import { useWorkspace } from "../../../contexts/workspace.context";
-import { Box, Button, IconButton, Stack } from "@mui/material";
+import { Box, IconButton, Stack } from "@mui/material";
 import { DroppedFile, useFileDragDrop } from "../../../contexts/file-dragdrop.context";
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { useFeedback } from "../../../contexts/feedback.context";
 import MonacoEditor, { monaco } from 'react-monaco-editor';
 
@@ -104,12 +105,19 @@ export const RequestTestEditor = observer(({ request }: { request: EditableReque
                         workspace.copyToClipboard({
                             payloadType: 'RequestTest',
                             requestId: request.id,
-                        }, 'Body').catch(err => feedback.toastError(err))
+                        }, 'Test').catch(err => feedback.toastError(err))
                     }}>
                     <ContentCopyIcon />
                 </IconButton>
                 <Box flexGrow={1} minWidth={0} />
-                <Button variant='outlined' size='small' onClick={performBeautify}>Beautify Test Code</Button>
+                <IconButton
+                    aria-label='beautify test code'
+                    color='primary'
+                    id='beautify-test-btn'
+                    title='"Beautify" Test Code'
+                    onClick={performBeautify}>
+                    <AutoAwesomeIcon />
+                </IconButton>
             </Stack>
 
             <Box top={0}
