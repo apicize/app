@@ -1,18 +1,17 @@
 use apicize_lib::{Authorization, Certificate, Proxy, Scenario, StoredRequestEntry};
-use clipboard_rs::{
-    Clipboard, ClipboardContext, ClipboardHandler, ClipboardWatcher, ClipboardWatcherContext,
-    ContentFormat, RustImageData, WatcherShutdown, common::RustImage,
-};
-use parking_lot::RwLock;
+use arboard::{Clipboard, ImageData};
+use clipboard_rs::{ClipboardHandler, ClipboardWatcher, ClipboardWatcherContext, WatcherShutdown};
+use image::{DynamicImage, ImageBuffer, ImageFormat, RgbaImage};
+use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use std::{sync::Arc, thread, time::Duration};
+use std::{io::Cursor, sync::Arc, thread, time::Duration};
 use tauri::{AppHandle, Emitter};
 
 use crate::error::ApicizeAppError;
 
 pub struct ClipboardState {
-    ctx: Arc<ClipboardContext>,
+    clipboard: Arc<Mutex<Clipboard>>,
     data: Arc<RwLock<Option<ClipboardData>>>,
     data_type: Arc<RwLock<ClipboardDataType>>,
     _watcher_shutdown: WatcherShutdown,
@@ -20,10 +19,10 @@ pub struct ClipboardState {
 
 impl ClipboardState {
     pub fn new(app: AppHandle) -> Self {
-        let ctx = Arc::new(ClipboardContext::new().unwrap());
+        let clipboard = Arc::new(Mutex::new(Clipboard::new().unwrap()));
         let data = Arc::new(RwLock::<Option<ClipboardData>>::new(None));
         let data_type = Arc::new(RwLock::<ClipboardDataType>::new(ClipboardDataType::None));
-        let manager = ClipboardManager::new(app, ctx.clone(), data.clone(), data_type.clone());
+        let manager = ClipboardManager::new(app, data.clone(), data_type.clone());
         let mut watcher = ClipboardWatcherContext::new().unwrap();
 
         let watcher_shutdown = watcher.add_handler(manager).get_shutdown_channel();
@@ -33,7 +32,7 @@ impl ClipboardState {
         });
 
         ClipboardState {
-            ctx,
+            clipboard,
             data,
             data_type,
             _watcher_shutdown: watcher_shutdown,
@@ -57,35 +56,81 @@ impl ClipboardState {
     }
 
     pub fn read_image(&self) -> Result<Vec<u8>, ApicizeAppError> {
-        let img = self
-            .ctx
+        let mut clipboard = self
+            .clipboard
+            .try_lock_for(Duration::from_secs(1))
+            .ok_or_else(|| {
+                ApicizeAppError::ClipboardError("Failed to acquire clipboard lock".into())
+            })?;
+
+        let img = clipboard
             .get_image()
             .map_err(|err| ApicizeAppError::ClipboardError(err.to_string()))?;
-        let png = img
-            .to_png()
-            .map_err(|err| ApicizeAppError::ClipboardError(err.to_string()))?;
-        Ok(png.get_bytes().to_owned())
+
+        image_data_to_png_bytes(img)
     }
 
     pub fn set_text(&self, text: String) -> Result<(), ApicizeAppError> {
-        self.ctx
+        let mut clipboard = self
+            .clipboard
+            .try_lock_for(Duration::from_secs(1))
+            .ok_or_else(|| {
+                ApicizeAppError::ClipboardError("Failed to acquire clipboard lock".into())
+            })?;
+
+        clipboard
             .set_text(text)
             .map_err(|err| ApicizeAppError::ClipboardError(err.to_string()))
     }
 
     pub fn set_image(&self, data: Vec<u8>) -> Result<(), ApicizeAppError> {
-        let image = RustImageData::from_bytes(&data)
-            .map_err(|err| ApicizeAppError::ClipboardError(err.to_string()))?;
+        let image = png_bytes_to_image_data(&data)?;
 
-        self.ctx
+        let mut clipboard = self
+            .clipboard
+            .try_lock_for(Duration::from_secs(1))
+            .ok_or_else(|| {
+                ApicizeAppError::ClipboardError("Failed to acquire clipboard lock".into())
+            })?;
+
+        clipboard
             .set_image(image)
             .map_err(|err| ApicizeAppError::ClipboardError(err.to_string()))
     }
 }
 
+// Convert PNG bytes to ImageData
+fn png_bytes_to_image_data(bytes: &[u8]) -> Result<ImageData<'static>, ApicizeAppError> {
+    let img = image::load_from_memory(bytes)
+        .map_err(|e| ApicizeAppError::ClipboardError(format!("Failed to load image: {}", e)))?;
+    let rgba = img.to_rgba8();
+    let (width, height) = rgba.dimensions();
+    Ok(ImageData {
+        width: width as usize,
+        height: height as usize,
+        bytes: rgba.into_raw().into(),
+    })
+}
+
+// Convert ImageData to PNG bytes
+fn image_data_to_png_bytes(img: ImageData) -> Result<Vec<u8>, ApicizeAppError> {
+    let rgba_img: RgbaImage = ImageBuffer::from_vec(
+        img.width as u32,
+        img.height as u32,
+        img.bytes.into_owned(),
+    )
+    .ok_or_else(|| ApicizeAppError::ClipboardError("Invalid image dimensions".into()))?;
+
+    let dynamic = DynamicImage::ImageRgba8(rgba_img);
+    let mut bytes = Vec::new();
+    dynamic
+        .write_to(&mut Cursor::new(&mut bytes), ImageFormat::Png)
+        .map_err(|e| ApicizeAppError::ClipboardError(format!("PNG encoding failed: {}", e)))?;
+    Ok(bytes)
+}
+
 struct ClipboardManager {
     app: AppHandle,
-    ctx: Arc<ClipboardContext>,
     data: Arc<RwLock<Option<ClipboardData>>>,
     data_type: Arc<RwLock<ClipboardDataType>>,
 }
@@ -93,13 +138,11 @@ struct ClipboardManager {
 impl ClipboardManager {
     pub fn new(
         app: AppHandle,
-        ctx: Arc<ClipboardContext>,
         data: Arc<RwLock<Option<ClipboardData>>>,
         data_type: Arc<RwLock<ClipboardDataType>>,
     ) -> Self {
         ClipboardManager {
             app,
-            ctx,
             data,
             data_type,
         }
@@ -113,8 +156,19 @@ pub struct ClipboardError {
 
 impl ClipboardHandler for ClipboardManager {
     fn on_clipboard_change(&mut self) {
-        let new_data = if self.ctx.has(ContentFormat::Text) {
-            let text = self.ctx.get_text().unwrap_or("".to_string());
+        // Create a new Clipboard instance for the watcher
+        // (we can't share the one in ClipboardState due to &mut requirement)
+        let mut clipboard = match Clipboard::new() {
+            Ok(cb) => cb,
+            Err(_) => return,
+        };
+
+        // Check for image FIRST before text, since on Linux/X11 images often have
+        // both image data and text (file path) in clipboard, and we want to detect
+        // the image format
+        let new_data = if clipboard.get_image().is_ok() {
+            Some(ClipboardData::Image)
+        } else if let Ok(text) = clipboard.get_text() {
             if text.is_empty() {
                 None
             } else if let Ok(data) = serde_json::from_str::<ClipboardData>(&text) {
@@ -122,19 +176,12 @@ impl ClipboardHandler for ClipboardManager {
             } else {
                 Some(ClipboardData::Text { text })
             }
-        } else if self.ctx.has(ContentFormat::Image) {
-            Some(ClipboardData::Image)
-        } else if self.ctx.has(ContentFormat::Files) {
-            if let Some(files) = self.ctx.get_files().ok()
-                && !files.is_empty()
-            {
-                Some(ClipboardData::Files { files })
-            } else {
-                None
-            }
         } else {
+            // Note: arboard doesn't have a direct get_files() method
+            // Files are typically represented as text paths on most platforms
             None
         };
+
         if let Some(new_data) = new_data {
             let new_data_type = ClipboardDataType::from(&new_data);
 

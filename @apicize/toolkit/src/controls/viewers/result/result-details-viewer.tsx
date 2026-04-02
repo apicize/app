@@ -2,6 +2,7 @@ import { IconButton, Typography } from "@mui/material"
 import { Stack } from "@mui/material"
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import beautify from "js-beautify"
+import { useMemo } from "react"
 import { observer } from "mobx-react-lite"
 import { RichViewer } from "../rich-viewer"
 import { EditorMode } from "../../../models/editor-mode"
@@ -16,18 +17,21 @@ export const ResultDetailsViewer = observer(({ detail }: { detail: ExecutionResu
     const workspace = useWorkspace()
     const feedback = useFeedback()
 
+    // Remove tracking elements from displayed result details
+    const text = useMemo(() => {
+        if (!detail) return ''
+        const detailToRender = {
+            ...structuredClone(toJS(detail)),
+            entityType: undefined,
+            execCtr: undefined,
+        }
+        return beautify.js_beautify(JSON.stringify(detailToRender), {})
+    }, [detail])
+
     if (!detail) {
         return
     }
 
-    // Remove tracking elements from displayed result details
-    const detailToRender = {
-        ...structuredClone(toJS(detail)),
-        entityType: undefined,
-        execCtr: undefined,
-    }
-
-    const text = beautify.js_beautify(JSON.stringify(detailToRender), {})
     const model = workspace.getResultEditModel(detail, ResultEditSessionType.Details, EditorMode.json)
 
     return (
@@ -43,7 +47,7 @@ export const ResultDetailsViewer = observer(({ detail }: { detail: ExecutionResu
                             payloadType: 'ResponseDetail',
                             execCtr: detail.execCtr,
                         }, 'Response details')
-                            .catch(err => feedback.toastError(err)).catch(err => feedback.toastError(err))
+                            .catch(err => feedback.toastError(err))
                     }}>
                     <ContentCopyIcon />
                 </IconButton>

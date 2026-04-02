@@ -15,7 +15,7 @@ import { EditableDataSet, EditableDataSetType } from '../../models/workspace/edi
 import { DataSourceType } from '@apicize/lib-typescript'
 import { FormControl, InputLabel, Select, MenuItem, Button, Dialog, DialogTitle, DialogContent, DialogActions, ListItemIcon, Divider, IconButton, Box, Typography } from '@mui/material'
 import { FeedbackStore, ToastSeverity, useFeedback } from '../../contexts/feedback.context'
-import { useState, useEffect, useRef, useMemo, useImperativeHandle, createRef, forwardRef } from 'react'
+import { useState, useEffect, useRef, useMemo, useImperativeHandle, forwardRef } from 'react'
 import MonacoEditor from 'react-monaco-editor';
 import { IDataSetEditorTextModel } from '../../models/editor-text-model'
 import { useFileOperations } from '../../contexts/file-operations.context'
@@ -26,6 +26,7 @@ import PostAddIcon from '@mui/icons-material/PostAdd'
 import FileOpenIcon from '@mui/icons-material/FileOpen'
 import SaveAsIcon from '@mui/icons-material/SaveAs'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import EditIcon from '@mui/icons-material/Edit';
 import { EditableSettings } from '../../models/editable-settings'
 import { editor } from 'monaco-editor'
 
@@ -101,7 +102,9 @@ const CsvEditor = observer(({ dataSet, feedback, csvColumnWidths }: {
     const CustomColumnMenu = useMemo(() => {
         return observer((props: GridColumnMenuProps) => {
             const [showAddColumnDialog, setShowAddColumnDialog] = useState(false)
+            const [showRenameColumnDialog, setShowRenameColumnDialog] = useState(false)
             const [newColumnName, setNewColumnName] = useState('')
+            const [renameColumnName, setRenameColumnName] = useState('')
 
             const isRowNumberColumn = props.colDef.field === 'rowNumber'
 
@@ -111,6 +114,17 @@ const CsvEditor = observer(({ dataSet, feedback, csvColumnWidths }: {
                         .catch(err => feedback.toastError(err))
                     setNewColumnName('')
                     setShowAddColumnDialog(false)
+                    props.hideMenu?.(event)
+                }
+            }
+
+            const handleRenameColumn = (event: React.SyntheticEvent) => {
+                const trimmed = renameColumnName.trim()
+                if (trimmed.length > 0 && trimmed !== props.colDef.field) {
+                    dataSet.renameColumn(props.colDef.field, trimmed)
+                        .catch(err => feedback.toastError(err))
+                    setRenameColumnName('')
+                    setShowRenameColumnDialog(false)
                     props.hideMenu?.(event)
                 }
             }
@@ -144,6 +158,19 @@ const CsvEditor = observer(({ dataSet, feedback, csvColumnWidths }: {
                         </ListItemIcon>
                         Add Column
                     </MenuItem>
+                    {!isRowNumberColumn && (
+                        <MenuItem
+                            onClick={() => {
+                                setRenameColumnName(props.colDef.field)
+                                setShowRenameColumnDialog(true)
+                            }}
+                        >
+                            <ListItemIcon>
+                                <EditIcon />
+                            </ListItemIcon>
+                            Rename Column
+                        </MenuItem>
+                    )}
                     {!isRowNumberColumn && (
                         <MenuItem
                             onClick={(e) => handleDeleteColumn(e)}
@@ -193,7 +220,45 @@ const CsvEditor = observer(({ dataSet, feedback, csvColumnWidths }: {
                             </Button>
                         </DialogActions>
                     </Dialog>
-
+                    <Dialog
+                        open={showRenameColumnDialog}
+                        onClose={() => {
+                            setShowRenameColumnDialog(false)
+                            setRenameColumnName('')
+                        }}
+                    >
+                        <DialogTitle>Rename Column</DialogTitle>
+                        <DialogContent>
+                            <TextField
+                                autoFocus
+                                margin="dense"
+                                label="Column Name"
+                                fullWidth
+                                value={renameColumnName}
+                                onChange={(e) => setRenameColumnName(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault()
+                                        handleRenameColumn(e)
+                                    }
+                                }}
+                            />
+                        </DialogContent>
+                        <DialogActions>
+                            <Button
+                                onClick={handleRenameColumn}
+                                disabled={renameColumnName.trim().length === 0 || renameColumnName.trim() === props.colDef.field}
+                            >
+                                Rename
+                            </Button>
+                            <Button onClick={() => {
+                                setShowRenameColumnDialog(false)
+                                setRenameColumnName('')
+                            }}>
+                                Cancel
+                            </Button>
+                        </DialogActions>
+                    </Dialog>
                 </>
             )
         })
@@ -295,9 +360,9 @@ export const DataSetEditor = observer(({ dataSet, sx }: { dataSet: EditableDataS
     const feedback = useFeedback()
 
     const csvColumnWidths = useRef<{ [field: string]: number }>({})
-    const jsonEditor = createRef<JsonEditorHandle>()
+    const jsonEditor = useRef<JsonEditorHandle>(null)
 
-    workspace.nextHelpTopic = 'workspace/data-sets'
+    useEffect(() => { workspace.nextHelpTopic = 'workspace/data-sets' }, [workspace])
 
     const [showDataTypeMenu, setShowDataTypeMenu] = useState(false)
 
@@ -308,7 +373,7 @@ export const DataSetEditor = observer(({ dataSet, sx }: { dataSet: EditableDataS
         return (() => {
             disposer()
         })
-    })
+    }, [feedback])
 
     const isInternal = dataSet.type === DataSourceType.JSON
     const sourceError = !isInternal && workspace.fileName.length === 0

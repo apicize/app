@@ -119,7 +119,7 @@ export class EditableAuthorization extends Editable {
 
     @action
     setType(value: AuthorizationType) {
-        if (value !== this.type) {
+        if (value === this.type) {
             return Promise.resolve()
         }
         this.type = value

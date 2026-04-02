@@ -7,10 +7,10 @@
   --light-text: #000;
   --dark-text: #FFF;
   --light-bkgd: #FFF;
-  --dark-bkgd: #000;
+  --dark-bkgd: #03021f;
   --light-anchor: rgb(0, 0, 160);
-  --dark-anchor: rgb(142, 142, 250);
-  --quote-bkgd: #066;
+  --dark-anchor: #90caf9;
+  --quote-bkgd: #3a3886;
   --quote-text: #FFF;
 }
 
@@ -40,7 +40,6 @@ body {
 
 .nav-header {
   margin-bottom: 1.5em;
-  padding-bottom: 1em;
 }
 
 .nav-header a {
@@ -72,12 +71,10 @@ body {
 .doc-nav ul {
   list-style: none;
   padding-left: 0;
-  color: light-dark(#222, #888);
 }
 
 .doc-nav ul ul {
-  padding-left: 1.2em;
-  color: light-dark(#222, #888);
+  padding-left: 1.6em;
 }
 
 .doc-nav li {
@@ -85,7 +82,7 @@ body {
 }
 
 .doc-nav ul a {
-  color: light-dark(var(--light-text), var(--dark-text));
+  color: light-dark(var(--light-anchor), var(--dark-anchor));
   text-decoration: none;
   display: block;
   padding: 0.25em 0.5em;
@@ -94,8 +91,7 @@ body {
 }
 
 .doc-nav ul a:hover {
-  color: light-dark(var(--light-bkgd), var(--dark-bkgd));
-  background-color: light-dark(var(--light-anchor), var(--dark-anchor));
+  color: light-dark(var(--light-text), var(--dark-text));
 }
 
 .nav-section {
@@ -110,7 +106,6 @@ body {
 .doc-main {
   flex: 1;
   padding: 2em 3em;
-  max-width: 900px;
   overflow-y: auto;
 }
 
@@ -156,11 +151,11 @@ body {
 }
 
 .help a:hover {
-  text-decoration: underline;
+  color: light-dark(var(--light-text), var(--dark-text));
 }
 
 .help ul, .help ol {
-  margin: 0 0 0.75rem 1.5em;
+  margin: 0 0 0.75rem 3.3em;
 }
 
 .help li {
@@ -227,11 +222,29 @@ body {
   border-radius: 4px;
 }
 
+/* Column layout */
+.help-columns {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 4em;
+  max-width: 80em;
+}
+
+.help-columns .help-columns {
+  grid-template-columns: auto auto;
+  gap: 0;
+}
+
+.help-column {
+  min-width: 0;
+}
+
 /* Icon styles */
 .help-icon {
   display: inline-flex;
   align-items: center;
   vertical-align: middle;
+  width: 1.2em;
   margin-right: 0.3em;
 }
 
@@ -256,8 +269,12 @@ h1:has(.logo) {
 .logo {
   display: flex;
   align-items: center;
-  margin: 0 0 1em 0;
-  gap: 1.5em;
+  margin: 0;
+  gap: 0.5em;
+}
+
+.logo-icon img {
+  margin: 0;
 }
 
 .logo-icon img {
@@ -265,7 +282,7 @@ h1:has(.logo) {
 }
 
 .logo-header .logo-title {
-  font-size: 3em;
+  font-size: 2em;
   margin: 0;
   line-height: 1.2;
 }
@@ -273,7 +290,6 @@ h1:has(.logo) {
 .logo-header .logo-version {
   font-size: 1.2em;
   margin: 0;
-  color: #a0a0d0;
   font-weight: normal;
 }
 

@@ -1,8 +1,9 @@
 import { Box, Grid, Stack, Typography } from "@mui/material"
 import { useState } from "react"
 import { ExecutionResultDetail } from "@apicize/lib-typescript"
+import { observer } from "mobx-react-lite"
 
-export function ResponseHeadersViewer({ detail }: { detail: ExecutionResultDetail | null }) {
+export const ResponseHeadersViewer = observer(({ detail }: { detail: ExecutionResultDetail | null }) => {
 
     const [headers] = useState(Object.entries(detail?.entityType === 'request' ? (detail.testContext.response?.headers ?? {}) : {}))
 
@@ -32,4 +33,4 @@ export function ResponseHeadersViewer({ detail }: { detail: ExecutionResultDetai
             }
         </Stack>
     )
-}
+})

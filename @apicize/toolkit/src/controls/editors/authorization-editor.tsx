@@ -35,7 +35,7 @@ export const AuthorizationEditor = observer(({ authorization, sx }: { authorizat
     const workspace = useWorkspace()
     const feedback = useFeedback()
 
-    workspace.nextHelpTopic = 'workspace/authorizations'
+    useEffect(() => { workspace.nextHelpTopic = 'workspace/authorizations' }, [workspace])
 
     const [panel, setPanel] = useState<AuthorizationPanels>('Settings')
 
@@ -46,12 +46,14 @@ export const AuthorizationEditor = observer(({ authorization, sx }: { authorizat
         return (() => {
             disposer()
         })
-    })
+    }, [feedback])
 
     const hasWarnings = authorization.validationWarnings.hasEntries
-    if (!hasWarnings && panel === 'Warnings') {
-        setPanel('Settings')
-    }
+    useEffect(() => {
+        if (!hasWarnings && panel === 'Warnings') {
+            setPanel('Settings')
+        }
+    }, [hasWarnings, panel])
 
     const handlePanelChanged = (_: React.SyntheticEvent, newValue: AuthorizationPanels) => {
         if (newValue) setPanel(newValue)

@@ -12,7 +12,7 @@ etc.
 
 Whenever you set up a Request, you get a default [test](help:requests/test) created which checks for an HTTP status 200.  Obviously,
 meaningful testing will often require more than this.  You may want to inspect the response and validate data.  You may want to test for known
-error conditions.  Apicize accomodates [BDD style testing](https://en.wikipedia.org/wiki/Behavior-driven_development) using the 
+error conditions.  Apicize accommodates [BDD style testing](https://en.wikipedia.org/wiki/Behavior-driven_development) using the
 [Chai](https://www.chaijs.com/) library.  Apicize supports running Groups of Requests either in Sequence or Concurrently.  This lets
 you test chains of dependent requests, or to ensure idempotency by making multiple calls in parallel.
 

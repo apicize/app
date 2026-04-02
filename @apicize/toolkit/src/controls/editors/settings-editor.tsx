@@ -2,6 +2,7 @@ import Stack from '@mui/material/Stack'
 import { SxProps } from '@mui/material/styles'
 import Box from '@mui/material/Box'
 import SvgIcon from '@mui/material/SvgIcon'
+import { useEffect } from 'react'
 import { observer } from 'mobx-react-lite'
 import { SettingsPanel, useWorkspace } from '../../contexts/workspace.context'
 import { useFeedback } from '../../contexts/feedback.context'
@@ -27,9 +28,11 @@ export const SettingsEditor = observer(({ sx }: { sx?: SxProps }) => {
     const selectedPanel = workspace.settingsPanel
 
     const hasWarnings = workspace.defaults.validationWarnings.hasEntries
-    if (!hasWarnings && selectedPanel === 'Warnings') {
-        workspace.changeSettingsPanel('Workspace Defaults')
-    }
+    useEffect(() => {
+        if (!hasWarnings && selectedPanel === 'Warnings') {
+            workspace.changeSettingsPanel('Workspace Defaults')
+        }
+    }, [hasWarnings, selectedPanel, workspace])
 
     const handlePanelChanged = (_: React.SyntheticEvent, newValue: SettingsPanel) => {
         if (newValue) {

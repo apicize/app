@@ -8,65 +8,75 @@ import { ResultEditSessionType } from "../../editors/editor-types";
 import { useWorkspace } from "../../../contexts/workspace.context";
 import { ExecutionResultDetail } from "@apicize/lib-typescript";
 import { useFeedback } from "../../../contexts/feedback.context";
+import { useMemo } from "react";
+import { observer } from "mobx-react-lite";
 
-export function ResultResponsePreview({ detail }: { detail: ExecutionResultDetail | null }) {
+export const ResultResponsePreview = observer(({ detail }: { detail: ExecutionResultDetail | null }) => {
     const workspace = useWorkspace()
     const feedback = useFeedback()
 
-    if (detail?.entityType !== 'request') {
-        return
-    }
+    const { extension, isImage, text } = useMemo(() => {
+        if (detail?.entityType !== 'request') {
+            return { extension: '', isImage: false, text: '' }
+        }
 
-    const body = detail.testContext.response?.body ?? { type: 'Text', text: '' }
-    const headers = detail.testContext.response?.headers
-        ? new Map<string, string>(Object.entries(detail.testContext.response.headers))
-        : new Map<string, string>()
+        const body = detail.testContext.response?.body ?? { type: 'Text', text: '' }
+        const headers = detail.testContext.response?.headers
+            ? new Map<string, string>(Object.entries(detail.testContext.response.headers))
+            : new Map<string, string>()
 
-    let extension = ''
-    for (const [name, value] of headers.entries()) {
-        if (name.toLowerCase() === 'content-type') {
-            const i = value.indexOf('/')
-            if (i !== -1) {
-                const j = value.indexOf(';')
-                if (value.indexOf('json') !== -1) {
-                    extension = 'json'
-                } else if (value.indexOf('xml') !== -1) {
-                    extension = 'xml'
-                } else {
-                    extension = value.substring(i + 1, j == -1 ? undefined : j)
+        let ext = ''
+        for (const [name, value] of headers.entries()) {
+            if (name.toLowerCase() === 'content-type') {
+                const i = value.indexOf('/')
+                if (i !== -1) {
+                    const j = value.indexOf(';')
+                    if (value.indexOf('json') !== -1) {
+                        ext = 'json'
+                    } else if (value.indexOf('xml') !== -1) {
+                        ext = 'xml'
+                    } else {
+                        ext = value.substring(i + 1, j == -1 ? undefined : j)
+                    }
                 }
             }
         }
-    }
 
-    let isImage = false
-    let text: string = ''
+        let img = false
+        let txt: string = ''
 
-    switch (body.type) {
-        case 'Binary':
-            isImage = KNOWN_IMAGE_EXTENSIONS.indexOf(extension) !== -1 && body.data.length > 0
-            break
-        case 'JSON':
-            text = beautify.js_beautify(JSON.stringify(body.data), {})
-            break
-        default:
-            switch (extension) {
-                case 'html':
-                case 'xml':
-                    text = beautify.html_beautify(body.text, {})
-                    break
-                case 'css':
-                    text = beautify.css_beautify(body.text, {})
-                    break
-                case 'js':
-                    text = beautify.js_beautify(body.text, {})
-                    break
-                case 'json':
-                    text = beautify.js_beautify(body.text, {})
-                    break
-                default:
-                    text = body.text
-            }
+        switch (body.type) {
+            case 'Binary':
+                img = KNOWN_IMAGE_EXTENSIONS.indexOf(ext) !== -1 && body.data.length > 0
+                break
+            case 'JSON':
+                txt = beautify.js_beautify(JSON.stringify(body.data), {})
+                break
+            default:
+                switch (ext) {
+                    case 'html':
+                    case 'xml':
+                        txt = beautify.html_beautify(body.text, {})
+                        break
+                    case 'css':
+                        txt = beautify.css_beautify(body.text, {})
+                        break
+                    case 'js':
+                        txt = beautify.js_beautify(body.text, {})
+                        break
+                    case 'json':
+                        txt = beautify.js_beautify(body.text, {})
+                        break
+                    default:
+                        txt = body.text
+                }
+        }
+
+        return { extension: ext, isImage: img, text: txt }
+    }, [detail])
+
+    if (detail?.entityType !== 'request') {
+        return
     }
 
     const hasText = text.length > 0
@@ -82,7 +92,6 @@ export function ResultResponsePreview({ detail }: { detail: ExecutionResultDetai
                 break
             case 'xml':
                 mode = EditorMode.xml
-                break
                 break
             case 'html':
             case 'htm':
@@ -133,4 +142,4 @@ export function ResultResponsePreview({ detail }: { detail: ExecutionResultDetai
             {viewer}
         </Stack>
     )
-}
+})

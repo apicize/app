@@ -43,7 +43,7 @@ export const MainPanel = observer(() => {
             }
         )
         return disposer
-    })
+    }, [settings, fileOps])
 
     const Pane = useMemo(() => {
         switch (mode) {

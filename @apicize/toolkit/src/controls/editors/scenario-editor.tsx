@@ -19,7 +19,7 @@ export const ScenarioEditor = observer(({ scenario, sx }: { scenario: EditableSc
     const workspace = useWorkspace()
     const feedback = useFeedback()
 
-    workspace.nextHelpTopic = 'workspace/scenarios'
+    useEffect(() => { workspace.nextHelpTopic = 'workspace/scenarios' }, [workspace])
 
     // Register dropdowns so they can be hidden on modal dialogs
     const [openVariableTypeMenuId, setOpenVariableTypeMenuId] = useState<string | null>(null)
@@ -28,7 +28,7 @@ export const ScenarioEditor = observer(({ scenario, sx }: { scenario: EditableSc
         return (() => {
             disposer()
         })
-    })
+    }, [feedback])
 
     const onAddVariable = () => {
         scenario.setVariables([

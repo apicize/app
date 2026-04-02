@@ -39,11 +39,12 @@ use settings::{ApicizeSettings, ColorScheme};
 use std::{
     collections::{HashMap, HashSet},
     env,
-    fs::{self, File, exists},
+    fs::{self, File, create_dir_all, exists, remove_dir_all},
     io,
     ops::Deref,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex, OnceLock},
+    sync::{Arc, Mutex, OnceLock, RwLock as StdRwLock},
+    time::{SystemTime, UNIX_EPOCH},
 };
 use tauri::async_runtime::RwLock;
 use tauri::{
@@ -331,7 +332,7 @@ async fn main() {
         .expect("error building Apicize")
         .run(|_app: &AppHandle, event| {
             if let tauri::RunEvent::Exit = event {
-                let tokens = cancellation_tokens().lock().unwrap();
+                let tokens = cancellation_tokens().read().unwrap();
                 for token in tokens.values() {
                     token.cancel();
                 }
@@ -1471,9 +1472,9 @@ async fn save_settings(
     }
 }
 
-fn cancellation_tokens() -> &'static Mutex<FxHashMap<String, CancellationToken>> {
-    static TOKENS: OnceLock<Mutex<FxHashMap<String, CancellationToken>>> = OnceLock::new();
-    TOKENS.get_or_init(|| Mutex::new(FxHashMap::default()))
+fn cancellation_tokens() -> &'static StdRwLock<FxHashMap<String, CancellationToken>> {
+    static TOKENS: OnceLock<StdRwLock<FxHashMap<String, CancellationToken>>> = OnceLock::new();
+    TOKENS.get_or_init(|| StdRwLock::new(FxHashMap::default()))
 }
 
 #[tauri::command]
@@ -1489,12 +1490,12 @@ async fn start_execution(
     let cancellation = CancellationToken::new();
     {
         cancellation_tokens()
-            .lock()
+            .write()
             .unwrap()
             .insert(request_or_group_id.to_owned(), cancellation.clone());
     }
 
-    let allowed_data_path: Option<PathBuf> = if workbook_full_name.is_empty() {
+    let mut allowed_data_path: Option<PathBuf> = if workbook_full_name.is_empty() {
         None
     } else {
         Some(
@@ -1505,6 +1506,8 @@ async fn start_execution(
                 .to_path_buf(),
         )
     };
+
+    let mut using_temp_data_path = false;
 
     // Phase 1: Read session data with minimal lock scope
     let workspace_id = {
@@ -1518,26 +1521,78 @@ async fn start_execution(
         let sessions = sessions_state.sessions.read().await;
         let previous_state: ExecutionState;
 
-        // Acquire write lock for minimal time - just to update execution state
-        let mut cloned_workspace = {
+        // Acquire write lock for minimal time - just to update execution state and save data sets
+        let cloned_workspace = {
             let mut workspaces = workspaces_state.workspaces.write().await;
             let info = workspaces.get_workspace_info_mut(&workspace_id)?;
+            let active_data_set_ids = info.get_request_data_set_ids(request_or_group_id)?;
+
+            let mut cloned_workspace = info.workspace.clone();
+
+            // Save any active data sets to a temp directory
+            if !active_data_set_ids.is_empty() {
+                let temp_directory = std::env::temp_dir().join("apicize").join(format!(
+                    "{}-{}",
+                    workspace_id,
+                    SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap()
+                        .as_millis()
+                ));
+                create_dir_all(&temp_directory)?;
+
+                for data_set in cloned_workspace.data.entities.values_mut() {
+                    match data_set.source_type {
+                        DataSourceType::JSON => continue,
+                        _ => {
+                            if let Some(content) = info.data_set_content.get_mut(&data_set.id) {
+                                data_set.source = data_set.id.to_string();
+                                perform_save_data_set_file(
+                                    data_set,
+                                    content,
+                                    &temp_directory,
+                                    true,
+                                )?;
+                            } else if let Some(data_path) = &allowed_data_path {
+                                let source_path = data_path.join(&data_set.source);
+                                if source_path.exists() {
+                                    data_set.source = data_set.id.to_string();
+                                    let dest_path = temp_directory.join(&data_set.source);
+                                    fs::copy(source_path, dest_path)?;
+                                } else {
+                                    return Err(ApicizeAppError::ApicizeError(
+                                        ApicizeError::Error {
+                                            description: format!(
+                                                "Data set file {} not found",
+                                                source_path.to_string_lossy()
+                                            ),
+                                        },
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                }
+                allowed_data_path = Some(temp_directory);
+                using_temp_data_path = true;
+            }
 
             let exec = info.get_execution_mut(request_or_group_id);
             previous_state = exec.execution_state;
             exec.execution_state = ExecutionState::RUNNING;
-            info.workspace.clone()
-        }; // Write lock released here
 
-        if single_run
-            && let Some(request) = cloned_workspace
-                .requests
-                .entities
-                .get_mut(request_or_group_id)
-            && request.get_runs() < 1
-        {
-            request.set_runs(1);
-        }
+            if single_run
+                && let Some(request) = cloned_workspace
+                    .requests
+                    .entities
+                    .get_mut(request_or_group_id)
+                && request.get_runs() < 1
+            {
+                request.set_runs(1);
+            }
+
+            cloned_workspace
+        }; // Write lock released here
 
         // Get session IDs with read lock (can be done concurrently)
         let all_session_ids = get_workspace_sessions(&workspace_id, &sessions, None)
@@ -1575,11 +1630,15 @@ async fn start_execution(
     // Phase 5: Execute request (no locks held)
     let responses = context.run(vec![request_or_group_id.to_string()]).await;
 
-    // Clean up cancellation token
+    // Clean up cancellation token and temp directory
     cancellation_tokens()
-        .lock()
+        .write()
         .unwrap()
         .remove(request_or_group_id);
+
+    if using_temp_data_path && let Some(allowed_data_path) = allowed_data_path {
+        remove_dir_all(allowed_data_path)?;
+    }
 
     // Phase 6: Process results with minimal lock scope
     match responses.into_iter().next() {
@@ -1717,7 +1776,7 @@ async fn start_execution(
 
 #[tauri::command]
 async fn cancel_execution(request_or_group_id: String) {
-    let tokens = cancellation_tokens().lock().unwrap();
+    let tokens = cancellation_tokens().read().unwrap();
     if let Some(token) = tokens.get(&request_or_group_id) {
         token.cancel()
     }
@@ -1908,18 +1967,24 @@ async fn update_request_body(
     workspaces_state: State<'_, WorkspacesState>,
     session_id: &str,
     request_id: &str,
-    body: RequestBody,
+    body: Option<RequestBody>,
 ) -> Result<BodyMimeInfo, ApicizeAppError> {
     let mut workspaces = workspaces_state.workspaces.write().await;
     let sessions = sessions_state.sessions.read().await;
     let session = sessions.get_session(session_id)?;
 
-    let body_mime_type = Some(Workspaces::get_body_type(&body));
-    let body_length = Some(Workspaces::get_body_length(&body));
+    let (body_mime_type, body_length) = if let Some(body) = &body {
+        (
+            Some(Workspaces::get_body_type(body)),
+            Some(Workspaces::get_body_length(body)),
+        )
+    } else {
+        (None, None)
+    };
 
     let body_info = RequestBodyInfo {
         id: request_id.to_string(),
-        body: Some(body),
+        body,
         body_mime_type: body_mime_type.clone(),
         body_length,
     };

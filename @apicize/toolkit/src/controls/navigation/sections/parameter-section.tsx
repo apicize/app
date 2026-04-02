@@ -19,8 +19,13 @@ import { useApicizeSettings } from "../../../contexts/apicize-settings.context"
 import { NavigationEntry, ParamNavigationSection } from "../../../models/navigation"
 import { IndexedEntityPosition } from "../../../models/workspace/indexed-entity-position"
 import { useDragDrop } from "../../../contexts/dragdrop.context"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { IconColors } from "../../../theme"
+
+const navNodeTextSx = { flexGrow: 1, minHeight: '1em' } as const
+const lockIconSx = { fontSize: '1.1rem', marginLeft: '0.5em' } as const
+const menuBtnSxVisible = { flexGrow: 0, minHeight: '1em', padding: 0, margin: 0, visibility: 'normal' as const }
+const menuBtnSxHidden = { flexGrow: 0, minHeight: '1em', padding: 0, margin: 0, visibility: 'hidden' as const }
 
 const ParameterSubsection = observer(({
     type,
@@ -78,13 +83,17 @@ const ParameterSubsection = observer(({
     })
 
     const headerId = `hdr-${type}-${persistence}`
+    const treeSx = useMemo(() => (
+        { background: dropable?.isOver ? dragDrop.toBackgroundColor() : 'default', margin: '0 0 0 1.0em', padding: 0 }
+    ), [dropable?.isOver, dragDrop])
+
     return <TreeItem
         itemId={headerId}
         key={headerId}
         id={headerId}
         onFocusCapture={e => e.stopPropagation()}
         ref={dropable?.setNodeRef}
-        sx={{ background: dropable?.isOver ? dragDrop.toBackgroundColor() : 'default', margin: '0 0 0 1.0em', padding: 0 }}
+        sx={treeSx}
         label={(
             <Box
                 className='nav-item'
@@ -101,16 +110,16 @@ const ParameterSubsection = observer(({
                 onMouseLeave={() => setFocused(false)}
             >
                 {icon}
-                <Box className='nav-node-text' typography='navigation' sx={{ flexGrow: 1, minHeight: '1em' }}>
+                <Box className='nav-node-text' typography='navigation' sx={navNodeTextSx}>
                     {label}
                     {
                         lockColor
-                            ? <KeyIcon color={lockColor} fontSize='medium' sx={{ fontSize: '1.1rem', marginLeft: '0.5em' }} />
+                            ? <KeyIcon color={lockColor} fontSize='medium' sx={lockIconSx} />
                             : <></>
                     }
                 </Box>
                 {
-                    locked ? null : <><IconButton sx={{ flexGrow: 0, minHeight: '1em', padding: 0, margin: 0, visibility: focused ? 'normal' : 'hidden' }}
+                    locked ? null : <><IconButton sx={focused ? menuBtnSxVisible : menuBtnSxHidden}
                         onClick={(e) => {
                             e.preventDefault()
                             e.stopPropagation()

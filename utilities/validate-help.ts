@@ -18,44 +18,19 @@
 import { readFileSync, existsSync } from 'fs'
 import { join } from 'path'
 import { globSync } from 'glob'
+import { getRenderedIconNames } from '../@apicize/toolkit/src/services/help-icon-renderer'
 
 const ROOT = join(__dirname, '..')
 const HELP_DIR = join(ROOT, 'app', 'src-tauri', 'help')
 const TOOLKIT_SRC = join(ROOT, '@apicize', 'toolkit', 'src')
 const HELP_IMAGES_DIR = join(HELP_DIR, 'images')
-const HELP_TSX = join(TOOLKIT_SRC, 'controls', 'help.tsx')
 
 // ---------------------------------------------------------------------------
-// Extract valid icon names from the rehypeTransformIcon switch in help.tsx
+// Load valid icon names from help-icon-renderer.tsx
 // ---------------------------------------------------------------------------
-function loadValidIcons(): Set<string> {
-    const source = readFileSync(HELP_TSX, 'utf-8')
-
-    // Find the switch block inside rehypeTransformIcon
-    const switchMatch = source.match(/const rehypeTransformIcon[\s\S]*?switch\s*\(name\)\s*\{([\s\S]*?)\n    \}/)
-    if (!switchMatch) {
-        console.error('ERROR: Could not locate rehypeTransformIcon switch statement in help.tsx')
-        process.exit(2)
-    }
-
-    const switchBody = switchMatch[1]
-    const icons = new Set<string>()
-    const caseRe = /case\s+'([^']+)'/g
-    let m
-    while ((m = caseRe.exec(switchBody)) !== null) {
-        icons.add(m[1])
-    }
-
-    if (icons.size === 0) {
-        console.error('ERROR: No icon case values found in help.tsx')
-        process.exit(2)
-    }
-
-    console.log(`Loaded ${icons.size} valid icon names from help.tsx`)
-    return icons
-}
-
-const VALID_ICONS = loadValidIcons()
+const iconNames = getRenderedIconNames()
+console.log(`Loaded ${iconNames.length} valid icon names from help-icon-renderer.tsx`)
+const VALID_ICONS = new Set(iconNames)
 
 let errorCount = 0
 

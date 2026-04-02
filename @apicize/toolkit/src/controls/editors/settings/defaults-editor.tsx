@@ -162,7 +162,7 @@ const ParameterEditor = observer(({
 export const DefaultsEditor = observer(({ sx }: { sx?: SxProps }) => {
     const workspace = useWorkspace()
     const feedback = useFeedback()
-    workspace.nextHelpTopic = 'settings/defaults'
+    useEffect(() => { workspace.nextHelpTopic = 'settings/defaults' }, [workspace])
 
     const defaults = workspace.defaults
 

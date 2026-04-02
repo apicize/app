@@ -8,7 +8,7 @@
  * Usage:  npx tsx generate-docs.ts
  */
 
-import { readFileSync, writeFileSync, mkdirSync, cpSync, existsSync } from 'fs'
+import { readFileSync, writeFileSync, mkdirSync, cpSync, existsSync, rmSync } from 'fs'
 import { join, dirname, relative } from 'path'
 import { unified } from 'unified'
 import remarkParse from 'remark-parse'
@@ -16,10 +16,12 @@ import remarkGfm from 'remark-gfm'
 import remarkDirective from 'remark-directive'
 import remarkRehype from 'remark-rehype'
 import rehypeStringify from 'rehype-stringify'
+import rehypeExternalLinks from 'rehype-external-links'
 import { visit } from 'unist-util-visit'
 import { Element } from 'hast'
 import { createRemarkApicizeDirectives, HelpFormatConfig } from '../@apicize/toolkit/src/services/help-formatter'
 import { ICON_COLOR_MAP } from '../@apicize/toolkit/src/models/icon-color-map'
+import { CUSTOM_ICON_FILES, MUI_ICON_FILES } from '../@apicize/toolkit/src/services/help-icon-map'
 
 // ---------------------------------------------------------------------------
 // Paths
@@ -33,50 +35,109 @@ const IMAGES_DST = join(DOCS_DIR, 'images')
 // ---------------------------------------------------------------------------
 // Read version from root package.json
 // ---------------------------------------------------------------------------
-const pkg = JSON.parse(readFileSync(join(ROOT,  'package.json'), 'utf-8'))
+const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf-8'))
 const APP_VERSION = pkg.version ?? '0.0.0'
 
 // ---------------------------------------------------------------------------
-// Read contents.json for table of contents / navigation
+// Read contents.md and extract topic list and navigation structure
 // ---------------------------------------------------------------------------
-type HelpContents = { [name: string]: string | HelpContents }
-const contents: HelpContents = JSON.parse(readFileSync(join(HELP_DIR, 'contents.json'), 'utf-8'))
+const contentsMd = readFileSync(join(HELP_DIR, 'contents.md'), 'utf-8')
 
-// ---------------------------------------------------------------------------
-// Collect all topic paths from contents.json
-// ---------------------------------------------------------------------------
-function collectTopics(obj: HelpContents): string[] {
-  const result: string[] = []
-  for (const value of Object.values(obj)) {
-    if (typeof value === 'string') {
-      result.push(value)
-    } else {
-      result.push(...collectTopics(value))
-    }
+/** Extract all help: link targets from contents.md */
+function extractTopics(markdown: string): string[] {
+  const topics: string[] = []
+  const regex = /\]\(help:([^)]+)\)/g
+  let match
+  while ((match = regex.exec(markdown)) !== null) {
+    topics.push(match[1])
   }
-  return result
-}
-const allTopics = collectTopics(contents)
-
-// ---------------------------------------------------------------------------
-// Validate contents.json — every topic must have a matching .md help file
-// ---------------------------------------------------------------------------
-function validateContents(topics: string[]): boolean {
-  let valid = true
-  for (const topic of topics) {
-    const mdPath = join(HELP_DIR, `${topic}.md`)
-    if (!existsSync(mdPath)) {
-      console.error(`  ERROR: contents.json references "${topic}" but ${topic}.md does not exist`)
-      valid = false
-    }
-  }
-  return valid
+  return topics
 }
 
-const contentsValid = validateContents(allTopics)
-if (!contentsValid) {
-  console.error('\ncontents.json contains invalid help topic references. Fix them before generating docs.')
-  process.exit(1)
+const allTopics = extractTopics(contentsMd)
+
+/**
+ * Parse contents.md into sidebar navigation HTML.
+ * Recognizes:
+ *   ## [Text](help:topic)  → nav link
+ *   ## Text                 → section header
+ *   ### [Text](help:topic) → nav link
+ *   ### Text               → section header (sub)
+ *   - [Text](help:topic)   → nav link
+ */
+function buildNavFromMarkdown(markdown: string, prefix: string, iconSvgs: Record<string, string>): string {
+  const lines = markdown.split('\n')
+  let html = '<ul>'
+  html += `<li><a href="${prefix}contents.html"><strong>Help Contents</strong></a></li>`
+  let inH2Section = false
+  let inH3Section = false
+
+  /** Replace :icon[name] directives with inline SVG wrapped in a help-icon span */
+  const renderIcons = (text: string): string => {
+    return text.replace(/:icon\[([^\]]+)\]/g, (_match, name: string) => {
+      const color = ICON_COLOR_MAP[name]
+      const style = color ? ` style="color: ${color};"` : ''
+      const svg = iconSvgs[name]
+      if (svg) {
+        return `<span class="help-icon"${style}>${svg}</span>`
+      }
+      return ''
+    })
+  }
+
+  const closeH3 = () => { if (inH3Section) { html += '</ul></li>'; inH3Section = false } }
+  const closeH2 = () => { closeH3(); if (inH2Section) { html += '</ul></li>'; inH2Section = false } }
+
+  for (const line of lines) {
+    // Skip directives, blank lines, and the top-level title
+    if (/^#{1}\s/.test(line) && !/^##/.test(line)) continue
+    if (/^[:#]/.test(line) && !/^##/.test(line)) continue
+
+    // ## heading with link
+    const h2Link = line.match(/^##\s+\[([^\]]+)\]\(help:([^)]+)\)/)
+    if (h2Link) {
+      closeH2()
+      html += `<li><a href="${prefix}${h2Link[2]}.html">${escapeHtml(h2Link[1])}</a></li>`
+      continue
+    }
+
+    // ## heading without link (section header, may contain :icon directives)
+    const h2Section = line.match(/^##\s+(.+)/)
+    if (h2Section) {
+      closeH2()
+      html += `<li><span class="nav-section">${renderIcons(escapeHtml(h2Section[1]))}</span><ul>`
+      inH2Section = true
+      continue
+    }
+
+    // ### heading with link
+    const h3Link = line.match(/^###\s+\[([^\]]+)\]\(help:([^)]+)\)/)
+    if (h3Link) {
+      closeH3()
+      html += `<li><a href="${prefix}${h3Link[2]}.html">${escapeHtml(h3Link[1])}</a></li>`
+      continue
+    }
+
+    // ### heading without link (sub-section header, may contain :icon directives)
+    const h3Section = line.match(/^###\s+(.+)/)
+    if (h3Section) {
+      closeH3()
+      html += `<li><span class="nav-section">${renderIcons(escapeHtml(h3Section[1]))}</span><ul>`
+      inH3Section = true
+      continue
+    }
+
+    // List item with link
+    const listLink = line.match(/^-\s+\[([^\]]+)\]\(help:([^)]+)\)/)
+    if (listLink) {
+      html += `<li><a href="${prefix}${listLink[2]}.html">${escapeHtml(listLink[1])}</a></li>`
+      continue
+    }
+  }
+
+  closeH2()
+  html += '</ul>'
+  return html
 }
 
 // ---------------------------------------------------------------------------
@@ -84,43 +145,6 @@ if (!contentsValid) {
 // ---------------------------------------------------------------------------
 const ICONS_DIR = join(ROOT, '@apicize', 'toolkit', 'src', 'icons')
 
-/** Map of icon names used in docs to their custom .tsx source filenames */
-const CUSTOM_ICON_FILES: Record<string, string> = {
-  request: 'request-icon.tsx',
-  group: 'folder-icon.tsx',
-  scenario: 'scenario-icon.tsx',
-  authorization: 'auth-icon.tsx',
-  certificate: 'certificate-icon.tsx',
-  proxy: 'proxy-icon.tsx',
-  defaults: 'defaults-icon.tsx',
-  logs: 'log-icon.tsx',
-  public: 'public-icon.tsx',
-  private: 'private-icon.tsx',
-  vault: 'vault-icon.tsx',
-  seed: 'seed-icon.tsx',
-  apicize: 'apicize-icon.tsx',
-}
-
-/** Map of icon names used in docs to their @mui/icons-material module names */
-const MUI_ICON_FILES: Record<string, string> = {
-  info: 'DisplaySettings',
-  query: 'ViewList',
-  headers: 'ViewListOutlined',
-  body: 'ArticleOutlined',
-  parameters: 'AltRoute',
-  test: 'Science',
-  dataset: 'Dataset',
-  settings: 'Settings',
-  display: 'DisplaySettings',
-  runonce: 'PlayCircleOutline',
-  run: 'PlayCircleFilled',
-  data: 'Dataset',
-  'workbook-new': 'PostAdd',
-  'workbook-open': 'FileOpen',
-  'workbook-save': 'Save',
-  'workbook-save-as': 'SaveAs',
-  setup: 'Settings',
-}
 const MUI_ICONS_DIR = join(ROOT, 'node_modules', '@mui', 'icons-material')
 
 /** JSX camelCase attribute names → HTML kebab-case equivalents */
@@ -302,6 +326,18 @@ function rehypeStaticTransforms(prefix: string, iconSvgs: Record<string, string>
         ]
       }
 
+      // Transform <columns> to a grid container div
+      if (node.tagName === 'columns') {
+        node.tagName = 'div'
+        node.properties = { className: ['help-columns'] }
+      }
+
+      // Transform <column> to a column div
+      if (node.tagName === 'column') {
+        node.tagName = 'div'
+        node.properties = { className: ['help-column'] }
+      }
+
       // Remove <toolbar> and <toolbarTop> elements (app-only UI)
       if (node.tagName === 'toolbar' || node.tagName === 'toolbarTop') {
         if (parent && typeof index === 'number') {
@@ -347,6 +383,7 @@ async function convertMarkdown(markdown: string, prefix: string, iconSvgs: Recor
     .use(createRemarkApicizeDirectives(config))
     .use(remarkRehype, { allowDangerousHtml: true })
     .use(rehypeStaticTransforms(prefix, iconSvgs))
+    .use(rehypeExternalLinks, { target: '_blank', rel: ['noopener', 'noreferrer'] })
     .use(rehypeStringify, { allowDangerousHtml: true })
     .process(markdown)
   return String(result)
@@ -355,7 +392,7 @@ async function convertMarkdown(markdown: string, prefix: string, iconSvgs: Recor
 // ---------------------------------------------------------------------------
 // HTML template
 // ---------------------------------------------------------------------------
-function htmlTemplate(title: string, body: string, depth: number): string {
+function htmlTemplate(title: string, body: string, depth: number, iconSvgs: Record<string, string>): string {
   const prefix = depth > 0 ? '../'.repeat(depth) : './'
   return `<!DOCTYPE html>
 <html lang="en">
@@ -371,7 +408,7 @@ function htmlTemplate(title: string, body: string, depth: number): string {
       <div class="nav-header">
         <a href="${prefix}home.html"><img src="${prefix}images/logo.svg" alt="Apicize" /><span>Apicize Docs</span></a>
       </div>
-      ${buildNavHtml(contents, prefix)}
+      ${buildNavFromMarkdown(contentsMd, prefix, iconSvgs)}
     </nav>
     <main class="doc-main help">
       ${body}
@@ -386,30 +423,16 @@ function escapeHtml(str: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Navigation HTML builder
-// ---------------------------------------------------------------------------
-function buildNavHtml(obj: HelpContents, prefix: string): string {
-  let html = '<ul>'
-  for (const [name, value] of Object.entries(obj)) {
-    if (typeof value === 'string') {
-      html += `<li><a href="${prefix}${value}.html">${escapeHtml(name)}</a></li>`
-    } else {
-      html += `<li><span class="nav-section">${escapeHtml(name)}</span>`
-      html += buildNavHtml(value, prefix)
-      html += '</li>'
-    }
-  }
-  html += '</ul>'
-  return html
-}
-
-// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 async function main() {
   console.log('Generating documentation...')
 
-  // Create output directories
+  // Clear and recreate output directory
+  if (existsSync(DOCS_DIR)) {
+    rmSync(DOCS_DIR, { recursive: true })
+    console.log('  Cleared docs/')
+  }
   mkdirSync(DOCS_DIR, { recursive: true })
 
   // Copy images
@@ -434,6 +457,36 @@ async function main() {
   const iconSvgs = loadIconSvgs()
   console.log(`  Loaded ${Object.keys(iconSvgs).length} icon SVGs (${Object.keys(CUSTOM_ICON_FILES).length} custom, ${Object.keys(MUI_ICON_FILES).length} MUI)`)
 
+  // Validate all :icon[name] references across help .md files
+  const iconRegex = /:icon\[([^\]]+)\]/g
+  let invalidIconCount = 0
+  const mdFilesToCheck = ['contents.md', ...allTopics.map(t => `${t}.md`)]
+  for (const mdFile of mdFilesToCheck) {
+    const mdPath = join(HELP_DIR, mdFile)
+    if (!existsSync(mdPath)) continue
+    const mdContent = readFileSync(mdPath, 'utf-8')
+    let iconMatch: RegExpExecArray | null
+    while ((iconMatch = iconRegex.exec(mdContent)) !== null) {
+      const iconName = iconMatch[1]
+      if (!iconSvgs[iconName] && iconName !== 'apicize') {
+        console.warn(`  WARNING: Unknown icon ":icon[${iconName}]" in ${mdFile}`)
+        invalidIconCount++
+      }
+    }
+  }
+  if (invalidIconCount > 0) {
+    console.warn(`  ${invalidIconCount} invalid icon reference(s) found`)
+  }
+
+  // Generate contents.html from manually-maintained contents.md
+  const contentsMdPath = join(HELP_DIR, 'contents.md')
+  if (existsSync(contentsMdPath)) {
+    const contentsMarkdown = readFileSync(contentsMdPath, 'utf-8')
+    const contentsHtml = await convertMarkdown(contentsMarkdown, './', iconSvgs)
+    writeFileSync(join(DOCS_DIR, 'contents.html'), htmlTemplate('Contents', contentsHtml, 0, iconSvgs))
+    console.log('  Generated contents.html')
+  }
+
   // Process each topic
   for (const topic of allTopics) {
     const mdPath = join(HELP_DIR, `${topic}.md`)
@@ -455,7 +508,7 @@ async function main() {
     const htmlBody = await convertMarkdown(markdown, prefix, iconSvgs)
     const outPath = join(DOCS_DIR, `${topic}.html`)
     mkdirSync(dirname(outPath), { recursive: true })
-    writeFileSync(outPath, htmlTemplate(title, htmlBody, depth))
+    writeFileSync(outPath, htmlTemplate(title, htmlBody, depth, iconSvgs))
     console.log(`  Generated ${topic}.html`)
   }
 
@@ -476,10 +529,10 @@ function generateCss(): string {
   --light-text: #000;
   --dark-text: #FFF;
   --light-bkgd: #FFF;
-  --dark-bkgd: #000;
+  --dark-bkgd: #03021f;
   --light-anchor: rgb(0, 0, 160);
-  --dark-anchor: rgb(142, 142, 250);
-  --quote-bkgd: #066;
+  --dark-anchor: #90caf9;
+  --quote-bkgd: #3a3886;
   --quote-text: #FFF;
 }
 
@@ -509,7 +562,6 @@ body {
 
 .nav-header {
   margin-bottom: 1.5em;
-  padding-bottom: 1em;
 }
 
 .nav-header a {
@@ -541,12 +593,10 @@ body {
 .doc-nav ul {
   list-style: none;
   padding-left: 0;
-  color: light-dark(#222, #888);
 }
 
 .doc-nav ul ul {
-  padding-left: 1.2em;
-  color: light-dark(#222, #888);
+  padding-left: 1.6em;
 }
 
 .doc-nav li {
@@ -554,7 +604,7 @@ body {
 }
 
 .doc-nav ul a {
-  color: light-dark(var(--light-text), var(--dark-text));
+  color: light-dark(var(--light-anchor), var(--dark-anchor));
   text-decoration: none;
   display: block;
   padding: 0.25em 0.5em;
@@ -563,8 +613,7 @@ body {
 }
 
 .doc-nav ul a:hover {
-  color: light-dark(var(--light-bkgd), var(--dark-bkgd));
-  background-color: light-dark(var(--light-anchor), var(--dark-anchor));
+  color: light-dark(var(--light-text), var(--dark-text));
 }
 
 .nav-section {
@@ -579,7 +628,6 @@ body {
 .doc-main {
   flex: 1;
   padding: 2em 3em;
-  max-width: 900px;
   overflow-y: auto;
 }
 
@@ -625,11 +673,11 @@ body {
 }
 
 .help a:hover {
-  text-decoration: underline;
+  color: light-dark(var(--light-text), var(--dark-text));
 }
 
 .help ul, .help ol {
-  margin: 0 0 0.75rem 1.5em;
+  margin: 0 0 0.75rem 3.3em;
 }
 
 .help li {
@@ -696,11 +744,29 @@ body {
   border-radius: 4px;
 }
 
+/* Column layout */
+.help-columns {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 4em;
+  max-width: 80em;
+}
+
+.help-columns .help-columns {
+  grid-template-columns: auto auto;
+  gap: 0;
+}
+
+.help-column {
+  min-width: 0;
+}
+
 /* Icon styles */
 .help-icon {
   display: inline-flex;
   align-items: center;
   vertical-align: middle;
+  width: 1.2em;
   margin-right: 0.3em;
 }
 
@@ -725,8 +791,12 @@ h1:has(.logo) {
 .logo {
   display: flex;
   align-items: center;
-  margin: 0 0 1em 0;
-  gap: 1.5em;
+  margin: 0;
+  gap: 0.5em;
+}
+
+.logo-icon img {
+  margin: 0;
 }
 
 .logo-icon img {
@@ -734,7 +804,7 @@ h1:has(.logo) {
 }
 
 .logo-header .logo-title {
-  font-size: 3em;
+  font-size: 2em;
   margin: 0;
   line-height: 1.2;
 }
@@ -742,7 +812,6 @@ h1:has(.logo) {
 .logo-header .logo-version {
   font-size: 1.2em;
   margin: 0;
-  color: #a0a0d0;
   font-weight: normal;
 }
 

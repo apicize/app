@@ -4,6 +4,7 @@
 
 * Add encryption support for sensitive parameter stores (vault and private)
 * Add cURL command viewer for requests
+* Switch to arboard for Clipboard read/write
 
 ## 0.34.0
 

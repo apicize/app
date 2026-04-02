@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { NameValueEditor } from '../name-value-editor'
 import { observer } from 'mobx-react-lite'
 import { Box } from '@mui/material'
@@ -8,7 +9,7 @@ import { useFeedback } from '../../../contexts/feedback.context'
 export const RequestHeadersEditor = observer(({ request }: { request: EditableRequest }) => {
   const workspace = useWorkspace()
   const feedback = useFeedback()
-  workspace.nextHelpTopic = 'requests/headers'
+  useEffect(() => { workspace.nextHelpTopic = 'requests/headers' }, [workspace])
 
   return (
     <Box width='100%' height='100' position='relative'>

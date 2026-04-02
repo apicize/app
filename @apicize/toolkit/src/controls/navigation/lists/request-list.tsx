@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { RequestSection } from "../sections/request-section"
 import { Box, Stack, SxProps } from "@mui/system"
 import { SvgIcon, IconButton } from "@mui/material"
@@ -14,7 +15,7 @@ export const RequestList = observer(({
     sx?: SxProps,
 }) => {
     const workspace = useWorkspace()
-    workspace.nextHelpTopic = 'workspace/requests'
+    useEffect(() => { workspace.nextHelpTopic = 'workspace/requests' }, [workspace])
 
     return <Box sx={sx} className='editor'>
         <Stack direction='row' className='editor-panel-header' flexGrow={0}>

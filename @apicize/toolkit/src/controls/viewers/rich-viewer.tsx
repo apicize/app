@@ -5,7 +5,7 @@ import { useApicizeSettings } from '../../contexts/apicize-settings.context'
 import { observer } from 'mobx-react-lite'
 import MonacoEditor from 'react-monaco-editor'
 import { editor } from 'monaco-editor'
-import React from 'react'
+import React, { useMemo } from 'react'
 
 /**
  * A rich text viewer for viewing results
@@ -25,36 +25,35 @@ export const RichViewer = observer(
     ) => {
         const settings = useApicizeSettings()
 
-        const editorLanguage = mode
-        if (beautify === true) {
-            switch (mode) {
-                case EditorMode.js:
-                case EditorMode.json:
-                    text = js_beautify(text, {
-                        indent_size: settings.editorIndentSize,
-                        indent_empty_lines: false,
-                        keep_array_indentation: true,
-                        max_preserve_newlines: 2,
-                        brace_style: 'expand'
-                    })
-                    break
-                case EditorMode.html:
-                    text = html_beautify(text, {
-                        indent_size: settings.editorIndentSize,
-                        indent_empty_lines: false,
-                        max_preserve_newlines: 2,
-                    })
-                    break
-                case EditorMode.css:
-                    text = css_beautify(text, { indent_size: settings.editorIndentSize })
-                    break
+        const beautifiedText = useMemo(() => {
+            if (beautify === true) {
+                switch (mode) {
+                    case EditorMode.js:
+                    case EditorMode.json:
+                        return js_beautify(text, {
+                            indent_size: settings.editorIndentSize,
+                            indent_empty_lines: false,
+                            keep_array_indentation: true,
+                            max_preserve_newlines: 2,
+                            brace_style: 'expand'
+                        })
+                    case EditorMode.html:
+                        return html_beautify(text, {
+                            indent_size: settings.editorIndentSize,
+                            indent_empty_lines: false,
+                            max_preserve_newlines: 2,
+                        })
+                    case EditorMode.css:
+                        return css_beautify(text, { indent_size: settings.editorIndentSize })
+                }
             }
-        }
+            return text
+        }, [text, mode, beautify, settings.editorIndentSize])
 
         return <MonacoEditor
-            language={editorLanguage}
+            language={mode}
             theme={settings.colorScheme === "dark" ? 'vs-dark' : 'vs-light'}
-            value={text}
+            value={beautifiedText}
             width='100%'
             height='100%'
             options={{

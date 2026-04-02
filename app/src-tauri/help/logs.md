@@ -1,6 +1,6 @@
 # :icon[logs] Communication Logs :toolbar
 
-Click on the Toolbar :icon[logs] button to view HTTP reads and writes.  This log is global for Apicize, it reflect communication for
+Click on the Toolbar :icon[logs] button to view HTTP reads and writes.  This log is global for Apicize, it reflects communication for
 all active Workspaces.
 
 :image[logs.webp]
@@ -13,5 +13,6 @@ The "Follow Log" checkbox at the top of the screen will automatically scroll to 
 
 ### See Also
 
-* [**Authoring Tests**](help:authoring-tests)
-* [**Running Tests and Viewing Results**](help:running-tests)
+* [**Authoring Tests**](help:tests/authoring-tests)
+* [**Running Tests**](help:tests/running-tests)
+* [**Viewing Test Results**](help:tests/viewing-results)

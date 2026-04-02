@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import ToggleButton from '@mui/material/ToggleButton'
 import Box from '@mui/material/Box'
@@ -50,10 +50,11 @@ const RequestPanel = observer(({
         [selectedPanel]
     )
 
-    if (!hasWarnings && selectedPanel === 'Warnings') {
-        workspace.changeRequestPanel('Info')
-        return null
-    }
+    useEffect(() => {
+        if (!hasWarnings && selectedPanel === 'Warnings') {
+            workspace.changeRequestPanel('Info')
+        }
+    }, [hasWarnings, selectedPanel, workspace])
 
     return <>
         <Stack direction='row' className='editor-panel-header'>
@@ -111,9 +112,18 @@ export const RequestEditor = observer(({ sx, request }: { sx?: SxProps, request:
     const settings = useApicizeSettings()
     const workspace = useWorkspace()
 
-    workspace.nextHelpTopic = 'workspace/requests'
+    // Access observables directly in the parent to establish tracking
+    const isRunning = request.isRunning
+    const resultMenuItems = request.resultMenuItems
+    const selectedResultMenuItem = request.selectedResultMenuItem
+    const detail = workspace.currentExecutionDetail
 
-    const sizeStorage = {
+    useEffect(() => {
+        workspace.nextHelpTopic = request.resultMenuItems.length > 0
+            ? 'tests/viewing-results' : 'workspace/requests'
+    }, [workspace, request.resultMenuItems])
+
+    const sizeStorage = useMemo(() => ({
         getItem: (_: string) => {
             return settings.editorPanels
         },
@@ -124,18 +134,12 @@ export const RequestEditor = observer(({ sx, request }: { sx?: SxProps, request:
                 }
             })
         }
-    }
+    }), [settings])
 
     const { defaultLayout, onLayoutChanged } = useDefaultLayout({
         id: "apicize-request",
         storage: sizeStorage
     });
-
-    // Access observables directly in the parent to establish tracking
-    const isRunning = request.isRunning
-    const resultMenuItems = request.resultMenuItems
-    const selectedResultMenuItem = request.selectedResultMenuItem
-    const detail = workspace.currentExecutionDetail
 
     return (resultMenuItems.length > 0 && selectedResultMenuItem)
         ? <Box sx={sx}>

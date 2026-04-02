@@ -5,13 +5,17 @@ import { observer } from 'mobx-react-lite'
 import { useWorkspace } from '../../../contexts/workspace.context'
 import { useFeedback } from '../../../contexts/feedback.context'
 import PlayCircleFilledIcon from '@mui/icons-material/PlayCircleFilled'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+
+const METHOD_MENU_ITEMS = Methods.map(method => (
+    <MenuItem key={method} value={method}>{method}</MenuItem>
+))
 
 export const RequestInfoEditor = observer(({ request }: { request: EditableRequest }) => {
     const workspace = useWorkspace()
     const feedback = useFeedback()
 
-    workspace.nextHelpTopic = 'requests/info'
+    useEffect(() => { workspace.nextHelpTopic = 'requests/info' }, [workspace])
     const zeroRuns = request.runs < 1
 
     // Register dropdowns so they can be hidden on modal dialogs
@@ -24,13 +28,7 @@ export const RequestInfoEditor = observer(({ request }: { request: EditableReque
             disposer1()
             disposer2()
         })
-    })
-
-    const methodMenuItems = () => {
-        return Methods.map(method => (
-            <MenuItem key={method} value={method}>{method}</MenuItem>
-        ))
-    }
+    }, [feedback])
 
     const handleRunClick = () => () => {
         workspace.startExecution(request.id).catch(err => feedback.toastError(err))
@@ -92,7 +90,7 @@ export const RequestInfoEditor = observer(({ request }: { request: EditableReque
                             size='small'
                             label="Method"
                         >
-                            {methodMenuItems()}
+                            {METHOD_MENU_ITEMS}
                         </Select>
                     </FormControl>
                 </Grid>

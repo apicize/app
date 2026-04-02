@@ -3,7 +3,7 @@ import * as core from '@tauri-apps/api/core'
 import * as dialog from '@tauri-apps/plugin-dialog'
 import * as path from '@tauri-apps/api/path'
 import { exists, readFile, readTextFile } from "@tauri-apps/plugin-fs"
-import { base64Encode, FileOperationsContext, FileOperationsStore, HelpContents, OpenDataSetFileResponse, SshFileType, ToastSeverity, useApicizeSettings, useFeedback, WorkspaceStore } from "@apicize/toolkit";
+import { base64Encode, FileOperationsContext, FileOperationsStore, OpenDataSetFileResponse, SshFileType, ToastSeverity, useApicizeSettings, useFeedback, WorkspaceStore } from "@apicize/toolkit";
 import { ApicizeSettings, DataSourceType } from "@apicize/lib-typescript";
 import { extname, join, resourceDir } from '@tauri-apps/api/path';
 import { EditableSettings } from "@apicize/toolkit/dist/models/editable-settings";
@@ -366,21 +366,6 @@ export function FileOperationsProvider(
         return await readFile(fileName)
     }
 
-    const retriveHelpContents = async (): Promise<HelpContents> => {
-        const helpContents = await join(await resourceDir(), 'help', 'contents.json')
-        const contents = await readTextFile(helpContents)
-        try {
-            const result = JSON.parse(contents) as HelpContents
-            if (typeof result !== 'object') {
-                throw new Error('Help contents not in expected format')
-            }
-            return result
-        } catch (e) {
-            feedback.toastError(e)
-            return {}
-        }
-    }
-
     const selectWorkbookDirectory = async (): Promise<string | null> => {
         try {
             feedback.setModal(true)
@@ -547,7 +532,6 @@ export function FileOperationsProvider(
         onOpenFile: openFile,
         onSaveSettings: saveSettings,
         onRetrieveHelpTopic: retrieveHelpTopic,
-        onRetrieveHelpContents: retriveHelpContents,
         onSelectWorkbookDirectory: selectWorkbookDirectory,
         onGenerateDefaultSettings: generateDefaultSettings,
         onOpenDataSetFile: openDataSetFile,

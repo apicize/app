@@ -12,7 +12,7 @@ import { Stack } from '@mui/system';
 import { BorderedSection } from '../../bordered-section';
 import KeyIcon from '@mui/icons-material/Key'
 import { ToastSeverity, useFeedback } from '../../../contexts/feedback.context';
-import { createRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PasswordTextField } from '../../password-text-field';
 
 enum LockAction {
@@ -39,10 +39,10 @@ export const LockEditor = observer(({
     const [confirmNewPassword, setConfirmNewPassword] = useState('')
     const [operation, setOperation] = useState<string | null>(null)
     const [lockOption, setLockOption] = useState<'password' | 'envvar' | 'none'>('password')
-    const refBtnUnlock = createRef<HTMLButtonElement>()
-    const refBtnLock = createRef<HTMLButtonElement>()
-    const refTxtNewPwd = createRef<HTMLInputElement>()
-    const refTxtConfirmNewPwd = createRef<HTMLInputElement>()
+    const refBtnUnlock = useRef<HTMLButtonElement>(null)
+    const refBtnLock = useRef<HTMLButtonElement>(null)
+    const refTxtNewPwd = useRef<HTMLInputElement>(null)
+    const refTxtConfirmNewPwd = useRef<HTMLInputElement>(null)
 
     let title: string
     let envVar: string
@@ -293,7 +293,7 @@ export const LockEditor = observer(({
 
 export const SettingsLockEditor = observer(({ sx }: { sx?: SxProps }) => {
     const workspace = useWorkspace()
-    workspace.nextHelpTopic = 'settings/lock'
+    useEffect(() => { workspace.nextHelpTopic = 'settings/lock' }, [workspace])
     return <Stack spacing={4} sx={sx} className='panels full-width'>
         <LockEditor
             store={ParameterStore.Vault}

@@ -10,17 +10,17 @@ In this pane, you can configure the default parameters used for [Requests](help:
 * [Proxies](help:workspace/proxies)
 * [Data Sets](help:workspace/data-sets)
 
-These defaults can be overriden by any Request or Request Group.
+These defaults can be overridden by any Request or Request Group.
 
 :image[settings/defaults.webp]
 
 ### Other Settings
 
-* [**Application Setings**](help:settings/app-settings)
+* [**Application Settings**](help:settings/app-settings)
 * [**Lock Parameters**](help:settings/lock)
 
 ### See Also
 
 * [**Request Parameters**](help:requests/parameters)
 * [**Group Parameters**](help:groups/parameters)
-* [**Workspace**](help:home)
+* [**Workspace**](help:workspace)

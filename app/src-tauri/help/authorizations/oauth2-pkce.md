@@ -6,13 +6,13 @@ When authorizing using OAuth2 PKCE Flow, a browser window is displayed for the A
 successfully enters in their credentials and other two-factor authentication information (when applicable),
 Apicize can use that result to retrieve access and refresh tokens using the specified Access Token URL with the Client ID and Secret.
 
-Optionally, you can specify a Scope.  When associating a OAuth2 Client Authorization parameter, Apicize will automatically retrieve the token, and reuse it until either it expires, or you click on "CLEAR ANY CACHED TOKEN" in the Authorization's configuration.
+Optionally, you can specify a Scope.  When associating an OAuth2 Client Authorization parameter, Apicize will automatically retrieve the token, and reuse it until either it expires, or you click on "CLEAR ANY CACHED TOKEN" in the Authorization's configuration.
 
-The PKCE token flow will be initiatiated when executing tests on a Request or Group with a PKCE Authorization.  Alternatively, you can click on "REQUEST TOKEN" to manually trigger the process.
+The PKCE token flow will be initiated when executing tests on a Request or Group with a PKCE Authorization.  Alternatively, you can click on "REQUEST TOKEN" to manually trigger the process.
 
 ## Configuration
 
-You can configure the port that Apicize listencs for PKCE responses in [settings](help:settings/app-settings.md)
+You can configure the port that Apicize listens for PKCE responses in [settings](help:settings/app-settings)
 
 ## Limitations
 

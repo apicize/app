@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Box, Stack, SxProps } from "@mui/system"
 import { SvgIcon, IconButton } from "@mui/material"
 import { EditorTitle } from "../../editor-title"
@@ -14,7 +15,7 @@ export const AuthorizationList = observer(({
     sx?: SxProps
 }) => {
     const workspace = useWorkspace()
-    workspace.nextHelpTopic = 'workspace/authorizations'
+    useEffect(() => { workspace.nextHelpTopic = 'workspace/authorizations' }, [workspace])
 
     return <Box sx={sx} className='editor'>
         <Stack direction='row' className='editor-panel-header' flexGrow={0}>

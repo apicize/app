@@ -25,7 +25,7 @@ export const AppSettingsEditor = observer(({ sx }: { sx?: SxProps }) => {
     const feedback = useFeedback()
     const fileOps = useFileOperations()
 
-    workspace.nextHelpTopic = 'settings/app-settings'
+    useEffect(() => { workspace.nextHelpTopic = 'settings/app-settings' }, [workspace])
 
     // Register dropdowns so they can be hidden on modal dialogs
     const [showColorSchemeMenu, setShowColorSchemeMenu] = useState(false)

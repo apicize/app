@@ -60,7 +60,7 @@ export const RunResultsToolbar = observer((
         return (() => {
             disposer()
         })
-    })
+    }, [feedback])
 
     // CRITICAL: Extract observable values ONCE at the top for consistent render snapshot
     // MobX observables can change mid-render, causing Select value/children mismatch

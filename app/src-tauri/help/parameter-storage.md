@@ -19,23 +19,23 @@ These files are stored along with Workbook files with the extension `.apicize-pr
 
 > Note: You should exclude `*.apicize-priv` in your source control configuration (such as `.gitignore`) to ensure they do not end up in shared code repositories.
 
-Private Parameter files can be encrypted.  See the section on [Encyrption](#encryption) for more details.
+Private Parameter files can be encrypted.  See the section on [Encryption](#encryption) for more details.
 
 ### :icon[vault] Local Vault Parameter Storage
 
-Any parameters stored in the Local Vault will be available for use by any Apicize workbook loaded into a workspace.  This storage is tied to the user logged into the operating system, and is located in your Home directory under `.config/apicize`.  This is a useful mechanism if you work in an enterprise and need to share credentials amongst multiple workbook.
+Any parameters stored in the Local Vault will be available for use by any Apicize workbook loaded into a workspace.  This storage is tied to the user logged into the operating system, and is located in your Home directory under `.config/apicize`.  This is a useful mechanism if you work in an enterprise and need to share credentials amongst multiple workbooks.
 
-Vault files can be encrypted.  See the section on [Encyrption](#encryption) for more details.
+Vault files can be encrypted.  See the section on [Encryption](#encryption) for more details.
 
 ## Resolution of Parameters
 
-Requests, Group and Workbook Default parameters contain both an ID and Name for every configured parameters.  If you open a Workbook copied from another system, Apicize will look for parameters with matching names in the Local Vault for any configured paraemters, and select them if they match.
+Requests, Group and Workbook Default parameters contain both an ID and Name for every configured parameters.  If you open a Workbook copied from another system, Apicize will look for parameters with matching names in the Local Vault for any configured parameters, and select them if they match.
 
 If you work in a group and use consistent naming for parameters stored in your Vaults, you can exchange workbooks and parameters will be recognized by name, even if the IDs for Vault parameters between systems are different.
 
 ## Encryption :icon[lock]
 
-Private and Vault parameter files can be optionally encrypted using symetric (password) encryption.  To add or remove encryption from a parameter file, go to the Settings screen and select the Lock panel.
+Private and Vault parameter files can be optionally encrypted using symmetric (password) encryption.  To add or remove encryption from a parameter file, go to the Settings screen and select the Lock panel.
 
 :image[settings/lock.webp]
 
@@ -50,4 +50,4 @@ You can store default Vault and Private parameter passwords using environment va
 
 If a parameter file was encrypted using a different password than what is stored in these environment variables, the Settings icon will be colored yellow when you open the workbook, prompting you to enter the correct password.
 
-Envrionment variables themesleves are typically not stored securely unless you are encrypting your home directory, user configuration files, etc.
+Environment variables themselves are typically not stored securely unless you are encrypting your home directory, user configuration files, etc.

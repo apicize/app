@@ -7,8 +7,9 @@ import { useWorkspace } from "../../../contexts/workspace.context";
 import { editor } from 'monaco-editor'
 import { ExecutionResultDetail } from "@apicize/lib-typescript";
 import { useFeedback } from "../../../contexts/feedback.context";
+import { observer } from "mobx-react-lite";
 
-export function ResultRawPreview({ detail }: { detail: ExecutionResultDetail | null }) {
+export const ResultRawPreview = observer(({ detail }: { detail: ExecutionResultDetail | null }) => {
     const workspace = useWorkspace()
     const feedback = useFeedback()
 
@@ -91,4 +92,4 @@ export function ResultRawPreview({ detail }: { detail: ExecutionResultDetail | n
             }
         </Stack>
     )
-}
+})

@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import Stack from '@mui/material/Stack'
 import TextField from '@mui/material/TextField'
 import { SxProps } from '@mui/material/styles'
@@ -17,7 +18,7 @@ export const ProxyEditor = observer(({ proxy, sx }: { proxy: EditableProxy, sx?:
     const workspace = useWorkspace()
     const feedback = useFeedback()
 
-    workspace.nextHelpTopic = 'workspace/proxies'
+    useEffect(() => { workspace.nextHelpTopic = 'workspace/proxies' }, [workspace])
 
     return (
         proxy.encrypted

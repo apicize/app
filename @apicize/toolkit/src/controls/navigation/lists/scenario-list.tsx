@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Box, Stack, SxProps } from "@mui/system"
 import { SvgIcon, IconButton } from "@mui/material"
 import { EditorTitle } from "../../editor-title"
@@ -10,7 +11,7 @@ import { useWorkspace } from "../../../contexts/workspace.context";
 
 export const ScenarioList = observer(({ sx }: { sx?: SxProps, }) => {
     const workspace = useWorkspace()
-    workspace.nextHelpTopic = 'workspace/scenarios'
+    useEffect(() => { workspace.nextHelpTopic = 'workspace/scenarios' }, [workspace])
 
     return <Box sx={sx} className='editor'>
         <Stack direction='row' className='editor-panel-header' flexGrow={0}>

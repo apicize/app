@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { visit } from 'unist-util-visit'
-import { LeafDirective } from 'mdast-util-directive'
+import { ContainerDirective, LeafDirective } from 'mdast-util-directive'
 import { Parent } from 'unist'
 
 // Register `hName`, `hProperties` types, used when turning markdown to HTML:
@@ -107,7 +107,24 @@ export function createRemarkApicizeDirectives(config: HelpFormatConfig) {
         return true
     }
 
+    const handleColumns = (node: ContainerDirective) => {
+        if (node.name !== 'columns') return false
+        const data: any = node.data || (node.data = {})
+        data.hName = 'columns'
+        return true
+    }
+
+    const handleColumn = (node: ContainerDirective) => {
+        if (node.name !== 'column') return false
+        const data: any = node.data || (node.data = {})
+        data.hName = 'column'
+        return true
+    }
+
     return () => (tree: Parent) => {
+        visit(tree, 'containerDirective', function (node: ContainerDirective) {
+            return handleColumns(node) || handleColumn(node)
+        })
         visit(tree, 'leafDirective', function (node: LeafDirective) {
             return handleLogo(node) || handleToolbar(node) || handleImage(node)
         })

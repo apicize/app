@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Box, Stack, SxProps } from "@mui/system"
 import { SvgIcon, IconButton } from "@mui/material"
 import { EditorTitle } from "../../editor-title"
@@ -14,7 +15,7 @@ export const ProxyList = observer(({
     sx?: SxProps
 }) => {
     const workspace = useWorkspace()
-    workspace.nextHelpTopic = 'workspace/proxies'
+    useEffect(() => { workspace.nextHelpTopic = 'workspace/proxies' }, [workspace])
 
     return <Box sx={sx} className='editor'>
         <Stack direction='row' className='editor-panel-header' flexGrow={0}>

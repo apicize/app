@@ -15,7 +15,7 @@ export const RequestParametersEditor = observer(({
 }) => {
     const workspace = useWorkspace()
     const feedback = useFeedback()
-    workspace.nextHelpTopic = 'requests/parameters'
+    useEffect(() => { workspace.nextHelpTopic = 'requests/parameters' }, [workspace])
 
     // Register dropdowns so they can be hidden on modal dialogs
     const [showScenarioMenu, setShowScenarioMenu] = useState(false)
@@ -36,7 +36,7 @@ export const RequestParametersEditor = observer(({
                 disposer()
             }
         })
-    })
+    }, [feedback])
 
     if ((!workspace.activeParameters) || workspace.activeParameters.requestOrGroupId !== requestOrGroup.id) {
         workspace.initializeParameterList(requestOrGroup.id)
@@ -52,7 +52,7 @@ export const RequestParametersEditor = observer(({
     }
 
     return (
-        <Stack spacing={3}>
+        <Stack spacing={3} paddingTop='0.5rem'>
             <FormControl>
                 <InputLabel id='scenario-label-id'>Scenario</InputLabel>
                 <Select

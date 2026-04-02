@@ -58,6 +58,16 @@ export const NavigationControl = observer(() => {
         [settings.alwaysHideNavTree, windowSize.width]
     )
 
+    const handleItemExpansionToggle = useCallback((_: unknown, itemId: string, isExpanded: boolean) => {
+        workspace.updateExpanded(itemId, isExpanded)
+    }, [workspace])
+
+    const handleSelectedItemsChange = useCallback((_: unknown, itemId: string | null) => {
+        if (!itemId) {
+            workspace.clearActive()
+        }
+    }, [workspace])
+
     return isNarrowMode
         ? <Box className='navigation-narrow' display='flex'>
             <Stack direction='column' sx={{ flexGrow: 1 }} className='nav-selection-pane' typography='navigation'>
@@ -113,14 +123,8 @@ export const NavigationControl = observer(() => {
                 expandedItems={workspace.expandedItems}
                 selectedItems={workspace.activeSelection ? `${workspace.activeSelection.entityType}-${workspace.activeSelection.id}` : null}
                 multiSelect={false}
-                onItemExpansionToggle={(_, itemId, isExpanded) => {
-                    workspace.updateExpanded(itemId, isExpanded)
-                }}
-                onSelectedItemsChange={(_, itemId) => {
-                    if (! itemId) {
-                        workspace.clearActive()
-                    }
-                }}
+                onItemExpansionToggle={handleItemExpansionToggle}
+                onSelectedItemsChange={handleSelectedItemsChange}
                 className='navigation-tree'
             >
                 <RequestSection includeHeader={true} />

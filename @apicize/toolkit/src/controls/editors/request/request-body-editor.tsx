@@ -12,7 +12,7 @@ import { useFileOperations } from '../../../contexts/file-operations.context'
 import { toJS } from 'mobx'
 import { useWorkspace } from '../../../contexts/workspace.context'
 import { ToastSeverity, useFeedback } from '../../../contexts/feedback.context'
-import { createRef, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { DroppedFile, useFileDragDrop } from '../../../contexts/file-dragdrop.context'
 import { GenerateIdentifier } from '../../../services/random-identifier-generator'
 import { editor } from 'monaco-editor'
@@ -24,6 +24,10 @@ import { ImageViewer, KNOWN_IMAGE_EXTENSIONS } from '../../viewers/image-viewer'
 import { EditorMode } from '../../../models/editor-mode';
 import { IRequestEditorTextModel } from '../../../models/editor-text-model';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+
+const BODY_TYPE_MENU_ITEMS = BodyTypes.map(bodyType => (
+  <MenuItem key={bodyType} value={bodyType}>{bodyType === BodyType.Raw ? 'Binary' : bodyType}</MenuItem>
+))
 
 interface RawEditorProps {
   bodyLength: number | null
@@ -97,9 +101,9 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
   const feedback = useFeedback()
   const fileDragDrop = useFileDragDrop()
 
-  workspace.nextHelpTopic = 'requests/body'
+  useEffect(() => { workspace.nextHelpTopic = 'requests/body' }, [workspace])
 
-  const refContainer = createRef<HTMLElement>()
+  const refContainer = useRef<HTMLElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [model, setModel] = useState<IRequestEditorTextModel | null>(null)
   const editor = useRef<editor.IStandaloneCodeEditor | null>(null)
@@ -113,7 +117,7 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
     return (() => {
       disposer()
     })
-  })
+  }, [feedback])
 
   useEffect(() => {
     if (refContainer.current) {
@@ -245,33 +249,6 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
       .catch(err => feedback.toastError(err))
   }
 
-  const bodyTypeMenuItems = () => {
-    return BodyTypes
-      // .filter(newBodyType => {
-      //   const sourceIsXml = request.body.type === BodyType.XML
-      //   const destIsXml = newBodyType === BodyType.XML
-      //   const sourceIsForm = request.body.type === BodyType.Form
-      //   const destIsForm = newBodyType === BodyType.Form
-      //   const sourceIsRaw = request.body.type === BodyType.Raw
-      //   const destIsRaw = newBodyType === BodyType.Raw
-      //   const sourceIsText = request.body.type === BodyType.Text
-      //   const destIsText = newBodyType === BodyType.Text
-
-      //   return !(
-      //     sourceIsXml && (destIsForm || destIsRaw || destIsText)
-      //     ||
-      //     destIsXml && (sourceIsForm || sourceIsRaw || sourceIsText)
-      //     ||
-      //     sourceIsRaw && (destIsForm || destIsXml)
-      //     ||
-      //     destIsRaw && (sourceIsForm || sourceIsXml)
-      //   )
-      // })
-      .map(bodyType => (
-        <MenuItem key={bodyType} value={bodyType}>{bodyType === BodyType.Raw ? 'Binary' : bodyType}</MenuItem>
-      ))
-  }
-
   const pasteImageFromClipboard = () => {
     workspace.updateRequestBodyFromClipboard(request.id)
       .then((bodyInfo) => {
@@ -291,6 +268,7 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
   }
 
   let allowCopy: boolean
+  const allowBeautify = [BodyType.JSON, BodyType.XML].includes(request.body.type)
   switch (request.body.type) {
     case BodyType.Form:
     case BodyType.JSON:
@@ -315,7 +293,7 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
         sx={{ zIndex: 99999, opacity: 0.5, transition: "opacity 225ms cubic-bezier(0.4, 0, 0.2, 1) 0ms" }} />
 
       <Stack direction='column' spacing={3} position='relative' width='100%' height='100%'>
-        <Grid container direction='row' display='flex' justifyContent='space-between' maxWidth='65em'>
+        <Grid container direction='row' display='flex' justifyContent='space-between' maxWidth='65em' paddingTop='0.5rem'>
           <Stack direction='row'>
             <FormControl>
               <InputLabel id='request-body-type-label-id'>Body Content Type</InputLabel>
@@ -336,7 +314,7 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
                 }}
                 aria-labelledby='request-body-type-label-id'
               >
-                {bodyTypeMenuItems()}
+                {BODY_TYPE_MENU_ITEMS}
               </Select>
             </FormControl>
             {
@@ -358,14 +336,18 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
             }
           </Stack>
           <Grid container direction='row' spacing={2}>
-            <IconButton
-              aria-label='beautify body'
-              id='beautify-json-btn'
-              title='"Beautify" Body'
-              color='primary'
-              onClick={performBeautify}>
-              <AutoAwesomeIcon />
-            </IconButton>
+            {
+              allowBeautify
+                ? <IconButton
+                  aria-label='beautify body'
+                  id='beautify-json-btn'
+                  title='"Beautify" Body'
+                  color='primary'
+                  onClick={performBeautify}>
+                  <AutoAwesomeIcon />
+                </IconButton>
+                : null
+            }
             <IconButton
               aria-label='update content-type header'
               id='update-cnt-hdr-btn'

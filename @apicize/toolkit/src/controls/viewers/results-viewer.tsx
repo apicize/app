@@ -6,7 +6,7 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import { SvgIconPropsColorOverrides, SxProps, Theme } from "@mui/material"
 import { ScienceOutlinedIcon, ViewListOutlinedIcon, ArticleOutlinedIcon, PreviewIcon } from '../../icons'
 import { OverridableStringUnion } from '@mui/types';
-import React from "react"
+import React, { useEffect } from "react"
 import { ResultResponsePreview } from "./result/response-preview-viewer";
 import { ResultRawPreview } from "./result/response-raw-viewer";
 import { ResultInfoViewer } from "./result/result-info-viewer";
@@ -32,21 +32,28 @@ export const ResultsViewer = observer((
             detail: ExecutionResultDetail | null,
         }
 ) => {
-    if (!request.selectedResultMenuItem || (detail !== null && detail.execCtr !== request.selectedResultMenuItem.execCtr)) {
+    const selectedResultMenuItem = request.selectedResultMenuItem
+    const hasValidSelection = !!selectedResultMenuItem && !(detail !== null && detail.execCtr !== selectedResultMenuItem.execCtr)
+
+    const selectedSummary = hasValidSelection ? request.getSummary(selectedResultMenuItem.execCtr) : null
+
+    const disableHeadersPanel = !selectedSummary?.hasResponseHeaders
+    const disableText = (!selectedSummary?.responseBodyLength) || (selectedSummary.responseBodyLength === 0)
+    const disablePreview = (!selectedSummary?.responseBodyLength) || (selectedSummary.responseBodyLength === 0 || selectedSummary.responseBodyLength > MAX_TEXT_RENDER_LENGTH)
+    const disableCurl = !selectedSummary?.hasCurl
+
+    useEffect(() => {
+        if ((disableHeadersPanel && request.resultsPanel === 'Headers')
+            || (disableText && request.resultsPanel === 'Text')
+            || (disablePreview && request.resultsPanel === 'Preview')
+            || (disableCurl && request.resultsPanel === 'Curl')
+        ) {
+            request.setResultsPanel('Info')
+        }
+    }, [disableHeadersPanel, disableText, disablePreview, disableCurl, request])
+
+    if (!hasValidSelection || !selectedSummary) {
         return null
-    }
-
-    const selectedSummary = request.getSummary(request.selectedResultMenuItem.execCtr)
-
-    const disableHeadersPanel = !selectedSummary.hasResponseHeaders
-    const disableText = (!selectedSummary.responseBodyLength) || (selectedSummary.responseBodyLength === 0)
-    const disablePreview = (!selectedSummary.responseBodyLength) || (selectedSummary.responseBodyLength === 0 || selectedSummary.responseBodyLength > MAX_TEXT_RENDER_LENGTH)
-    const disableCurl = !selectedSummary.hasCurl
-
-    if ((disableHeadersPanel && request.resultsPanel === 'Headers')
-        || (disableText && request.resultsPanel === 'Text')
-        || (disablePreview && request.resultsPanel === 'Preview')) {
-        request.setResultsPanel('Info')
     }
 
     let infoColor: OverridableStringUnion<

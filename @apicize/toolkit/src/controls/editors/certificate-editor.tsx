@@ -23,7 +23,7 @@ import { useWorkspace } from '../../contexts/workspace.context';
 import { SshFileType } from '../../models/workspace/ssh-file-type';
 import { useApicizeSettings } from '../../contexts/apicize-settings.context';
 import { EditableCertificate } from '../../models/workspace/editable-certificate'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { PasswordTextField } from '../password-text-field'
 import { EncyrptedViewer } from '../viewers/encrypted-viewer'
 
@@ -31,7 +31,7 @@ export const CertificateEditor = observer(({ certificate, sx }: { certificate: E
     const settings = useApicizeSettings()
     const workspace = useWorkspace()
 
-    workspace.nextHelpTopic = 'workspace/certificates'
+    useEffect(() => { workspace.nextHelpTopic = 'workspace/certificates' }, [workspace])
     const feedback = useFeedback()
     const clipboard = useClipboard()
     const fileOps = useFileOperations()
@@ -43,25 +43,29 @@ export const CertificateEditor = observer(({ certificate, sx }: { certificate: E
         return (() => {
             disposer()
         })
-    })
+    }, [feedback])
 
-    let pemToView: string = ''
-    if (certificate.pem && (certificate.pem.length > 0)) {
-        try {
-            pemToView = (new TextDecoder('ascii')).decode(base64Decode(certificate.pem))
-        } catch {
-            pemToView = '(Invalid)'
+    const pemToView = useMemo(() => {
+        if (certificate.pem && (certificate.pem.length > 0)) {
+            try {
+                return (new TextDecoder('ascii')).decode(base64Decode(certificate.pem))
+            } catch {
+                return '(Invalid)'
+            }
         }
-    }
+        return ''
+    }, [certificate.pem])
 
-    let keyToView: string = ''
-    if (certificate.key) {
-        try {
-            keyToView = (new TextDecoder('ascii')).decode(base64Decode(certificate.key))
-        } catch {
-            keyToView = '(Invalid)'
+    const keyToView = useMemo(() => {
+        if (certificate.key) {
+            try {
+                return (new TextDecoder('ascii')).decode(base64Decode(certificate.key))
+            } catch {
+                return '(Invalid)'
+            }
         }
-    }
+        return ''
+    }, [certificate.key])
 
     const pasteDataFromClipboard = async (fileType: SshFileType) => {
         try {
@@ -164,7 +168,7 @@ export const CertificateEditor = observer(({ certificate, sx }: { certificate: E
                                 certificate.type === CertificateType.PKCS8_PEM
                                     ? (
                                         <Stack direction='column' spacing={3}>
-                                            <Stack direction={'row'} spacing={3} position='relative'>
+                                            <Stack direction={'row'} spacing={3} position='relative' alignItems='center'>
                                                 <Typography variant='h6' component='div'>SSL PEM Certificate / Chain</Typography>
                                                 <IconButton color='primary' size='medium' aria-label='open pem certificate chain filename' title='Open Certificate PEM File'
                                                     onClick={() => {
@@ -193,7 +197,7 @@ export const CertificateEditor = observer(({ certificate, sx }: { certificate: E
                                                 size='small'
                                                 fullWidth
                                             />
-                                            <Stack direction={'row'} spacing={3} position='relative'>
+                                            <Stack direction={'row'} spacing={3} position='relative' alignItems='center'>
                                                 <Typography variant='h6' component='div'>SSL Key</Typography>
                                                 <IconButton color='primary' size='medium' aria-label='open certificate key file' title='Open Certificate Key File'
                                                     onClick={() => {
@@ -226,7 +230,7 @@ export const CertificateEditor = observer(({ certificate, sx }: { certificate: E
                                     )
                                     : certificate.type === CertificateType.PKCS12 ? (
                                         <Stack direction={'column'} spacing={3}>
-                                            <Stack direction={'row'} spacing={3} position='relative'>
+                                            <Stack direction={'row'} spacing={3} position='relative' alignItems='center'>
                                                 <Typography variant='h6' component='div'>PFX Certificate</Typography>
                                                 <IconButton color='primary' size='medium' aria-label='open certificate pfx file' title='Open Certificate PFX File'
                                                     onClick={() => {
@@ -266,7 +270,7 @@ export const CertificateEditor = observer(({ certificate, sx }: { certificate: E
                                         </Stack>
                                     ) : (
                                         <Stack direction={'column'} spacing={3}>
-                                            <Stack direction={'row'} spacing={3} position='relative'>
+                                            <Stack direction={'row'} spacing={3} position='relative' alignItems='center'>
                                                 <Typography variant='h6' component='div'>SSL PEM Certificate / Chain</Typography>
                                                 <IconButton color='primary' size='medium' aria-label='open pem certificate chain filename' title='Open Certificate PEM File'
                                                     onClick={() => {

@@ -26,6 +26,7 @@ export class EditableCertificate extends Editable {
             this.encrypted = true
         } else {
             this.encrypted = false
+            this.type = certificate.type
             switch (certificate.type) {
                 case CertificateType.PKCS8_PEM:
                     this.pem = certificate.pem
@@ -88,7 +89,7 @@ export class EditableCertificate extends Editable {
     @action
     setPassword(value: string) {
         this.password = value
-        return this.performUpdate({ type: EntityTypeName.Certificate, entityType: EntityType.Certificate, id: this.password, pfx: value })
+        return this.performUpdate({ type: EntityTypeName.Certificate, entityType: EntityType.Certificate, id: this.id, password: value })
     }
 
     @action

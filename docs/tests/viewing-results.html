@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>tests/viewing-results - Apicize Documentation</title>
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body>
+  <div class="doc-layout">
+    <nav class="doc-nav">
+      <div class="nav-header">
+        <a href="../home.html"><img src="../images/logo.svg" alt="Apicize" /><span>Apicize Docs</span></a>
+      </div>
+      <ul><li><a href="../contents.html"><strong>Help Contents</strong></a></li><li><a href="../workspace.html">Workspaces Overview</a></li><li><span class="nav-section"><span class="help-icon" style="color: #00ace6;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" >
+            <path d="M10.5004 11.9998H5.00043M4.91577 12.2913L2.58085 19.266C2.39742 19.8139 2.3057 20.0879 2.37152 20.2566C2.42868 20.4031 2.55144 20.5142 2.70292 20.5565C2.87736 20.6052 3.14083 20.4866 3.66776 20.2495L20.3792 12.7293C20.8936 12.4979 21.1507 12.3822 21.2302 12.2214C21.2993 12.0817 21.2993 11.9179 21.2302 11.7782C21.1507 11.6174 20.8936 11.5017 20.3792 11.2703L3.66193 3.74751C3.13659 3.51111 2.87392 3.39291 2.69966 3.4414C2.54832 3.48351 2.42556 3.59429 2.36821 3.74054C2.30216 3.90893 2.3929 4.18231 2.57437 4.72906L4.91642 11.7853C4.94759 11.8792 4.96317 11.9262 4.96933 11.9742C4.97479 12.0168 4.97473 12.0599 4.96916 12.1025C4.96289 12.1506 4.94718 12.1975 4.91577 12.2913Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg></span> Requests</span><ul><li><a href="../workspace/requests.html">Overview</a></li><li><a href="../requests/info.html">Information</a></li><li><a href="../requests/headers.html">Headers</a></li><li><a href="../requests/query.html">Query String</a></li><li><a href="../requests/body.html">Body</a></li><li><a href="../requests/test.html">Testing</a></li><li><a href="../requests/parameters.html">Parameters</a></li></ul></li><li><span class="nav-section"><span class="help-icon" style="color: #00ace6;"><svg width="24" height="24" fill="currentColor" viewBox="0 0 102 102">
+            <path d="M90,18H56.4844L46.2422,7.7578A5.9956,5.9956,0,0,0,42,6H6a5.9966,5.9966,0,0,0-6,6V84a5.9966,5.9966,0,0,0,6,6H90a5.9966,5.9966,0,0,0,6-6V24A5.9966,5.9966,0,0,0,90,18ZM84,78H12V18H39.5156L49.7578,28.2422A5.9958,5.9958,0,0,0,54,30H84Z" />
+        </svg></span> Request Groups</span><ul><li><a href="../workspace/groups.html">Overview</a></li><li><a href="../groups/info.html">Information</a></li><li><a href="../groups/setup.html">Setup Script</a></li><li><a href="../groups/parameters.html">Parameters</a></li></ul></li><li><span class="nav-section"><span class="help-icon" style="color: #41ac88;"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2m-8 14H7v-4h4zm0-6H7V7h4zm6 6h-4v-4h4zm0-6h-4V7h4z"/></svg></span> Data Sets</span><ul><li><a href="../workspace/data-sets.html">Overview</a></li></ul></li><li><span class="nav-section"><span class="help-icon" style="color: #0073e6;"><svg viewBox="0 0 48 48" stroke-width="2" stroke="currentColor">
+            <g id="Layer_2" data-name="Layer 2">
+                <g id="Q3_icons" data-name="Q3 icons">
+                    <path d="M44,34H29L17,18H4a2,2,0,0,1,0-4H19L31,30H44a2,2,0,0,1,0,4Z" />
+                    <path d="M44,18H31a2,2,0,0,1,0-4H44a2,2,0,0,1,0,4Z" />
+                </g>
+            </g>
+        </svg></span> Scenarios</span><ul><li><a href="../workspace/scenarios.html">Overview</a></li></ul></li><li><span class="nav-section"><span class="help-icon" style="color: #daa520;"><svg width="24" height="24" viewBox="0 0 512 512" fill="currentColor">
+            <g>
+                <path d="M390.234,171.594v-37.375c0.016-36.969-15.078-70.719-39.328-94.906C326.719,15.063,292.969-0.016,256,0
+		c-36.969-0.016-70.719,15.063-94.906,39.313c-24.25,24.188-39.344,57.938-39.313,94.906v37.375H24.906V512h462.188v-29.063V171.594
+		H390.234z M179.891,134.219c0.016-21.094,8.469-39.938,22.297-53.813C216.047,66.594,234.891,58.125,256,58.125
+		s39.953,8.469,53.813,22.281c13.828,13.875,22.281,32.719,22.297,53.813v37.375H179.891V134.219z M83.031,229.719h345.938v224.156
+		H83.031V229.719z"/>
+                <path d="M297.859,321.844c0-23.125-18.75-41.875-41.859-41.875c-23.125,0-41.859,18.75-41.859,41.875
+		c0,17.031,10.219,31.625,24.828,38.156l-9.25,60.094H256h26.281L273.016,360C287.625,353.469,297.859,338.875,297.859,321.844z"/>
+            </g>
+        </svg></span> Authorizations</span><ul><li><a href="../workspace/authorizations.html">Overview</a></li><li><a href="../authorizations/basic.html">Basic Auth</a></li><li><a href="../authorizations/api-key.html">API Key</a></li><li><a href="../authorizations/oauth2-client.html">OAuth2 Client Flow</a></li><li><a href="../authorizations/oauth2-pkce.html">OAuth2 PKCE Flow</a></li></ul></li><li><span class="nav-section"><span class="help-icon" style="color: #FF8C00;"><svg viewBox="0 0 14 14" version="1.1" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2">
+            <polyline points="11.25 1.75,2.75 1.75,2.75 13.25,5.25 13.25" />
+            <polyline points="8.75 9.75,8.25 14.25,10.50 13.25,12.75 14.25,12.25 9.75" />
+            <circle cx="10.5" cy="7.5" r="2.75" />
+        </svg></span> Certificates</span><ul><li><a href="../workspace/certificates.html">Overview</a></li></ul></li><li><span class="nav-section"><span class="help-icon" style="color: #cc0099;"><svg width="24" height="24" viewBox="0 0 18 18" fill="currentColor">
+            <path d="m 12 1 c -0.265625 0 -0.519531 0.105469 -0.707031 0.292969 c -0.390625 0.390625 -0.390625 1.023437 0 1.414062 l 1.292969 1.292969 h -7.585938 c -0.550781 0 -1 0.449219 -1 1 s 0.449219 1 1 1 h 7.585938 l -1.292969 1.292969 c -0.390625 0.390625 -0.390625 1.023437 0 1.414062 s 1.023437 0.390625 1.414062 0 l 3 -3 c 0.390625 -0.390625 0.390625 -1.023437 0 -1.414062 l -3 -3 c -0.1875 -0.1875 -0.441406 -0.292969 -0.707031 -0.292969 z m -8 6 c -0.257812 0 -0.511719 0.097656 -0.707031 0.292969 l -3 3 c -0.3906252 0.390625 -0.3906252 1.023437 0 1.414062 l 3 3 c 0.1875 0.1875 0.441406 0.292969 0.707031 0.292969 s 0.519531 -0.105469 0.707031 -0.292969 c 0.390625 -0.390625 0.390625 -1.023437 0 -1.414062 l -1.292969 -1.292969 h 7.585938 c 0.550781 0 1 -0.449219 1 -1 s -0.449219 -1 -1 -1 h -7.585938 l 1.292969 -1.292969 c 0.390625 -0.390625 0.390625 -1.023437 0 -1.414062 c -0.195312 -0.195313 -0.449219 -0.292969 -0.707031 -0.292969 z m 0 0" />
+        </svg></span> Proxies</span><ul><li><a href="../workspace/proxies.html">Overview</a></li></ul></li><li><span class="nav-section"><span class="help-icon" style="color: #00ace6;"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M19.8 18.4 14 10.67V6.5l1.35-1.69c.26-.33.03-.81-.39-.81H9.04c-.42 0-.65.48-.39.81L10 6.5v4.17L4.2 18.4c-.49.66-.02 1.6.8 1.6h14c.82 0 1.29-.94.8-1.6"/></svg></span> Testing</span><ul><li><a href="../tests/authoring-tests.html">Authoring Tests</a></li><li><a href="../tests/running-tests.html">Running Tests</a></li><li><a href="../tests/viewing-results.html">Viewing Test Results</a></li><li><a href="../tests/integration.html">Integrating with CI/CD and Testing Frameworks</a></li><li><a href="../logs.html">View Communication Logs</a></li></ul></li><li><a href="../parameter-storage.html">Storing Parameters</a></li><li><span class="nav-section"><span class="help-icon"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6"/></svg></span> Settings</span><ul><li><a href="../settings/defaults.html">Workspace Defaults</a></li><li><a href="../settings/app-settings.html">Application Settings</a></li><li><a href="../settings/lock.html">Locking Parameters</a></li></ul></li><li><a href="../about.html">About Apicize</a></li><li><a href="../acknowledgements.html">Acknowledgements</a></li></ul>
+    </nav>
+    <main class="doc-main help">
+      <h2>Viewing Results </h2>
+<p>After a request is processed, the results will be shown to the right of the request.  The test flask icon colors indicate success or failure.</p>
+<ul>
+<li>Green: A response was received for Request(s) and all tests pass</li>
+<li>Yellow: A response was received for Request(s) but one or more tests failed</li>
+<li>Red:  A response was not received</li>
+</ul>
+<p><span class="help-icon"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2m0 16H8V7h11z"/></svg></span> Click to copy test result information to the clipboard as either JSON or CSV.</p>
+<h3>Multiple Results</h3>
+<p>There may be multiple results when executing a Request or Request Group when using Data Sets, specifying a Number of Runs or child Requests or Request Groups  A Results drop-down will appear that will assist with navigating between results.  You can also use the blue navigation buttons to the right of the Results drop-down to navigate through results.</p>
+<p><span class="help-icon"><svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M0 4.59613V4.60917V5.03217V6.0239C0 6.39632 0.392549 6.63803 0.725094 6.47037L1.61065 6.0239L1.98836 5.83347L2 5.82761L3.4037 5.11991L3.47443 5.08425L4.13583 4.75079L4.73945 4.44647C5.10599 4.26167 5.10599 3.73833 4.73945 3.55353L4.13583 3.24921L3.47443 2.91576L3.4037 2.8801L2 2.1724L1.98836 2.16653L1.61065 1.9761L0.725095 1.52963C0.392549 1.36197 0 1.60368 0 1.9761V2.96784V2.96784V3.39084V3.40387V4.59613ZM9 3C8.44772 3 8 3.44772 8 4C8 4.55229 8.44772 5 9 5H14V12H4V9C4 8.44772 3.55228 8 3 8C2.44772 8 2 8.44772 2 9V12C2 13.1046 2.89543 14 4 14H14C15.1046 14 16 13.1046 16 12V5C16 3.89543 15.1046 3 14 3H9ZM5 7C5 6.44772 5.44772 6 6 6H12C12.5523 6 13 6.44772 13 7C13 7.55229 12.5523 8 12 8H6C5.44772 8 5 7.55229 5 7ZM6 9C5.44772 9 5 9.44772 5 10C5 10.5523 5.44772 11 6 11H10C10.5523 11 11 10.5523 11 10C11 9.44772 10.5523 9 10 9H6Z" />
+        </svg></span> Click to view child test result information</p>
+<p><img src="../images/results/summary.webp" class="help-image"></p>
+<h3>Filtering Results</h3>
+<p>You can use the filter buttons at the top of the Results viewer to hide executed requests based upon whether they executed successfully and all tests passed, executed but tests failed and/or whether the requests could not be executed (communication error).</p>
+<p><img src="../images/results/filter-results.webp" class="help-image"></p>
+<h3>Clearing Results</h3>
+<p>You can clear a Request or Request Group's executed results by clicking on the Clear Execution Results button.</p>
+<p><img src="../images/results/clear-results.webp" class="help-image"></p>
+<p>This button only clears results for executions of the selected Request or Request Group.  If the selected Request or Group has results from a parent's execution, those results need to be cleared from the parent.</p>
+<h3>Request Results</h3>
+<p>Each request includes the following information panels:</p>
+<ul>
+<li><span class="help-icon"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M13 11.33 18 18H6l5-6.67V6h2m2.96-2H8.04c-.42 0-.65.48-.39.81L9 6.5v4.17L3.2 18.4c-.49.66-.02 1.6.8 1.6h16c.82 0 1.29-.94.8-1.6L15 10.67V6.5l1.35-1.69c.26-.33.03-.81-.39-.81"/></svg></span> list of executed request and test results</li>
+<li><span class="help-icon"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M3 5v14h18V5zm4 2v2H5V7zm-2 6v-2h2v2zm0 2h2v2H5zm14 2H9v-2h10zm0-4H9v-2h10zm0-4H9V7h10z"/></svg></span> displays the headers returned with the response</li>
+<li><span class="help-icon"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M19 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.89-2-2-2m0 16H5V7h14zm-5.5-6c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5.67-1.5 1.5-1.5 1.5.67 1.5 1.5M12 9c-2.73 0-5.06 1.66-6 4 .94 2.34 3.27 4 6 4s5.06-1.66 6-4c-.94-2.34-3.27-4-6-4m0 6.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5"/></svg></span>  Displays the response body (if any) as text if the content type does not appear to be binary.  If the content type does appear to be binary, then the body's
+content encoded as Base64 will be displayed</li>
+<li><span class="help-icon"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M19 5v14H5V5zm0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2"/><path d="M14 17H7v-2h7zm3-4H7v-2h10zm0-4H7V7h10z"/></svg></span>  For recognized content types, textual content will be displayed "pretty-fied" and images will be displayed as images</li>
+<li><span class="help-icon"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3z"/></svg></span>  Generates a CURL call to dispatch the command</li>
+<li><span class="help-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" >
+            <path d="M10.5004 11.9998H5.00043M4.91577 12.2913L2.58085 19.266C2.39742 19.8139 2.3057 20.0879 2.37152 20.2566C2.42868 20.4031 2.55144 20.5142 2.70292 20.5565C2.87736 20.6052 3.14083 20.4866 3.66776 20.2495L20.3792 12.7293C20.8936 12.4979 21.1507 12.3822 21.2302 12.2214C21.2993 12.0817 21.2993 11.9179 21.2302 11.7782C21.1507 11.6174 20.8936 11.5017 20.3792 11.2703L3.66193 3.74751C3.13659 3.51111 2.87392 3.39291 2.69966 3.4414C2.54832 3.48351 2.42556 3.59429 2.36821 3.74054C2.30216 3.90893 2.3929 4.18231 2.57437 4.72906L4.91642 11.7853C4.94759 11.8792 4.96317 11.9262 4.96933 11.9742C4.97479 12.0168 4.97473 12.0599 4.96916 12.1025C4.96289 12.1506 4.94718 12.1975 4.91577 12.2913Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg></span> Details about how the request was dispatched, including any values substituted based upon the selected scenario and/or data set</li>
+</ul>
+<h3>See Also</h3>
+<ul>
+<li><a href="../tests/authoring-tests.html"><strong>Authoring Tests</strong></a></li>
+<li><a href="../tests/running-tests.html"><strong>Running Tests</strong></a></li>
+<li><a href="../tests/integration.html"><strong>Integrating with CI/CD and Testing Frameworks</strong></a></li>
+<li><a href="../workspace/requests.html"><strong>Requests</strong></a></li>
+<li><a href="../workspace/groups.html"><strong>Request Groups</strong></a></li>
+<li><a href="../workspace/data-sets/.html"><strong>Data Sets</strong></a></li>
+<li><a href="../workspace.html"><strong>Workspace</strong></a></li>
+</ul>
+    </main>
+  </div>
+</body>
+</html>

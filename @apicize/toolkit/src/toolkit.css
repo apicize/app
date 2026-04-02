@@ -48,6 +48,11 @@ body .light {
   margin-right: 1rem;
 }
 
+.help .logo-icon svg {
+  height: 6rem;
+  width: 6rem;
+}
+
 .help .MuiTypography-h1:first-of-type {
   min-height: 4rem;
   margin: 0 0 1rem 0;
@@ -62,7 +67,6 @@ body .light {
 .help .MuiTypography-h1:first-of-type svg.help-icon {
   font-size: 1.5rem;
 }
-
 
 .help-icon {
   vertical-align: middle;
@@ -83,12 +87,12 @@ body .light {
 }
 
 .help .logo-header .MuiTypography-h1 {
-  font-size: 3rem;
+  font-size: 2rem;
   height: auto;
 }
 
 .help .logo-header .MuiTypography-h2 {
-  font-size: 2rem;
+  font-size: 1.5rem;
   height: auto;
   margin-bottom: 1rem;
 }
@@ -102,6 +106,10 @@ body .light {
   line-height: normal;
   height: auto;
   min-height: 0;
+}
+
+.help-text {
+  max-width: 80rem;
 }
 
 .help-toolbar {
@@ -198,6 +206,30 @@ body .light {
   background-color: #3a3886;
   padding: 1rem;
   margin: 0;
+}
+
+.help-columns {
+  display: grid;
+  grid-template-columns: max-content max-content;
+  gap: 8em;
+  max-width: 80em;
+}
+
+.help-columns .help-columns {
+  gap: 4em;
+}
+
+.help-columns .help-icon {
+  margin-left: 0;
+}
+
+.help-columns ul {
+  padding-inline-start: 3.5em;
+}
+
+.help-column {
+  min-width: 0;
+  width: auto;
 }
 
 .help img {
@@ -743,6 +775,17 @@ code.results-log {
   flex-grow: 2;
   border-top-right-radius: 5px;
 } */
+
+/* Fix MUI outlined input notch sizing: inherit theme font so the notch width
+   matches the label, and force the notch closed when the label is not shrunk
+   (MUI v7 Emotion class caching can leave the notch open incorrectly) */
+.MuiOutlinedInput-notchedOutline legend {
+  font-family: inherit;
+}
+
+.MuiFormControl-root:has(> .MuiInputLabel-root[data-shrink="false"]) .MuiOutlinedInput-notchedOutline legend {
+  max-width: 0.01px !important;
+}
 
 .monaco-editor {
   position: absolute !important;

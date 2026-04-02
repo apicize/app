@@ -9,6 +9,7 @@ use crate::workspaces::EntityType;
 #[derive(Serialize, Deserialize, PartialEq, Clone)]
 pub enum CertificateUpdateType {
     PKCS12,
+    #[serde(rename = "PKCS8_PEM")]
     PKCS8PEM,
     PEM,
 }

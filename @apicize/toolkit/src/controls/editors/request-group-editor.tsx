@@ -92,7 +92,7 @@ interface GroupEditorLayoutProps {
 }
 
 const GroupEditorLayout = observer(({ group, settings, workspace, usePanel, hasWarnings, onPanelChanged, sx }: GroupEditorLayoutProps) => {
-    const sizeStorage = {
+    const sizeStorage = React.useMemo(() => ({
         getItem: (_: string) => {
             return settings.editorPanels
         },
@@ -103,7 +103,7 @@ const GroupEditorLayout = observer(({ group, settings, workspace, usePanel, hasW
                 }
             })
         }
-    }
+    }), [settings])
 
     const { defaultLayout, onLayoutChanged } = useDefaultLayout({
         id: "apicize-group",
@@ -150,7 +150,10 @@ export const RequestGroupEditor = observer(({ group, sx }: { group: EditableRequ
     const settings = useApicizeSettings()
     const workspace = useWorkspace()
 
-    workspace.nextHelpTopic = 'groups/info'
+    React.useEffect(() => {
+        workspace.nextHelpTopic = group.resultMenuItems.length > 0
+            ? 'tests/viewing-results' : 'groups/info'
+    }, [workspace, group.resultMenuItems])
 
     const handlePanelChanged = (_: React.SyntheticEvent, newValue: GroupPanel) => {
         if (newValue) {

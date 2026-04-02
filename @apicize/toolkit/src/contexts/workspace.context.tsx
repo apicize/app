@@ -245,6 +245,7 @@ export class WorkspaceStore implements EditableEntityContext {
         return this.callbacks.close()
     }
 
+    @action
     updateSaveState(state: SessionSaveState) {
         this.fileName = state.fileName
         this.directory = state.directory
@@ -306,6 +307,9 @@ export class WorkspaceStore implements EditableEntityContext {
                 : true
             : null
 
+        if (this.mode !== WorkspaceMode.Normal) {
+            this.setMode(WorkspaceMode.Normal)
+        }
         if (this.activeSelection?.entityType !== type || this.activeSelection?.id !== id) {
             this.setMode(WorkspaceMode.Normal)
             this.performChangeActive(type, id, () => {
@@ -313,8 +317,10 @@ export class WorkspaceStore implements EditableEntityContext {
                     this.updateExpanded(expandId, updateExpandedToValue)
                 }
             })
-        } else if (updateExpandedToValue !== null) {
-            this.updateExpanded(expandId, updateExpandedToValue)
+        } else {
+            if (updateExpandedToValue !== null) {
+                this.updateExpanded(expandId, updateExpandedToValue)
+            }
         }
     }
 
@@ -322,6 +328,7 @@ export class WorkspaceStore implements EditableEntityContext {
         this.generateActiveSelection(id, type)
             .then((selection) => {
                 runInAction(() => {
+                    this.mode = WorkspaceMode.Normal
                     // Trigger request body update when retrieving a request
                     if (selection.entityType === EntityType.Request && !selection.isBodyInitialized) {
                         this.callbacks.getRequestBody(id)
@@ -423,13 +430,8 @@ export class WorkspaceStore implements EditableEntityContext {
     }
 
     @computed
-    public get allowHelpHome() {
-        return this.helpTopic !== 'home'
-    }
-
-    @computed
-    public get allowHelpAbout() {
-        return this.helpTopic !== 'about'
+    public get allowHelpContents() {
+        return this.helpTopic !== 'contents'
     }
 
     @computed
@@ -1325,11 +1327,7 @@ export class WorkspaceStore implements EditableEntityContext {
 
     async updateRequestBody(requestId: string, body: Body | undefined): Promise<RequestBodyMimeInfo | null> {
         try {
-            if (body) {
-                return await this.callbacks.updateRequestBody(requestId, body) ?? null
-            } else {
-                return null
-            }
+            return await this.callbacks.updateRequestBody(requestId, body) ?? null
         } catch (e) {
             this.feedback.toastError(e)
             return null

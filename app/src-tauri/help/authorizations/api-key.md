@@ -2,7 +2,7 @@
 
 ## API Key Authorization
 
-When authorizing using API Key Authorization, the named header and value anre included with the request.
+When authorizing using API Key Authorization, the named header and value are included with the request.
 
 You can use handlebars syntax (i.e. `{{foo}}`) to inject values that are defined *before* the authorization is triggered.
 

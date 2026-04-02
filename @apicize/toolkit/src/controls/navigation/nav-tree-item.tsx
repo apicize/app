@@ -11,7 +11,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import ErrorIcon from '@mui/icons-material/Error';
 import { CSS, useCombinedRefs } from '@dnd-kit/utilities';
-import React, { useState, JSX } from "react"
+import React, { useMemo, useState, JSX } from "react"
 import { useDragDrop } from "../../contexts/dragdrop.context"
 import { useApicizeSettings } from "../../contexts/apicize-settings.context"
 import { useWorkspace } from "../../contexts/workspace.context"
@@ -23,6 +23,11 @@ import {
 } from "../../icons"
 import { ExecutionState, ValidationState } from "@apicize/lib-typescript"
 import { IconColors } from "../../theme"
+
+const stateIconSxFirst = { fontSize: '1.1rem', marginLeft: 'none' } as const
+const stateIconSxSubsequent = { fontSize: '1.1rem', marginLeft: '0.5em' } as const
+const menuBtnSxVisible = { visibility: 'normal' as const, margin: 0, padding: 0 }
+const menuBtnSxHidden = { visibility: 'hidden' as const, margin: 0, padding: 0 }
 
 // Helper function to generate icons from entry state
 // Used inside observer components, so it will react to MobX changes
@@ -62,10 +67,10 @@ export const iconsFromState = (entry: NavigationEntry) => {
 
     if (entry.validationState) {
         if ((entry.validationState & ValidationState.warning) === ValidationState.warning as number) {
-            icons.push(<WarningAmberIcon color="warning" fontSize='medium' sx={{ fontSize: '1.1rem', marginLeft: icons.length === 0 ? 'none' : '0.5em' }} key={`warn-${entry.id}`} />)
+            icons.push(<WarningAmberIcon color="warning" fontSize='medium' sx={icons.length === 0 ? stateIconSxFirst : stateIconSxSubsequent} key={`warn-${entry.id}`} />)
         }
         if ((entry.validationState & ValidationState.error) === ValidationState.error as number) {
-            icons.push(<ErrorIcon color="error" fontSize='medium' sx={{ fontSize: '1.1rem', marginLeft: icons.length === 0 ? 'none' : '0.5em' }} key={`err-${entry.id}`} />)
+            icons.push(<ErrorIcon color="error" fontSize='medium' sx={icons.length === 0 ? stateIconSxFirst : stateIconSxSubsequent} key={`err-${entry.id}`} />)
         }
     }
 
@@ -145,16 +150,20 @@ export const NavTreeItem = observer(({
     const isOver = acceptDropTypes ? droppable.isOver : false
     const setDropRef = acceptDropTypes ? droppable.setNodeRef : () => null
 
-    const dragStyle = {
+    const dragStyle = useMemo(() => ({
         transform: CSS.Translate.toString(transform)
-    }
+    }), [transform])
+
+    const treeSx = useMemo(() => (
+        { background: isOver ? dragDrop.toBackgroundColor() : 'default', margin: 0, padding: 0 }
+    ), [isOver, dragDrop])
 
     return <TreeItem
         itemId={itemId}
         key={itemId}
         {...listeners}
         {...attributes}
-        sx={{ background: isOver ? dragDrop.toBackgroundColor() : 'default', margin: 0, padding: 0 }}
+        sx={treeSx}
         onClick={(e) => {
             e.preventDefault()
             e.stopPropagation()
@@ -210,11 +219,7 @@ export const NavTreeItem = observer(({
                 {
                     onMenu
                         ? <IconButton
-                            sx={{
-                                visibility: focused ? 'normal' : 'hidden',
-                                margin: 0,
-                                padding: 0,
-                            }}
+                            sx={focused ? menuBtnSxVisible : menuBtnSxHidden}
                             onClick={(e) => {
                                 e.preventDefault()
                                 e.stopPropagation()

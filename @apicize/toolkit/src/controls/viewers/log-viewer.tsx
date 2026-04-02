@@ -24,7 +24,7 @@ export const LogViewer = observer(({
     const clipboard = useClipboard()
     const bottomRef = useRef<HTMLDivElement | null>(null);
 
-    workspace.nextHelpTopic = 'logs'
+    useEffect(() => { workspace.nextHelpTopic = 'logs' }, [workspace])
 
     let ctr = 0
 

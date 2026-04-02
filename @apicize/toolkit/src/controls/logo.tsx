@@ -10,7 +10,7 @@ export const Logo = () => {
 
     return <Box className='logo' display='flex'>
         <Box className='logo-icon'>
-            <ApicizeIcon width='120' height='120' />
+            <ApicizeIcon />
         </Box>
         <Box className='logo-header'>
             <Typography variant='h1' component='div' sx={{ marginBottom: 0 }}>{name}</Typography>

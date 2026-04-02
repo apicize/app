@@ -138,7 +138,7 @@ export class EditableRequest extends EditableRequestEntry {
         this.markAsDirty()
         return new Promise<void>((resolve, reject) => {
             this.workspace.updateRequestBody(
-                this.id, body)
+                this.id, body.type === BodyType.None ? undefined : body)
                 .then((bodyInfo) => runInAction(() => {
                     const editableBody = EditableRequest.createEditableBody(body)
                     this.body.type = editableBody.type

@@ -220,6 +220,32 @@ export class EditableDataSet extends Editable {
     }
 
     @action
+    public renameColumn(oldName: string, newName: string) {
+        const index = this.csvColumns.indexOf(oldName)
+        if (index === -1) {
+            throw new Error(`Column "${oldName}" not found`)
+        }
+
+        this.csvColumns = this.csvColumns.map(c => c === oldName ? newName : c)
+
+        this.csvRows = this.csvRows.map(row => {
+            const newRow = { ...row }
+            newRow[newName] = newRow[oldName]
+            // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+            delete newRow[oldName]
+            return newRow
+        })
+
+        return this.performUpdate({
+            type: EntityTypeName.DataSet,
+            entityType: EntityType.DataSet,
+            id: this.id,
+            csvColumns: this.csvColumns,
+            csvRows: this.csvRows,
+        })
+    }
+
+    @action
     public deleteColumn(columnField: string) {
         // Remove the column from the columns array
         this.csvColumns = this.csvColumns.filter(c => c !== columnField)

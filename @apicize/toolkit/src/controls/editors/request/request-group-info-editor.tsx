@@ -33,7 +33,7 @@ export const RequestGroupInfoEditor = observer(({ sx, group }: {
     const running = group.isRunning ?? false
     const zeroRuns = group.runs < 1
 
-    workspace.nextHelpTopic = 'groups/info'
+    useEffect(() => { workspace.nextHelpTopic = 'groups/info' }, [workspace])
 
     const isUsingSeedData = workspace.defaults.selectedData.id !== NO_SELECTION_ID
 

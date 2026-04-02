@@ -5,6 +5,7 @@ import BlockIcon from '@mui/icons-material/Block'
 import { observer } from "mobx-react-lite"
 import { useWorkspace } from "../../../contexts/workspace.context"
 import { ApicizeError, ApicizeTestBehavior, ExecutionReportFormat, ExecutionResultSuccess, ExecutionResultSummary } from "@apicize/lib-typescript"
+import { Theme } from "@mui/material/styles"
 import React, { useState } from "react"
 import ViewIcon from "../../../icons/view-icon"
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
@@ -19,6 +20,70 @@ const ApicizeErrorToString = (error?: ApicizeError): string => {
     const desc = error?.description ? ` ${error.description}` : ''
     const sub = error?.source ? ` ${ApicizeErrorToString(error.source)}` : ''
     return error ? `[${error.type}]${desc}${sub}` : ''
+}
+
+const TestInfo = ({ success, text }: { success: ExecutionResultSuccess, text: string }) => {
+    switch (success) {
+        case ExecutionResultSuccess.Error:
+            return <Stack direction='row'>
+                <Box className='test-result-icon'><ErrorIcon color="error" fontSize='medium' /></Box>
+                <Typography className='test-result-detail' color='error'>{text}</Typography>
+            </Stack>
+        case ExecutionResultSuccess.Failure:
+            return <Box color='warn' className='test-result-behavior'><Box className='test-result-text'></Box>{text}</Box>
+        default:
+            return <Box className='test-result-behavior'>{text}</Box>
+    }
+}
+
+const TestBehavior = ({ behavior }: { behavior: ApicizeTestBehavior }) => {
+    const error = (behavior.error && behavior.error.length > 0) ? behavior.error : null
+    const logs = (behavior.logs?.length ?? 0) > 0 ? behavior.logs : null
+
+    const className = 'test-result-behavior'
+
+    return (error || logs)
+        ? <Box className={className}>
+            <Stack direction='row'>
+                <Box className='test-result-icon'>
+                    {behavior.success ? (<CheckIcon color='success' />) : (<BlockIcon color='warning' />)}
+                </Box>
+                <Stack direction='column' className='test-result-detail'>
+                    <Box>
+                        {behavior.name}{behavior.tag ? <Typography className='tag'> [{behavior.tag}]</Typography> : null}
+                    </Box>
+                    <Box className='test-result-detail-info'>
+                        {
+                            error
+                                ?
+                                <Stack direction='column'>
+                                    <Typography className='test-result-error' color='warning'>{behavior.error}</Typography>
+                                </Stack>
+                                : null
+                        }
+                        {
+                            (behavior.logs ?? []).map((log, i) => (
+                                <Stack direction='column' key={`log-${i}`}>
+                                    <code className='results-log'>{log}</code>
+                                </Stack>
+                            ))
+                        }
+                    </Box>
+                </Stack>
+            </Stack>
+        </Box >
+        : <Box className={className}>
+            <Stack direction='row' className='test-result-detail'>
+                <Box className='test-result-icon'>
+                    {behavior.success ? (<CheckIcon color='success' />) : (<BlockIcon color='error' />)}
+                </Box>
+                <Box>
+                    <Typography sx={{ marginTop: 0, marginBottom: 0, paddingTop: 0 }} component='div'>
+                        {behavior.name} {behavior.tag ? <Typography className='tag'>[{behavior.tag}]</Typography> : null}
+                    </Typography>
+                </Box>
+            </Stack>
+        </Box >
 }
 
 const CopyDataButton = ({
@@ -101,6 +166,174 @@ const CopyDataButton = ({
     </>
 }
 
+const fmtMinSec = (value: number, subZero: string | null = null) => {
+    if (value === 0 && subZero) {
+        return subZero
+    }
+    const m = Math.floor(value / 60000)
+    value -= m * 60000
+    const s = Math.floor(value / 1000)
+    value -= s * 1000
+    return `${m.toLocaleString().padStart(2, '0')}:${s.toString().padStart(2, '0')}${(0.1).toLocaleString()[1]}${value.toString().padEnd(3, '0')}`
+}
+
+const RenderExecution = ({
+    result,
+    depth,
+    hideSuccess,
+    hideFailure,
+    hideError,
+    executingTitle,
+    theme,
+    settings,
+    copyToClipboard,
+    request,
+    feedback,
+    changeResult,
+}: {
+    result: ExecutionResultSummary,
+    depth: number,
+    hideSuccess: boolean,
+    hideFailure: boolean,
+    hideError: boolean,
+    executingTitle: string | undefined,
+    theme: Theme,
+    settings: ReturnType<typeof useApicizeSettings>,
+    copyToClipboard: (e: React.MouseEvent, execCtr: number, format?: ExecutionReportFormat) => void,
+    request: EditableRequestEntry,
+    feedback: ReturnType<typeof useFeedback>,
+    changeResult: (e: React.MouseEvent, execCtr: number) => void,
+}) => {
+    let subtitle: string
+    let color: string
+
+    const totalToShow = (
+        hideSuccess ? 0 : result.requestSuccessCount
+    ) + (
+            hideFailure ? 0 : result.requestFailureCount
+        ) + (
+            hideError ? 0 : result.requestErrorCount
+        )
+
+    if (totalToShow === 0) {
+        return null
+    }
+
+    switch (result.success) {
+        case ExecutionResultSuccess.Error:
+            subtitle = 'Error'
+            color = theme.palette.error.main
+            break
+        case ExecutionResultSuccess.Failure:
+            subtitle = 'Failure'
+            color = theme.palette.warning.main
+            break
+        default:
+            subtitle = 'Success'
+            color = theme.palette.success.main
+            break
+    }
+
+    return <Box key={`exec-${result.execCtr}`} className='results-test-section'>
+        <>
+            {
+                depth === 0 && executingTitle
+                    ? <Typography variant="h3" sx={{ marginTop: 0, paddingTop: 0, fontStyle: 'italic' }}>Executed from {executingTitle}</Typography>
+                    : null
+            }
+            {
+                <Grid container direction='row' display='flex' alignItems='center' >
+                    <Grid display='flex' flexDirection='column' alignItems='start' alignContent='center' flexGrow='content'>
+                        <Box display='flex'>
+                            <Box sx={{ whiteSpace: 'nowrap' }} className='results-test-name'>
+                                {result.name}{result.key ? <Typography className='tag'> [{result.key}]</Typography> : null}
+                                <Box component='span' marginLeft='1rem' marginRight='0.5rem' sx={{ color }}> ({subtitle}) </Box>
+                            </Box>
+                        </Box>
+                        <Box display='block' alignContent='start' marginLeft='1.0rem' className='results-test-timing'>
+                            <Box>
+                                {result.executedAt > 0 ? `@${fmtMinSec(result.executedAt)}` : '@Start'}{result.duration > 0 ? ` for ${result.duration.toLocaleString()} ms` : ''}
+                            </Box>
+                            {
+                                result.url
+                                    ? (<Box className='results-url'>{`${result.method ? `${result.method} ` : ''}${result.url}`}</Box>)
+                                    : (null)
+                            }
+                            {
+                                result.status
+                                    ? (<Box>{`Status: ${result.status} ${result.statusText}`}</Box>)
+                                    : (null)
+                            }
+                            {
+                                (result.logs && result.logs.length > 0)
+                                    ? result.logs.map((log, i) => (
+                                        <Stack direction='column' key={`grp-log-${i}`}>
+                                            <code className='results-log'>{log}</code>
+                                        </Stack>
+                                    ))
+                                    : null
+                            }
+                        </Box>
+                    </Grid>
+                    <Grid display='flex' flexBasis='content' alignItems='center' alignContent='start' marginLeft='1.0rem'>
+                        <CopyDataButton
+                            execCtr={result.execCtr}
+                            settings={settings}
+                            copyToClipboard={copyToClipboard}
+                        />
+                        {
+                            depth > 0
+                                ? <Link title='View Details' underline='hover' display='inline-flex' marginLeft='0.5rem' alignItems='center' onClick={e => changeResult(e, result.execCtr)}><SvgIcon><ViewIcon /></SvgIcon></Link>
+                                : null
+                        }
+                    </Grid>
+                </Grid >
+            }
+            <Box margin='0.5rem 0 0.5rem 1.5rem'>
+                {
+                    result.error
+                        ? (<TestInfo success={result.success} text={ApicizeErrorToString(result.error)} />)
+                        : (null)
+                }
+            </Box>
+            {
+                (result.testResults && result.testResults.length > 0)
+                    ? <Box className='test-details'>
+                        {
+                            result.testResults.map((testResult, i) => <TestBehavior behavior={testResult} key={`behavior-${result.execCtr}-${i}`} />)
+                        }
+                    </Box>
+                    : (null)
+            }
+            {
+                (result.childExecCtrs ?? []).map(childExecCtr => {
+                    try {
+                        const child = request.getSummary(childExecCtr)
+                        return child ? <RenderExecution
+                            key={`child-${childExecCtr}`}
+                            result={child}
+                            depth={depth + 1}
+                            hideSuccess={hideSuccess}
+                            hideFailure={hideFailure}
+                            hideError={hideError}
+                            executingTitle={executingTitle}
+                            theme={theme}
+                            settings={settings}
+                            copyToClipboard={copyToClipboard}
+                            request={request}
+                            feedback={feedback}
+                            changeResult={changeResult}
+                        /> : null
+                    } catch (e) {
+                        feedback.toastError(e)
+                        return null
+                    }
+                })
+            }
+        </>
+    </Box>
+}
+
 export const ResultInfoViewer = observer(({
     request,
 }: {
@@ -159,17 +392,6 @@ export const ResultInfoViewer = observer(({
 
     const executingTitle = request.selectedResultMenuItem.executingName
 
-    const fmtMinSec = (value: number, subZero: string | null = null) => {
-        if (value === 0 && subZero) {
-            return subZero
-        }
-        const m = Math.floor(value / 60000)
-        value -= m * 60000
-        const s = Math.floor(value / 1000)
-        value -= s * 1000
-        return `${m.toLocaleString().padStart(2, '0')}:${s.toString().padStart(2, '0')}${(0.1).toLocaleString()[1]}${value.toString().padEnd(3, '0')}`
-    }
-
     const copyToClipboard = (e: React.MouseEvent, execCtr: number, format?: ExecutionReportFormat) => {
         if (format === undefined) {
             format = settings.reportFormat
@@ -186,224 +408,6 @@ export const ResultInfoViewer = observer(({
             .catch(err => feedback.toastError(err))
     }
 
-    const RenderExecution = ({ result, depth }: { result: ExecutionResultSummary, depth: number }) => {
-        // const rowSuffix = props.result.info.rowNumber && props.result.info.rowCount ? ` Row ${props.result.info.rowNumber} of ${props.result.info.rowCount}` : ''
-        let subtitle: string
-        let color: string
-
-        const totalToShow = (
-            hideSuccess ? 0 : result.requestSuccessCount
-        ) + (
-                hideFailure ? 0 : result.requestFailureCount
-            ) + (
-                hideError ? 0 : result.requestErrorCount
-            )
-
-        if (totalToShow === 0) {
-            return null
-        }
-
-        switch (result.success) {
-            case ExecutionResultSuccess.Error:
-                subtitle = 'Error'
-                color = theme.palette.error.main
-                break
-            case ExecutionResultSuccess.Failure:
-                subtitle = 'Failure'
-                color = theme.palette.warning.main
-                break
-            default:
-                subtitle = 'Success'
-                color = theme.palette.success.main
-                break
-        }
-
-        return <Box key={`exec-${result.execCtr}`} className='results-test-section'>
-            <>
-                {
-                    depth === 0 && executingTitle
-                        ? <Typography variant="h3" sx={{ marginTop: 0, paddingTop: 0, fontStyle: 'italic' }}>Executed from {executingTitle}</Typography>
-                        : null
-                }
-                {
-                    <Grid container direction='row' display='flex' alignItems='center' >
-                        <Grid display='flex' flexDirection='column' alignItems='start' alignContent='center' flexGrow='content'>
-                            <Box display='flex'>
-                                <Box sx={{ whiteSpace: 'nowrap' }} className='results-test-name'>
-                                    {result.name}{result.key ? <Typography className='tag'> [{result.key}]</Typography> : null}
-                                    <Box component='span' marginLeft='1rem' marginRight='0.5rem' sx={{ color }}> ({subtitle}) </Box>
-                                </Box>
-                            </Box>
-                            <Box display='block' alignContent='start' marginLeft='1.0rem' className='results-test-timing'>
-                                <Box>
-                                    {result.executedAt > 0 ? `@${fmtMinSec(result.executedAt)}` : '@Start'}{result.duration > 0 ? ` for ${result.duration.toLocaleString()} ms` : ''}
-                                </Box>
-                                {
-                                    result.url
-                                        ? (<Box className='results-url'>{`${result.method ? `${result.method} ` : ''}${result.url}`}</Box>)
-                                        : (null)
-                                }
-                                {
-                                    result.status
-                                        ? (<Box>{`Status: ${result.status} ${result.statusText}`}</Box>)
-                                        : (null)
-                                }
-                                {
-                                    (result.logs && result.logs.length > 0)
-                                        ? result.logs.map((log, i) => (
-                                            <Stack direction='column' key={`grp-log-${i}`}>
-                                                <code className='results-log'>{log}</code>
-                                            </Stack>
-                                        ))
-                                        : null
-                                }
-                            </Box>
-                        </Grid>
-                        <Grid display='flex' flexBasis='content' alignItems='center' alignContent='start' marginLeft='1.0rem'>
-                            <CopyDataButton
-                                execCtr={result.execCtr}
-                                settings={settings}
-                                copyToClipboard={copyToClipboard}
-                            />
-                            {
-                                depth > 0
-                                    ? <Link title='View Details' underline='hover' display='inline-flex' marginLeft='0.5rem' alignItems='center' onClick={e => changeResult(e, result.execCtr)}><SvgIcon><ViewIcon /></SvgIcon></Link>
-                                    : null
-                            }
-                        </Grid>
-                    </Grid >
-                }
-                <Box margin='0.5rem 0 0.5rem 1.5rem'>
-                    {
-                        result.error
-                            ? (<TestInfo success={result.success} text={ApicizeErrorToString(result.error)} />)
-                            : (null)
-                    }
-                </Box>
-                {
-                    (result.testResults && result.testResults.length > 0)
-                        ? <Box className='test-details'>
-                            {
-                                result.testResults.map((testResult, i) => <TestBehavior behavior={testResult} key={`behavior-${result.execCtr}-${i}`} />)
-                            }
-                        </Box>
-                        : (null)
-                }
-                {
-                    (result.childExecCtrs ?? []).map(childExecCtr => {
-                        try {
-                            const child = request.getSummary(childExecCtr)
-                            return child ? <RenderExecution key={`child-${childExecCtr}`} result={child} depth={depth + 1} /> : null
-                        } catch (e) {
-                            feedback.toastError(e)
-                            return null
-                        }
-                    })
-                }
-            </>
-        </Box>
-
-        {/* //     
-        //     {/* {props.tokenCached
-        //             ? (<TestInfo text='OAuth bearer token retrieved from cache' />)
-        //             : (<></>)} */}
-
-    }
-
-    const TestInfo = ({ success, text }: { success: ExecutionResultSuccess, text: string }) => {
-        switch (success) {
-            case ExecutionResultSuccess.Error:
-                return <Stack direction='row'>
-                    <Box className='test-result-icon'><ErrorIcon color="error" fontSize='medium' /></Box>
-                    <Typography className='test-result-detail' color='error'>{text}</Typography>
-                </Stack>
-            case ExecutionResultSuccess.Failure:
-                return <Box color='warn' className='test-result-behavior'><Box className='test-result-text'></Box>{text}</Box>
-            default:
-                return <Box className='test-result-behavior'>{text}</Box>
-        }
-    }
-
-    const TestBehavior = ({ behavior }: { behavior: ApicizeTestBehavior }) => {
-        const error = (behavior.error && behavior.error.length > 0) ? behavior.error : null
-        const logs = (behavior.logs?.length ?? 0) > 0 ? behavior.logs : null
-
-        const className = 'test-result-behavior'
-
-        return (error || logs)
-            ? <Box className={className}>
-                <Stack direction='row'>
-                    <Box className='test-result-icon'>
-                        {behavior.success ? (<CheckIcon color='success' />) : (<BlockIcon color='warning' />)}
-                    </Box>
-                    <Stack direction='column' className='test-result-detail'>
-                        <Box>
-                            {behavior.name}{behavior.tag ? <Typography className='tag'> [{behavior.tag}]</Typography> : null}
-                        </Box>
-                        <Box className='test-result-detail-info'>
-                            {
-                                error
-                                    ?
-                                    <Stack direction='column'>
-                                        <Typography className='test-result-error' color='warning'>{behavior.error}</Typography>
-                                    </Stack>
-                                    : null
-                            }
-                            {
-                                (behavior.logs ?? []).map((log, i) => (
-                                    <Stack direction='column' key={`log-${i}`}>
-                                        <code className='results-log'>{log}</code>
-                                    </Stack>
-                                ))
-                            }
-                        </Box>
-                    </Stack>
-                </Stack>
-            </Box >
-            : <Box className={className}>
-                <Stack direction='row' className='test-result-detail'>
-                    <Box className='test-result-icon'>
-                        {behavior.success ? (<CheckIcon color='success' />) : (<BlockIcon color='error' />)}
-                    </Box>
-                    <Box>
-                        <Typography sx={{ marginTop: 0, marginBottom: 0, paddingTop: 0 }} component='div'>
-                            {behavior.name} {behavior.tag ? <Typography className='tag'>[{behavior.tag}]</Typography> : null}
-                        </Typography>
-                    </Box>
-                </Stack>
-            </Box >
-    }
-
-    // const TestScenario = (props: { scenario: ApicizeTestScenario }) => {
-    //     const key = `result-${idx++}`
-    //     const scenario = props.scenario
-
-    //     if (scenario.children.length === 1) {
-    //         const child = scenario.children[0]
-    //         if (child.type === 'Behavior') {
-    //             return <TestBehavior behavior={child} namePrefix={scenario.name} />
-    //         }
-    //     }
-
-    //     return <Box key={key} className='test-result'>
-    //         <Stack direction='row' key={`result-${idx++}`}>
-    //             <Box sx={{ width: '1.5rem', marginRight: '0.5rem' }} key={`result-${idx++}`}>
-    //                 {scenario.success ? (<CheckIcon color='success' />) : (<BlockIcon color='error' />)}
-    //             </Box>
-    //             <Stack direction='column'>
-    //                 <Box key={`result-${idx++}`}>
-    //                     <Typography sx={{ marginTop: 0, marginBottom: 0, paddingTop: 0 }} component='div' key={`result-${idx++}`}>
-    //                         {scenario.name}
-    //                     </Typography>
-    //                 </Box>
-    //                 {
-    //                     scenario.children.map(c => <TestResult result={c} key={`result-${idx++}`} />)
-    //                 }
-    //             </Stack>
-    //         </Stack>
-    //     </Box>
-    // }
-
     const changeResult = (e: React.MouseEvent, execCtr: number) => {
         e.preventDefault()
         e.stopPropagation()
@@ -413,17 +417,6 @@ export const ResultInfoViewer = observer(({
     const result = <Stack className="results-info" sx={{
         position: 'absolute', top: 0, bottom: 0, right: 0, width: '100%', overflow: 'hidden', display: 'flex',
     }}>
-        {/* <Typography variant='h2' sx={{ marginTop: 0, flexGrow: 0 }} component='div'>
-            {title}
-            <IconButton
-                aria-label="copy results to clipboard"
-                title="Copy Results to Clipboard"
-                sx={{ marginLeft: '1rem' }}
-                color='primary'
-                onClick={_ => copyToClipboard(result)}>
-                <ContentCopyIcon />
-            </IconButton>
-        </Typography> */}
         <Box sx={{ overflow: 'auto', bottom: 0, paddingRight: '24px', position: 'relative' }}>
             <Box display='flex' flexDirection='row' alignItems='start' gap='1em' margin='0 1.5em 1.5em 1.5em'>
                 <Button
@@ -458,7 +451,20 @@ export const ResultInfoViewer = observer(({
                 </Button>
             </Box>
             <Box>
-                <RenderExecution result={selectedSummary} depth={0} />
+                <RenderExecution
+                    result={selectedSummary}
+                    depth={0}
+                    hideSuccess={hideSuccess}
+                    hideFailure={hideFailure}
+                    hideError={hideError}
+                    executingTitle={executingTitle}
+                    theme={theme}
+                    settings={settings}
+                    copyToClipboard={copyToClipboard}
+                    request={request}
+                    feedback={feedback}
+                    changeResult={changeResult}
+                />
             </Box>
         </Box>
     </Stack>

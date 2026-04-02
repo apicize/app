@@ -414,14 +414,6 @@ impl Workspaces {
                 }
             }?;
 
-            println!(
-                "Vault password: {}",
-                match &workspace.vault_password {
-                    Some(pw) => pw,
-                    None => "NONE",
-                }
-            );
-
             let result = workspace.save(&SaveWorkspaceParameters {
                 workbook_path,
                 include_workbook: false,
@@ -2646,7 +2638,7 @@ impl Workspaces {
                             if h == "_id" {
                                 has_id = true;
                             }
-                            h.to_string()
+                            h.to_owned()
                         })
                         .collect();
 
@@ -2662,7 +2654,7 @@ impl Workspaces {
                                 columns
                                     .iter()
                                     .zip(record.iter())
-                                    .map(|(h, v)| (h.to_string(), v.to_string()))
+                                    .map(|(h, v)| (h.clone(), v.to_owned()))
                                     .collect()
                             })
                         })
@@ -3000,6 +2992,46 @@ impl WorkspaceInfo {
         }
     }
 
+    fn append_results(
+        workspace: &Workspace,
+        request_or_group_id: &str,
+        results: &mut HashSet<String>,
+    ) {
+        if let Some(entry) = workspace.requests.entities.get(request_or_group_id) {
+            let data = entry.selected_data();
+            if data.is_none() {
+                return;
+            }
+            if data.is_default() {
+                match workspace.requests.parent_ids.get(request_or_group_id) {
+                    Some(parent_id) => Self::append_results(workspace, parent_id, results),
+                    None => {
+                        if !workspace.defaults.selected_data.is_default_or_none() {
+                            results.insert(workspace.defaults.selected_data.id.to_string());
+                        }
+                    }
+                }
+            } else {
+                results.insert(data.id.to_string());
+            }
+        }
+    }
+
+    /// Return a list of any Data Sets used by the specified request or decendants
+    pub fn get_request_data_set_ids(
+        &self,
+        request_or_group_id: &str,
+    ) -> Result<HashSet<String>, ApicizeAppError> {
+        let mut results = HashSet::<String>::new();
+        Self::append_results(&self.workspace, request_or_group_id, &mut results);
+        if let Some(child_ids) = self.workspace.requests.child_ids.get(request_or_group_id) {
+            for child_id in child_ids {
+                Self::append_results(&self.workspace, child_id, &mut results);
+            }
+        }
+        Ok(results)
+    }
+
     /// Build a request execution struct
     pub fn rebuild_request_execution(
         &mut self,
@@ -3028,7 +3060,8 @@ impl WorkspaceInfo {
             execution_state,
             active_summaries,
         };
-        self.executions.insert(request_or_group_id.to_string(), execution.clone());
+        self.executions
+            .insert(request_or_group_id.to_string(), execution.clone());
         Ok(execution)
     }
 

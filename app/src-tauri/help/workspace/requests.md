@@ -17,6 +17,7 @@ Requests are configured using the following panes:
 
 ### See Also
 
-* [**Running Tests and Viewing Results**](help:running-tests)
-* [**Authoring Tests**](help:authoring-tests)
-* [**Workspace**](help:home)
+* [**Running Tests**](help:tests/running-tests)
+* [**Viewing Test Results**](help:tests/viewing-results)
+* [**Authoring Tests**](help:tests/authoring-tests)
+* [**Workspace**](help:workspace)

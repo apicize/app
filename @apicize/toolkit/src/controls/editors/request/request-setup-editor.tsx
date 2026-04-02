@@ -1,5 +1,5 @@
 import { observer } from "mobx-react-lite";
-import { createRef, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useWorkspace } from "../../../contexts/workspace.context";
 import { Box, IconButton, Stack } from "@mui/material";
 import { DroppedFile, useFileDragDrop } from "../../../contexts/file-dragdrop.context";
@@ -40,15 +40,15 @@ export const RequestSetupEditor = observer(({ group }: { group: EditableRequestG
     const feedback = useFeedback()
     const fileDragDrop = useFileDragDrop()
 
-    const refContainer = createRef<HTMLElement>()
+    const refContainer = useRef<HTMLElement>(null)
     const [isDragging, setIsDragging] = useState(false)
     const [isDragingValid, setIsDraggingValid] = useState(false)
 
     const initialized = useRef(false)
     const [model, setModel] = useState<IRequestEditorTextModel | null>(null)
-    const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
+    const refEditor = useRef<editor.IStandaloneCodeEditor | null>(null)
 
-    workspace.nextHelpTopic = 'groups/setup'
+    useEffect(() => { workspace.nextHelpTopic = 'groups/setup' }, [workspace])
 
     useEffect(() => {
         if (refContainer.current) {
@@ -83,9 +83,9 @@ export const RequestSetupEditor = observer(({ group }: { group: EditableRequestG
     }, [feedback, fileDragDrop, group, isDragingValid, refContainer])
 
     function performBeautify() {
-        if (editorRef.current) {
+        if (refEditor.current) {
             try {
-                const action = editorRef.current.getAction('editor.action.formatDocument')
+                const action = refEditor.current.getAction('editor.action.formatDocument')
                 if (!action) throw new Error('Format action not found')
                 action.run().catch(err => feedback.toastError(err))
             } catch (e) {
@@ -182,7 +182,7 @@ export const RequestSetupEditor = observer(({ group }: { group: EditableRequestG
                         fontSize: settings.fontSize
                     }}
                     editorDidMount={(me) => {
-                        editorRef.current = me
+                        refEditor.current = me
 
                         updateDisallowedMarkers(me)
                         me.onDidChangeModelContent(() => updateDisallowedMarkers(me))

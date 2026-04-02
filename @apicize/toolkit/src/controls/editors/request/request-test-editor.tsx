@@ -1,6 +1,6 @@
 import { EditableRequest } from "../../../models/workspace/editable-request";
 import { observer } from "mobx-react-lite";
-import { createRef, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useWorkspace } from "../../../contexts/workspace.context";
 import { Box, IconButton, Stack } from "@mui/material";
 import { DroppedFile, useFileDragDrop } from "../../../contexts/file-dragdrop.context";
@@ -33,7 +33,7 @@ export const RequestTestEditor = observer(({ request }: { request: EditableReque
     const feedback = useFeedback()
     const fileDragDrop = useFileDragDrop()
 
-    const refContainer = createRef<HTMLElement>()
+    const refContainer = useRef<HTMLElement>(null)
     const [isDragging, setIsDragging] = useState(false)
     const [isDragingValid, setIsDraggingValid] = useState(false)
 
@@ -41,7 +41,7 @@ export const RequestTestEditor = observer(({ request }: { request: EditableReque
     const [model, setModel] = useState<IRequestEditorTextModel | null>(null)
     const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
 
-    workspace.nextHelpTopic = 'requests/test'
+    useEffect(() => { workspace.nextHelpTopic = 'requests/test' }, [workspace])
 
     useEffect(() => {
         if (refContainer.current) {

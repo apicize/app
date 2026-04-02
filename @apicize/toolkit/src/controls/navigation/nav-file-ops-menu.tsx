@@ -1,5 +1,5 @@
 import { observer } from "mobx-react-lite"
-import { useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useApicizeSettings } from "../../contexts/apicize-settings.context"
 import { useFileOperations } from "../../contexts/file-operations.context"
 import { useWorkspace } from "../../contexts/workspace.context"
@@ -76,7 +76,7 @@ export const NavFileOpsMenu = observer(({ sx, orientation }: { sx?: SxProps, ori
         return filename
     }
 
-    window.onkeydown = ((e) => {
+    const handleKeyDown = useCallback((e: KeyboardEvent) => {
         if (e.ctrlKey) {
             switch (e.key) {
                 case 'Enter':
@@ -113,7 +113,14 @@ export const NavFileOpsMenu = observer(({ sx, orientation }: { sx?: SxProps, ori
                     break
             }
         }
-    })
+    }, [workspace, fileOps, feedback])
+
+    useEffect(() => {
+        window.addEventListener('keydown', handleKeyDown)
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown)
+        }
+    }, [handleKeyDown])
 
     let alignDropBtnSelf: ResponsiveStyleValue<'begin' | 'end'>
     let alignDropBtnItems: ResponsiveStyleValue<'begin' | 'end'>

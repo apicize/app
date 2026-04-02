@@ -2,15 +2,16 @@
 
 ## Setup Pane :icon[test]
 
-Use the Setup pane to initialize dyanmically variables used by child requests during testing. 
+Use the Setup pane to initialize dynamic variables used by child requests during testing. 
 
-For example, you can create a script to randomly generate an email address:
+* :icon[copy] Copy test to clipboard
+* :icon[beautify] Format test
+
+For example, you can create a script to randomly generate an email address.  The JavaScript variable `$.email` will be available during execution of child requests.
 
 :image[groups/setup.webp]
 
-The JavaScript variable `$.email` will be available during execution of child requests.
-
-Read the section on [**Authoring Tests**](help:authoring-tests) for information on how to create tests.
+Read the section on [**Authoring Tests**](help:tests/authoring-tests) for information on how to create tests.
 
 ### Other Request Group Help
 
@@ -20,5 +21,5 @@ Read the section on [**Authoring Tests**](help:authoring-tests) for information 
 
 ### See Also
 
-* [**Running Tests**](help:running-tests)
-* [**Workspace**](help:home)
+* [**Running Tests**](help:tests/running-tests)
+* [**Workspace**](help:workspace)

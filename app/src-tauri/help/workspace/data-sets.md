@@ -4,9 +4,15 @@ Data Sets are defined in either JSON or CSV and are used to dynamically inject d
 
 ## JSON versus CSV Data Sets
 
-JSON has advantages over CSV when it comes to data types. Values can not only be strings, but also be numeric, string, null or objects.  If you have conditional properties or variable data structures, JSON is going to be a better choice than CSV.
+JSON has advantages over CSV when it comes to data types. Values can not only be strings, but also be numeric, null, or objects.  If you have conditional properties or variable data structures, JSON is going to be a better choice than CSV.
 
 CSV values are limited to a list of key-value pairs of strings.  If you are not worried about data types and/or have a long list of test scenarios, CSV files may be easier to maintain.
+
+:image[dataset/json.webp]
+
+:image[dataset/csv.webp]
+
+> When switching from JSON to CSV, all data types will be converted to strings.  In the case of hierarchical objects, they will be converted to JSON strings.
 
 ## Workbook versus External File Data Sets
 
