@@ -56,6 +56,19 @@ impl ClipboardState {
         }
     }
 
+    pub fn read_text(&self) -> Result<String, ApicizeAppError> {
+        let clipboard = self
+            .clipboard
+            .try_lock_for(Duration::from_secs(1))
+            .ok_or_else(|| {
+                ApicizeAppError::ClipboardError("Failed to acquire clipboard lock".into())
+            })?;
+
+        clipboard
+            .get_text()
+            .map_err(|err| ApicizeAppError::ClipboardError(err.to_string()))
+    }
+
     pub fn read_image(&self) -> Result<Vec<u8>, ApicizeAppError> {
         let clipboard = self
             .clipboard

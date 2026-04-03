@@ -26,6 +26,7 @@ import { runInAction } from "mobx";
 import { RequestEditSessionType } from "../editor-types";
 import { EditorMode } from "../../../models/editor-mode";
 import { IRequestEditorTextModel } from "../../../models/editor-text-model";
+import { useMonacoClipboard } from "../../../hooks/use-monaco-clipboard";
 
 export const RequestTestEditor = observer(({ request }: { request: EditableRequest }) => {
     const workspace = useWorkspace()
@@ -40,6 +41,9 @@ export const RequestTestEditor = observer(({ request }: { request: EditableReque
     const initialized = useRef(false)
     const [model, setModel] = useState<IRequestEditorTextModel | null>(null)
     const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
+
+    // Hook Monaco clipboard to Tauri clipboard
+    useMonacoClipboard(editorRef, false)
 
     useEffect(() => { workspace.nextHelpTopic = 'requests/test' }, [workspace])
 

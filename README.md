@@ -2,8 +2,9 @@
 
 ## Overview
 
-Apicize is a testing platform that facilitates webservice testing both via GUI and CLI.  It utilizes Rust and V8 for file I/O and
-to execute  HTTP requests and tests.  Tauri, React, MobX and MUI are used for the UI.  The Monaco editor is used to edit JSON and JavaScript.
+Apicize is a testing platform that facilitates webservice testing both via GUI and CLI.  It utilizes Rust and V8 for file I/O, HTTP requests and to execute tests.  Tauri, React, MobX and MUI are used for the UI.  The Monaco editor is used to edit JSON and JavaScript.
+
+Documentation for the project is [here](,./docs/index.html)
 
 ### Contents
 
@@ -24,11 +25,9 @@ GUI installations are available for:
 * Windows (64 bit .msi)
 * MacOS (.dmg / .tar.gz)
 
-CLI installations are currently available for Debian and RedHat distributions [here](https://github.com/apicize/cli/releases/latest).
+CLI installations are available [here](https://github.com/apicize/cli/releases/latest).
 
-You can build for other operating systems (see [below](#development)).
-
-When launching the GUI for the first time, it will load a workbook that demonstrates basic functionality.
+When launching the GUI for the first time, it will load a demo workbook that demonstrates basic functionality.
 
 ## Project Objectives
 
@@ -44,7 +43,7 @@ Apicize uses [Tauri](https://tauri.app/), [NextJS](https://nextjs.org/) and [Rea
 
 ### CLI Version
 
-Along with the user application, there is a CLI test runner (currently with Linux builds), writtin in Rust, designed to run as part of CI/CD workflows.  It uses the same exact files that are
+Along with the user application, there is a CLI test runner writtin in Rust, designed to run as part of CI/CD workflows.  It uses the same exact files that are
 created by the GUI.  You can easily generate configurations in your CI/CD images or pipelines containing credentials, certificates and proxies.
 
 ![Apicize CLI](./docs/screenshot-terminal.webp)
@@ -67,6 +66,7 @@ The following are terms used in Apicize
 * **Scenario**:  A list of variables that can be substituted in a Request.  For example, you may have a set of calls that you want to test against different products.  Rather than having to create a copy of those requests, you can just execute the same tests against different scenarios.
 * **Certificate**:  Client certificates used to establish identity.  These can be either PKCS or PEM format.
 * **Proxy**: A SOCKS5 or HTTP proxy to route HTTP traffic
+* **Data Set**: A list of records (JSON or CSV) that can be injected into Requests during testing
 * **Test**: A block of JavaScript that either runs to completion (success) or throws an error (failure)
 
 ## Testing in Apicize
@@ -87,11 +87,11 @@ The `expect` assertion is imported from the [Chai](https://www.chaijs.com/) libr
 
 When authoring a test, the following global variables will be available for use in JavaScript:
 
+* `$`: A merged list of previously output variables, scenario variables, and data row variables.  These values, as defined, are used 
+to populate handlebars values in the request URL, headers, body, etc.
 * `scenario`:  A list of variables defined in the currently active Scenario (if any)
 * `output`: A list of values output from previous requests in the group
 * `data`:  When a data seed is defined, this will hold the values for the current data row
-* `$`: A merged list of previously output variables, scenario variables, and data row variables.  These values, as defined, are used 
-to populate handlebars values in the request URL, headers, body, etc.
 * `request`: Properties describing an HTTP request
 * `resposne`: Properties describe an HTTP response
 

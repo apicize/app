@@ -25,6 +25,7 @@ import { RequestEditSessionType } from "../editor-types";
 import { EditorMode } from "../../../models/editor-mode";
 import { IRequestEditorTextModel } from "../../../models/editor-text-model";
 import { EditableRequestGroup } from "../../../models/workspace/editable-request-group";
+import { useMonacoClipboard } from "../../../hooks/use-monaco-clipboard";
 
 const DISALLOWED_NAMES = [
     { pattern: /\bdescribe\b/g, message: 'describe() is not available in Group Setup scripts' },
@@ -47,6 +48,9 @@ export const RequestSetupEditor = observer(({ group }: { group: EditableRequestG
     const initialized = useRef(false)
     const [model, setModel] = useState<IRequestEditorTextModel | null>(null)
     const refEditor = useRef<editor.IStandaloneCodeEditor | null>(null)
+
+    // Hook Monaco clipboard to Tauri clipboard
+    useMonacoClipboard(refEditor, false)
 
     useEffect(() => { workspace.nextHelpTopic = 'groups/setup' }, [workspace])
 

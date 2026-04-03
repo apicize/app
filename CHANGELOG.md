@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.35.1
+
+* Clipboard stubs for Monaco
+
 ## 0.35.0
 
 * Add encryption support for sensitive parameter stores (vault and private)

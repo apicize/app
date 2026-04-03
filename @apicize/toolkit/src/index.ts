@@ -46,6 +46,7 @@ export * from './models/editable-settings'
 export * from './models/clipboard_payload_request'
 export * from './models/palette-colors'
 export * from './models/icon-color-map'
+export * from './hooks/use-monaco-clipboard'
 
 import { monaco } from 'react-monaco-editor'
 import "./toolkit.css"

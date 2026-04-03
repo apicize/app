@@ -5,7 +5,8 @@ import { useApicizeSettings } from '../../contexts/apicize-settings.context'
 import { observer } from 'mobx-react-lite'
 import MonacoEditor from 'react-monaco-editor'
 import { editor } from 'monaco-editor'
-import React, { useMemo } from 'react'
+import React, { useMemo, useRef } from 'react'
+import { useMonacoClipboard } from '../../hooks/use-monaco-clipboard'
 
 /**
  * A rich text viewer for viewing results
@@ -24,6 +25,10 @@ export const RichViewer = observer(
             }
     ) => {
         const settings = useApicizeSettings()
+        const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
+
+        // Hook Monaco clipboard to Tauri clipboard (read-only)
+        useMonacoClipboard(editorRef, true)
 
         const beautifiedText = useMemo(() => {
             if (beautify === true) {
@@ -56,6 +61,9 @@ export const RichViewer = observer(
             value={beautifiedText}
             width='100%'
             height='100%'
+            editorDidMount={(me) => {
+                editorRef.current = me
+            }}
             options={{
                 automaticLayout: true,
                 minimap: { enabled: false },

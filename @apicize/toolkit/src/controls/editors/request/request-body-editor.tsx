@@ -24,6 +24,7 @@ import { ImageViewer, KNOWN_IMAGE_EXTENSIONS } from '../../viewers/image-viewer'
 import { EditorMode } from '../../../models/editor-mode';
 import { IRequestEditorTextModel } from '../../../models/editor-text-model';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import { useMonacoClipboard } from '../../../hooks/use-monaco-clipboard';
 
 const BODY_TYPE_MENU_ITEMS = BodyTypes.map(bodyType => (
   <MenuItem key={bodyType} value={bodyType}>{bodyType === BodyType.Raw ? 'Binary' : bodyType}</MenuItem>
@@ -107,6 +108,9 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
   const [isDragging, setIsDragging] = useState(false)
   const [model, setModel] = useState<IRequestEditorTextModel | null>(null)
   const editor = useRef<editor.IStandaloneCodeEditor | null>(null)
+
+  // Hook Monaco clipboard to Tauri clipboard
+  useMonacoClipboard(editor, false)
 
   // let [allowUpdateHeader, setAllowUpdateHeader] = useState(false)
 

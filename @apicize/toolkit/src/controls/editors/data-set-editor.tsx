@@ -29,6 +29,7 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import EditIcon from '@mui/icons-material/Edit';
 import { EditableSettings } from '../../models/editable-settings'
 import { editor } from 'monaco-editor'
+import { useMonacoClipboard } from '../../hooks/use-monaco-clipboard'
 
 interface JsonEditorHandle {
     performBeautify: () => void
@@ -42,6 +43,9 @@ const JsonEditor = observer(forwardRef<JsonEditorHandle, {
 }>(({ dataSet, feedback, settings, workspace }, ref) => {
     const [model, setModel] = useState<IDataSetEditorTextModel | null>(null)
     const editor = useRef<editor.IStandaloneCodeEditor | null>(null)
+
+    // Hook Monaco clipboard to Tauri clipboard
+    useMonacoClipboard(editor, false)
 
     // Make sure we have the editor test model
     if (!model || model.dataSetId !== dataSet.id) {

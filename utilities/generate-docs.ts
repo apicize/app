@@ -39,11 +39,11 @@ const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf-8'))
 const APP_VERSION = pkg.version ?? '0.0.0'
 
 // ---------------------------------------------------------------------------
-// Read contents.md and extract topic list and navigation structure
+// Read index.md and extract topic list and navigation structure
 // ---------------------------------------------------------------------------
-const contentsMd = readFileSync(join(HELP_DIR, 'contents.md'), 'utf-8')
+const indexMd = readFileSync(join(HELP_DIR, 'index.md'), 'utf-8')
 
-/** Extract all help: link targets from contents.md */
+/** Extract all help: link targets from index.md */
 function extractTopics(markdown: string): string[] {
   const topics: string[] = []
   const regex = /\]\(help:([^)]+)\)/g
@@ -54,10 +54,10 @@ function extractTopics(markdown: string): string[] {
   return topics
 }
 
-const allTopics = extractTopics(contentsMd)
+const allTopics = extractTopics(indexMd)
 
 /**
- * Parse contents.md into sidebar navigation HTML.
+ * Parse index.md into sidebar navigation HTML.
  * Recognizes:
  *   ## [Text](help:topic)  → nav link
  *   ## Text                 → section header
@@ -68,7 +68,7 @@ const allTopics = extractTopics(contentsMd)
 function buildNavFromMarkdown(markdown: string, prefix: string, iconSvgs: Record<string, string>): string {
   const lines = markdown.split('\n')
   let html = '<ul>'
-  html += `<li><a href="${prefix}contents.html"><strong>Help Contents</strong></a></li>`
+  html += `<li><a href="${prefix}index.html"><strong>Contents</strong></a></li>`
   let inH2Section = false
   let inH3Section = false
 
@@ -408,7 +408,7 @@ function htmlTemplate(title: string, body: string, depth: number, iconSvgs: Reco
       <div class="nav-header">
         <a href="${prefix}home.html"><img src="${prefix}images/logo.svg" alt="Apicize" /><span>Apicize Docs</span></a>
       </div>
-      ${buildNavFromMarkdown(contentsMd, prefix, iconSvgs)}
+      ${buildNavFromMarkdown(indexMd, prefix, iconSvgs)}
     </nav>
     <main class="doc-main help">
       ${body}
@@ -460,7 +460,7 @@ async function main() {
   // Validate all :icon[name] references across help .md files
   const iconRegex = /:icon\[([^\]]+)\]/g
   let invalidIconCount = 0
-  const mdFilesToCheck = ['contents.md', ...allTopics.map(t => `${t}.md`)]
+  const mdFilesToCheck = ['index.md', ...allTopics.map(t => `${t}.md`)]
   for (const mdFile of mdFilesToCheck) {
     const mdPath = join(HELP_DIR, mdFile)
     if (!existsSync(mdPath)) continue
@@ -478,13 +478,13 @@ async function main() {
     console.warn(`  ${invalidIconCount} invalid icon reference(s) found`)
   }
 
-  // Generate contents.html from manually-maintained contents.md
-  const contentsMdPath = join(HELP_DIR, 'contents.md')
-  if (existsSync(contentsMdPath)) {
-    const contentsMarkdown = readFileSync(contentsMdPath, 'utf-8')
-    const contentsHtml = await convertMarkdown(contentsMarkdown, './', iconSvgs)
-    writeFileSync(join(DOCS_DIR, 'contents.html'), htmlTemplate('Contents', contentsHtml, 0, iconSvgs))
-    console.log('  Generated contents.html')
+  // Generate index.html from manually-maintained index.md
+  const indexMdPath = join(HELP_DIR, 'index.md')
+  if (existsSync(indexMdPath)) {
+    const indexMarkdown = readFileSync(indexMdPath, 'utf-8')
+    const indexHtml = await convertMarkdown(indexMarkdown, './', iconSvgs)
+    writeFileSync(join(DOCS_DIR, 'index.html'), htmlTemplate('Contents', indexHtml, 0, iconSvgs))
+    console.log('  Generated index.html')
   }
 
   // Process each topic

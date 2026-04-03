@@ -131,7 +131,7 @@ export const HelpPanel = observer(({ sx }: { sx?: SxProps }) => {
                 <Box className='help-toolbar-end'>
                     {
                         workspace.allowHelpContents
-                            ? <IconButton color='primary' size='large' aria-label='Home' title='Home' onClick={() => workspace.showHelp('contents')}><HomeIcon fontSize='inherit' /></IconButton>
+                            ? <IconButton color='primary' size='large' aria-label='Home' title='Home' onClick={() => workspace.showHelp('index')}><HomeIcon fontSize='inherit' /></IconButton>
                             : <></>
                     }
                 </Box>

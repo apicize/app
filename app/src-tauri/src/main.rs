@@ -323,6 +323,7 @@ async fn main() {
             copy_to_clipboard,
             clipboard_get_file_data,
             clipboard_write_text,
+            clipboard_read_text,
             clipboard_write_image,
             clipboard_read_image,
             clipboard_paste_data,
@@ -3186,6 +3187,13 @@ fn clipboard_write_text(
     text: String,
 ) -> Result<(), ApicizeAppError> {
     clipboard_state.inner().set_text(text)
+}
+
+#[tauri::command]
+fn clipboard_read_text(
+    clipboard_state: State<'_, ClipboardState>,
+) -> Result<String, ApicizeAppError> {
+    clipboard_state.inner().read_text()
 }
 
 #[tauri::command]
