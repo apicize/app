@@ -246,7 +246,6 @@ async fn main() {
         //         ])
         //         .build(),
         // )
-        // .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             tokio::task::block_in_place(|| {
                 tauri::async_runtime::block_on(new_workspace(
@@ -713,7 +712,26 @@ fn create_workspace(
                     .visible(!release_mode)
                     .prevent_overflow_with_margin(LogicalSize::new(64, 64))
                     .title(format_window_title(&workspace_result.display_name, info.dirty).as_str())
-                    .initialization_script(format!("window.__INIT_DATA__= {init_data};"));
+                    .initialization_script(format!("window.__INIT_DATA__= {init_data};"))
+                    .initialization_script(r#"
+                        // Fix Tauri paste event bug: clipboardData.types is empty but data exists
+                        document.addEventListener('paste', function(e) {
+                            if (e.clipboardData && e.clipboardData.types.length === 0) {
+                                const text = e.clipboardData.getData('text/plain');
+                                if (text) {
+                                    e.preventDefault();
+                                    e.stopImmediatePropagation();
+                                    const newEvent = new ClipboardEvent('paste', {
+                                        bubbles: true,
+                                        cancelable: true,
+                                        clipboardData: new DataTransfer()
+                                    });
+                                    newEvent.clipboardData.setData('text/plain', text);
+                                    e.target.dispatchEvent(newEvent);
+                                }
+                            }
+                        }, true);
+                    "#);
 
             builder = position_window_builder(&app, builder, &current_session_id);
             let window = builder.build().unwrap();
@@ -890,7 +908,26 @@ async fn clone_workspace(
         tauri::WebviewWindowBuilder::new(&app, active_session_id.clone(), webview_url.clone())
             .visible(!release_mode)
             .title(format_window_title(&info.display_name, info.dirty).as_str())
-            .initialization_script(format!("window.__INIT_DATA__= {init_data};"));
+            .initialization_script(format!("window.__INIT_DATA__= {init_data};"))
+            .initialization_script(r#"
+                // Fix Tauri paste event bug: clipboardData.types is empty but data exists
+                document.addEventListener('paste', function(e) {
+                    if (e.clipboardData && e.clipboardData.types.length === 0) {
+                        const text = e.clipboardData.getData('text/plain');
+                        if (text) {
+                            e.preventDefault();
+                            e.stopImmediatePropagation();
+                            const newEvent = new ClipboardEvent('paste', {
+                                bubbles: true,
+                                cancelable: true,
+                                clipboardData: new DataTransfer()
+                            });
+                            newEvent.clipboardData.setData('text/plain', text);
+                            e.target.dispatchEvent(newEvent);
+                        }
+                    }
+                }, true);
+            "#);
     builder = position_window_builder(&app, builder, &Some(session_id));
 
     let window = builder.build().unwrap();
@@ -928,7 +965,7 @@ async fn new_workspace(
         sessions,
         workspaces,
         settings,
-        clipboard_state.get_data_type(),
+        clipboard_state.inner().get_data_type(),
         None,
         true,
         current_session_id,
@@ -957,7 +994,7 @@ async fn open_workspace(
         sessions,
         workspaces,
         settings,
-        clipboard_state.get_data_type(),
+        clipboard_state.inner().get_data_type(),
         Some(file_name),
         false,
         session_id,
@@ -2026,7 +2063,7 @@ async fn update_request_body_from_clipboard(
         let sessions = sessions_state.sessions.read().await;
         let session = sessions.get_session(session_id)?;
 
-        let data = clipboard_state.read_image()?;
+        let data = clipboard_state.inner().read_image()?;
         let body_length = Some(data.len());
         let body = RequestBody::Raw { data };
         let body_mime_type = Some(Workspaces::get_body_type(&body));
@@ -3111,8 +3148,8 @@ async fn copy_to_clipboard(
         info.get_clipboard_payload(payload_request, settings.editor_indent_size as usize)?
     {
         match payload {
-            PersistableData::Text(data) => clipboard_state.set_text(data),
-            PersistableData::Binary(data) => clipboard_state.set_image(data),
+            PersistableData::Text(data) => clipboard_state.inner().set_text(data),
+            PersistableData::Binary(data) => clipboard_state.inner().set_image(data),
         }
     } else {
         Ok(())
@@ -3148,7 +3185,7 @@ fn clipboard_write_text(
     clipboard_state: State<'_, ClipboardState>,
     text: String,
 ) -> Result<(), ApicizeAppError> {
-    clipboard_state.set_text(text)
+    clipboard_state.inner().set_text(text)
 }
 
 #[tauri::command]
@@ -3156,14 +3193,14 @@ fn clipboard_write_image(
     clipboard_state: State<'_, ClipboardState>,
     data: Vec<u8>,
 ) -> Result<(), ApicizeAppError> {
-    clipboard_state.set_image(data)
+    clipboard_state.inner().set_image(data)
 }
 
 #[tauri::command]
 fn clipboard_read_image(
     clipboard_state: State<'_, ClipboardState>,
 ) -> Result<Vec<u8>, ApicizeAppError> {
-    clipboard_state.read_image()
+    clipboard_state.inner().read_image()
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -3183,7 +3220,7 @@ async fn clipboard_paste_data(
     let workspace_id = session.workspace_id.clone();
     let mut workspaces = workspaces_state.workspaces.write().await;
 
-    let data = clipboard_state.get_data();
+    let data = clipboard_state.inner().get_data();
     let (id, entity_type) = match data_type {
         ClipboardDataType::RequestEntry => {
             if let Some(ClipboardData::RequestEntry { entry }) = data {

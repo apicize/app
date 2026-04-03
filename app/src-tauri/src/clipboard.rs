@@ -1,25 +1,26 @@
 use apicize_lib::{Authorization, Certificate, Proxy, Scenario, StoredRequestEntry};
-use arboard::{Clipboard, ImageData};
-use clipboard_rs::{ClipboardHandler, ClipboardWatcher, ClipboardWatcherContext, WatcherShutdown};
-use image::{DynamicImage, ImageBuffer, ImageFormat, RgbaImage};
+use clipboard_rs::{
+    common::RustImage, Clipboard, ClipboardContext, ClipboardHandler, ClipboardWatcher,
+    ClipboardWatcherContext, WatcherShutdown,
+};
 use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use std::{io::Cursor, sync::Arc, thread, time::Duration};
+use std::{sync::Arc, thread, time::Duration};
 use tauri::{AppHandle, Emitter};
 
 use crate::error::ApicizeAppError;
 
 pub struct ClipboardState {
-    clipboard: Arc<Mutex<Clipboard>>,
+    clipboard: Arc<Mutex<ClipboardContext>>,
     data: Arc<RwLock<Option<ClipboardData>>>,
     data_type: Arc<RwLock<ClipboardDataType>>,
-    _watcher_shutdown: WatcherShutdown,
+    _watcher_shutdown: Arc<Mutex<WatcherShutdown>>,
 }
 
 impl ClipboardState {
     pub fn new(app: AppHandle) -> Self {
-        let clipboard = Arc::new(Mutex::new(Clipboard::new().unwrap()));
+        let clipboard = Arc::new(Mutex::new(ClipboardContext::new().unwrap()));
         let data = Arc::new(RwLock::<Option<ClipboardData>>::new(None));
         let data_type = Arc::new(RwLock::<ClipboardDataType>::new(ClipboardDataType::None));
         let manager = ClipboardManager::new(app, data.clone(), data_type.clone());
@@ -35,7 +36,7 @@ impl ClipboardState {
             clipboard,
             data,
             data_type,
-            _watcher_shutdown: watcher_shutdown,
+            _watcher_shutdown: Arc::new(Mutex::new(watcher_shutdown)),
         }
     }
 
@@ -56,7 +57,7 @@ impl ClipboardState {
     }
 
     pub fn read_image(&self) -> Result<Vec<u8>, ApicizeAppError> {
-        let mut clipboard = self
+        let clipboard = self
             .clipboard
             .try_lock_for(Duration::from_secs(1))
             .ok_or_else(|| {
@@ -67,11 +68,15 @@ impl ClipboardState {
             .get_image()
             .map_err(|err| ApicizeAppError::ClipboardError(err.to_string()))?;
 
-        image_data_to_png_bytes(img)
+        let png = img
+            .to_png()
+            .map_err(|err| ApicizeAppError::ClipboardError(err.to_string()))?;
+
+        Ok(png.get_bytes().to_vec())
     }
 
     pub fn set_text(&self, text: String) -> Result<(), ApicizeAppError> {
-        let mut clipboard = self
+        let clipboard = self
             .clipboard
             .try_lock_for(Duration::from_secs(1))
             .ok_or_else(|| {
@@ -84,49 +89,21 @@ impl ClipboardState {
     }
 
     pub fn set_image(&self, data: Vec<u8>) -> Result<(), ApicizeAppError> {
-        let image = png_bytes_to_image_data(&data)?;
-
-        let mut clipboard = self
+        let clipboard = self
             .clipboard
             .try_lock_for(Duration::from_secs(1))
             .ok_or_else(|| {
                 ApicizeAppError::ClipboardError("Failed to acquire clipboard lock".into())
             })?;
 
+        use clipboard_rs::common::RustImageData;
+        let img = RustImageData::from_bytes(&data)
+            .map_err(|err| ApicizeAppError::ClipboardError(err.to_string()))?;
+
         clipboard
-            .set_image(image)
+            .set_image(img)
             .map_err(|err| ApicizeAppError::ClipboardError(err.to_string()))
     }
-}
-
-// Convert PNG bytes to ImageData
-fn png_bytes_to_image_data(bytes: &[u8]) -> Result<ImageData<'static>, ApicizeAppError> {
-    let img = image::load_from_memory(bytes)
-        .map_err(|e| ApicizeAppError::ClipboardError(format!("Failed to load image: {}", e)))?;
-    let rgba = img.to_rgba8();
-    let (width, height) = rgba.dimensions();
-    Ok(ImageData {
-        width: width as usize,
-        height: height as usize,
-        bytes: rgba.into_raw().into(),
-    })
-}
-
-// Convert ImageData to PNG bytes
-fn image_data_to_png_bytes(img: ImageData) -> Result<Vec<u8>, ApicizeAppError> {
-    let rgba_img: RgbaImage = ImageBuffer::from_vec(
-        img.width as u32,
-        img.height as u32,
-        img.bytes.into_owned(),
-    )
-    .ok_or_else(|| ApicizeAppError::ClipboardError("Invalid image dimensions".into()))?;
-
-    let dynamic = DynamicImage::ImageRgba8(rgba_img);
-    let mut bytes = Vec::new();
-    dynamic
-        .write_to(&mut Cursor::new(&mut bytes), ImageFormat::Png)
-        .map_err(|e| ApicizeAppError::ClipboardError(format!("PNG encoding failed: {}", e)))?;
-    Ok(bytes)
 }
 
 struct ClipboardManager {
@@ -156,18 +133,24 @@ pub struct ClipboardError {
 
 impl ClipboardHandler for ClipboardManager {
     fn on_clipboard_change(&mut self) {
-        // Create a new Clipboard instance for the watcher
+        // Create a new ClipboardContext instance for the watcher
         // (we can't share the one in ClipboardState due to &mut requirement)
-        let mut clipboard = match Clipboard::new() {
+        let clipboard = match ClipboardContext::new() {
             Ok(cb) => cb,
             Err(_) => return,
         };
 
-        // Check for image FIRST before text, since on Linux/X11 images often have
+        // Check for image FIRST, then files, then text, since on Linux/X11 images often have
         // both image data and text (file path) in clipboard, and we want to detect
         // the image format
         let new_data = if clipboard.get_image().is_ok() {
             Some(ClipboardData::Image)
+        } else if let Ok(files) = clipboard.get_files() {
+            if !files.is_empty() {
+                Some(ClipboardData::Files { files })
+            } else {
+                None
+            }
         } else if let Ok(text) = clipboard.get_text() {
             if text.is_empty() {
                 None
@@ -177,8 +160,6 @@ impl ClipboardHandler for ClipboardManager {
                 Some(ClipboardData::Text { text })
             }
         } else {
-            // Note: arboard doesn't have a direct get_files() method
-            // Files are typically represented as text paths on most platforms
             None
         };
 

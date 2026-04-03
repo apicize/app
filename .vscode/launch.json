@@ -9,6 +9,9 @@
       "request": "launch",
       "name": "Debug Tauri App (Development)",
       "cargo": {
+        "env": {
+          "APICIZE_VAULT_PWD": "XXXfoo123"
+        },
         "args": [
           "build",
           "--manifest-path=${workspaceFolder}/app/src-tauri/Cargo.toml",
