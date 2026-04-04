@@ -1,7 +1,7 @@
 {
   "name": "apicize",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "MIT",
   "workspaces": {
     "packages": [
       "@apicize/lib-typescript",
@@ -50,5 +50,5 @@
     "unist-util-visit": "^5.0.0"
   },
   "packageManager": "yarn@4.12.0",
-  "version": "0.35.1"
+  "version": "0.35.2"
 }

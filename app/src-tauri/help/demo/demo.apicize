@@ -511,10 +511,16 @@
             "children": [
                 {
                     "id": "5b8a14db-94ec-441e-9a56-015a4bf76724",
-                    "name": "Addition",
-                    "test": "describe('status', () => {\n    it('equals 200', () => {\n        expect(response.status).to.equal(200)\n    })\n})\ndescribe('response', () => {\n    it('equals 4', () => {\n        if (response.body.type !== 'Text') {\n            throw new AssertionError('response not text')\n        }\n        expect(response.body.text).equals('4')\n    })\n})",
+                    "name": "Addition (using text)",
+                    "test": "describe('status', () => {\n    it('equals 200', () => {\n        expect(response.status).to.equal(200)\n    })\n})\ndescribe('response', () => {\n    it('equals 4', () => {\n        if (response.body.type !== BodyType.Text) {\n            expect.fail('response not text')\n        }\n        expect(response.body.text).equals('4')\n    })\n})",
                     "url": "{{url}}/calc",
                     "method": "POST",
+                    "headers": [
+                        {
+                            "name": "Content-Type",
+                            "value": "text/plain"
+                        }
+                    ],
                     "body": {
                         "type": "Text",
                         "data": "3+1"
@@ -525,13 +531,24 @@
                 },
                 {
                     "id": "95302890-0fdc-4eb5-9859-2f3675c1c1dd",
-                    "name": "Subtraction",
-                    "test": "describe('status', () => {\n    it('equals 200', () => {\n        expect(response.status).to.equal(200)\n    })\n})\ndescribe('response', () => {\n    it('equals 17', () => {\n        if (response.body.type !== 'Text') {\n            throw new AssertionError('response not text')\n        }\n        expect(parseInt(response.body.text)).equals(17)\n    })\n})",
+                    "name": "Subtraction (using JSON)",
+                    "test": "describe('status', () => {\n    it('equals 200', () => {\n        expect(response.status).to.equal(200)\n    })\n})\ndescribe('response', () => {\n    it('equals 17', () => {\n        if (response.body.type !== BodyType.JSON) {\n            expect.fail('response not JSON')\n        }\n        expect(parseInt(response.body.data.result)).equals(17)\n    })\n})",
                     "url": "{{url}}/calc",
                     "method": "POST",
+                    "headers": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        },
+                        {
+                            "name": "Accept",
+                            "value": "application/json"
+                        }
+                    ],
                     "body": {
-                        "type": "Text",
-                        "data": "20-3"
+                        "type": "JSON",
+                        "data": "20-3",
+                        "formatted": "\"20-3\""
                     },
                     "numberOfRedirects": 10,
                     "runs": 1,

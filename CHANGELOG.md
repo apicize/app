@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.35.2
+
+* Use CURL double quotes for Windows
+
 ## 0.35.1
 
 * Clipboard stubs for Monaco
