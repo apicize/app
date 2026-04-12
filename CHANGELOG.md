@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.35.3
+
+* Refactor save to be atomic to address edge-case with file truncation
+
 ## 0.35.2
 
 * Use CURL double quotes for Windows

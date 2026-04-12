@@ -398,6 +398,7 @@ dependencies = [
  "tauri-plugin-os",
  "tauri-plugin-single-instance",
  "tauri-plugin-window-state",
+ "tempfile",
  "thiserror 2.0.18",
  "tokio",
  "tokio-util",
@@ -406,9 +407,9 @@ dependencies = [
 
 [[package]]
 name = "apicize_lib"
-version = "0.35.2"
+version = "0.35.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "405ef914c0a3c53456919cda0a7a857b07b9d457a3fa3de64163e797ac93bade"
+checksum = "bd5324611b0ebe8f093a1b0ff70112d9b8cb797ae8a80029a52e101730d3f023"
 dependencies = [
  "aes-gcm",
  "async-recursion",
@@ -433,6 +434,7 @@ dependencies = [
  "serde_repr",
  "serde_with",
  "sha2",
+ "tempfile",
  "thiserror 2.0.18",
  "tokio",
  "tokio-util",
