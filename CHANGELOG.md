@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.35.5
+
+* Fixed regression (multi workspace window close)
+
 ## 0.35.4
 
 * Included site code in project, include documentation generation

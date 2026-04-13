@@ -20,3 +20,5 @@ macos-sign.sh
 .macos
 .claude
 coverage
+.dist-site
+.astro
