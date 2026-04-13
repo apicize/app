@@ -1,0 +1,84 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Apicize - Security" description="How Apicize keeps your system and credentials secure" currentPage="/security">
+  <main class="container">
+    <div class="page-header">
+      <h1>Apicize Security</h1>
+      <p>Apicize is designed to keep your system and credentials secure when storing and executing workbooks</p>
+    </div>
+
+    <section class="section">
+      <div class="pane pane-text-left">
+        <div>
+          <h2>Parameter At-Rest Security</h2>
+          <p>Apicize stores data in three different types of files:</p>
+          <ul>
+            <li><span class="list-label">Workbook</span> (*.apicize): Storage of requests and parameters
+              that are intended to be shared</li>
+            <li><span class="list-label">Workbook Private Parameters</span> (*.apicize-priv): Storage of
+              parameters, specific to a workbook, such as Authorization and Certificate information, that
+              are <em>not</em> intended to be shared</li>
+            <li><span class="list-label">Vault (Local Global) Parameters</span> (globals.json): Storage of parameters
+              available for all workbooks that are <em>not</em> intended to be shared. This file is stored
+              in your OS user's configuration directory in a directory named "apicize"</li>
+          </ul>
+          <p>A workbook will have access to the requests and parameters in its Workbook file, its
+            Private Parameters file, and the Vault (Local Global) Parameters file.</p>
+
+          <div class="callout">
+            <p>If you want to secure parameters like Authorization and Certificates, you need to do the following:</p>
+            <ol>
+              <li>Specify the desired storage when defining parameters - "Workbook (Private)" or "Local Global"</li>
+              <li>When using "Workbook (Private)", make sure to exclude <code>.apicize-priv</code> from your
+                source control configuration (ex. include this suffix in .gitignore)</li>
+              <li><strong>Optional:</strong>  You can password-protect your Vault and/or Private Workbook files with a password.  Under
+                Settings, select the Lock pane and set (or clear) the password.
+              </li>
+            </ol>
+          </div>
+        </div>
+        <div>
+          <img src="./assets/security/lock.webp" alt="Lock Vault and Private Files" class="screenshot-img" />
+          <div class="image-caption">Locking the Vault and Private Workbook Parameters</div>
+          <div style="display:flexbox;margin-top:1rem;text-align:center;">
+            <img src="./assets/security/storage-hierarchy.webp" alt="Diagram of Storage Hierarchy" class="screenshot-img" style="width:15em;" />
+            <div class="image-caption">Storage Hierarchy</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="pane pane-text-left">
+        <div>
+          <h2>Securing Test Execution</h2>
+          <p>Most the time, when we run JavaScript, we are running it from within a browser or a runtime
+            like NodeJS. It is easy to interact with browser elements (document, window) or, with NodeJS,
+            you can access the file system and network resources.</p>
+          <p>But for an application like Apicize, arbitrary scripts can cause a security problem. What if
+            a script in a repository includes instructions to delete files, to "call home" for instructions, etc.?</p>
+          <p>The <a href="https://v8.dev/" target="_blank">V8 engine</a> allows execution of JavaScript
+            in a very limited runtime environment. There is no "fs" module, nor "http", "document", etc.
+            This greatly reduces the attack footprint of malicious test scripts.</p>
+        </div>
+        <div>
+          <div class="screenshot">
+            <img src="./assets/overview/create-test.webp" alt="test code" class="lightbox-image" />
+            <div class="image-caption">JavaScript for testing...</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</BaseLayout>
+
+<style>
+  .screenshot-img {
+    width: 100%;
+    height: auto;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+  }
+</style>

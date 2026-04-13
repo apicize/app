@@ -1,0 +1,66 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Apicize - Architecture" description="How Apicize is built and the technology choices behind it" currentPage="/architecture">
+  <main class="container">
+    <div class="page-header">
+      <h1>Apicize Architecture</h1>
+      <p>How Apicize is built and why</p>
+    </div>
+
+    <section class="section">
+      <div class="pane pane-text-left">
+        <div>
+          <p>Apicize has two executables. The main one is a <a href="https://github.com/apicize/app" target="_blank">Tauri desktop application</a>,
+            and the other is a Rust <a href="https://github.com/apicize/cli" target="_blank">CLI</a>.
+            Both of these share a Rust library that actually dispatches HTTP requests and executes tests.
+            HTTP requests are dispatched using the <a href="https://docs.rs/reqwest/latest/reqwest/" target="_blank">reqwest</a> crate.
+            JavaScript tests are executed using V8 engine via the <a href="https://github.com/denoland/rusty_v8" target="_blank">rusty v8</a> crate.</p>
+          <p>The Tauri desktop UI is located in the <span class="package-name">app</span> directory, and is
+            built using React with MobX for state management. Only those portions of the UI that interact with
+            the file system, application window, etc. are implemented in the Tauri <span class="package-name">app</span> project.
+            The vast majority of UI components are implemented in the <span class="package-name">@apicize/toolkit</span> package,
+            and are completely Tauri-agnostic. The idea here is that if somebody wanted to create something like
+            a Visual Studio Code add-in, there would be a set of React components that could be used in any front-end.</p>
+        </div>
+        <div>
+          <div class="screenshot">
+            <img src="./assets/apicize-topology.webp" class="lightbox-image" alt="Apicize Platform Topology" />
+            <div class="image-caption">Apicize Platform Topology</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Design Decisions</h2>
+      <p>Why these choices? Originally, the project was going to be built entirely using Electron and NodeJS.
+        Electron was ok, but seemed to add a lot of overhead, and not everything worked great. For example,
+        there was one long-standing bug with <a href="https://github.com/electron/electron/issues/32857" target="_blank">file dialogs in Linux</a>
+        that took forever to get resolved. And securely executing JavaScript tests was problematic. There was no
+        straightforward way to execute JavaScript without access to things like file system calls that presented
+        potential security challenges. What if somebody gave you a workbook with tests that scanned your drive
+        and sent the data somewhere? Electron does not provide great
+        <a href="https://www.electronjs.org/docs/latest/tutorial/security" target="_blank">options</a> here.
+        Deno actually has a lot of <a href="https://docs.deno.com/runtime/fundamentals/security/" target="_blank">flexibility</a>
+        in addressing this topic, but sadly, that doesn't help Electron apps.</p>
+      <p>I was curious about Rust and thought I could write a CLI tool to execute the requests and tests, and
+        just have the Electron app call that. That initial foray into Rust proved easier than expected, and
+        that's when I came across Tauri. It seemed leaner and I could call Rust code from it easily. I started
+        playing around with Tauri right before their v2 announcement. At this point, I had rebuilt the UI
+        prototype in Electron, Tauri v1 and now, Tauri v2.</p>
+      <p>With Tauri v2, the application was mostly running the way I liked, but I found Redux state management
+        to be excruciating to work with. Many people swear by Redux, so I'm sure the problem was just me, but
+        I found it to be a ton of boilerplate, a gazillion "structuredClone" statements, and a lot of uncertainty
+        around how to get the data store and UI updating each other consistently, which is the whole point. I came
+        across <a href="https://mobx.js.org/" target="_blank">MobX</a> which, basically, "just worked". The
+        hardest, and most joyous, part of implementing MobX has been deleting hundreds of lines of Redux reducers,
+        now-unnecessary useSelectors, etc.</p>
+      <p>So that is currently where things stand, and I don't see any big changes coming. I've started to work
+        on unit tests for Rust and will also start writing UI tests now that my design is mostly nailed down.
+        The only other major features I would like to add at this point are multiple windows and better clipboard
+        support for managing copying/pasting workbook elements.</p>
+    </section>
+  </main>
+</BaseLayout>

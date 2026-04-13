@@ -1,0 +1,78 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Apicize - CLI Runner" description="Using the Apicize command-line runner for CI/CD pipeline testing" currentPage="/cli">
+  <main class="container">
+    <div class="page-header">
+      <h1>Using the Apicize CLI Runner</h1>
+      <p>Execute Apicize tests from the terminal and CI/CD pipelines</p>
+    </div>
+
+    <section class="section">
+      <div class="pane pane-text-left">
+        <div>
+          <p>You can execute Apicize tests in a terminal using the Apicize CLI Runner. To use it, run
+            <code>apicize-run <em>(workbook name)</em></code>. You can specify a full or relative path name
+            for the workbook. If you just pass in the name of the workbook, Apicize will attempt to locate
+            it in the current user's documents Apicize directory.</p>
+          <p>By default, information about the run is displayed in a human-readable format when using it
+            interactively. However, the runner includes options to make it usable from an unattended CI/CD
+            pipeline as well.</p>
+
+          <h3>Exit Codes</h3>
+          <p>After execution, the runner will set the exit code as follows:</p>
+          <ul>
+            <li>Zero (0): All requests succeed and all tests passed</li>
+            <li>Positive (&gt; 0): Apicize was unable to make one or more requests or execute one or more tests</li>
+            <li>Negative (&lt; 0): General failure</li>
+          </ul>
+
+          <h3>Output Execution Data</h3>
+          <p>You can use the <code>--output</code> argument to specify a file name to write detailed test
+            data in JSON format. You can store the test data file as an artifact for your pipeline's output.</p>
+          <p>Alternatively, you can set the output file name to <code>--</code> to output the detailed test
+            data to STDOUT, and the human-readable format, along with any errors, will be output to STDERR.</p>
+
+          <h3>Summarized Test Reports</h3>
+          <p>Use the <code>--report-csv</code> and/or <code>--report-json</code> arguments to output a summary of tests results.  
+          This file will include <b>keys</b> (defined in Requests or Groups) and <b>tags</b> (defined in Tests) that you can use to
+        link test results to an external test management system.</p>
+
+          <h3>Managing Global Parameters</h3>
+          <p>You can store definitions parameters like authorization and certificates in a JSON file and refer to it
+            using the <code>--globals</code> argument. The format is identical to that which is stored in
+            the <code>.apicize-priv</code> or <code>globals.json</code> file.</p>
+          <p>Apicize will match parameters based upon ID or Name, so if you have consistent naming conventions for authorizations,
+            certificates, etc. you can maintain your CI/CD parameters without having to worry about matching IDs that developers use.
+          </p>
+          
+          <h3>Overriding Workbook Parameters</h3>
+          <p>You can override default parameters (scenario, authorization, certificate and/or proxy) by using the <code>--default-scenario</code>,
+            <code>--default-authorizatino</code>, <code>--default-certificate</code> and/or <code>--default-proxy</code> arguments.  
+            These can be set to IDs or names.
+          </p>
+          <h3>Data Sets</h3>
+          <p>Apicize supports the use of external data sets (JSON or CSV) to seed data during testing. If your workbook defines a default data set,
+            you can use the `--data` argument to override it, and this value can be a file name as well as an ID or name of a data set defined in the workbook.  
+            If your workbook defines data sets from external files, you will want to make sure those files are available along with the script when executing tests.
+          </p>
+
+          <h3>Pipe Workbook In</h3>
+          <p>If you want to pipe workbook data via STDIN as opposed to reading a file, specify <code>--</code>
+            as the file to process.</p>
+        </div>
+        <div>
+          <div class="screenshot">
+            <img src="./assets/cli-help.webp" class="lightbox-image" alt="CLI help screen" />
+            <div class="image-caption">Executing "apicize-run --help"</div>
+          </div>
+          <div class="screenshot">
+            <img src="./assets/cli-demo.webp" alt="CLI screenshot" class="lightbox-image" />
+            <div class="image-caption">Default formatted results</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</BaseLayout>

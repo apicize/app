@@ -1,5 +1,10 @@
 # Change Log
 
+## 0.35.4
+
+* Included site code in project, include documentation generation
+* Standardized parameter lists
+
 ## 0.35.3
 
 * Refactor save to be atomic to address edge-case with file truncation

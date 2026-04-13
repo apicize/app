@@ -24,13 +24,16 @@
     "icons": "echo $PWD && yarn tauri icon -o $PWD/app/src-tauri/icons $PWD/app/artwork/apicize-logo-plain.svg",
     "validate-help": "npx tsx --tsconfig ./utilities/tsconfig.json utilities/validate-help.ts",
     "generate-docs": "npx tsx --tsconfig ./utilities/tsconfig.json utilities/generate-docs.ts",
-    "lint": "yarn workspace @apicize/lib-typescript lint; yarn workspace @apicize/toolkit lint; yarn workspace app lint"
+    "lint": "yarn workspace @apicize/lib-typescript lint; yarn workspace @apicize/toolkit lint; yarn workspace app lint",
+    "site:dev": "yarn generate-docs && astro dev",
+    "site:build": "yarn generate-docs && rimraf ./.dist-site && astro build"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@tauri-apps/cli": "^2.10.0",
     "@types/hast": "^3.0.4",
     "@types/unist": "^3.0.2",
+    "astro": "^6.1.5",
     "concurrently": "^8.2.2",
     "eslint": "^10.0.2",
     "eslint-plugin-react-hooks": "7.1.0-canary-044d56f3-20260330",
@@ -50,5 +53,5 @@
     "unist-util-visit": "^5.0.0"
   },
   "packageManager": "yarn@4.12.0",
-  "version": "0.35.3"
+  "version": "0.35.4"
 }

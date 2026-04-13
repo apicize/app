@@ -1,0 +1,135 @@
+---
+
+---
+
+<section class="hero">
+  <div class="container hero-inner">
+    <div class="hero-content">
+      <h1 class="hero-title">Test your APIs with confidence</h1>
+      <p class="hero-subtitle">
+        Apicize is a cross-platform HTTP testing tool that emphasizes testability and security.
+        Build tests interactively, run them in CI/CD pipelines. Open source, zero upselling.
+      </p>
+      <div class="hero-actions">
+        <a href="https://github.com/apicize/app/releases/latest/" target="_blank" class="btn btn-primary">
+          Download
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 2v8M4 7l4 4 4-4M2 13h12"/>
+          </svg>
+        </a>
+        <a href="./overview.html" class="btn btn-outline">View Overview</a>
+      </div>
+    </div>
+    <div class="hero-image">
+      <img src="./assets/screenshot-intro.webp" alt="Apicize application screenshot" class="lightbox-image" />
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    padding: 4rem 0 3rem;
+    background: linear-gradient(180deg, rgba(34, 197, 94, 0.04) 0%, transparent 100%);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .hero-inner {
+    display: grid;
+    grid-template-columns: 0.8fr 1.2fr;
+    gap: 3rem;
+    align-items: center;
+  }
+
+  .hero-title {
+    font-size: 3rem;
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin-bottom: 1.25rem;
+    background: linear-gradient(135deg, #ffffff 0%, var(--color-accent) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero-subtitle {
+    font-size: 1.15rem;
+    color: var(--color-text-muted);
+    line-height: 1.7;
+    margin-bottom: 2rem;
+    max-width: 32rem;
+  }
+
+  .hero-actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.7rem 1.5rem;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+    transition: all var(--transition-normal);
+    cursor: pointer;
+  }
+
+  .btn:hover {
+    text-decoration: none;
+  }
+
+  .btn-primary {
+    background: var(--color-accent);
+    color: #0a0a0f;
+  }
+
+  .btn-primary:hover {
+    background: var(--color-accent-hover);
+    color: #0a0a0f;
+    box-shadow: 0 0 20px var(--color-accent-glow);
+  }
+
+  .btn-outline {
+    border: 1px solid var(--color-border-light);
+    color: var(--color-text);
+    background: transparent;
+  }
+
+  .btn-outline:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    background: var(--color-accent-glow);
+  }
+
+  .hero-image img {
+    width: 100%;
+    height: auto;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+  }
+
+  @media screen and (max-width: 768px) {
+    .hero {
+      padding: 2.5rem 0 2rem;
+    }
+
+    .hero-inner {
+      grid-template-columns: 1fr;
+      gap: 2rem;
+    }
+
+    .hero-title {
+      font-size: 2rem;
+    }
+
+    .hero-subtitle {
+      font-size: 1rem;
+    }
+  }
+</style>

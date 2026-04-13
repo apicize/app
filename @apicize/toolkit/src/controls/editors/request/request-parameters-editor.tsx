@@ -54,6 +54,25 @@ export const RequestParametersEditor = observer(({
     return (
         <Stack spacing={3} paddingTop='0.5rem'>
             <FormControl>
+                <InputLabel id='proxy-data-id'>Data Set</InputLabel>
+                <Select
+                    labelId='proxy-data'
+                    aria-labelledby='proxy-data-id'
+                    id='cred-data'
+                    label='Data Set'
+                    value={requestOrGroup.selectedDataSet?.id ?? DEFAULT_SELECTION_ID}
+                    open={showDataMenu}
+                    onClose={() => setShowDataMenu(false)}
+                    onOpen={() => setShowDataMenu(true)}
+                    onChange={(e) => {
+                        requestOrGroup.setSelectedDataId(e.target.value).catch(err => feedback.toastError(err))
+                    }}
+                    fullWidth
+                    size='small'
+                >
+                    {itemsFromSelections(parameters.data)}
+                </Select>
+            </FormControl>            <FormControl>
                 <InputLabel id='scenario-label-id'>Scenario</InputLabel>
                 <Select
                     labelId='scenario-label'
@@ -131,26 +150,6 @@ export const RequestParametersEditor = observer(({
                     size='small'
                 >
                     {itemsFromSelections(parameters.proxies)}
-                </Select>
-            </FormControl>
-            <FormControl>
-                <InputLabel id='proxy-data-id'>Data Set</InputLabel>
-                <Select
-                    labelId='proxy-data'
-                    aria-labelledby='proxy-data-id'
-                    id='cred-data'
-                    label='Data Set'
-                    value={requestOrGroup.selectedDataSet?.id ?? DEFAULT_SELECTION_ID}
-                    open={showDataMenu}
-                    onClose={() => setShowDataMenu(false)}
-                    onOpen={() => setShowDataMenu(true)}
-                    onChange={(e) => {
-                        requestOrGroup.setSelectedDataId(e.target.value).catch(err => feedback.toastError(err))
-                    }}
-                    fullWidth
-                    size='small'
-                >
-                    {itemsFromSelections(parameters.data)}
                 </Select>
             </FormControl>
         </Stack>
