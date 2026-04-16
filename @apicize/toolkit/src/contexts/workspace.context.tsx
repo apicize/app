@@ -1065,7 +1065,7 @@ export class WorkspaceStore implements EditableEntityContext {
             this.resultModels.delete(requestOrGroupId)
         } catch (error) {
             const msg = `${error}`
-            const asWarning = msg == 'cancelled' || msg == 'No results returned'
+            const asWarning = msg == 'Cancelled' || msg == 'No results returned'
             this.feedback.toast(msg, asWarning ? ToastSeverity.Warning : ToastSeverity.Error)
         } finally {
             if (requestEntry && requestEntry.isRunning) {

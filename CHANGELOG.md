@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.40.1
+
+* Improve execution running status on overlapping group executions
+
 ## 0.40.0
 
 * Add execution running status indicators

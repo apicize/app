@@ -1332,7 +1332,32 @@ impl Workspaces {
     }
 
     /// Return a list of all group and descendant group IDs
-    pub fn find_descendent_groups(
+    pub fn list_request_and_group_with_children(
+        &self,
+        workspace_id: &str,
+        request_or_group_id: &str,
+    ) -> Result<HashSet<String>, ApicizeAppError> {
+        let workspace = self.get_workspace(workspace_id)?;
+        let mut results = HashSet::<String>::new();
+
+        let mut to_process = vec![request_or_group_id.to_string()];
+
+        while let Some(id) = to_process.pop() {
+            if let Some(child_ids) = workspace.requests.child_ids.get(&id) {
+                for child_id in child_ids {
+                    if !results.contains(child_id) {
+                        to_process.push(child_id.to_string());
+                    }
+                }
+            }
+            results.insert(id);
+        }
+
+        Ok(results)
+    }
+
+    /// Return a list of all group and descendant group IDs
+    pub fn list_descendent_groups(
         &self,
         workspace_id: &str,
         group_id: &str,
@@ -3069,6 +3094,67 @@ impl WorkspaceInfo {
         Ok(execution)
     }
 
+    /// Update execution state for the specified set of requests/groups
+    pub fn update_execution_state(
+        &mut self,
+        executing_request_or_group_id: &str,
+        request_or_group_ids: impl Iterator<Item = impl AsRef<str>>,
+    ) {
+        let executing_request_ids = self
+            .executions
+            .iter()
+            .filter_map(|(request_or_group_id, exec)| {
+                if exec.execution_state == ExecutionState::RUNNING
+                    && request_or_group_id != executing_request_or_group_id
+                {
+                    Some(request_or_group_id.to_string())
+                } else {
+                    None
+                }
+            })
+            .collect::<HashSet<String>>();
+
+        request_or_group_ids.for_each(|request_id| {
+            let request_id = request_id.as_ref();
+            let execution_menu = self.build_result_menu_items(request_id).unwrap();
+
+            let mut execution_state = ExecutionState::empty();
+
+            let active_summaries = self
+                .execution_results
+                .get_summaries(request_id, true)
+                .values()
+                .flatten()
+                .map(|s| {
+                    let result_state = match s.success {
+                        ExecutionResultSuccess::Success => ExecutionState::SUCCESS,
+                        ExecutionResultSuccess::Failure => ExecutionState::FAILURE,
+                        ExecutionResultSuccess::Error => ExecutionState::ERROR,
+                    };
+                    execution_state |= result_state;
+                    (s.exec_ctr, (*s).to_owned())
+                })
+                .collect::<IndexMap<usize, ExecutionResultSummary>>();
+
+            if executing_request_ids.contains(request_id)
+                && request_id != executing_request_or_group_id
+            {
+                execution_state |= ExecutionState::RUNNING;
+            }
+
+            if let Some(nav) = self.get_navigation_mut(request_id) {
+                nav.execution_state = execution_state;
+            }
+
+            let execution = self.get_execution_mut(request_id);
+
+            execution.menu = execution_menu;
+            execution.execution_state = execution_state;
+            execution.active_summaries = active_summaries;
+        });
+    }
+
+    /// Check request navigation name and returns update to navigation if required    
     pub fn check_request_navigation_update(
         &mut self,
         id: &str,
@@ -3562,19 +3648,6 @@ impl WorkspaceInfo {
         request_or_group_id: &str,
     ) -> Option<&'a mut NavigationRequestEntry> {
         WorkspaceInfo::get_navigation_int_mut(request_or_group_id, &mut self.navigation.requests)
-    }
-
-    pub fn get_running_request_ids(&self) -> HashSet<String> {
-        self.executions
-            .iter()
-            .filter_map(|(request_or_group_id, exec)| {
-                if exec.execution_state == ExecutionState::RUNNING {
-                    Some(request_or_group_id.to_string())
-                } else {
-                    None
-                }
-            })
-            .collect::<HashSet<String>>()
     }
 
     fn gather_execution_states(

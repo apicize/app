@@ -13,12 +13,11 @@ pub mod updates;
 pub mod workspaces;
 use apicize_lib::{
     ApicizeError, ApicizeRunner, Authorization, CachedTokenInfo, Certificate, DataSet,
-    DataSourceType, ExecutionResultDetail, ExecutionResultSuccess, ExecutionResultSummary,
-    ExecutionState, Identifiable, IndexedEntities, OAuth2ClientCredentialParameters,
-    OpenWorkbookOptions, PERSIST_PRIVATE, PERSIST_VAULT, ParameterLockStatus, ParameterStore,
-    Parameters, PkceTokenResult, Proxy, RequestBody, RequestEntry, SaveWorkspaceParameters,
-    Scenario, TestRunnerContext, TestRunnerContextInit, TokenResult, Validated, Workspace,
-    authorization::AuthorizationPlain, build_absolute_file_name,
+    DataSourceType, ExecutionResultDetail, ExecutionState, Identifiable, IndexedEntities,
+    OAuth2ClientCredentialParameters, OpenWorkbookOptions, PERSIST_PRIVATE, PERSIST_VAULT,
+    ParameterLockStatus, ParameterStore, Parameters, PkceTokenResult, Proxy, RequestBody,
+    RequestEntry, SaveWorkspaceParameters, Scenario, TestRunnerContext, TestRunnerContextInit,
+    TokenResult, Validated, Workspace, authorization::AuthorizationPlain, build_absolute_file_name,
     clear_all_oauth2_tokens_from_cache, clear_oauth2_token_from_cache,
     editing::indexed_entities::IndexedEntityPosition, get_existing_absolute_file_name,
     get_oauth2_client_credentials, get_relative_file_name, store_oauth2_token_in_cache,
@@ -28,7 +27,6 @@ use clipboard::{ClipboardData, ClipboardDataType, ClipboardState};
 use dirs::home_dir;
 use dragdrop::DroppedFile;
 use error::ApicizeAppError;
-use indexmap::IndexMap;
 use navigation::{Navigation, UpdateResponse, UpdatedNavigationEntry};
 use pathdiff::diff_paths;
 use pkce::{OAuth2PkceInfo, OAuth2PkceRequest, OAuth2PkceService};
@@ -37,7 +35,7 @@ use serde::{Deserialize, Serialize};
 use sessions::{ExecutionResultViewState, Session, SessionSaveState, Sessions};
 use settings::{ApicizeSettings, ColorScheme};
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     env,
     fs::{self, create_dir_all, exists, remove_dir_all},
     io::{self, BufWriter},
@@ -1621,9 +1619,8 @@ async fn start_execution(
     };
 
     // Phase 2: Quick read to get workspace data, with # of run overrides if specified, then release lock immediately
-    let (cloned_workspace, all_session_ids, previous_state, counters) = {
+    let (cloned_workspace, all_session_ids, counters, is_under_test) = {
         let sessions = sessions_state.sessions.read().await;
-        let previous_state: ExecutionState;
 
         // Acquire write lock for minimal time - just to update execution state and save data sets
         let cloned_workspace = {
@@ -1682,7 +1679,6 @@ async fn start_execution(
             }
 
             let exec = info.get_execution_mut(request_or_group_id);
-            previous_state = exec.execution_state;
             exec.execution_state = ExecutionState::RUNNING;
 
             if single_run
@@ -1695,10 +1691,22 @@ async fn start_execution(
                 request.set_runs(1);
             }
 
-            (cloned_workspace, Arc::clone(&info.execution_counters))
+            let is_under_test = *info
+                .execution_counters
+                .lock()
+                .unwrap()
+                .get(request_or_group_id)
+                .unwrap_or(&0)
+                > 0;
+
+            (
+                cloned_workspace,
+                Arc::clone(&info.execution_counters),
+                is_under_test,
+            )
         }; // Write lock released here
 
-        let (cloned_workspace, counters) = cloned_workspace;
+        let (cloned_workspace, counters, is_under_test) = cloned_workspace;
 
         // Get session IDs with read lock (can be done concurrently)
         let all_session_ids = get_workspace_sessions(&workspace_id, &sessions, None)
@@ -1706,14 +1714,18 @@ async fn start_execution(
             .iter()
             .map(|s| s.to_string())
             .collect::<Vec<String>>();
-        (cloned_workspace, all_session_ids, previous_state, counters)
+        (cloned_workspace, all_session_ids, counters, is_under_test)
     };
 
     // Phase 3: Emit execution events
     let start_event = HashMap::<String, ExecutionEvent>::from([(
         request_or_group_id.to_string(),
         ExecutionEvent::Start {
-            execution_state: ExecutionState::RUNNING,
+            execution_state: if is_under_test {
+                ExecutionState::RUNNING | ExecutionState::TEST_STARTED
+            } else {
+                ExecutionState::RUNNING
+            },
         },
     )]);
 
@@ -1737,7 +1749,6 @@ async fn start_execution(
 
         move |request_or_group_id: &str, count: i8| {
             increment_counters(&local_execution_counters, request_or_group_id, count as i32);
-
             match increment_counters(&counters, request_or_group_id, count as i32) {
                 ExecutionCounterResult::EmitStart => {
                     for emit_to_session_id in &all_session_ids {
@@ -1812,63 +1823,87 @@ async fn start_execution(
     }
 
     // Clean up routine if result of execution is an Error or unexpected empty result
-    let cleanup = async || -> Result<(), ApicizeAppError> {
+    let cleanup = async |is_cancel: bool| -> Result<(), ApicizeAppError> {
         let mut workspaces = workspaces_state.workspaces.write().await;
+        let update_request_or_group_ids =
+            workspaces.list_request_and_group_with_children(&workspace_id, request_or_group_id)?;
+
+        // println!(
+        //     "Cleanup requests/groups: {}",
+        //     update_request_or_group_ids
+        //         .iter()
+        //         .map(|id| id.to_string())
+        //         .collect::<Vec<String>>()
+        //         .join(", ")
+        // );
+
         let info = workspaces.get_workspace_info_mut(&workspace_id)?;
+        info.update_execution_state(request_or_group_id, update_request_or_group_ids.iter());
 
+        // Remove any pending execution counters that were not ended
         let local_execution_counters = local_execution_counters.lock().unwrap();
-        for (request_or_group_id, count) in local_execution_counters.iter() {
-            if *count == 0 {
-                continue;
-            }
+        let updates_to_send = update_request_or_group_ids
+            .iter()
+            .filter_map(|update_request_or_group_id| {
+                let local_execution_test_count = *local_execution_counters
+                    .get(update_request_or_group_id)
+                    .unwrap_or(&0);
 
-            let mut remaining_count = *count;
-
-            while remaining_count > 0 {
-                let apply_count = remaining_count.min(i32::MAX as usize) as i32;
-                if ExecutionCounterResult::EmitEnd
-                    == increment_counters(
+                if local_execution_test_count > 0 {
+                    let to_deduct = -(local_execution_test_count.min(i32::MAX as usize) as i32);
+                    increment_counters(
                         &info.execution_counters,
-                        request_or_group_id,
-                        -apply_count,
-                    )
-                {
-                    for emit_to_session_id in &all_session_ids {
-                        app.emit_to(
-                            emit_to_session_id,
-                            "execution_event",
-                            HashMap::<String, ExecutionEvent>::from([(
-                                request_or_group_id.to_string(),
-                                ExecutionEvent::TestEnded {
-                                    execution_state: if request_or_group_id
-                                        == &executing_request_or_group_id
-                                    {
-                                        ExecutionState::TEST_ENDED | ExecutionState::RUNNING
-                                    } else {
-                                        ExecutionState::TEST_ENDED
-                                    },
-                                },
-                            )]),
-                        )
-                        .unwrap();
-                    }
+                        update_request_or_group_id,
+                        to_deduct,
+                    );
                 }
 
-                remaining_count = remaining_count.saturating_sub(apply_count as usize);
-            }
-        }
+                let exec = info.executions.get(update_request_or_group_id);
 
-        let exec = info.get_execution_mut(request_or_group_id);
-        exec.execution_state = previous_state;
-        let abort_event = HashMap::from([(
-            request_or_group_id.to_string(),
-            ExecutionEvent::Cancel {
-                execution_state: previous_state,
-            },
-        )]);
-        for session_id in &all_session_ids {
-            app.emit_to(session_id, "execution_event", &abort_event)
+                let mut execution_state =
+                    exec.map_or(ExecutionState::empty(), |e| e.execution_state);
+
+                let is_executing = request_or_group_id == update_request_or_group_id;
+                let is_testing = info
+                    .execution_counters
+                    .lock()
+                    .unwrap()
+                    .get(update_request_or_group_id)
+                    .is_some_and(|&count| count > 0);
+
+                if is_testing {
+                    execution_state |= ExecutionState::TEST_STARTED;
+                }
+
+                if is_cancel && is_executing {
+                    Some((
+                        update_request_or_group_id.to_string(),
+                        ExecutionEvent::Cancel { execution_state },
+                    ))
+                } else {
+                    exec.map(|exec| {
+                        (
+                            update_request_or_group_id.to_string(),
+                            ExecutionEvent::Complete(RequestExecution {
+                                menu: exec.menu.clone(),
+                                execution_state,
+                                active_summaries: exec.active_summaries.clone(),
+                            }),
+                        )
+                    })
+                }
+            })
+            .collect::<HashMap<String, ExecutionEvent>>();
+
+        if !updates_to_send.is_empty() {
+            for emit_to_session_id in &all_session_ids {
+                app.emit_to(
+                    emit_to_session_id,
+                    "execution_event",
+                    updates_to_send.clone(),
+                )
                 .unwrap();
+            }
         }
 
         Ok(())
@@ -1880,57 +1915,9 @@ async fn start_execution(
             let executed_request_ids = {
                 let mut workspaces = workspaces_state.workspaces.write().await;
                 let info = workspaces.get_workspace_info_mut(&workspace_id)?;
-                let executing_request_ids = info
-                    .get_running_request_ids()
-                    .iter()
-                    .filter(|id| id != &request_or_group_id)
-                    .cloned()
-                    .collect::<Vec<String>>();
-
                 let requests_to_update = info.execution_results.process_result(&context, result);
-
-                // info.execution_results.dump_current_indexes();
-
+                info.update_execution_state(request_or_group_id, requests_to_update.iter());
                 requests_to_update
-                    .iter()
-                    .map(|request_id| {
-                        let execution_menu = info.build_result_menu_items(request_id).unwrap();
-
-                        let mut execution_state = ExecutionState::empty();
-
-                        let active_summaries = info
-                            .execution_results
-                            .get_summaries(request_id, true)
-                            .values()
-                            .flatten()
-                            .map(|s| {
-                                let result_state = match s.success {
-                                    ExecutionResultSuccess::Success => ExecutionState::SUCCESS,
-                                    ExecutionResultSuccess::Failure => ExecutionState::FAILURE,
-                                    ExecutionResultSuccess::Error => ExecutionState::ERROR,
-                                };
-                                execution_state |= result_state;
-                                (s.exec_ctr, (*s).to_owned())
-                            })
-                            .collect::<IndexMap<usize, ExecutionResultSummary>>();
-
-                        if executing_request_ids.contains(request_id) {
-                            execution_state |= ExecutionState::RUNNING;
-                        }
-
-                        if let Some(nav) = info.get_navigation_mut(request_id) {
-                            nav.execution_state = execution_state;
-                        }
-
-                        let execution = info.get_execution_mut(request_id);
-
-                        execution.menu = execution_menu;
-                        execution.execution_state = execution_state;
-                        execution.active_summaries = active_summaries;
-
-                        request_id.to_string()
-                    })
-                    .collect::<HashSet<String>>()
             };
 
             // Emit completion status outside of locks
@@ -1962,12 +1949,12 @@ async fn start_execution(
         }
 
         Some(Err(err)) => {
-            cleanup().await?;
+            cleanup(true).await?;
             return Err(ApicizeAppError::ApicizeError(err));
         }
 
         None => {
-            cleanup().await?;
+            cleanup(false).await?;
             return Err(ApicizeAppError::NoResults);
         }
     }
@@ -3058,7 +3045,7 @@ async fn find_descendant_groups(
     let sessions = sessions_state.sessions.read().await;
     let session = sessions.get_session(session_id)?;
     let workspaces = workspaces_state.workspaces.read().await;
-    workspaces.find_descendent_groups(&session.workspace_id, group_id)
+    workspaces.list_descendent_groups(&session.workspace_id, group_id)
 }
 
 #[tauri::command]

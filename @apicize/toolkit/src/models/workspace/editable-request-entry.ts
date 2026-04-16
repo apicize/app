@@ -116,7 +116,7 @@ export abstract class EditableRequestEntry extends Editable {
             case 'complete':
             case 'reset':
                 this.applyExecution(event)
-                this.isRunning = false
+                this.isRunning = (event.executionState & ExecutionState.testStarted) == ExecutionState.testStarted as number
                 break
             case 'testStarted':
                 break
