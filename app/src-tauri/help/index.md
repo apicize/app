@@ -26,13 +26,13 @@
 - [Setup Script](help:groups/setup)
 - [Parameters](help:groups/parameters)
 
-### :icon[dataset] Data Sets
-
-- [Overview](help:workspace/data-sets)
-
 :::
 
 :::column
+
+### :icon[dataset] Data Sets
+
+- [Overview](help:workspace/data-sets)
 
 ### :icon[scenario] Scenarios
 

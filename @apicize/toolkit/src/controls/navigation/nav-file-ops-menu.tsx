@@ -184,7 +184,7 @@ export const NavFileOpsMenu = observer(({ sx, orientation }: { sx?: SxProps, ori
             <FileOpenIcon />
         </IconButton>
         {
-            settings.recentWorkbookFileNames.length > 1
+            settings.recentWorkbookFileNames.length > 0
                 ? <><IconButton
                     id='file-open-menu-button'
                     title='Open Recent Workbook'
@@ -212,7 +212,7 @@ export const NavFileOpsMenu = observer(({ sx, orientation }: { sx?: SxProps, ori
                 : null
         }
         {
-            settings.recentWorkbookFileNames.length > 1
+            settings.recentWorkbookFileNames.length > 0
                 ? <DropdownMenu
                     id="file-open-menu"
                     autoFocus

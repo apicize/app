@@ -28,9 +28,10 @@ import { CUSTOM_ICON_FILES, MUI_ICON_FILES } from '../@apicize/toolkit/src/servi
 // ---------------------------------------------------------------------------
 const ROOT = join(__dirname, '..')
 const HELP_DIR = join(ROOT, 'app', 'src-tauri', 'help')
-const DOCS_DIR = join(ROOT, 'docs')
+const DOCS_DIR = join(ROOT, 'site', 'src', 'pages', 'docs')
+const STYLES_DIR = join(ROOT, 'site', 'src', 'docs')
 const IMAGES_SRC = join(HELP_DIR, 'images')
-const IMAGES_DST = join(DOCS_DIR, 'images')
+const IMAGES_DST = join(ROOT, 'site', 'src', 'assets', 'docs')
 
 // ---------------------------------------------------------------------------
 // Read version from root package.json
@@ -68,7 +69,7 @@ const allTopics = extractTopics(indexMd)
 function buildNavFromMarkdown(markdown: string, prefix: string, iconSvgs: Record<string, string>): string {
   const lines = markdown.split('\n')
   let html = '<ul>'
-  html += `<li><a href="${prefix}index.html"><strong>Contents</strong></a></li>`
+  html += `<li><a href="${prefix}contents.html"><strong>Contents</strong></a></li>`
   let inH2Section = false
   let inH3Section = false
 
@@ -256,7 +257,7 @@ function loadIconSvgs(): Record<string, string> {
 // ---------------------------------------------------------------------------
 // Rehype plugin to transform custom elements for static HTML
 // ---------------------------------------------------------------------------
-function rehypeStaticTransforms(prefix: string, iconSvgs: Record<string, string>) {
+function rehypeStaticTransforms(prefix: string, imagePrefix: string, iconSvgs: Record<string, string>) {
   return () => (tree: any) => {
     visit(tree, 'element', (node: Element, index: number | undefined, parent: any) => {
       // Transform <icon name="..."> to inline SVG with theme color
@@ -271,7 +272,7 @@ function rehypeStaticTransforms(prefix: string, iconSvgs: Record<string, string>
           node.properties = { className: ['help-icon', 'help-icon-apicize'] }
           node.children = [{
             type: 'raw' as any,
-            value: `<img src="${prefix}images/logo.svg" alt="Apicize" class="icon-apicize" />`,
+            value: `<img src="${imagePrefix}logo.svg" alt="Apicize" class="icon-apicize" />`,
           }]
         } else {
           const svg = iconSvgs[name]
@@ -301,7 +302,7 @@ function rehypeStaticTransforms(prefix: string, iconSvgs: Record<string, string>
             properties: { className: ['logo-icon'] },
             children: [{
               type: 'raw' as any,
-              value: `<img src="${prefix}images/logo.svg" alt="Apicize" width="200" height="200" />`,
+              value: `<img src="${imagePrefix}logo.svg" alt="Apicize" width="200" height="200" />`,
             }],
           },
           {
@@ -359,7 +360,7 @@ function rehypeStaticTransforms(prefix: string, iconSvgs: Record<string, string>
       if (node.tagName === 'img' && node.properties?.src) {
         const src = node.properties.src as string
         if (src.startsWith('images/')) {
-          node.properties.src = `${prefix}${src}`
+          node.properties.src = `${imagePrefix}${src.substring('images/'.length)}`
         }
       }
     })
@@ -375,14 +376,14 @@ const config: HelpFormatConfig = {
   ctrlKey: 'Ctrl',
 }
 
-async function convertMarkdown(markdown: string, prefix: string, iconSvgs: Record<string, string>): Promise<string> {
+async function convertMarkdown(markdown: string, prefix: string, imagePrefix: string, iconSvgs: Record<string, string>): Promise<string> {
   const result = await unified()
     .use(remarkParse)
     .use(remarkGfm)
     .use(remarkDirective)
     .use(createRemarkApicizeDirectives(config))
     .use(remarkRehype, { allowDangerousHtml: true })
-    .use(rehypeStaticTransforms(prefix, iconSvgs))
+    .use(rehypeStaticTransforms(prefix, imagePrefix, iconSvgs))
     .use(rehypeExternalLinks, { target: '_blank', rel: ['noopener', 'noreferrer'] })
     .use(rehypeStringify, { allowDangerousHtml: true })
     .process(markdown)
@@ -394,20 +395,45 @@ async function convertMarkdown(markdown: string, prefix: string, iconSvgs: Recor
 // ---------------------------------------------------------------------------
 function htmlTemplate(title: string, body: string, depth: number, iconSvgs: Record<string, string>): string {
   const prefix = depth > 0 ? '../'.repeat(depth) : './'
+  const imagePrefix = '../'.repeat(depth + 1) + 'assets/docs/'
+  const sitePrefix = '../'.repeat(depth + 1)
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${escapeHtml(title)} - Apicize Documentation</title>
-  <link rel="stylesheet" href="${prefix}styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet" />
+  <link rel="apple-touch-icon" sizes="180x180" href="${sitePrefix}assets/icons/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="${sitePrefix}assets/icons/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="${sitePrefix}assets/icons/favicon-16x16.png" />
+  <link rel="stylesheet" href="${sitePrefix}styles/global.css" />
 </head>
 <body>
-  <div class="doc-layout">
-    <nav class="doc-nav">
-      <div class="nav-header">
-        <a href="${prefix}home.html"><img src="${prefix}images/logo.svg" alt="Apicize" /><span>Apicize Docs</span></a>
+  <nav class="site-nav">
+    <div class="container site-nav-inner">
+      <a href="${sitePrefix}index.html" class="site-nav-brand">
+        <img src="${sitePrefix}assets/apicize-icon.png" alt="Apicize" class="site-nav-logo" />
+        <span class="site-nav-name">Apicize</span>
+      </a>
+      <div class="site-nav-links">
+        <a href="${sitePrefix}index.html" class="site-nav-link">Home</a>
+        <a href="${sitePrefix}overview.html" class="site-nav-link">Overview</a>
+        <a href="${sitePrefix}cli.html" class="site-nav-link">CLI</a>
+        <a href="${sitePrefix}security.html" class="site-nav-link">Security</a>
+        <a href="${prefix}contents.html" class="site-nav-link active">Documentation</a>
+        <a href="https://www.github.com/apicize" target="_blank" class="site-nav-link site-nav-github" aria-label="GitHub">
+          <svg height="24" viewBox="0 0 24 24" width="24" fill="currentColor">
+            <path d="M12.5.75C6.146.75 1 5.896 1 12.25c0 5.089 3.292 9.387 7.863 10.91.575.101.79-.244.79-.546 0-.273-.014-1.178-.014-2.142-2.889.532-3.636-.704-3.866-1.35-.13-.331-.69-1.352-1.18-1.625-.402-.216-.977-.748-.014-.762.906-.014 1.553.834 1.769 1.179 1.035 1.74 2.688 1.25 3.349.948.1-.747.402-1.25.733-1.538-2.559-.287-5.232-1.279-5.232-5.678 0-1.25.445-2.285 1.178-3.09-.115-.288-.517-1.467.115-3.048 0 0 .963-.302 3.163 1.179.92-.259 1.897-.388 2.875-.388.977 0 1.955.13 2.875.388 2.2-1.495 3.162-1.179 3.162-1.179.633 1.581.23 2.76.115 3.048.733.805 1.179 1.825 1.179 3.09 0 4.413-2.688 5.39-5.247 5.678.417.36.776 1.05.776 2.128 0 1.538-.014 2.774-.014 3.162 0 .302.216.662.79.547C20.709 21.637 24 17.324 24 12.25 24 5.896 18.854.75 12.5.75Z" />
+          </svg>
+        </a>
       </div>
+    </div>
+  </nav>
+  <div class="doc-layout container">
+    <nav class="doc-nav">
       ${buildNavFromMarkdown(indexMd, prefix, iconSvgs)}
     </nav>
     <main class="doc-main help">
@@ -431,14 +457,23 @@ async function main() {
   // Clear and recreate output directory
   if (existsSync(DOCS_DIR)) {
     rmSync(DOCS_DIR, { recursive: true })
-    console.log('  Cleared docs/')
+    console.log('  Cleared site/src/pages/docs/')
   }
   mkdirSync(DOCS_DIR, { recursive: true })
 
-  // Copy images
+  // Clear and recreate styles directory (copied to /docs/ via publicDir)
+  if (existsSync(STYLES_DIR)) {
+    rmSync(STYLES_DIR, { recursive: true })
+  }
+  mkdirSync(STYLES_DIR, { recursive: true })
+
+  // Copy images to site/src/assets/docs
+  if (existsSync(IMAGES_DST)) {
+    rmSync(IMAGES_DST, { recursive: true })
+  }
   if (existsSync(IMAGES_SRC)) {
     cpSync(IMAGES_SRC, IMAGES_DST, { recursive: true })
-    console.log('  Copied images/')
+    console.log('  Copied images to site/src/assets/docs/')
   }
 
   // Copy the proper artwork logo (the one in help/images is an Inkscape source file
@@ -448,10 +483,6 @@ async function main() {
     cpSync(artworkLogo, join(IMAGES_DST, 'logo.svg'))
     console.log('  Replaced logo.svg with artwork version')
   }
-
-  // Write CSS
-  writeFileSync(join(DOCS_DIR, 'styles.css'), generateCss())
-  console.log('  Generated styles.css')
 
   // Load icon SVGs (extract from .tsx source files + MUI icons)
   const iconSvgs = loadIconSvgs()
@@ -482,9 +513,9 @@ async function main() {
   const indexMdPath = join(HELP_DIR, 'index.md')
   if (existsSync(indexMdPath)) {
     const indexMarkdown = readFileSync(indexMdPath, 'utf-8')
-    const indexHtml = await convertMarkdown(indexMarkdown, './', iconSvgs)
-    writeFileSync(join(DOCS_DIR, 'index.html'), htmlTemplate('Contents', indexHtml, 0, iconSvgs))
-    console.log('  Generated index.html')
+    const indexHtml = await convertMarkdown(indexMarkdown, './', '../assets/docs/', iconSvgs)
+    writeFileSync(join(DOCS_DIR, 'contents.html'), htmlTemplate('Contents', indexHtml, 0, iconSvgs))
+    console.log('  Generated contents.html')
   }
 
   // Process each topic
@@ -505,7 +536,8 @@ async function main() {
 
     const depth = topic.includes('/') ? topic.split('/').length - 1 : 0
     const prefix = depth > 0 ? '../'.repeat(depth) : './'
-    const htmlBody = await convertMarkdown(markdown, prefix, iconSvgs)
+    const imagePrefix = '../'.repeat(depth + 1) + 'assets/docs/'
+    const htmlBody = await convertMarkdown(markdown, prefix, imagePrefix, iconSvgs)
     const outPath = join(DOCS_DIR, `${topic}.html`)
     mkdirSync(dirname(outPath), { recursive: true })
     writeFileSync(outPath, htmlTemplate(title, htmlBody, depth, iconSvgs))
@@ -514,321 +546,6 @@ async function main() {
 
   console.log('Documentation generation complete!')
   console.log(`Output: ${relative(ROOT, DOCS_DIR)}/`)
-}
-
-// ---------------------------------------------------------------------------
-// CSS for static docs
-// ---------------------------------------------------------------------------
-function generateCss(): string {
-  return `
-/* Apicize Documentation Styles */
-* { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-  color-scheme: light dark;
-  --light-text: #000;
-  --dark-text: #FFF;
-  --light-bkgd: #FFF;
-  --dark-bkgd: #03021f;
-  --light-anchor: rgb(0, 0, 160);
-  --dark-anchor: #90caf9;
-  --quote-bkgd: #3a3886;
-  --quote-text: #FFF;
-}
-
-body {
-  font-family: "Roboto Flex", "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: light-dark(var(--light-text), var(--dark-text));
-  background-color: light-dark(var(--light-bkgd), var(--dark-bkgd));
-  line-height: 1.6;
-}
-
-.doc-layout {
-  display: flex;
-  min-height: 100vh;
-}
-
-/* Navigation sidebar */
-.doc-nav {
-  width: 280px;
-  min-width: 280px;
-  border-right: 1px solid #888;
-  padding: 1em;
-  overflow-y: auto;
-  position: sticky;
-  top: 0;
-  height: 100vh;
-}
-
-.nav-header {
-  margin-bottom: 1.5em;
-}
-
-.nav-header a {
-  color: light-dark(#000, #FFF);
-  text-decoration: none;
-  font-size: 1.1em;
-  font-weight: 600;
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  align-items: center;
-  gap: 0.5em;
-}
-
-.nav-header a img {
-  display: block;
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  max-width: 32px;
-  max-height: 32px;
-}
-
-.nav-header a span {
-  flex: 1;
-  white-space: nowrap;
-}
-
-.doc-nav ul {
-  list-style: none;
-  padding-left: 0;
-}
-
-.doc-nav ul ul {
-  padding-left: 1.6em;
-}
-
-.doc-nav li {
-  margin: 0.2em 0;
-}
-
-.doc-nav ul a {
-  color: light-dark(var(--light-anchor), var(--dark-anchor));
-  text-decoration: none;
-  display: block;
-  padding: 0.25em 0.5em;
-  border-radius: 4px;
-  font-size: 0.9em;
-}
-
-.doc-nav ul a:hover {
-  color: light-dark(var(--light-text), var(--dark-text));
-}
-
-.nav-section {
-  display: block;
-  font-weight: 600;
-  font-size: 0.9em;
-  padding: 0.5em 0.5em 0.2em;
-  margin-top: 0.5em;
-}
-
-/* Main content */
-.doc-main {
-  flex: 1;
-  padding: 2em 3em;
-  overflow-y: auto;
-}
-
-.help h1 {
-  font-size: 1.8em;
-  margin: 0 0 1.0em 0;
-  display: flex;
-  align-items: center;
-  gap: 0.3em;
-}
-
-.help h1:first-child {
-  margin-top: 0;
-}
-
-.help h2 {
-  font-size: 1.4em;
-  margin: 1.5rem 0 0.75rem 0;
-  display: flex;
-  align-items: center;
-  gap: 0.3em;
-}
-
-.help h3 {
-  font-size: 1.15em;
-  margin: 1.2rem 0 0.5rem 0;
-  display: flex;
-  align-items: center;
-  gap: 0.3em;
-}
-
-.help h4, .help h5, .help h6 {
-  margin: 1rem 0 0.5rem 0;
-}
-
-.help p {
-  margin: 0 0 0.75rem 0;
-}
-
-.help a {
-  color: light-dark(var(--light-anchor), var(--dark-anchor));
-  text-decoration: none;
-}
-
-.help a:hover {
-  color: light-dark(var(--light-text), var(--dark-text));
-}
-
-.help ul, .help ol {
-  margin: 0 0 0.75rem 3.3em;
-}
-
-.help li {
-  margin: 0.25em 0;
-}
-
-.help blockquote {
-  margin: 1em 0;
-  padding: 1em;
-  color: var(--quote-text);
-  background-color: var(--quote-bkgd);
-  border-radius: 4px;
-}
-
-.help blockquote p {
-  margin: 0;
-}
-
-.help pre {
-  color: var(--code-text);
-  background-color: var(--code-bkgd);
-  padding: 1em;
-  border-radius: 4px;
-  overflow-x: auto;
-  margin: 0 0 0.75rem 0;
-  font-family: "Roboto Mono", monospace;
-  font-size: 0.9em;
-}
-
-.help code {
-  font-family: "Roboto Mono", monospace;
-  font-size: 0.9em;
-  padding: 0.1em 0.3em;
-  border-radius: 3px;
-}
-
-.help pre code {
-  background: none;
-  padding: 0;
-}
-
-.help table {
-  border-collapse: collapse;
-  margin: 0 0 0.75rem 0;
-  width: 100%;
-}
-
-.help thead {
-  border-bottom: 2px solid #4a4a7a;
-}
-
-.help td, .help th {
-  padding: 0.5em 0.75em;
-  text-align: left;
-}
-
-.help th {
-  font-weight: 600;
-}
-
-.help img, .help .help-image {
-  max-width: 80%;
-  margin: 1em 0;
-  border-radius: 4px;
-}
-
-/* Column layout */
-.help-columns {
-  display: grid;
-  grid-template-columns: auto auto;
-  gap: 4em;
-  max-width: 80em;
-}
-
-.help-columns .help-columns {
-  grid-template-columns: auto auto;
-  gap: 0;
-}
-
-.help-column {
-  min-width: 0;
-}
-
-/* Icon styles */
-.help-icon {
-  display: inline-flex;
-  align-items: center;
-  vertical-align: middle;
-  width: 1.2em;
-  margin-right: 0.3em;
-}
-
-.help-icon svg {
-  width: 1.2em;
-  height: 1.2em;
-  vertical-align: middle;
-}
-
-.help-icon .icon-apicize {
-  width: 4em;
-  height: 4em;
-  margin: 0.1em 0;
-  vertical-align: middle;
-}
-
-/* Logo styles - reset parent h1 margin when it wraps .logo */
-h1:has(.logo) {
-  margin: 0;
-}
-
-.logo {
-  display: flex;
-  align-items: center;
-  margin: 0;
-  gap: 0.5em;
-}
-
-.logo-icon img {
-  margin: 0;
-}
-
-.logo-icon img {
-  display: block;
-}
-
-.logo-header .logo-title {
-  font-size: 2em;
-  margin: 0;
-  line-height: 1.2;
-}
-
-.logo-header .logo-version {
-  font-size: 1.2em;
-  margin: 0;
-  font-weight: normal;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .doc-layout { flex-direction: column; }
-  .doc-nav {
-    width: 100%;
-    min-width: 100%;
-    height: auto;
-    position: static;
-    border-right: none;
-    border-bottom: 1px solid #2a2a4a;
-  }
-  .doc-main { padding: 1.5em; }
-}
-`
 }
 
 main().catch(err => {

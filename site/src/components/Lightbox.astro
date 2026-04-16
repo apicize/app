@@ -1,0 +1,48 @@
+---
+
+---
+
+<div id="lightbox">
+  <div id="lightbox-panel">
+    <button id="lightbox-close-btn" aria-label="Close">&times;</button>
+    <img id="lightbox-img" alt="Zoomed image" />
+  </div>
+</div>
+
+<script>
+  function initLightbox() {
+    const lightbox = document.getElementById('lightbox');
+    const lightboxImg = document.getElementById('lightbox-img') as HTMLImageElement;
+    const closeBtn = document.getElementById('lightbox-close-btn');
+
+    function show(src: string) {
+      if (!lightbox || !lightboxImg) return;
+      lightboxImg.src = src;
+      lightbox.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function hide() {
+      if (!lightbox) return;
+      lightbox.classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    lightbox?.addEventListener('click', (e) => {
+      if (e.target === lightbox) hide();
+    });
+
+    closeBtn?.addEventListener('click', hide);
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') hide();
+    });
+
+    document.querySelectorAll('.lightbox-image').forEach(img => {
+      (img as HTMLElement).title = 'Click to zoom';
+      img.addEventListener('click', () => show((img as HTMLImageElement).src));
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', initLightbox);
+</script>

@@ -1,0 +1,107 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Hero from '../components/Hero.astro';
+---
+
+<BaseLayout title="Apicize" currentPage="/">
+  <Hero />
+
+  <main class="container">
+    <section class="section">
+      <h2 class="section-title">Getting Started</h2>
+      <div class="card">
+        <ol>
+          <li>Download an Apicize app installation from <a href="https://github.com/apicize/app/releases/latest" target="_blank">GitHub</a></li>
+          <li>Run Apicize, and play with the default demo workbook</li>
+          <li>Submit bugs, feature requests, etc. to <a href="https://github.com/apicize/app/issues" target="_blank">GitHub</a></li>
+          <li>Check out the <a href="./overview.html">Overview</a> and <a href="./docs/contents.html">Documentation</a></li>
+          <li>You can also download a CLI Apicize runner from <a href="https://github.com/apicize/cli/releases/latest" target="_blank">GitHub</a></li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="pane pane-text-left">
+        <div>
+          <h2>Who is Apicize for?</h2>
+          <p>Apicize is for developers who want to be able to interactively test their APIs' functionality and
+            scalability, but also make it easy to reuse that testing in automation pipelines. It lives in the middle ground between manually scripting everything
+            by hand, and feature-bloated tools with incessant up-selling features that distract as much as help you.</p>
+          <p>Apicize strives to remove friction in API testing. Results of API calls can easily and safely be
+            evaluated using JavaScript. The same test workbooks created in the UI can be used by a compact CLI client
+            to automate testing in CI/CD pipelines. You can control how credentials, certificates, etc. are stored and shared.</p>
+        </div>
+        <div class="image-right">
+          <img src="./assets/who.webp" class="image-small" alt="AI-generated Developers, just like you..." />
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">Features</h2>
+      <div class="features-grid">
+        <div class="card">
+          <h3><a href="./docs/workspace/requests.html">Interactive HTTP Testing</a></h3>
+          <p>Define HTTP requests, authorizations, client certificates and proxies with an intuitive UI.</p>
+        </div>
+        <div class="card">
+          <h3><a href="./docs/tests/authoring-tests.html">BDD-Style Tests</a></h3>
+          <p>Use JavaScript to easily define BDD-style tests that validate whether requests are successful.</p>
+        </div>
+        <div class="card">
+          <h3><a href="./docs/tests/running-tests.html">Load Testing</a></h3>
+          <p>Configure groups of requests to run a specified number of times, sequentially or concurrently.</p>
+        </div>
+        <div class="card">
+          <h3>Sequenced Test Orchestration</h3>
+          <p>Orchestrate sequences of requests to manage operations like CRUD testing and clean-up.</p>
+        </div>
+        <div class="card">
+          <h3><a href="./docs/parameter-storage.html">Credential Management</a></h3>
+          <p>Manage how credentials are stored to clearly control what is shared and what is not.</p>
+        </div>
+        <div class="card">
+          <h3>100% Open Source</h3>
+          <p>Open source with zero nagging to buy online subscriptions. Free forever.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+</BaseLayout>
+
+<style>
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+  }
+
+  .features-grid .card h3 {
+    color: var(--color-accent);
+    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
+  }
+
+  .image-right {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .features-grid .card p {
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
+    margin: 0;
+  }
+
+  @media screen and (max-width: 768px) {
+    .features-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media screen and (min-width: 769px) and (max-width: 1024px) {
+    .features-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+</style>

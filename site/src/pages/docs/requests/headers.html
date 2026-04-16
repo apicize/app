@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Requests - Apicize Documentation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet" />
+  <link rel="apple-touch-icon" sizes="180x180" href="../../assets/icons/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="../../assets/icons/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="../../assets/icons/favicon-16x16.png" />
+  <link rel="stylesheet" href="../../styles/global.css" />
+</head>
+<body>
+  <nav class="site-nav">
+    <div class="container site-nav-inner">
+      <a href="../../index.html" class="site-nav-brand">
+        <img src="../../assets/apicize-icon.png" alt="Apicize" class="site-nav-logo" />
+        <span class="site-nav-name">Apicize</span>
+      </a>
+      <div class="site-nav-links">
+        <a href="../../index.html" class="site-nav-link">Home</a>
+        <a href="../../overview.html" class="site-nav-link">Overview</a>
+        <a href="../../cli.html" class="site-nav-link">CLI</a>
+        <a href="../../security.html" class="site-nav-link">Security</a>
+        <a href="../contents.html" class="site-nav-link active">Documentation</a>
+        <a href="https://www.github.com/apicize" target="_blank" class="site-nav-link site-nav-github" aria-label="GitHub">
+          <svg height="24" viewBox="0 0 24 24" width="24" fill="currentColor">
+            <path d="M12.5.75C6.146.75 1 5.896 1 12.25c0 5.089 3.292 9.387 7.863 10.91.575.101.79-.244.79-.546 0-.273-.014-1.178-.014-2.142-2.889.532-3.636-.704-3.866-1.35-.13-.331-.69-1.352-1.18-1.625-.402-.216-.977-.748-.014-.762.906-.014 1.553.834 1.769 1.179 1.035 1.74 2.688 1.25 3.349.948.1-.747.402-1.25.733-1.538-2.559-.287-5.232-1.279-5.232-5.678 0-1.25.445-2.285 1.178-3.09-.115-.288-.517-1.467.115-3.048 0 0 .963-.302 3.163 1.179.92-.259 1.897-.388 2.875-.388.977 0 1.955.13 2.875.388 2.2-1.495 3.162-1.179 3.162-1.179.633 1.581.23 2.76.115 3.048.733.805 1.179 1.825 1.179 3.09 0 4.413-2.688 5.39-5.247 5.678.417.36.776 1.05.776 2.128 0 1.538-.014 2.774-.014 3.162 0 .302.216.662.79.547C20.709 21.637 24 17.324 24 12.25 24 5.896 18.854.75 12.5.75Z" />
+          </svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+  <div class="doc-layout container">
+    <nav class="doc-nav">
+      <ul><li><a href="../contents.html"><strong>Contents</strong></a></li><li><a href="../workspace.html">Workspaces Overview</a></li><li><span class="nav-section"><span class="help-icon" style="color: #00ace6;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" >
+            <path d="M10.5004 11.9998H5.00043M4.91577 12.2913L2.58085 19.266C2.39742 19.8139 2.3057 20.0879 2.37152 20.2566C2.42868 20.4031 2.55144 20.5142 2.70292 20.5565C2.87736 20.6052 3.14083 20.4866 3.66776 20.2495L20.3792 12.7293C20.8936 12.4979 21.1507 12.3822 21.2302 12.2214C21.2993 12.0817 21.2993 11.9179 21.2302 11.7782C21.1507 11.6174 20.8936 11.5017 20.3792 11.2703L3.66193 3.74751C3.13659 3.51111 2.87392 3.39291 2.69966 3.4414C2.54832 3.48351 2.42556 3.59429 2.36821 3.74054C2.30216 3.90893 2.3929 4.18231 2.57437 4.72906L4.91642 11.7853C4.94759 11.8792 4.96317 11.9262 4.96933 11.9742C4.97479 12.0168 4.97473 12.0599 4.96916 12.1025C4.96289 12.1506 4.94718 12.1975 4.91577 12.2913Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg></span> Requests</span><ul><li><a href="../workspace/requests.html">Overview</a></li><li><a href="../requests/info.html">Information</a></li><li><a href="../requests/headers.html">Headers</a></li><li><a href="../requests/query.html">Query String</a></li><li><a href="../requests/body.html">Body</a></li><li><a href="../requests/test.html">Testing</a></li><li><a href="../requests/parameters.html">Parameters</a></li></ul></li><li><span class="nav-section"><span class="help-icon" style="color: #00ace6;"><svg width="24" height="24" fill="currentColor" viewBox="0 0 102 102">
+            <path d="M90,18H56.4844L46.2422,7.7578A5.9956,5.9956,0,0,0,42,6H6a5.9966,5.9966,0,0,0-6,6V84a5.9966,5.9966,0,0,0,6,6H90a5.9966,5.9966,0,0,0,6-6V24A5.9966,5.9966,0,0,0,90,18ZM84,78H12V18H39.5156L49.7578,28.2422A5.9958,5.9958,0,0,0,54,30H84Z" />
+        </svg></span> Request Groups</span><ul><li><a href="../workspace/groups.html">Overview</a></li><li><a href="../groups/info.html">Information</a></li><li><a href="../groups/setup.html">Setup Script</a></li><li><a href="../groups/parameters.html">Parameters</a></li></ul></li><li><span class="nav-section"><span class="help-icon" style="color: #41ac88;"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2m-8 14H7v-4h4zm0-6H7V7h4zm6 6h-4v-4h4zm0-6h-4V7h4z"/></svg></span> Data Sets</span><ul><li><a href="../workspace/data-sets.html">Overview</a></li></ul></li><li><span class="nav-section"><span class="help-icon" style="color: #0073e6;"><svg viewBox="0 0 48 48" stroke-width="2" stroke="currentColor">
+            <g id="Layer_2" data-name="Layer 2">
+                <g id="Q3_icons" data-name="Q3 icons">
+                    <path d="M44,34H29L17,18H4a2,2,0,0,1,0-4H19L31,30H44a2,2,0,0,1,0,4Z" />
+                    <path d="M44,18H31a2,2,0,0,1,0-4H44a2,2,0,0,1,0,4Z" />
+                </g>
+            </g>
+        </svg></span> Scenarios</span><ul><li><a href="../workspace/scenarios.html">Overview</a></li></ul></li><li><span class="nav-section"><span class="help-icon" style="color: #daa520;"><svg width="24" height="24" viewBox="0 0 512 512" fill="currentColor">
+            <g>
+                <path d="M390.234,171.594v-37.375c0.016-36.969-15.078-70.719-39.328-94.906C326.719,15.063,292.969-0.016,256,0
+		c-36.969-0.016-70.719,15.063-94.906,39.313c-24.25,24.188-39.344,57.938-39.313,94.906v37.375H24.906V512h462.188v-29.063V171.594
+		H390.234z M179.891,134.219c0.016-21.094,8.469-39.938,22.297-53.813C216.047,66.594,234.891,58.125,256,58.125
+		s39.953,8.469,53.813,22.281c13.828,13.875,22.281,32.719,22.297,53.813v37.375H179.891V134.219z M83.031,229.719h345.938v224.156
+		H83.031V229.719z"/>
+                <path d="M297.859,321.844c0-23.125-18.75-41.875-41.859-41.875c-23.125,0-41.859,18.75-41.859,41.875
+		c0,17.031,10.219,31.625,24.828,38.156l-9.25,60.094H256h26.281L273.016,360C287.625,353.469,297.859,338.875,297.859,321.844z"/>
+            </g>
+        </svg></span> Authorizations</span><ul><li><a href="../workspace/authorizations.html">Overview</a></li><li><a href="../authorizations/basic.html">Basic Auth</a></li><li><a href="../authorizations/api-key.html">API Key</a></li><li><a href="../authorizations/oauth2-client.html">OAuth2 Client Flow</a></li><li><a href="../authorizations/oauth2-pkce.html">OAuth2 PKCE Flow</a></li></ul></li><li><span class="nav-section"><span class="help-icon" style="color: #FF8C00;"><svg viewBox="0 0 14 14" version="1.1" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2">
+            <polyline points="11.25 1.75,2.75 1.75,2.75 13.25,5.25 13.25" />
+            <polyline points="8.75 9.75,8.25 14.25,10.50 13.25,12.75 14.25,12.25 9.75" />
+            <circle cx="10.5" cy="7.5" r="2.75" />
+        </svg></span> Certificates</span><ul><li><a href="../workspace/certificates.html">Overview</a></li></ul></li><li><span class="nav-section"><span class="help-icon" style="color: #cc0099;"><svg width="24" height="24" viewBox="0 0 18 18" fill="currentColor">
+            <path d="m 12 1 c -0.265625 0 -0.519531 0.105469 -0.707031 0.292969 c -0.390625 0.390625 -0.390625 1.023437 0 1.414062 l 1.292969 1.292969 h -7.585938 c -0.550781 0 -1 0.449219 -1 1 s 0.449219 1 1 1 h 7.585938 l -1.292969 1.292969 c -0.390625 0.390625 -0.390625 1.023437 0 1.414062 s 1.023437 0.390625 1.414062 0 l 3 -3 c 0.390625 -0.390625 0.390625 -1.023437 0 -1.414062 l -3 -3 c -0.1875 -0.1875 -0.441406 -0.292969 -0.707031 -0.292969 z m -8 6 c -0.257812 0 -0.511719 0.097656 -0.707031 0.292969 l -3 3 c -0.3906252 0.390625 -0.3906252 1.023437 0 1.414062 l 3 3 c 0.1875 0.1875 0.441406 0.292969 0.707031 0.292969 s 0.519531 -0.105469 0.707031 -0.292969 c 0.390625 -0.390625 0.390625 -1.023437 0 -1.414062 l -1.292969 -1.292969 h 7.585938 c 0.550781 0 1 -0.449219 1 -1 s -0.449219 -1 -1 -1 h -7.585938 l 1.292969 -1.292969 c 0.390625 -0.390625 0.390625 -1.023437 0 -1.414062 c -0.195312 -0.195313 -0.449219 -0.292969 -0.707031 -0.292969 z m 0 0" />
+        </svg></span> Proxies</span><ul><li><a href="../workspace/proxies.html">Overview</a></li></ul></li><li><span class="nav-section"><span class="help-icon" style="color: #00ace6;"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M19.8 18.4 14 10.67V6.5l1.35-1.69c.26-.33.03-.81-.39-.81H9.04c-.42 0-.65.48-.39.81L10 6.5v4.17L4.2 18.4c-.49.66-.02 1.6.8 1.6h14c.82 0 1.29-.94.8-1.6"/></svg></span> Testing</span><ul><li><a href="../tests/authoring-tests.html">Authoring Tests</a></li><li><a href="../tests/running-tests.html">Running Tests</a></li><li><a href="../tests/viewing-results.html">Viewing Test Results</a></li><li><a href="../tests/integration.html">Integrating with CI/CD and Testing Frameworks</a></li><li><a href="../logs.html">View Communication Logs</a></li></ul></li><li><a href="../parameter-storage.html">Storing Parameters</a></li><li><span class="nav-section"><span class="help-icon"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6"/></svg></span> Settings</span><ul><li><a href="../settings/defaults.html">Workspace Defaults</a></li><li><a href="../settings/app-settings.html">Application Settings</a></li><li><a href="../settings/lock.html">Locking Parameters</a></li></ul></li><li><a href="../about.html">About Apicize</a></li><li><a href="../acknowledgements.html">Acknowledgements</a></li></ul>
+    </nav>
+    <main class="doc-main help">
+      <h1><span class="help-icon" style="color: #00ace6;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" >
+            <path d="M10.5004 11.9998H5.00043M4.91577 12.2913L2.58085 19.266C2.39742 19.8139 2.3057 20.0879 2.37152 20.2566C2.42868 20.4031 2.55144 20.5142 2.70292 20.5565C2.87736 20.6052 3.14083 20.4866 3.66776 20.2495L20.3792 12.7293C20.8936 12.4979 21.1507 12.3822 21.2302 12.2214C21.2993 12.0817 21.2993 11.9179 21.2302 11.7782C21.1507 11.6174 20.8936 11.5017 20.3792 11.2703L3.66193 3.74751C3.13659 3.51111 2.87392 3.39291 2.69966 3.4414C2.54832 3.48351 2.42556 3.59429 2.36821 3.74054C2.30216 3.90893 2.3929 4.18231 2.57437 4.72906L4.91642 11.7853C4.94759 11.8792 4.96317 11.9262 4.96933 11.9742C4.97479 12.0168 4.97473 12.0599 4.96916 12.1025C4.96289 12.1506 4.94718 12.1975 4.91577 12.2913Z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg></span> Requests </h1>
+<h2>Headers Pane: <span class="help-icon" style="color: #00ace6;"><svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M3 5v14h18V5zm4 2v2H5V7zm-2 6v-2h2v2zm0 2h2v2H5zm14 2H9v-2h10zm0-4H9v-2h10zm0-4H9V7h10z"/></svg></span></h2>
+<p>Use this pane to specify headers to be sent with a request.  Each entry has a <strong>parameter</strong> and <strong>value</strong>.</p>
+<p>To add a new header, click "ADD REQUEST HEADER".  To delete a header, click on the delete (trash can) icon.</p>
+<p><img src="../../assets/docs/requests/headers.webp" class="help-image"></p>
+<h3>See Also</h3>
+<ul>
+<li><a href="../workspace/requests.html"><strong>Requests</strong></a></li>
+<li><a href="../workspace.html"><strong>Workspace</strong></a></li>
+</ul>
+    </main>
+  </div>
+</body>
+</html>

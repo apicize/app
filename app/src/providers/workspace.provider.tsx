@@ -10,13 +10,19 @@ export const WorkspaceProvider = observer(({ store, children }: { store: Workspa
     const feedback = useFeedback()
     const fileOps = useFileOperations()
 
-    const _forceClose = useRef(false);
+    const _closeDispatched = useRef(false);
 
     useEffect(() => {
         // Set up close event hook, warn user if "dirty"
         const currentWindow = Window.getCurrent()
         const unlistenClose = currentWindow.onCloseRequested((e) => {
-            if (store.dirty && store.editorCount < 2 && (!_forceClose.current)) {
+            // If we've already kicked off the close sequence, don't re-run it.
+            // destroy() shouldn't re-fire this, but this is a belt-and-suspenders guard.
+            if (_closeDispatched.current) {
+                return
+            }
+
+            if (store.dirty && store.editorCount < 2) {
                 e.preventDefault();
                 feedback.confirm({
                     title: `Close ${store.displayName.length === 0 ? 'New Workspace' : store.displayName}?`,
@@ -24,28 +30,20 @@ export const WorkspaceProvider = observer(({ store, children }: { store: Workspa
                     okButton: 'Yes',
                     cancelButton: 'No',
                     defaultToCancel: true
-                }).then(async (ok) => {
+                }).then((ok) => {
                     if (ok) {
-                        _forceClose.current = true
-                        try {
-                            await store.close()
-                        } catch (e) {
-                            feedback.toastError(e)
-                        }
-                        currentWindow.close().catch((e) => {
-                            feedback.toastError(e)
-                        })
+                        _closeDispatched.current = true
+                        // Fire-and-forget the backend cleanup; the user chose to
+                        // close without saving, so there is nothing to await.
+                        store.close().catch((err) => feedback.toastError(err))
+                        // destroy() bypasses onCloseRequested, so no re-entry.
+                        currentWindow.destroy().catch((err) => feedback.toastError(err))
                     }
                 }).catch(e => feedback.toastError(e))
             } else {
-                e.preventDefault()
-                store.close().then(() => {
-                    currentWindow.destroy().catch((e) => {
-                        feedback.toastError(e)
-                    })
-                }).catch((e) => {
-                    feedback.toastError(e)
-                })
+                // Not dirty or multiple editors still open — let the window close
+                // normally and fire-and-forget the backend session cleanup.
+                store.close().catch((err) => feedback.toastError(err))
             }
         })
         return (() => {

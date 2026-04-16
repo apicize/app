@@ -1,0 +1,40 @@
+---
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+import Lightbox from '../components/Lightbox.astro';
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description?: string;
+  currentPage: string;
+}
+
+const { title, description = 'Apicize - Cross-platform HTTP testing tool emphasizing testability and security', currentPage } = Astro.props;
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content={description} />
+  <meta property="og:title" content={title} />
+  <meta property="og:description" content={description} />
+  <meta property="og:type" content="website" />
+  <title>{title}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet" />
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/icons/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="./assets/icons/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="./assets/icons/favicon-16x16.png" />
+  <link rel="manifest" href="./assets/icons/site.webmanifest" />
+</head>
+<body>
+  <Nav currentPage={currentPage} />
+  <slot />
+  <Footer />
+  <Lightbox />
+</body>
+</html>

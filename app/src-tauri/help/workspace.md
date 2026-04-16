@@ -11,7 +11,7 @@ of unintentionally sharing sensitive authorization credentials or certificates. 
 
 ## Workspace Elements
 
-### :icon[request] [Requests](help:workspace/requests) and [Groups](help:workspace/groups)
+### :icon[request] [Requests](help:workspace/requests) / [Groups](help:workspace/groups)
 
 Information about HTTP calls to send and how to test them
 

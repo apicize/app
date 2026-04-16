@@ -77,14 +77,14 @@ export const NavigationControl = observer(() => {
                             <RequestIcon />
                         </SvgIcon>
                     </ToggleButton>
+                    <ToggleButton title='Data Sets' value={WorkspaceMode.ProxyList} onClick={() => toggleMode(WorkspaceMode.DataSetList)}>
+                        <SvgIcon color='data'>
+                            <DatasetIcon />
+                        </SvgIcon>
+                    </ToggleButton>
                     <ToggleButton title='Scenarios' value={WorkspaceMode.ScenarioList} onClick={() => toggleMode(WorkspaceMode.ScenarioList)}>
                         <SvgIcon color='scenario'>
                             <ScenarioIcon />
-                        </SvgIcon>
-                    </ToggleButton>
-                    <ToggleButton title='Data' value={WorkspaceMode.ProxyList} onClick={() => toggleMode(WorkspaceMode.DataSetList)}>
-                        <SvgIcon color='data'>
-                            <DatasetIcon />
                         </SvgIcon>
                     </ToggleButton>
                     <ToggleButton title='Authorizations' value={WorkspaceMode.AuthorizationList} onClick={() => toggleMode(WorkspaceMode.AuthorizationList)}>
@@ -128,8 +128,8 @@ export const NavigationControl = observer(() => {
                 className='navigation-tree'
             >
                 <RequestSection includeHeader={true} />
-                <ScenarioSection includeHeader={true} />
                 <DataSetSection includeHeader={true} />
+                <ScenarioSection includeHeader={true} />
                 <AuthorizationSection includeHeader={true} />
                 <CertificateSection includeHeader={true} />
                 <ProxySection includeHeader={true} />

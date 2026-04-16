@@ -1,0 +1,339 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout
+  title="Apicize - Overview"
+  description="Getting started overview for Apicize HTTP testing tool"
+  currentPage="/overview"
+>
+  <main class="container">
+    <div class="page-header">
+      <h1>Overview</h1>
+      <p>
+        The demo workbook demonstrates using Apicize to call a few webservices. 
+        The first set of tests call rudimentary CRUD services that demonstrate 
+        how to use testing to evaluate result contents and, importantly, 
+        how to pass values between tests.
+        The second is a service that shows how to test binary content and view
+        the results. The third is a simple math calculator used to demonostrate
+        non-JSON calls.
+      </p>
+      <p>
+        Note: These webservices are hosted on AWS and paid for out of my pocket.
+        They are built to be "just enough" to demonstrate some of Apicize's
+        capabilities. As long as the spend doesn't get too crazy, I'll leave
+        them running. If they get abused or end up costing too much, I'll end up
+        having to turn them off. The services use an OAuth-like client token
+        that is short lived. Apicize keeps track of when OAuth2 client tokens
+        expire and will automatically request a new token.
+      </p>
+    </div>
+
+    <section class="section">
+      <h2>CRUD Testing</h2>
+      <p>
+        A common requirement of testing webservices is how to use data returned
+        for one request in the next request. Apicize uses Groups to organize
+        chains of requests together to facilitate this need.
+      </p>
+
+      <div class="pane pane-text-left">
+        <div>
+          <h3>Executing Tests</h3>
+          <p>
+            If you click on "CRUD Operations" and then "Embedded Data",
+            you can then click on the Run button (the one that looks like a "play" button). 
+            If all goes well, you will see a list of test results like those displayed to the right.
+          </p>
+          <p>
+            Each request in the group is executed in <strong>sequence</strong>.
+            This is important because, as you'll see, the ID is retained when the
+            quote is created and used in subsequent calls. Alternatively, you
+            can launch the tests <strong>concurrently</strong> (by setting Group Item
+            Execution to "Concurrent"). If you do so, and re-run the tests, you'll
+            see most of the tests fail. This is because most tests rely upon the ID
+            returned upon quote creation. Concurrent execution, along with being able
+            to specify number of runs, are useful if you want to load test or otherwise
+            test parallel execution.
+          </p>
+          <p>
+            Upon execution, you'll see a summary of each request, any tests
+            executed for that request, and any console log statements captured
+            during the test runs.
+          </p>
+          <p>
+            Use the Results dropdown to select individual results for
+            individual requests in the group.
+          </p>
+          <p>
+            You can set the "# of Runs" value to trigger multiple executions.
+            The requests will be executed in sequence or concurrently, depending
+            on how Execution Mode is set.
+          </p>
+          <p>
+            The groups labeled "JSON Data Set" and "CSV Data Set" both demonstrate testing a set of
+            tests against multiple records defined in either a JSON or CSV file.
+          </p>
+        </div>
+        <div>
+          <div class="screenshot">
+            <img
+              src="./assets/overview/test-results.webp"
+              alt="test results"
+              class="lightbox-image"
+            />
+            <div class="image-caption">Example of successful test run</div>
+          </div>
+          <div class="screenshot">
+            <img
+              src="./assets/overview/multi-results.webp"
+              alt="test results"
+              class="lightbox-image"
+            />
+            <div class="image-caption">Example of multiple rows tested</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pane pane-text-left">
+        <div>
+          <h3>Viewing Results</h3>
+          <p>
+            To view how a specific request executed when running a group, select
+            the request from the Results drop-down or click on the icon next to
+            the summary. If you execute multiple runs, the drop-down list will
+            include menu items for each run. Results are retained if you switch
+            between different items in the Navigation pane.
+          </p>
+          <p>
+            Along the left in the lower response pane, you'll see a vertical tab
+            bar. These let you view:
+          </p>
+          <ul>
+            <li>Summary of execution</li>
+            <li>Response headers</li>
+            <li>
+              Response body (either as text or Base64 if binary payload
+              detected)
+            </li>
+            <li>
+              Formatted response body (if Content-Type is recognized and
+              handled)
+            </li>
+            <li>
+              A CURL command you can distribute to demonstrate executing the
+              request (**including** authorization headers)
+            </li>
+            <li>
+              Details on the request and response (headers, body, data state,
+              etc.)
+            </li>
+          </ul>
+          <p>
+            To the right, we see the response returned when creating a quote.
+            That ID can be used for subsequent calls by leveraging Apicize's
+            test capabilities.
+          </p>
+        </div>
+        <div>
+          <div class="screenshot">
+            <img
+              src="./assets/overview/create-results.webp"
+              alt="test results"
+              class="lightbox-image"
+            />
+            <div class="image-caption">Formatted JSON response</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pane pane-text-left">
+        <div>
+          <h3>Creating Tests</h3>
+          <p>
+            By default, Apicize creates a test for every request that checks to
+            see if the response included an HTTP status of 200 (Ok). Apicize
+            uses a BDD-style of formatting, powered by the
+            <a href="https://www.chaijs.com/" target="_blank">Chai</a> assertion library.
+            This structure is used to organize and format the display of test results.
+            Tests fail when an Error is thrown.
+          </p>
+          <p>
+            While checking for a 200 is useful, you can do more. You can inspect
+            the response headers and body and throw an Error if something looks
+            wrong.
+          </p>
+          <p>
+            Apicize tests run in an isolated V8 JavaScript environment. It's
+            important to note that your tests are <em>not</em> running in a browser
+            or even in NodeJS. There is no <strong>window</strong>,
+            <strong>document</strong> or NodeJS libraries like <strong
+              >fs</strong
+            >. This design mitigates much of the risk to your local environment
+            of running an arbitrary Apicize workbook and its tests.
+          </p>
+          <p>
+            What <em>is</em> available are the items in the test context.
+          </p>
+        </div>
+        <div>
+          <div class="screenshot">
+            <img
+              src="./assets/overview/create-test.webp"
+              alt="test code"
+              class="lightbox-image"
+            />
+            <div class="image-caption">
+              Test that checks for a sccessful result and extracts and stores ID
+              for later use
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pane pane-text-left">
+        <div>
+          <h3>Test Context</h3>
+          <p>Apicize executes every test in a context.</p>
+
+          <p>
+            If you look at the test screenshot above, you'll see a line that
+            calls **output** to set a variable called "id":
+          </p>
+          <pre>output('id', id)</pre>
+          <p>
+            This adds the <strong>id</strong> value to the text context, and it will
+            be available to subsequent requests and subgroups within the same group.
+            This allows you to maintain a state between request calls in a group,
+            provided you run those requests <em>in sequence.</em>
+            In this example, we are parsing the body, retrieving the <strong>id</strong>
+            value, and assigning that as a variable.
+          </p>
+          <p>If you examine repsonse details after executing a request, you'll see the values available
+            for testing in <strong>testContext</strong>:
+            <ul>
+              <li><strong>$</strong>: Consolidated shortcut object to values from output, data and scenario</li>
+              <li><strong>scenario</strong>: Values created from active Scenario</li>
+              <li><strong>output</strong>: Values created from previous calls to `output`</li>
+              <li><strong>data</strong>: Values from the current row in a Data Set</li>
+              <li><strong>request</strong>: Values associated with the current HTTP request</li>
+              <li><strong>response</strong>: Values associated with the current HTTP response</li>
+            </ul>
+          </p>
+        </div>
+        <div>
+          <div class="screenshot">
+            <img
+              src="./assets/overview/get-orig-response.webp"
+              alt="response details"
+              class="lightbox-image"
+            />
+            <div class="image-caption">Information available for testing</div>
+          </div>
+          <div class="screenshot">
+            <img
+              src="./assets/overview/get-quote.webp"
+              alt="variable in request"
+              class="lightbox-image"
+            />
+            <div class="image-caption">
+              "&#123;&#123;id&#125;&#125;" used to send ID with request
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pane pane-text-left">
+        <div>
+          <h3>Data Sets</h3>
+          <p>
+            Data Sets are also useful when you want to test different sets of
+            values using the same request or group of requests. Instead of having
+            to clone those requests, you can create scenarios that can include a
+            list of values to populate in variables. You can
+            switch between them by selecting the Parameters tab in a request or group
+            pane, and then selecting a Data Set.
+          </p>
+          <p>When Apicize executes a request or group with an assigned Data Set, it will only
+            iterate though the assigned Data Set for that executed request or group.  It does not
+            recursively pull in records from child requests or groups.
+          </p>
+          <p>Data Sets can be defined and stored in three ways:
+            <ul>
+              <li>Embedded JSON:  the data is a JSON object or array stored with the workbook</li>
+              <li>External JSON File:  the data is a JSON object or array stored separately from the workbook</li>
+              <li>External CSV File:  the data is a CSV file stored separately from the workbook</li>
+            </ul>
+          </p>
+        </div>
+        <div class="screenshot">
+          <img
+            src="./assets/overview/dataset.webp"
+            alt="dataset"
+            class="lightbox-image"
+          />
+          <div class="image-caption">
+            Example JSON Data Set
+          </div>
+        </div>
+      </div>
+
+      <div class="pane pane-text-left">
+        <div>
+          <h3>Parameters</h3>
+          <p>
+            Requests and groups can have the following parameters assigned:
+            <ul>
+              <li>Data Sets:  as described above, one more records of data to test against</li>
+              <li>Scenario:  Variables to substitute for records (ex. "url" for site URL, you can use this for environmental values)</li>
+              <li>Authorization:  OAuth, Authorization or other header used to authorize a call</li>
+              <li>Certificate:  OAuth, Authorization or other header used to authorize a call</li>
+              <li>Proxy:  Socks5 or HTTP/S proxy</li>
+            </ul>
+            You can set the default parameters for the workspace by going into Settings.  Each group or request can override these
+            default values, including setting them to "off".  Setting a group's parameters will apply to its children. 
+          </p>
+        </div>
+        <div>
+          <div class="screenshot">
+            <img
+              src="./assets/overview/parameters.webp"
+              alt="request parameters"
+              class="lightbox-image"
+            />
+            <div class="image-caption">
+              Parameters can be specified, default to parent value or turned off
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="pane pane-text-left">
+      <div>
+        <h3>Testing with Binary / Image Data</h3>
+        <p>
+          You can pass binary data for Apicize tests by selecting the Body tab
+          in the top request panel, and either opening a file (any type) or
+          paste from the clipboard (images only). Supported image types will be previewed.
+        </p>
+        <p>
+          In the response pane, you can select the "raw" data or, if available,
+          you can "preview" a formatted or rendered version of that data for
+          handled content types.  Binary data will be represented using Base64.
+        </p>
+      </div>
+      <div>
+        <div class="screenshot">
+          <img
+            src="./assets/overview/images.webp"
+            alt="image response"
+            class="lightbox-image"
+          />
+          <div class="image-caption">Viewing a response image</div>
+        </div>
+      </div>
+    </div>
+  </main>
+</BaseLayout>

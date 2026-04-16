@@ -57,6 +57,26 @@ const ParameterEditor = observer(({
 
     return <Stack spacing={3} sx={sx} marginTop='0.25rem' className={className}>
         <FormControl>
+            <InputLabel id='data-label-id'>Data Set</InputLabel>
+            <Select
+                labelId='data-label'
+                aria-labelledby='data-label-id'
+                id='cred-data'
+                label='Data Set'
+                value={defaults.selectedData.id}
+                open={showDefaultDataMenu}
+                onClose={() => setShowDefaultDataMenu(false)}
+                onOpen={() => setShowDefaultDataMenu(true)}
+                onChange={(e) => {
+                    defaults.setDataId(e.target.value).catch(err => feedback.toastError(err))
+                }}
+                fullWidth
+                size='small'
+            >
+                {itemsFromSelections(parameters.data)}
+            </Select>
+        </FormControl>
+        <FormControl>
             <InputLabel id='scenario-label-id'>Scenarios</InputLabel>
             <Select
                 labelId='scenario-label'
@@ -134,26 +154,6 @@ const ParameterEditor = observer(({
                 fullWidth
             >
                 {itemsFromSelections(parameters.proxies)}
-            </Select>
-        </FormControl>
-        <FormControl>
-            <InputLabel id='data-label-id'>Data Set</InputLabel>
-            <Select
-                labelId='data-label'
-                aria-labelledby='data-label-id'
-                id='cred-data'
-                label='Data Set'
-                value={defaults.selectedData.id}
-                open={showDefaultDataMenu}
-                onClose={() => setShowDefaultDataMenu(false)}
-                onOpen={() => setShowDefaultDataMenu(true)}
-                onChange={(e) => {
-                    defaults.setDataId(e.target.value).catch(err => feedback.toastError(err))
-                }}
-                fullWidth
-                size='small'
-            >
-                {itemsFromSelections(parameters.data)}
             </Select>
         </FormControl>
     </Stack>
