@@ -39,11 +39,11 @@ use settings::{ApicizeSettings, ColorScheme};
 use std::{
     collections::{HashMap, HashSet},
     env,
-    fs::{self, File, create_dir_all, exists, remove_dir_all},
-    io,
+    fs::{self, create_dir_all, exists, remove_dir_all},
+    io::{self, BufWriter},
     ops::Deref,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex, OnceLock, RwLock as StdRwLock},
+    sync::{Arc, Mutex, OnceLock, RwLock as StdRwLock, atomic::{AtomicUsize, Ordering}},
     time::{SystemTime, UNIX_EPOCH},
 };
 use tauri::async_runtime::RwLock;
@@ -85,6 +85,10 @@ struct SessionsState {
 }
 
 static REQWEST_LOGGER: OnceLock<ReqwestLogger> = OnceLock::new();
+
+/// Tracks the number of in-flight save operations so the shutdown handler
+/// can wait for them to complete before allowing the process to exit.
+static IN_FLIGHT_SAVES: AtomicUsize = AtomicUsize::new(0);
 
 fn copy_files(source: &Path, destination: &Path) -> io::Result<()> {
     let exists = fs::exists(destination)?;
@@ -331,11 +335,29 @@ async fn main() {
         .build(tauri::generate_context!())
         .expect("error building Apicize")
         .run(|_app: &AppHandle, event| {
-            if let tauri::RunEvent::Exit = event {
-                let tokens = cancellation_tokens().read().unwrap();
-                for token in tokens.values() {
-                    token.cancel();
+            match event {
+                tauri::RunEvent::ExitRequested { api, .. } => {
+                    // If saves are still in flight, defer exit
+                    if IN_FLIGHT_SAVES.load(Ordering::SeqCst) > 0 {
+                        api.prevent_exit();
+                    }
                 }
+                tauri::RunEvent::Exit => {
+                    // Wait for any remaining in-flight saves before tearing down
+                    let start = std::time::Instant::now();
+                    let timeout = std::time::Duration::from_secs(5);
+                    while IN_FLIGHT_SAVES.load(Ordering::SeqCst) > 0
+                        && start.elapsed() < timeout
+                    {
+                        std::thread::sleep(std::time::Duration::from_millis(50));
+                    }
+
+                    let tokens = cancellation_tokens().read().unwrap();
+                    for token in tokens.values() {
+                        token.cancel();
+                    }
+                }
+                _ => {}
             }
         });
 }
@@ -1016,6 +1038,22 @@ async fn save_workspace(
     session_id: &str,
     file_name: Option<String>,
 ) -> Result<(), ApicizeAppError> {
+    IN_FLIGHT_SAVES.fetch_add(1, Ordering::SeqCst);
+    let result = save_workspace_inner(
+        app, sessions_state, workspaces_state, settings_state, session_id, file_name,
+    ).await;
+    IN_FLIGHT_SAVES.fetch_sub(1, Ordering::SeqCst);
+    result
+}
+
+async fn save_workspace_inner(
+    app: AppHandle,
+    sessions_state: State<'_, SessionsState>,
+    workspaces_state: State<'_, WorkspacesState>,
+    settings_state: State<'_, SettingsState>,
+    session_id: &str,
+    file_name: Option<String>,
+) -> Result<(), ApicizeAppError> {
     let sessions = sessions_state.sessions.write().await;
     let session = sessions.get_session(session_id)?;
 
@@ -1109,10 +1147,10 @@ fn perform_save_data_set_file(
             content.dirty = false;
         }
         DataSourceType::FileJSON => {
-            // Write JSON content directly to file
+            // Write JSON content atomically to file
             let save_to_file = build_absolute_file_name(&data_set.source, data_path)?;
-            fs::write(
-                save_to_file,
+            apicize_lib::save_file_atomically(
+                &save_to_file,
                 match &content.source_text {
                     Some(txt) => txt,
                     None => "",
@@ -1132,37 +1170,53 @@ fn perform_save_data_set_file(
     Ok(())
 }
 
-/// Write CSV data out to a file
+/// Write CSV data out to a file atomically.
+///
+/// Writes to a temporary file in the same directory, flushes, fsyncs, then
+/// atomically renames over the target.
 fn write_csv_data(
     file_name: &PathBuf,
     csv_columns: &Option<Vec<String>>,
     csv_rows: &Option<Vec<HashMap<String, String>>>,
 ) -> Result<(), ApicizeAppError> {
-    let file = File::create(file_name)?;
+    let dir = file_name.parent().ok_or_else(|| {
+        ApicizeAppError::InvalidOperation("Unable to determine parent directory".to_string())
+    })?;
 
-    let mut writer = csv::Writer::from_writer(file);
+    let tmp = tempfile::NamedTempFile::new_in(dir)?;
+    {
+        let buf_writer = BufWriter::new(tmp.as_file());
+        let mut writer = csv::Writer::from_writer(buf_writer);
 
-    if let (Some(columns), Some(rows)) = (csv_columns, csv_rows) {
-        let columns_to_write = columns
-            .iter()
-            .filter(|c| *c != "_id")
-            .cloned()
-            .collect::<Vec<String>>();
-
-        // Write header row
-        writer.write_record(&columns_to_write)?;
-
-        // Write data rows
-        for row in rows {
-            let record: Vec<&str> = columns_to_write
+        if let (Some(columns), Some(rows)) = (csv_columns, csv_rows) {
+            let columns_to_write = columns
                 .iter()
-                .map(|col| row.get(col).map(|s| s.as_str()).unwrap_or(""))
-                .collect();
-            writer.write_record(&record)?;
+                .filter(|c| *c != "_id")
+                .cloned()
+                .collect::<Vec<String>>();
+
+            // Write header row
+            writer.write_record(&columns_to_write)?;
+
+            // Write data rows
+            for row in rows {
+                let record: Vec<&str> = columns_to_write
+                    .iter()
+                    .map(|col| row.get(col).map(|s| s.as_str()).unwrap_or(""))
+                    .collect();
+                writer.write_record(&record)?;
+            }
         }
+
+        let buf_writer = writer.into_inner()
+            .map_err(|e| io::Error::other(e.to_string()))?;
+        let file = buf_writer.into_inner()
+            .map_err(|e| io::Error::other(e.to_string()))?;
+        file.sync_all()?;
     }
 
-    writer.flush()?;
+    tmp.persist(file_name)
+        .map_err(|e| e.error)?;
     Ok(())
 }
 
@@ -3149,6 +3203,22 @@ async fn open_data_set_file_from(
 
 #[tauri::command]
 async fn save_data_set_file(
+    app: AppHandle,
+    sessions_state: State<'_, SessionsState>,
+    workspaces_state: State<'_, WorkspacesState>,
+    session_id: &str,
+    data_set_id: &str,
+    file_name: &str,
+) -> Result<String, ApicizeAppError> {
+    IN_FLIGHT_SAVES.fetch_add(1, Ordering::SeqCst);
+    let result = save_data_set_file_inner(
+        app, sessions_state, workspaces_state, session_id, data_set_id, file_name,
+    ).await;
+    IN_FLIGHT_SAVES.fetch_sub(1, Ordering::SeqCst);
+    result
+}
+
+async fn save_data_set_file_inner(
     app: AppHandle,
     sessions_state: State<'_, SessionsState>,
     workspaces_state: State<'_, WorkspacesState>,

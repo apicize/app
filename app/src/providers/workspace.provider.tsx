@@ -24,23 +24,28 @@ export const WorkspaceProvider = observer(({ store, children }: { store: Workspa
                     okButton: 'Yes',
                     cancelButton: 'No',
                     defaultToCancel: true
-                }).then((ok) => {
+                }).then(async (ok) => {
                     if (ok) {
                         _forceClose.current = true
-                        store.dirty = false
-                        currentWindow.close().catch((e) => {
+                        try {
+                            await store.close()
+                        } catch (e) {
                             feedback.toastError(e)
-                        })
-                        store.close().catch((e) => {
+                        }
+                        currentWindow.close().catch((e) => {
                             feedback.toastError(e)
                         })
                     }
                 }).catch(e => feedback.toastError(e))
             } else {
-                store.close().catch((e) => {
+                e.preventDefault()
+                store.close().then(() => {
+                    currentWindow.destroy().catch((e) => {
+                        feedback.toastError(e)
+                    })
+                }).catch((e) => {
                     feedback.toastError(e)
                 })
-
             }
         })
         return (() => {

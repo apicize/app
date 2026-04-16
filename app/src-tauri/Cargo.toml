@@ -1,6 +1,6 @@
 [package]
 name = "apicize"
-version = "v0.40.0"
+version = "0.40.0"
 description = "Apicize HTTP call testing application"
 authors = ["Jason Terando"]
 license = "MIT"
@@ -53,6 +53,7 @@ file_type = "0.8.11"
 pathdiff = "0.2.3"
 serde_with = { version = "^3.16.1", features = ["base64"] }
 csv = "1.4.0"
+tempfile = "3"
 icu_calendar = "=2.1.0"
 
 [features]
