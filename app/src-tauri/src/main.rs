@@ -43,7 +43,10 @@ use std::{
     io::{self, BufWriter},
     ops::Deref,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex, OnceLock, RwLock as StdRwLock, atomic::{AtomicUsize, Ordering}},
+    sync::{
+        Arc, Mutex, OnceLock, RwLock as StdRwLock,
+        atomic::{AtomicUsize, Ordering},
+    },
     time::{SystemTime, UNIX_EPOCH},
 };
 use tauri::async_runtime::RwLock;
@@ -346,9 +349,7 @@ async fn main() {
                     // Wait for any remaining in-flight saves before tearing down
                     let start = std::time::Instant::now();
                     let timeout = std::time::Duration::from_secs(5);
-                    while IN_FLIGHT_SAVES.load(Ordering::SeqCst) > 0
-                        && start.elapsed() < timeout
-                    {
+                    while IN_FLIGHT_SAVES.load(Ordering::SeqCst) > 0 && start.elapsed() < timeout {
                         std::thread::sleep(std::time::Duration::from_millis(50));
                     }
 
@@ -1040,8 +1041,14 @@ async fn save_workspace(
 ) -> Result<(), ApicizeAppError> {
     IN_FLIGHT_SAVES.fetch_add(1, Ordering::SeqCst);
     let result = save_workspace_inner(
-        app, sessions_state, workspaces_state, settings_state, session_id, file_name,
-    ).await;
+        app,
+        sessions_state,
+        workspaces_state,
+        settings_state,
+        session_id,
+        file_name,
+    )
+    .await;
     IN_FLIGHT_SAVES.fetch_sub(1, Ordering::SeqCst);
     result
 }
@@ -1208,15 +1215,16 @@ fn write_csv_data(
             }
         }
 
-        let buf_writer = writer.into_inner()
+        let buf_writer = writer
+            .into_inner()
             .map_err(|e| io::Error::other(e.to_string()))?;
-        let file = buf_writer.into_inner()
+        let file = buf_writer
+            .into_inner()
             .map_err(|e| io::Error::other(e.to_string()))?;
         file.sync_all()?;
     }
 
-    tmp.persist(file_name)
-        .map_err(|e| e.error)?;
+    tmp.persist(file_name).map_err(|e| e.error)?;
     Ok(())
 }
 
@@ -3212,8 +3220,14 @@ async fn save_data_set_file(
 ) -> Result<String, ApicizeAppError> {
     IN_FLIGHT_SAVES.fetch_add(1, Ordering::SeqCst);
     let result = save_data_set_file_inner(
-        app, sessions_state, workspaces_state, session_id, data_set_id, file_name,
-    ).await;
+        app,
+        sessions_state,
+        workspaces_state,
+        session_id,
+        data_set_id,
+        file_name,
+    )
+    .await;
     IN_FLIGHT_SAVES.fetch_sub(1, Ordering::SeqCst);
     result
 }
