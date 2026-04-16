@@ -86,7 +86,7 @@ jobs:
           fi
 
   lint:
-    name: Lint (Clippy)
+    name: Lint (Format Check and Clippy)
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout project
@@ -100,6 +100,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: app/src-tauri
+      - name: Format check
+        working-directory: ./app/src-tauri
+        run: cargo fmt --check
       - name: Lint app
         working-directory: ./app/src-tauri
         run: cargo clippy -- -D warnings

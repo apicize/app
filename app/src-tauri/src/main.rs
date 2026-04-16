@@ -17,7 +17,7 @@ use apicize_lib::{
     ExecutionState, Identifiable, IndexedEntities, OAuth2ClientCredentialParameters,
     OpenWorkbookOptions, PERSIST_PRIVATE, PERSIST_VAULT, ParameterLockStatus, ParameterStore,
     Parameters, PkceTokenResult, Proxy, RequestBody, RequestEntry, SaveWorkspaceParameters,
-    Scenario, TestRunnerContext, TokenResult, Validated, Workspace,
+    Scenario, TestRunnerContext, TestRunnerContextInit, TokenResult, Validated, Workspace,
     authorization::AuthorizationPlain, build_absolute_file_name,
     clear_all_oauth2_tokens_from_cache, clear_oauth2_token_from_cache,
     editing::indexed_entities::IndexedEntityPosition, get_existing_absolute_file_name,
@@ -65,7 +65,7 @@ use crate::{
         AuthorizationUpdate, CertificateUpdate, DataSetUpdate, DefaultsUpdate, EntityUpdate,
         ProxyUpdate, RequestGroupUpdate, RequestUpdate, ScenarioUpdate,
     },
-    workspaces::{DataSetContent, PasswordLockType},
+    workspaces::{DataSetContent, ExecutionCounterResult, PasswordLockType, increment_counters},
 };
 
 struct AuthState {
@@ -714,7 +714,8 @@ fn create_workspace(
                     .prevent_overflow_with_margin(LogicalSize::new(64, 64))
                     .title(format_window_title(&workspace_result.display_name, info.dirty).as_str())
                     .initialization_script(format!("window.__INIT_DATA__= {init_data};"))
-                    .initialization_script(r#"
+                    .initialization_script(
+                        r#"
                         // Fix Tauri paste event bug: clipboardData.types is empty but data exists
                         document.addEventListener('paste', function(e) {
                             if (e.clipboardData && e.clipboardData.types.length === 0) {
@@ -732,7 +733,8 @@ fn create_workspace(
                                 }
                             }
                         }, true);
-                    "#);
+                    "#,
+                    );
 
             builder = position_window_builder(&app, builder, &current_session_id);
             let window = builder.build().unwrap();
@@ -910,7 +912,8 @@ async fn clone_workspace(
             .visible(!release_mode)
             .title(format_window_title(&info.display_name, info.dirty).as_str())
             .initialization_script(format!("window.__INIT_DATA__= {init_data};"))
-            .initialization_script(r#"
+            .initialization_script(
+                r#"
                 // Fix Tauri paste event bug: clipboardData.types is empty but data exists
                 document.addEventListener('paste', function(e) {
                     if (e.clipboardData && e.clipboardData.types.length === 0) {
@@ -928,7 +931,8 @@ async fn clone_workspace(
                         }
                     }
                 }, true);
-            "#);
+            "#,
+            );
     builder = position_window_builder(&app, builder, &Some(session_id));
 
     let window = builder.build().unwrap();
@@ -1555,7 +1559,7 @@ async fn start_execution(
     };
 
     // Phase 2: Quick read to get workspace data, with # of run overrides if specified, then release lock immediately
-    let (cloned_workspace, all_session_ids, previous_state) = {
+    let (cloned_workspace, all_session_ids, previous_state, counters) = {
         let sessions = sessions_state.sessions.read().await;
         let previous_state: ExecutionState;
 
@@ -1629,8 +1633,10 @@ async fn start_execution(
                 request.set_runs(1);
             }
 
-            cloned_workspace
+            (cloned_workspace, Arc::clone(&info.execution_counters))
         }; // Write lock released here
+
+        let (cloned_workspace, counters) = cloned_workspace;
 
         // Get session IDs with read lock (can be done concurrently)
         let all_session_ids = get_workspace_sessions(&workspace_id, &sessions, None)
@@ -1638,7 +1644,7 @@ async fn start_execution(
             .iter()
             .map(|s| s.to_string())
             .collect::<Vec<String>>();
-        (cloned_workspace, all_session_ids, previous_state)
+        (cloned_workspace, all_session_ids, previous_state, counters)
     };
 
     // Phase 3: Emit execution events
@@ -1654,16 +1660,81 @@ async fn start_execution(
             .unwrap();
     }
 
+    // We are going to keep track of counters for this run as well as for the workspace as a whole,
+    // because if the user cancels, we don't ever get the "end" event and we'll have a "ghost"
+    // running request/group
+    let local_execution_counters = Arc::new(Mutex::new(HashMap::<String, usize>::new()));
+
+    let executing_request_or_group_id = request_or_group_id.to_string();
+    let increment_execution_counters = {
+        let counters = Arc::clone(&counters);
+        let local_execution_counters = Arc::clone(&local_execution_counters);
+        let app = app.clone();
+        let all_session_ids = all_session_ids.clone();
+        let executing_request_or_group_id = executing_request_or_group_id.clone();
+
+        move |request_or_group_id: &str, count: i8| {
+            increment_counters(&local_execution_counters, request_or_group_id, count as i32);
+
+            match increment_counters(&counters, request_or_group_id, count as i32) {
+                ExecutionCounterResult::EmitStart => {
+                    for emit_to_session_id in &all_session_ids {
+                        app.emit_to(
+                            emit_to_session_id,
+                            "execution_event",
+                            HashMap::<String, ExecutionEvent>::from([(
+                                request_or_group_id.to_string(),
+                                ExecutionEvent::TestStarted {
+                                    execution_state: if request_or_group_id
+                                        == executing_request_or_group_id
+                                    {
+                                        ExecutionState::TEST_STARTED | ExecutionState::RUNNING
+                                    } else {
+                                        ExecutionState::TEST_STARTED
+                                    },
+                                },
+                            )]),
+                        )
+                        .unwrap();
+                    }
+                }
+                ExecutionCounterResult::EmitEnd => {
+                    for emit_to_session_id in &all_session_ids {
+                        app.emit_to(
+                            emit_to_session_id,
+                            "execution_event",
+                            HashMap::<String, ExecutionEvent>::from([(
+                                request_or_group_id.to_string(),
+                                ExecutionEvent::TestEnded {
+                                    execution_state: if request_or_group_id
+                                        == executing_request_or_group_id
+                                    {
+                                        ExecutionState::TEST_ENDED | ExecutionState::RUNNING
+                                    } else {
+                                        ExecutionState::TEST_ENDED
+                                    },
+                                },
+                            )]),
+                        )
+                        .unwrap();
+                    }
+                }
+                ExecutionCounterResult::None => {}
+            }
+        }
+    };
+
     // Phase 4: Create runner outside of locks
-    let context = Arc::new(TestRunnerContext::new(
-        cloned_workspace,
-        Some(cancellation),
-        request_or_group_id,
-        single_run,
-        &allowed_data_path,
-        true, // enable detailed trace capture to get read/write data
-        true,
-    ));
+    let context = Arc::new(TestRunnerContext::new(TestRunnerContextInit {
+        workspace: cloned_workspace,
+        cancellation: Some(cancellation),
+        executing_request_or_group_id: request_or_group_id,
+        single_run_no_timeout: single_run,
+        allowed_data_path: &allowed_data_path,
+        enable_trace: true,
+        generate_curl: true,
+        execution_counter_callback: Some(Box::new(increment_execution_counters)),
+    }));
 
     // Phase 5: Execute request (no locks held)
     let responses = context.run(vec![request_or_group_id.to_string()]).await;
@@ -1677,6 +1748,69 @@ async fn start_execution(
     if using_temp_data_path && let Some(allowed_data_path) = allowed_data_path {
         remove_dir_all(allowed_data_path)?;
     }
+
+    // Clean up routine if result of execution is an Error or unexpected empty result
+    let cleanup = async || -> Result<(), ApicizeAppError> {
+        let mut workspaces = workspaces_state.workspaces.write().await;
+        let info = workspaces.get_workspace_info_mut(&workspace_id)?;
+
+        let local_execution_counters = local_execution_counters.lock().unwrap();
+        for (request_or_group_id, count) in local_execution_counters.iter() {
+            if *count == 0 {
+                continue;
+            }
+
+            let mut remaining_count = *count;
+
+            while remaining_count > 0 {
+                let apply_count = remaining_count.min(i32::MAX as usize) as i32;
+                if ExecutionCounterResult::EmitEnd
+                    == increment_counters(
+                        &info.execution_counters,
+                        request_or_group_id,
+                        -apply_count,
+                    )
+                {
+                    for emit_to_session_id in &all_session_ids {
+                        app.emit_to(
+                            emit_to_session_id,
+                            "execution_event",
+                            HashMap::<String, ExecutionEvent>::from([(
+                                request_or_group_id.to_string(),
+                                ExecutionEvent::TestEnded {
+                                    execution_state: if request_or_group_id
+                                        == &executing_request_or_group_id
+                                    {
+                                        ExecutionState::TEST_ENDED | ExecutionState::RUNNING
+                                    } else {
+                                        ExecutionState::TEST_ENDED
+                                    },
+                                },
+                            )]),
+                        )
+                        .unwrap();
+                    }
+                }
+
+                remaining_count = remaining_count.saturating_sub(apply_count as usize);
+            }
+        }
+
+        let exec = info.get_execution_mut(request_or_group_id);
+        exec.execution_state = previous_state;
+        let abort_event = HashMap::from([(
+            request_or_group_id.to_string(),
+            ExecutionEvent::Cancel {
+                execution_state: previous_state,
+            },
+        )]);
+        for session_id in &all_session_ids {
+            app.emit_to(session_id, "execution_event", &abort_event)
+                .unwrap();
+        }
+
+        Ok(())
+    };
 
     // Phase 6: Process results with minimal lock scope
     match responses.into_iter().next() {
@@ -1763,53 +1897,20 @@ async fn start_execution(
                         .unwrap();
                 }
             }
-            Ok(())
         }
 
         Some(Err(err)) => {
-            // Quick write lock for error cleanup
-            {
-                let mut workspaces = workspaces_state.workspaces.write().await;
-                let info = workspaces.get_workspace_info_mut(&workspace_id)?;
-                let exec = info.get_execution_mut(request_or_group_id);
-                exec.execution_state = previous_state;
-                let abort_event = HashMap::from([(
-                    request_or_group_id.to_string(),
-                    ExecutionEvent::Cancel {
-                        execution_state: previous_state,
-                    },
-                )]);
-
-                for session_id in &all_session_ids {
-                    app.emit_to(session_id, "execution_event", &abort_event)
-                        .unwrap();
-                }
-            } // Write lock released immediately
-            Err(ApicizeAppError::ApicizeError(err))
+            cleanup().await?;
+            return Err(ApicizeAppError::ApicizeError(err));
         }
 
         None => {
-            // Quick cleanup for unexpected case
-            {
-                let mut workspaces = workspaces_state.workspaces.write().await;
-                let info = workspaces.get_workspace_info_mut(&workspace_id)?;
-                let exec = info.get_execution_mut(request_or_group_id);
-                exec.execution_state = previous_state;
-                let abort_event = HashMap::from([(
-                    request_or_group_id.to_string(),
-                    ExecutionEvent::Cancel {
-                        execution_state: previous_state,
-                    },
-                )]);
-
-                for session_id in &all_session_ids {
-                    app.emit_to(session_id, "execution_event", &abort_event)
-                        .unwrap();
-                }
-            } // Write lock released immediately
-            Err(ApicizeAppError::NoResults)
+            cleanup().await?;
+            return Err(ApicizeAppError::NoResults);
         }
     }
+
+    Ok(())
 }
 
 #[tauri::command]

@@ -118,6 +118,10 @@ export abstract class EditableRequestEntry extends Editable {
                 this.applyExecution(event)
                 this.isRunning = false
                 break
+            case 'testStarted':
+                break
+            case 'testEnded':
+                break
             default:
                 throw new Error(`Unhandled event type: ${eventType satisfies never}`)
         }

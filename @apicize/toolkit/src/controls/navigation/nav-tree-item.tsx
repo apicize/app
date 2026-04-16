@@ -7,7 +7,7 @@ import { DraggableData, DroppableData } from "../../models/drag-drop"
 import { EntityType } from "../../models/workspace/entity-type"
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-// import KeyIcon from '@mui/icons-material/Key';
+import DirectionsRunIcon from '@mui/icons-material/DirectionsRun';// import KeyIcon from '@mui/icons-material/Key';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import ErrorIcon from '@mui/icons-material/Error';
 import { CSS, useCombinedRefs } from '@dnd-kit/utilities';
@@ -35,8 +35,15 @@ export const iconsFromState = (entry: NavigationEntry) => {
     const icons: JSX.Element[] = []
 
     if (entry.executionState) {
-        if ((entry.executionState & ExecutionState.running) === ExecutionState.running as number) {
-            icons.push(<PlayArrowIcon color="success" fontSize='medium' key={`play-${entry.id}`} />)
+        const active = (entry.executionState & ExecutionState.running) === ExecutionState.running as number;
+        const running = (entry.executionState & ExecutionState.testStarted) === ExecutionState.testStarted as number
+        if (active || running) {
+            if (active) {
+                icons.push(<PlayArrowIcon color="success" fontSize='medium' key={`play-${entry.id}`} />)
+            }
+            if (running) {
+                icons.push(<DirectionsRunIcon color="info" fontSize='medium' key={`running-${entry.id}`} />)
+            }
         } else {
             const masked = entry.executionState & (ExecutionState.success | ExecutionState.failure | ExecutionState.error)
             switch (masked) {

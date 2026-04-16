@@ -1,7 +1,7 @@
 use apicize_lib::{Authorization, Certificate, Proxy, Scenario, StoredRequestEntry};
 use clipboard_rs::{
-    common::RustImage, Clipboard, ClipboardContext, ClipboardHandler, ClipboardWatcher,
-    ClipboardWatcherContext, WatcherShutdown,
+    Clipboard, ClipboardContext, ClipboardHandler, ClipboardWatcher, ClipboardWatcherContext,
+    WatcherShutdown, common::RustImage,
 };
 use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};

@@ -30,4 +30,3 @@ pub enum EntityUpdate {
     DataSet(DataSetUpdate),
     Defaults(DefaultsUpdate),
 }
-

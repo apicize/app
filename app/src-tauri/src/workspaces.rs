@@ -23,6 +23,7 @@ use std::{
     fmt::Display,
     fs,
     path::PathBuf,
+    sync::{Arc, Mutex},
 };
 use uuid::Uuid;
 
@@ -97,6 +98,8 @@ pub struct WorkspaceInfo {
     pub executions: FxHashMap<String, RequestExecution>,
     /// Active data set content
     pub data_set_content: FxHashMap<String, DataSetContent>,
+    /// Execution counters for tracking active requests
+    pub execution_counters: ExecutionCounters,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -219,6 +222,7 @@ impl Workspaces {
                 directory: directory.to_string(),
                 display_name: display_name.to_string(),
                 data_set_content: FxHashMap::default(),
+                execution_counters: Arc::new(Mutex::new(HashMap::new())),
                 // request_body_mime_types: HashMap::default(),
             },
         );
@@ -3874,6 +3878,10 @@ pub enum ExecutionEvent {
     Complete(RequestExecution),
     #[serde(rename_all = "camelCase")]
     Reset(RequestExecution),
+    #[serde(rename_all = "camelCase")]
+    TestStarted { execution_state: ExecutionState },
+    #[serde(rename_all = "camelCase")]
+    TestEnded { execution_state: ExecutionState },
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -3987,4 +3995,49 @@ pub enum PasswordLockType {
     Password { password: String },
     EnvVar,
     None,
+}
+
+pub type ExecutionCounters = Arc<Mutex<HashMap<String, usize>>>;
+
+#[derive(PartialEq)]
+pub enum ExecutionCounterResult {
+    None,
+    EmitStart,
+    EmitEnd,
+}
+
+/// Increment the execution counters, returns whether to emit
+/// a start or end event
+pub fn increment_counters(
+    counters: &ExecutionCounters,
+    request_or_group_id: &str,
+    count: i32,
+) -> ExecutionCounterResult {
+    let is_positive = count >= 0;
+    let count: usize = count.abs().try_into().unwrap();
+    let mut counters = counters.lock().unwrap();
+    let mut result: ExecutionCounterResult = ExecutionCounterResult::None;
+    if let Some(c) = counters.get_mut(request_or_group_id) {
+        if is_positive {
+            if *c == 0 && count > 0 {
+                result = ExecutionCounterResult::EmitStart;
+            }
+            *c = c.saturating_add(count);
+        } else {
+            *c = c.saturating_sub(count);
+            if *c == 0 {
+                result = ExecutionCounterResult::EmitEnd;
+            }
+        }
+    } else {
+        if count > 0 {
+            result = ExecutionCounterResult::EmitStart;
+        }
+        counters.insert(
+            request_or_group_id.to_string(),
+            if is_positive { count } else { 0 },
+        );
+    }
+
+    result
 }

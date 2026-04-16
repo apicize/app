@@ -244,4 +244,6 @@ export enum ExecutionState {
     success = 2,
     failure = 4,
     error = 8,
+    testStarted = 16,
+    testEnded = 32,
 }

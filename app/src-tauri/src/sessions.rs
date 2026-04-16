@@ -121,10 +121,7 @@ impl Sessions {
 
 impl Session {
     /// Update the session's active entity if it is an acceptable type  
-    pub fn update_active_entity(
-        &mut self,
-        entity: &Option<SessionEntity>,
-    ) {
+    pub fn update_active_entity(&mut self, entity: &Option<SessionEntity>) {
         let ok = match entity {
             Some(entity) => matches!(
                 entity.entity_type,

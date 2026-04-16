@@ -509,15 +509,15 @@ impl Navigation {
             PERSIST_WORKBOOK => {
                 section.public.push(entry);
                 return true;
-            },
+            }
             PERSIST_PRIVATE => {
                 section.private.push(entry);
                 return true;
-            },
+            }
             PERSIST_VAULT => {
                 section.vault.push(entry);
                 return true;
-            },
+            }
             _ => {
                 for list in [
                     &mut section.public,

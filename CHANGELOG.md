@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.40.0
+
+* Add execution running status indicators
+
 ## 0.35.2
 
 * Use CURL double quotes for Windows
