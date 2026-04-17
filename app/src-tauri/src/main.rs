@@ -337,11 +337,11 @@ async fn main() {
         .expect("error building Apicize")
         .run(|_app: &AppHandle, event| {
             match event {
-                tauri::RunEvent::ExitRequested { api, .. } => {
+                tauri::RunEvent::ExitRequested { api, .. }
+                    if IN_FLIGHT_SAVES.load(Ordering::SeqCst) > 0 =>
+                {
                     // If saves are still in flight, defer exit
-                    if IN_FLIGHT_SAVES.load(Ordering::SeqCst) > 0 {
-                        api.prevent_exit();
-                    }
+                    api.prevent_exit();
                 }
                 tauri::RunEvent::Exit => {
                     // Wait for any remaining in-flight saves before tearing down
