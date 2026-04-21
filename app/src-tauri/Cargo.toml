@@ -1,6 +1,6 @@
 [package]
 name = "apicize"
-version = "0.40.1"
+version = "0.40.2"
 description = "Apicize HTTP call testing application"
 authors = ["Jason Terando"]
 license = "MIT"

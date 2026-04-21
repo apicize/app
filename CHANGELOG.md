@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.40.2
+
+* Update demo
+
 ## 0.40.1
 
 * Improve execution running status on overlapping group executions

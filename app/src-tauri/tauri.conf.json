@@ -2,7 +2,7 @@
   "$schema": "../../node_modules/@tauri-apps/cli/config.schema.json",
   "identifier": "apicize",
   "productName": "Apicize",
-  "version": "0.40.1",
+  "version": "0.40.2",
   "app": {
     "security": {
       "csp": null

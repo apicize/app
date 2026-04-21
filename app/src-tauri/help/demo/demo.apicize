@@ -2,436 +2,145 @@
     "version": 1.0,
     "requests": [
         {
-            "id": "08481c50-fc57-4099-9733-a102f1850c37",
+            "id": "043e3493-a768-4a27-9aaa-597c49348df3",
             "name": "CRUD Operations",
             "children": [
                 {
-                    "id": "043e3493-a768-4a27-9aaa-597c49348df3",
-                    "name": "Embedded Data",
-                    "children": [
+                    "id": "d1d67fe1-2e56-4e37-933a-08bafe089c51",
+                    "name": "Create quote",
+                    "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('response', () => {\n   it('returns an ID', () => {\n      const data = (response.body.type == BodyType.JSON)\n         ? response.body.data\n         : expect.fail('Response body is not JSON')\n\n      const id = data.id\n      expect(id).not.to.be.empty\n      output('id', id)\n      console.info(`ID is ${id}`)\n   })\n})",
+                    "url": "{{url}}/quote",
+                    "method": "POST",
+                    "timeout": 30000,
+                    "headers": [
                         {
-                            "id": "d1d67fe1-2e56-4e37-933a-08bafe089c51",
-                            "name": "Create quote",
-                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('response', () => {\n   it('returns an ID', () => {\n      const data = (response.body.type == BodyType.JSON)\n         ? response.body.data\n         : expect.fail('Response body is not JSON')\n\n      const id = data.id\n      expect(id).not.to.be.empty\n      output('id', id)\n      console.info(`ID is ${id}`)\n   })\n})",
-                            "url": "https://sample-api.apicize.com/quote/",
-                            "method": "POST",
-                            "timeout": 30000,
-                            "headers": [
-                                {
-                                    "name": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
-                            "body": {
-                                "type": "JSON",
-                                "data": {
-                                    "author": "{{author}}",
-                                    "quote": "{{quote}}"
-                                },
-                                "formatted": "{\n  \"author\": \"{{author}}\",\n  \"quote\": \"{{quote}}\"\n}"
-                            },
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
-                        },
-                        {
-                            "id": "707345a2-01cf-46d3-8bbe-8e528f715761",
-                            "name": "Get original quote",
-                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('stored', () => {\n   const data = (response.body.type == BodyType.JSON)\n      ? response.body.data\n      : expect.fail('Response body is not JSON')\n\n   console.info(`Author: ${data.author}, Quote: \"${data.quote}\"`)\n\n   describe('author', () => {\n      it('equals configured author', () => {\n         expect(data.author).to.equal($.author)\n      })\n   })\n\n   describe('quote', () => {\n      it('equals original quote', () => {\n         expect(data.quote).to.equal($.quote)\n      })\n   })\n})\n",
-                            "url": "https://sample-api.apicize.com/quote/{{id}}",
-                            "method": "GET",
-                            "timeout": 30000,
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
-                        },
-                        {
-                            "id": "17607d0f-7e87-4d04-a76b-6261d7ce041d",
-                            "name": "Update quote to test value",
-                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})",
-                            "url": "https://sample-api.apicize.com/quote/{{id}}",
-                            "method": "PUT",
-                            "timeout": 30000,
-                            "headers": [
-                                {
-                                    "name": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
-                            "body": {
-                                "type": "JSON",
-                                "data": {
-                                    "quote": "{{test-quote}}"
-                                },
-                                "formatted": "{\n  \"quote\": \"{{test-quote}}\"\n}"
-                            },
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
-                        },
-                        {
-                            "id": "2959d274-9523-40a4-93f8-a6eedafb6dc7",
-                            "name": "Get updated quote",
-                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('quote', () => {\n   it('equals test quote', () => {\n      const result = (response.body.type == BodyType.JSON)\n         ? response.body.data\n         : expect.fail('Response body is not JSON')\n      console.info(`Author: ${result.author}, Quote: \"${result.quote}\"`)\n      expect(result.quote).to.equal($['test-quote'])\n   })\n})\n",
-                            "url": "https://sample-api.apicize.com/quote/{{id}}",
-                            "method": "GET",
-                            "timeout": 30000,
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
-                        },
-                        {
-                            "id": "105c2090-8d2d-45ce-9885-4bf7c65303ac",
-                            "name": "Restore original quote",
-                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})",
-                            "url": "https://sample-api.apicize.com/quote/{{id}}",
-                            "method": "PUT",
-                            "timeout": 30000,
-                            "headers": [
-                                {
-                                    "name": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
-                            "body": {
-                                "type": "JSON",
-                                "data": {
-                                    "quote": "{{quote}}"
-                                },
-                                "formatted": "{\n  \"quote\": \"{{quote}}\"\n}"
-                            },
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
-                        },
-                        {
-                            "id": "070d2b68-0a7e-4172-b787-5a826fa6f5bb",
-                            "name": "Get restored quote",
-                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('stored quote', () => {\n   it('equals original quote', () => {\n      const result = (response.body.type == BodyType.JSON)\n         ? response.body.data\n         : expect.fail('Response body is not JSON')\n      console.info(`Author: ${result.author}, Quote: \"${result.quote}\"`)\n      expect(result.quote).to.equal($.quote)\n   })\n})",
-                            "url": "https://sample-api.apicize.com/quote/{{id}}",
-                            "method": "GET",
-                            "timeout": 30000,
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
-                        },
-                        {
-                            "id": "d9c23cc2-3311-4382-a4fa-7494876760cf",
-                            "name": "Delete quote",
-                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n",
-                            "url": "https://sample-api.apicize.com/quote/{{id}}",
-                            "method": "DELETE",
-                            "timeout": 30000,
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
-                        },
-                        {
-                            "id": "e97e2845-dbeb-4ed6-8f25-c73ef53996ef",
-                            "name": "Ensure quote is deleted",
-                            "test": "describe('status', () => {\n   it('equals 404', () => {\n      expect(response.status).to.equal(404)\n   })\n})\n",
-                            "url": "https://sample-api.apicize.com/quote/{{id}}",
-                            "method": "GET",
-                            "timeout": 30000,
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
+                            "name": "Content-Type",
+                            "value": "application/json"
                         }
                     ],
-                    "execution": "SEQUENTIAL",
+                    "body": {
+                        "type": "JSON",
+                        "data": {
+                            "author": "{{author}}",
+                            "quote": "{{quote}}"
+                        },
+                        "formatted": "{\n  \"author\": \"{{author}}\",\n  \"quote\": \"{{quote}}\"\n}"
+                    },
+                    "numberOfRedirects": 10,
                     "runs": 1,
-                    "multiRunExecution": "SEQUENTIAL",
-                    "selectedData": {
-                        "id": "90a39691-8f30-403d-8f92-5651ad60adb2",
-                        "name": "Embedded Data"
-                    }
+                    "multiRunExecution": "SEQUENTIAL"
                 },
                 {
-                    "id": "951d3f21-e5cf-4426-90e9-0eaa3da83f11",
-                    "name": "JSON Data Set",
-                    "children": [
-                        {
-                            "id": "52c97308-6781-405c-852f-241bcf6d5157",
-                            "name": "Create quote",
-                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('response', () => {\n   it('returns an ID', () => {\n      const data = (response.body.type == BodyType.JSON)\n         ? response.body.data\n         : expect.fail('Response body is not JSON')\n\n      const id = data.id\n      expect(id).not.to.be.empty\n      output('id', id)\n      console.info(`ID is ${id}`)\n   })\n})",
-                            "url": "https://sample-api.apicize.com/quote/",
-                            "method": "POST",
-                            "timeout": 30000,
-                            "headers": [
-                                {
-                                    "name": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
-                            "body": {
-                                "type": "JSON",
-                                "data": {
-                                    "author": "{{author}}",
-                                    "quote": "{{quote}}"
-                                },
-                                "formatted": "{\n  \"author\": \"{{author}}\",\n  \"quote\": \"{{quote}}\"\n}"
-                            },
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
-                        },
-                        {
-                            "id": "4a054fbb-1b6e-4e05-bf11-d66b09e3663e",
-                            "name": "Get original quote",
-                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('stored', () => {\n   const data = (response.body.type == BodyType.JSON)\n      ? response.body.data\n      : expect.fail('Response body is not JSON')\n\n   console.info(`Author: ${data.author}, Quote: \"${data.quote}\"`)\n\n   describe('author', () => {\n      it('equals configured author', () => {\n         expect(data.author).to.equal($.author)\n      })\n   })\n\n   describe('quote', () => {\n      it('equals original quote', () => {\n         expect(data.quote).to.equal($.quote)\n      })\n   })\n})\n",
-                            "url": "https://sample-api.apicize.com/quote/{{id}}",
-                            "method": "GET",
-                            "timeout": 30000,
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
-                        },
-                        {
-                            "id": "2188e9ac-89cf-48f2-9fca-ad57256f992e",
-                            "name": "Update quote to test value",
-                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})",
-                            "url": "https://sample-api.apicize.com/quote/{{id}}",
-                            "method": "PUT",
-                            "timeout": 30000,
-                            "headers": [
-                                {
-                                    "name": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
-                            "body": {
-                                "type": "JSON",
-                                "data": {
-                                    "quote": "{{test-quote}}"
-                                },
-                                "formatted": "{\n  \"quote\": \"{{test-quote}}\"\n}"
-                            },
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
-                        },
-                        {
-                            "id": "04b83700-48c7-49b8-8a38-8e1dc73ae690",
-                            "name": "Get updated quote",
-                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('quote', () => {\n   it('equals test quote', () => {\n      const result = (response.body.type == BodyType.JSON)\n         ? response.body.data\n         : expect.fail('Response body is not JSON')\n      console.info(`Author: ${result.author}, Quote: \"${result.quote}\"`)\n      expect(result.quote).to.equal($['test-quote'])\n   })\n})\n",
-                            "url": "https://sample-api.apicize.com/quote/{{id}}",
-                            "method": "GET",
-                            "timeout": 30000,
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
-                        },
-                        {
-                            "id": "fc094caa-4f48-420d-b1bb-ddb322609cb1",
-                            "name": "Restore original quote",
-                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})",
-                            "url": "https://sample-api.apicize.com/quote/{{id}}",
-                            "method": "PUT",
-                            "timeout": 30000,
-                            "headers": [
-                                {
-                                    "name": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
-                            "body": {
-                                "type": "JSON",
-                                "data": {
-                                    "quote": "{{quote}}"
-                                },
-                                "formatted": "{\n  \"quote\": \"{{quote}}\"\n}"
-                            },
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
-                        },
-                        {
-                            "id": "d72837be-0851-440b-99ce-d3e0abf22f3e",
-                            "name": "Get restored quote",
-                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('stored quote', () => {\n   it('equals original quote', () => {\n      const result = (response.body.type == BodyType.JSON)\n         ? response.body.data\n         : expect.fail('Response body is not JSON')\n      console.info(`Author: ${result.author}, Quote: \"${result.quote}\"`)\n      expect(result.quote).to.equal($.quote)\n   })\n})",
-                            "url": "https://sample-api.apicize.com/quote/{{id}}",
-                            "method": "GET",
-                            "timeout": 30000,
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
-                        },
-                        {
-                            "id": "c450374a-4441-43f8-a9ca-e757a4bc652d",
-                            "name": "Delete quote",
-                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n",
-                            "url": "https://sample-api.apicize.com/quote/{{id}}",
-                            "method": "DELETE",
-                            "timeout": 30000,
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
-                        },
-                        {
-                            "id": "742330d2-9a61-422e-aa72-2d1d07dbbd6d",
-                            "name": "Ensure quote is deleted",
-                            "test": "describe('status', () => {\n   it('equals 404', () => {\n      expect(response.status).to.equal(404)\n   })\n})\n",
-                            "url": "https://sample-api.apicize.com/quote/{{id}}",
-                            "method": "GET",
-                            "timeout": 30000,
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
-                        }
-                    ],
-                    "execution": "SEQUENTIAL",
+                    "id": "707345a2-01cf-46d3-8bbe-8e528f715761",
+                    "name": "Get original quote",
+                    "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('stored', () => {\n   const data = (response.body.type == BodyType.JSON)\n      ? response.body.data\n      : expect.fail('Response body is not JSON')\n\n   console.info(`Author: ${data.author}, Quote: \"${data.quote}\"`)\n\n   describe('author', () => {\n      it('equals configured author', () => {\n         expect(data.author).to.equal($.author)\n      })\n   })\n\n   describe('quote', () => {\n      it('equals original quote', () => {\n         expect(data.quote).to.equal($.quote)\n      })\n   })\n})\n",
+                    "url": "{{url}}/quote/{{id}}",
+                    "method": "GET",
+                    "timeout": 30000,
+                    "numberOfRedirects": 10,
                     "runs": 1,
-                    "multiRunExecution": "SEQUENTIAL",
-                    "selectedData": {
-                        "id": "d5a031a1-4cda-4ffe-b78d-4f681d6507b3",
-                        "name": "Sample JSON Data"
-                    }
+                    "multiRunExecution": "SEQUENTIAL"
                 },
                 {
-                    "id": "b2c6ce50-ed7a-4b41-9c69-132733f3a4ef",
-                    "name": "CSV Data Set",
-                    "children": [
+                    "id": "17607d0f-7e87-4d04-a76b-6261d7ce041d",
+                    "name": "Update quote to test value",
+                    "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})",
+                    "url": "{{url}}/quote/{{id}}",
+                    "method": "PUT",
+                    "timeout": 30000,
+                    "headers": [
                         {
-                            "id": "1d2190b0-62e3-477d-9921-505a0c63deb0",
-                            "name": "Create quote",
-                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('response', () => {\n   it('returns an ID', () => {\n      const data = (response.body.type == BodyType.JSON)\n         ? response.body.data\n         : expect.fail('Response body is not JSON')\n\n      const id = data.id\n      expect(id).not.to.be.empty\n      output('id', id)\n      console.info(`ID is ${id}`)\n   })\n})",
-                            "url": "https://sample-api.apicize.com/quote/",
-                            "method": "POST",
-                            "timeout": 30000,
-                            "headers": [
-                                {
-                                    "name": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
-                            "body": {
-                                "type": "JSON",
-                                "data": {
-                                    "author": "{{author}}",
-                                    "quote": "{{quote}}"
-                                },
-                                "formatted": "{\n  \"author\": \"{{author}}\",\n  \"quote\": \"{{quote}}\"\n}"
-                            },
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
-                        },
-                        {
-                            "id": "834ae1ac-58a8-4ffd-b2d8-6c191d2adafa",
-                            "name": "Get original quote",
-                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('stored', () => {\n   const data = (response.body.type == BodyType.JSON)\n      ? response.body.data\n      : expect.fail('Response body is not JSON')\n\n   console.info(`Author: ${data.author}, Quote: \"${data.quote}\"`)\n\n   describe('author', () => {\n      it('equals configured author', () => {\n         expect(data.author).to.equal($.author)\n      })\n   })\n\n   describe('quote', () => {\n      it('equals original quote', () => {\n         expect(data.quote).to.equal($.quote)\n      })\n   })\n})\n",
-                            "url": "https://sample-api.apicize.com/quote/{{id}}",
-                            "method": "GET",
-                            "timeout": 30000,
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
-                        },
-                        {
-                            "id": "73c7db48-437a-49ea-bb73-993ed4efb8ce",
-                            "name": "Update quote to test value",
-                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})",
-                            "url": "https://sample-api.apicize.com/quote/{{id}}",
-                            "method": "PUT",
-                            "timeout": 30000,
-                            "headers": [
-                                {
-                                    "name": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
-                            "body": {
-                                "type": "JSON",
-                                "data": {
-                                    "quote": "{{test-quote}}"
-                                },
-                                "formatted": "{\n  \"quote\": \"{{test-quote}}\"\n}"
-                            },
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
-                        },
-                        {
-                            "id": "9a08ca1f-1548-4f2b-b1ee-679c2b8d3f40",
-                            "name": "Get updated quote",
-                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('quote', () => {\n   it('equals test quote', () => {\n      const result = (response.body.type == BodyType.JSON)\n         ? response.body.data\n         : expect.fail('Response body is not JSON')\n      console.info(`Author: ${result.author}, Quote: \"${result.quote}\"`)\n      expect(result.quote).to.equal($['test-quote'])\n   })\n})\n",
-                            "url": "https://sample-api.apicize.com/quote/{{id}}",
-                            "method": "GET",
-                            "timeout": 30000,
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
-                        },
-                        {
-                            "id": "4543f548-506d-4b6b-af7a-53731d69413d",
-                            "name": "Restore original quote",
-                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})",
-                            "url": "https://sample-api.apicize.com/quote/{{id}}",
-                            "method": "PUT",
-                            "timeout": 30000,
-                            "headers": [
-                                {
-                                    "name": "Content-Type",
-                                    "value": "application/json"
-                                }
-                            ],
-                            "body": {
-                                "type": "JSON",
-                                "data": {
-                                    "quote": "{{quote}}"
-                                },
-                                "formatted": "{\n  \"quote\": \"{{quote}}\"\n}"
-                            },
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
-                        },
-                        {
-                            "id": "ace4478e-945b-4a98-8018-aca2a935c2e5",
-                            "name": "Get restored quote",
-                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('stored quote', () => {\n   it('equals original quote', () => {\n      const result = (response.body.type == BodyType.JSON)\n         ? response.body.data\n         : expect.fail('Response body is not JSON')\n      console.info(`Author: ${result.author}, Quote: \"${result.quote}\"`)\n      expect(result.quote).to.equal($.quote)\n   })\n})",
-                            "url": "https://sample-api.apicize.com/quote/{{id}}",
-                            "method": "GET",
-                            "timeout": 30000,
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
-                        },
-                        {
-                            "id": "b3f3860a-7e32-4208-9224-0230a25df2f7",
-                            "name": "Delete quote",
-                            "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n",
-                            "url": "https://sample-api.apicize.com/quote/{{id}}",
-                            "method": "DELETE",
-                            "timeout": 30000,
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
-                        },
-                        {
-                            "id": "0890e118-582a-45fa-9f41-541ac3572e6f",
-                            "name": "Ensure quote is deleted",
-                            "test": "describe('status', () => {\n   it('equals 404', () => {\n      expect(response.status).to.equal(404)\n   })\n})\n",
-                            "url": "https://sample-api.apicize.com/quote/{{id}}",
-                            "method": "GET",
-                            "timeout": 30000,
-                            "numberOfRedirects": 10,
-                            "runs": 1,
-                            "multiRunExecution": "SEQUENTIAL"
+                            "name": "Content-Type",
+                            "value": "application/json"
                         }
                     ],
-                    "execution": "SEQUENTIAL",
+                    "body": {
+                        "type": "JSON",
+                        "data": {
+                            "quote": "{{test-quote}}"
+                        },
+                        "formatted": "{\n  \"quote\": \"{{test-quote}}\"\n}"
+                    },
+                    "numberOfRedirects": 10,
                     "runs": 1,
-                    "multiRunExecution": "SEQUENTIAL",
-                    "selectedData": {
-                        "id": "78008fee-bbde-4ab6-ab77-650d44c5637a",
-                        "name": "Sample CSV Data"
-                    }
+                    "multiRunExecution": "SEQUENTIAL"
+                },
+                {
+                    "id": "2959d274-9523-40a4-93f8-a6eedafb6dc7",
+                    "name": "Get updated quote",
+                    "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('quote', () => {\n   it('equals test quote', () => {\n      const result = (response.body.type == BodyType.JSON)\n         ? response.body.data\n         : expect.fail('Response body is not JSON')\n      console.info(`Author: ${result.author}, Quote: \"${result.quote}\"`)\n      expect(result.quote).to.equal($['test-quote'])\n   })\n})\n",
+                    "url": "{{url}}/quote/{{id}}",
+                    "method": "GET",
+                    "timeout": 30000,
+                    "numberOfRedirects": 10,
+                    "runs": 1,
+                    "multiRunExecution": "SEQUENTIAL"
+                },
+                {
+                    "id": "105c2090-8d2d-45ce-9885-4bf7c65303ac",
+                    "name": "Restore original quote",
+                    "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})",
+                    "url": "{{url}}/quote/{{id}}",
+                    "method": "PUT",
+                    "timeout": 30000,
+                    "headers": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": {
+                        "type": "JSON",
+                        "data": {
+                            "quote": "{{quote}}"
+                        },
+                        "formatted": "{\n  \"quote\": \"{{quote}}\"\n}"
+                    },
+                    "numberOfRedirects": 10,
+                    "runs": 1,
+                    "multiRunExecution": "SEQUENTIAL"
+                },
+                {
+                    "id": "070d2b68-0a7e-4172-b787-5a826fa6f5bb",
+                    "name": "Get restored quote",
+                    "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('stored quote', () => {\n   it('equals original quote', () => {\n      const result = (response.body.type == BodyType.JSON)\n         ? response.body.data\n         : expect.fail('Response body is not JSON')\n      console.info(`Author: ${result.author}, Quote: \"${result.quote}\"`)\n      expect(result.quote).to.equal($.quote)\n   })\n})",
+                    "url": "{{url}}/quote/{{id}}",
+                    "method": "GET",
+                    "timeout": 30000,
+                    "numberOfRedirects": 10,
+                    "runs": 1,
+                    "multiRunExecution": "SEQUENTIAL"
+                },
+                {
+                    "id": "d9c23cc2-3311-4382-a4fa-7494876760cf",
+                    "name": "Delete quote",
+                    "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n",
+                    "url": "{{url}}/quote/{{id}}",
+                    "method": "DELETE",
+                    "timeout": 30000,
+                    "numberOfRedirects": 10,
+                    "runs": 1,
+                    "multiRunExecution": "SEQUENTIAL"
+                },
+                {
+                    "id": "e97e2845-dbeb-4ed6-8f25-c73ef53996ef",
+                    "name": "Ensure quote is deleted",
+                    "test": "describe('status', () => {\n   it('equals 404', () => {\n      expect(response.status).to.equal(404)\n   })\n})\n",
+                    "url": "{{url}}/quote/{{id}}",
+                    "method": "GET",
+                    "timeout": 30000,
+                    "numberOfRedirects": 10,
+                    "runs": 1,
+                    "multiRunExecution": "SEQUENTIAL"
                 }
             ],
             "execution": "SEQUENTIAL",
             "runs": 1,
-            "multiRunExecution": "SEQUENTIAL"
+            "multiRunExecution": "SEQUENTIAL",
+            "selectedData": {
+                "id": "90a39691-8f30-403d-8f92-5651ad60adb2",
+                "name": "Embedded Data"
+            }
         },
         {
             "id": "f0e0565d-c59b-44f9-9232-426f89d46291",
@@ -441,7 +150,7 @@
                     "id": "14775e91-cee6-404e-bb64-88cc97b8b77a",
                     "name": "Right",
                     "test": "describe('status', () => {\n    it('equals 200', () => {\n        expect(response.status).to.equal(200)\n    })\n})\n\ndescribe('body', () => {\n    it('has length > 0', () => {\n        const result = (response.body.type == BodyType.Binary)\n            ? response.body.data\n            : expect.fail('Response body is not binary')\n\n        expect(result.length).to.be.greaterThan(0)\n    })\n})",
-                    "url": "https://sample-api.apicize.com/image/right",
+                    "url": "{{url}}/image/right",
                     "method": "POST",
                     "timeout": 30000,
                     "headers": [
@@ -462,7 +171,7 @@
                     "id": "d9664e4b-1ade-4588-aa92-a13244882d5a",
                     "name": "Flip",
                     "test": "describe('status', () => {\n    it('equals 200', () => {\n        expect(response.status).to.equal(200)\n    })\n})\n\ndescribe('body', () => {\n    it('has length > 0', () => {\n        const result = (response.body.type == BodyType.Binary)\n            ? response.body.data\n            : expect.fail('Response body is not binary')\n\n        expect(result.length).to.be.greaterThan(0)\n    })\n})",
-                    "url": "https://sample-api.apicize.com/image/flip",
+                    "url": "{{url}}/image/flip",
                     "method": "POST",
                     "timeout": 30000,
                     "headers": [
@@ -483,7 +192,7 @@
                     "id": "08d81ab7-f1a7-4187-ab28-eb03199ef338",
                     "name": "Left",
                     "test": "describe('status', () => {\n    it('equals 200', () => {\n        expect(response.status).to.equal(200)\n    })\n})\n\ndescribe('body', () => {\n    it('has length > 0', () => {\n        const result = (response.body.type == BodyType.Binary)\n            ? response.body.data\n            : expect.fail('Response body is not binary')\n\n        expect(result.length).to.be.greaterThan(0)\n    })\n})",
-                    "url": "https://sample-api.apicize.com/image/left",
+                    "url": "{{url}}/image/left",
                     "method": "POST",
                     "timeout": 30000,
                     "headers": [
@@ -501,7 +210,7 @@
                     "multiRunExecution": "SEQUENTIAL"
                 }
             ],
-            "execution": "CONCURRENT",
+            "execution": "SEQUENTIAL",
             "runs": 1,
             "multiRunExecution": "SEQUENTIAL"
         },
@@ -555,7 +264,7 @@
                     "multiRunExecution": "SEQUENTIAL"
                 }
             ],
-            "execution": "SEQUENTIAL",
+            "execution": "CONCURRENT",
             "runs": 1,
             "multiRunExecution": "SEQUENTIAL"
         }
@@ -573,11 +282,11 @@
         },
         {
             "id": "146f71a0-ec9f-47a2-8858-8bfd63fdc81a",
-            "name": "Local (Development)",
+            "name": "Local Development",
             "variables": [
                 {
                     "name": "url",
-                    "value": "http://localhost:8080"
+                    "value": "http://localhost:3000"
                 }
             ]
         }
@@ -586,8 +295,18 @@
         {
             "type": "OAuth2Client",
             "id": "ccfbfacc-091c-4c97-908d-d5c6b0ddf13c",
-            "name": "Sample Token",
+            "name": "Sample Site",
             "accessTokenUrl": "https://sample-api.apicize.com/token",
+            "clientId": "apicize",
+            "clientSecret": "",
+            "scope": "image quote calc",
+            "sendCredentialsInBody": false
+        },
+        {
+            "type": "OAuth2Client",
+            "id": "ae7ce435-b0e9-42b9-94f4-e8e9d14d29a2",
+            "name": "Local Development",
+            "accessTokenUrl": "http://localhost:3000/token",
             "clientId": "apicize",
             "clientSecret": "",
             "scope": "image quote calc",
@@ -599,7 +318,7 @@
             "id": "90a39691-8f30-403d-8f92-5651ad60adb2",
             "name": "Embedded Data",
             "type": "JSON",
-            "source": "{\n   \"author\": \"Philip K. Dick\",\n   \"quote\": \"The basic tool for the manipulation of reality is the manipulation of words. If you can control the meaning of words, you can control the people who must use the words.\",\n   \"test-quote\": \"Reality denied comes back to haunt.\"\n}"
+            "source": "[\n   {\n      \"author\": \"Philip K. Dick\",\n      \"quote\": \"The basic tool for the manipulation of reality is the manipulation of words. If you can control the meaning of words, you can control the people who must use the words.\",\n      \"test-quote\": \"Reality denied comes back to haunt.\"\n   }\n]"
         },
         {
             "id": "d5a031a1-4cda-4ffe-b78d-4f681d6507b3",
@@ -621,7 +340,7 @@
         },
         "selectedAuthorization": {
             "id": "ccfbfacc-091c-4c97-908d-d5c6b0ddf13c",
-            "name": "Sample Token"
+            "name": "Sample Site"
         }
     }
 }

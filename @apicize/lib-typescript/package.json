@@ -1,7 +1,7 @@
 {
   "name": "@apicize/lib-typescript",
   "private": true,
-  "version": "0.40.1",
+  "version": "0.40.2",
   "description": "TypeScript model definitions for Apicize",
   "scripts": {
     "lint": "yarn run -T eslint src/",
