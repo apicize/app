@@ -5,11 +5,9 @@ use apicize_lib::{
     ParameterLockStatus, ParameterStore, Parameters, Proxy, Request, RequestBody, RequestEntry,
     RequestGroup, SaveWorkspaceParameters, Scenario, SelectedParameters, Selection,
     StoredRequestEntry, Validated, ValidationState, WorkbookDefaultParameters, Workspace,
-    authorization::AuthorizationPlain,
-    certificate::CertificatePlain,
-    editing::indexed_entities::IndexedEntityPosition,
-    identifiable::CloneIdentifiable,
-    workspace::{InvalidSelections, SelectedOption},
+    authorization::AuthorizationPlain, certificate::CertificatePlain,
+    editing::indexed_entities::IndexedEntityPosition, identifiable::CloneIdentifiable,
+    workspace::InvalidSelections,
 };
 use file_type::FileType;
 use indexmap::IndexMap;
@@ -1070,39 +1068,21 @@ impl Workspaces {
 
         if result.is_none() {
             let selection = &workspace.defaults.selected_authorization;
-            match workspace.authorizations.get(selection.id.as_str()) {
-                Some(auth) => {
-                    result = Some(auth.clone());
-                }
-                None => {
-                    return Err(ApicizeAppError::InvalidAuthorization(
-                        selection.id.to_owned(),
-                    ));
+            if !selection.is_default_or_none() {
+                match workspace.authorizations.get(selection.id.as_str()) {
+                    Some(auth) => {
+                        result = Some(auth.clone());
+                    }
+                    None => {
+                        return Err(ApicizeAppError::InvalidAuthorization(
+                            selection.id.to_owned(),
+                        ));
+                    }
                 }
             }
         }
 
         Ok(result)
-    }
-
-    pub fn get_request_active_data(
-        &self,
-        workspace_id: &str,
-        request_id: &str,
-    ) -> Result<Option<DataSet>, ApicizeAppError> {
-        let workspace = self.get_workspace(workspace_id)?;
-
-        if let Some(entry) = workspace.requests.entities.get(request_id) {
-            let data = entry.selected_data();
-            if !data.is_default_or_none() {
-                return Ok(match workspace.data.find(data)? {
-                    SelectedOption::Some(m) => Some(m.clone()),
-                    _ => None,
-                });
-            }
-        }
-
-        Ok(None)
     }
 
     /// Return a list of entity and navigation update notifications to reflect changes

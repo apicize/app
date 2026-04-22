@@ -166,7 +166,6 @@ export class WorkspaceStore implements EditableEntityContext {
             listLogs: () => Promise<ReqwestEvent[]>,
             clearLogs: () => Promise<void>,
             getRequestActiveAuthorization: (id: string) => Promise<Authorization | undefined>,
-            getRequestActiveData: (id: string) => Promise<DataSet | undefined>,
             storeToken: (authorizationId: string, tokenInfo: CachedTokenInfo) => Promise<void>,
             clearToken: (authorizationId: string) => Promise<void>,
             clearAllTokens: () => Promise<void>,
@@ -669,10 +668,6 @@ export class WorkspaceStore implements EditableEntityContext {
 
     getRequestActiveAuthorization(request: EditableRequestEntry) {
         return this.callbacks.getRequestActiveAuthorization(request.id)
-    }
-
-    getRequestActiveData(request: EditableRequestEntry) {
-        return this.callbacks.getRequestActiveData(request.id)
     }
 
     @action

@@ -310,7 +310,6 @@ async fn main() {
             get_title,
             get_dirty,
             get_request_active_authorization,
-            get_request_active_data,
             get_data_set_content,
             list_parameters,
             add,
@@ -2354,21 +2353,6 @@ async fn get_request_active_authorization(
     let workspaces = workspaces_state.workspaces.read().await;
     Ok(workspaces
         .get_request_active_authorization(&session.workspace_id, request_id)?
-        .clone())
-}
-
-#[tauri::command]
-async fn get_request_active_data(
-    sessions_state: State<'_, SessionsState>,
-    workspaces_state: State<'_, WorkspacesState>,
-    session_id: &str,
-    request_id: &str,
-) -> Result<Option<DataSet>, ApicizeAppError> {
-    let sessions = sessions_state.sessions.read().await;
-    let session = sessions.get_session(session_id)?;
-    let workspaces = workspaces_state.workspaces.read().await;
-    Ok(workspaces
-        .get_request_active_data(&session.workspace_id, request_id)?
         .clone())
 }
 

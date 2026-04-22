@@ -1,5 +1,10 @@
 # Change Log
 
+## 0.40.3
+
+* Fix get_request_active_authorization when no auth is active
+* Remove unused get_data_set_content
+
 ## 0.40.2
 
 * Update demo
