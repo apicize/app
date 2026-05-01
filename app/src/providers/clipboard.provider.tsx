@@ -51,7 +51,7 @@ export function ClipboardProvider({
             })
         })
         return () => {
-            unlistenClipboardChanged.then(() => { }).catch(console.error)
+            unlistenClipboardChanged.then((unlisten) => unlisten()).catch(console.error)
         }
     }, [store, feedback])
 

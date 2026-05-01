@@ -3422,7 +3422,7 @@ impl WorkspaceInfo {
                 }
             }
             ClipboardPayloadRequest::ResponseSummaryJson { exec_ctr } => {
-                match Workspace::geneate_report(
+                match Workspace::generate_report(
                     &exec_ctr,
                     &get_execution_summaries(&exec_ctr),
                     ExecutionReportFormat::JSON,
@@ -3432,7 +3432,7 @@ impl WorkspaceInfo {
                 }
             }
             ClipboardPayloadRequest::ResponseSummaryCsv { exec_ctr } => {
-                match Workspace::geneate_report(
+                match Workspace::generate_report(
                     &exec_ctr,
                     &get_execution_summaries(&exec_ctr),
                     ExecutionReportFormat::CSV,

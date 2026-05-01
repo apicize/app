@@ -40,6 +40,18 @@ impl ClipboardState {
         }
     }
 
+    pub fn update_and_emit(&self, data: ClipboardData, app: &AppHandle) {
+        let data_type = ClipboardDataType::from(&data);
+        if let Some(mut dt) = self.data_type.try_write_for(Duration::from_secs(5))
+            && let Some(mut d) = self.data.try_write_for(Duration::from_secs(5))
+        {
+            *dt = data_type;
+            *d = Some(data);
+            app.emit("clipboard_changed", data_type)
+                .unwrap_or_else(|err| eprintln!("Unable to emit clipboard event: {err}"));
+        }
+    }
+
     pub fn get_data_type(&self) -> ClipboardDataType {
         if let Some(data_type) = self.data_type.try_read_for(Duration::from_secs(1)) {
             *data_type
@@ -182,11 +194,14 @@ impl ClipboardHandler for ClipboardManager {
             if let Some(mut data_type) = self.data_type.try_write_for(Duration::from_secs(5))
                 && let Some(mut data) = self.data.try_write_for(Duration::from_secs(5))
             {
+                let type_changed = *data_type != new_data_type;
                 *data_type = new_data_type;
                 *data = Some(new_data);
-                self.app
-                    .emit("clipboard_changed", new_data_type)
-                    .unwrap_or_else(|err| eprintln!("Unable to emit clipboard event: {err}"));
+                if type_changed {
+                    self.app
+                        .emit("clipboard_changed", new_data_type)
+                        .unwrap_or_else(|err| eprintln!("Unable to emit clipboard event: {err}"));
+                }
             }
         }
     }

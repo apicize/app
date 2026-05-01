@@ -13,12 +13,12 @@ pub mod updates;
 pub mod workspaces;
 use apicize_lib::{
     ApicizeError, ApicizeRunner, Authorization, CachedTokenInfo, Certificate, DataSet,
-    DataSourceType, ExecutionResultDetail, ExecutionState, Identifiable, IndexedEntities,
-    OAuth2ClientCredentialParameters, OpenWorkbookOptions, PERSIST_PRIVATE, PERSIST_VAULT,
-    ParameterLockStatus, ParameterStore, Parameters, PkceTokenResult, Proxy, RequestBody,
-    RequestEntry, SaveWorkspaceParameters, Scenario, TestRunnerContext, TestRunnerContextInit,
-    TokenResult, Validated, Workspace, authorization::AuthorizationPlain, build_absolute_file_name,
-    clear_all_oauth2_tokens_from_cache, clear_oauth2_token_from_cache,
+    DataSourceType, ExecutionProgress, ExecutionResultDetail, ExecutionState, Identifiable,
+    IndexedEntities, OAuth2ClientCredentialParameters, OpenWorkbookOptions, PERSIST_PRIVATE,
+    PERSIST_VAULT, ParameterLockStatus, ParameterStore, Parameters, PkceTokenResult, Proxy,
+    RequestBody, RequestEntry, SaveWorkspaceParameters, Scenario, TestRunnerContext,
+    TestRunnerContextInit, TokenResult, Validated, Workspace, authorization::AuthorizationPlain,
+    build_absolute_file_name, clear_all_oauth2_tokens_from_cache, clear_oauth2_token_from_cache,
     editing::indexed_entities::IndexedEntityPosition, get_existing_absolute_file_name,
     get_oauth2_client_credentials, get_relative_file_name, store_oauth2_token_in_cache,
 };
@@ -1129,6 +1129,7 @@ async fn save_workspace_inner(
             .unwrap_or_default()
             .to_string_lossy()
             .to_string();
+        info.directory = data_path.to_string_lossy().to_string();
 
         dispatch_save_state(&app, &sessions, &session.workspace_id, info, false);
     }
@@ -1143,6 +1144,17 @@ fn perform_save_data_set_file(
 ) -> Result<(), ApicizeAppError> {
     if !(force_save || content.dirty) {
         return Ok(());
+    }
+
+    if data_set.source_type != DataSourceType::JSON && data_set.source.is_empty() {
+        return Err(ApicizeAppError::InvalidOperation(format!(
+            "Data set \"{}\" must have a file name assigned before it can be saved",
+            if data_set.name.is_empty() {
+                "(Unnamed)"
+            } else {
+                &data_set.name
+            }
+        )));
     }
 
     match data_set.source_type {
@@ -1746,20 +1758,20 @@ async fn start_execution(
         let all_session_ids = all_session_ids.clone();
         let executing_request_or_group_id = executing_request_or_group_id.clone();
 
-        move |request_or_group_id: &str, count: i8| {
-            increment_counters(&local_execution_counters, request_or_group_id, count as i32);
-            match increment_counters(&counters, request_or_group_id, count as i32) {
+        move |progress: &ExecutionProgress| {
+            let id = progress.id.as_str();
+            let count = progress.exec_ctr as i32;
+            increment_counters(&local_execution_counters, id, count);
+            match increment_counters(&counters, id, count) {
                 ExecutionCounterResult::EmitStart => {
                     for emit_to_session_id in &all_session_ids {
                         app.emit_to(
                             emit_to_session_id,
                             "execution_event",
                             HashMap::<String, ExecutionEvent>::from([(
-                                request_or_group_id.to_string(),
+                                id.to_string(),
                                 ExecutionEvent::TestStarted {
-                                    execution_state: if request_or_group_id
-                                        == executing_request_or_group_id
-                                    {
+                                    execution_state: if id == executing_request_or_group_id {
                                         ExecutionState::TEST_STARTED | ExecutionState::RUNNING
                                     } else {
                                         ExecutionState::TEST_STARTED
@@ -1776,11 +1788,9 @@ async fn start_execution(
                             emit_to_session_id,
                             "execution_event",
                             HashMap::<String, ExecutionEvent>::from([(
-                                request_or_group_id.to_string(),
+                                id.to_string(),
                                 ExecutionEvent::TestEnded {
-                                    execution_state: if request_or_group_id
-                                        == executing_request_or_group_id
-                                    {
+                                    execution_state: if id == executing_request_or_group_id {
                                         ExecutionState::TEST_ENDED | ExecutionState::RUNNING
                                     } else {
                                         ExecutionState::TEST_ENDED
@@ -3287,13 +3297,13 @@ async fn save_data_set_file_inner(
 
 #[tauri::command]
 async fn copy_to_clipboard(
+    app: AppHandle,
     sessions_state: State<'_, SessionsState>,
     workspaces_state: State<'_, WorkspacesState>,
     clipboard_state: State<'_, ClipboardState>,
     settings_state: State<'_, SettingsState>,
     session_id: &str,
     payload_request: ClipboardPayloadRequest,
-    // payload_type: &str,
 ) -> Result<(), ApicizeAppError> {
     let workspaces = workspaces_state.workspaces.read().await;
     let sessions = sessions_state.sessions.read().await;
@@ -3305,7 +3315,15 @@ async fn copy_to_clipboard(
         info.get_clipboard_payload(payload_request, settings.editor_indent_size as usize)?
     {
         match payload {
-            PersistableData::Text(data) => clipboard_state.inner().set_text(data),
+            PersistableData::Text(data) => {
+                let result = clipboard_state.inner().set_text(data.clone());
+                if result.is_ok() {
+                    if let Ok(clipboard_data) = serde_json::from_str::<ClipboardData>(&data) {
+                        clipboard_state.inner().update_and_emit(clipboard_data, &app);
+                    }
+                }
+                result
+            }
             PersistableData::Binary(data) => clipboard_state.inner().set_image(data),
         }
     } else {

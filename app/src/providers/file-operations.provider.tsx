@@ -1,4 +1,4 @@
-import { ReactNode, useRef } from "react";
+import { ReactNode } from "react";
 import * as core from '@tauri-apps/api/core'
 import * as dialog from '@tauri-apps/plugin-dialog'
 import * as path from '@tauri-apps/api/path'
@@ -8,6 +8,31 @@ import { ApicizeSettings, DataSourceType } from "@apicize/lib-typescript";
 import { extname, join, resourceDir } from '@tauri-apps/api/path';
 import { EditableSettings } from "@apicize/toolkit/dist/models/editable-settings";
 
+
+let _sshPath = ''
+let _bodyDataPath = ''
+
+async function getSshPath(workbookDirectory: string): Promise<string> {
+    if (_sshPath.length > 0 && await exists(_sshPath)) return _sshPath
+    const home = await path.homeDir()
+    const openSshPath = await path.join(home, '.ssh')
+    _sshPath = await exists(openSshPath) ? openSshPath : workbookDirectory
+    return _sshPath
+}
+
+async function getBodyDataPath(workspaceFileName: string | undefined, workbookDirectory: string): Promise<string> {
+    if (_bodyDataPath.length > 0 && await exists(_bodyDataPath)) return _bodyDataPath
+    if (workspaceFileName && workspaceFileName.length > 0) {
+        const base = await path.basename(workspaceFileName)
+        const i = workspaceFileName.indexOf(base)
+        if (i !== -1) {
+            _bodyDataPath = workspaceFileName.substring(0, i)
+            return _bodyDataPath
+        }
+    }
+    _bodyDataPath = workbookDirectory
+    return _bodyDataPath
+}
 
 /**
  * Implementation of file opeartions via Tauri
@@ -21,9 +46,6 @@ export function FileOperationsProvider(
     const feedback = useFeedback()
     const apicizeSettings = useApicizeSettings()
 
-    const _sshPath = useRef('')
-    const _bodyDataPath = useRef('')
-
     /**
      * Generate default settings
      * @returns set of default settings
@@ -35,7 +57,7 @@ export function FileOperationsProvider(
 
     /**
      * Updates specified settings and saves
-     * @param updates 
+     * @param updates
      */
     const saveSettings = () => {
         const updatedSettings: ApicizeSettings = {
@@ -60,50 +82,6 @@ export function FileOperationsProvider(
             .catch(e => {
                 feedback.toast(`Unable to save settings: ${e}`, ToastSeverity.Error)
             })
-    }
-
-    /**
-     * Return SSH path if available, otherwise, fall back to settings
-     * @returns 
-     */
-    const getSshPath = async () => {
-        if (_sshPath.current.length > 0) {
-            if (await exists(_sshPath.current)) {
-                return _sshPath.current
-            }
-        }
-        const home = await path.homeDir()
-        const openSshPath = await path.join(home, '.ssh')
-        if (await exists(openSshPath)) {
-            _sshPath.current = openSshPath
-        } else {
-            _sshPath.current = apicizeSettings.workbookDirectory
-        }
-        return _sshPath.current
-    }
-
-    /**
-     * Returns the last path a file was retrieved from, defaulting to default workbook directory
-     * @returns 
-     */
-    const getBodyDataPath = async () => {
-        if (_bodyDataPath.current.length > 0) {
-            if (await exists(_bodyDataPath.current)) {
-                return _bodyDataPath.current
-            }
-        }
-
-        const fileName = workspaceStore.fileName
-        if (fileName && fileName.length > 0) {
-            const base = await path.basename(fileName)
-            const i = fileName.indexOf(base)
-            if (i != -1) {
-                _bodyDataPath.current = fileName.substring(0, i)
-                return _bodyDataPath.current
-            }
-        }
-        _bodyDataPath.current = apicizeSettings.workbookDirectory
-        return _bodyDataPath.current
     }
 
     /**
@@ -285,19 +263,19 @@ export function FileOperationsProvider(
 
         switch (fileType) {
             case SshFileType.PEM:
-                defaultPath = await getSshPath()
+                defaultPath = await getSshPath(apicizeSettings.workbookDirectory)
                 title = 'SSL Certificate'
                 extensions = ['cer', 'crt', 'pem']
                 extensionName = 'Privacy Enhanced Mail Format (.pem)'
                 break
             case SshFileType.Key:
-                defaultPath = await getSshPath()
+                defaultPath = await getSshPath(apicizeSettings.workbookDirectory)
                 title = 'Open Private Key'
                 extensions = ['key', 'pem']
                 extensionName = 'Private Key Files (*.key)'
                 break
             case SshFileType.PFX:
-                defaultPath = await getSshPath()
+                defaultPath = await getSshPath(apicizeSettings.workbookDirectory)
                 title = 'Open PFX Key (.pfx, .p12)'
                 extensions = ['pfx', 'p12']
                 extensionName = 'Personal Information Exchange Format (*.pfx, *.pfx)'
@@ -344,7 +322,7 @@ export function FileOperationsProvider(
         const fileName = await dialog.open({
             multiple: false,
             title: 'Open File',
-            defaultPath: await getBodyDataPath(),
+            defaultPath: await getBodyDataPath(workspaceStore.fileName, apicizeSettings.workbookDirectory),
             directory: false,
 
             filters: [{
