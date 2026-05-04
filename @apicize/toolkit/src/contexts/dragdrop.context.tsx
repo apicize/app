@@ -2,9 +2,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/restrict-plus-operands */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { DndContext, DragEndEvent, DragMoveEvent, MouseSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { closestCenter, CollisionDetection, DndContext, DragEndEvent, DragMoveEvent, MouseSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { DraggableData, DroppableData } from "../models/drag-drop";
-import { createContext, ReactNode, useContext } from "react";
+import { createContext, ReactNode, useCallback, useContext } from "react";
 import { action, observable } from "mobx";
 import { IndexedEntityPosition } from "../models/workspace/indexed-entity-position";
 
@@ -42,6 +42,12 @@ export const DragDropProvider = ({ children }: { children?: ReactNode }) => {
 
     // const session = useNavigation()
 
+    const collisionDetection: CollisionDetection = useCallback((args) =>
+        closestCenter({
+            ...args,
+            droppableContainers: args.droppableContainers.filter(c => c.id !== args.active.id)
+        }), [])
+
     const sensors = useSensors(
         useSensor(MouseSensor, {
             activationConstraint: {
@@ -78,7 +84,7 @@ export const DragDropProvider = ({ children }: { children?: ReactNode }) => {
                     return IndexedEntityPosition.Under
                 }
             } else if (overData.acceptAppend &&
-                ((!overData.acceptReposition) || x < 72 + (overData.depth + 1) * 16)) {
+                ((!overData.acceptReposition) || x < (overData.depth + 4) * 16)) {
                 return IndexedEntityPosition.Under
             } else if (overData.acceptReposition) {
                 if (r) {
@@ -147,7 +153,7 @@ export const DragDropProvider = ({ children }: { children?: ReactNode }) => {
     }
 
     return <DragDropContext.Provider value={store}>
-        <DndContext key='dnd' sensors={sensors} onDragMove={onDragMove} onDragEnd={onDragEnd} onDragCancel={onDragCancel}>
+        <DndContext key='dnd' collisionDetection={collisionDetection} sensors={sensors} onDragMove={onDragMove} onDragEnd={onDragEnd} onDragCancel={onDragCancel}>
             {children}
         </DndContext>
     </DragDropContext.Provider>

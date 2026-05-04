@@ -3317,10 +3317,12 @@ async fn copy_to_clipboard(
         match payload {
             PersistableData::Text(data) => {
                 let result = clipboard_state.inner().set_text(data.clone());
-                if result.is_ok() {
-                    if let Ok(clipboard_data) = serde_json::from_str::<ClipboardData>(&data) {
-                        clipboard_state.inner().update_and_emit(clipboard_data, &app);
-                    }
+                if result.is_ok()
+                    && let Ok(clipboard_data) = serde_json::from_str::<ClipboardData>(&data)
+                {
+                    clipboard_state
+                        .inner()
+                        .update_and_emit(clipboard_data, &app);
                 }
                 result
             }

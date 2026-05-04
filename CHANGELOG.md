@@ -1,5 +1,12 @@
 # Change Log
 
+## 0.41.0
+
+* Support insertion of non-string data in JSON body payloads
+* Add row and run number to execution progress callback
+* Add output variables to JSON and CSV reporting
+* Fix drag-and-drop on single-item lists
+
 ## 0.40.3
 
 * Fix get_request_active_authorization when no auth is active

@@ -476,7 +476,7 @@ export class EditableRequest extends EditableRequestEntry {
     private checkEditModel() {
         switch (this.body?.type) {
             case BodyType.JSON:
-                this.bodyLanguage = EditorMode.json
+                this.bodyLanguage = EditorMode.jsonHandlebars
                 break
             case BodyType.XML:
                 this.bodyLanguage = EditorMode.xml

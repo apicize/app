@@ -5,7 +5,7 @@ import { observer } from 'mobx-react-lite'
 import { useWorkspace } from '../../../contexts/workspace.context'
 import { useFeedback } from '../../../contexts/feedback.context'
 import PlayCircleFilledIcon from '@mui/icons-material/PlayCircleFilled'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 
 const METHOD_MENU_ITEMS = Methods.map(method => (
     <MenuItem key={method} value={method}>{method}</MenuItem>

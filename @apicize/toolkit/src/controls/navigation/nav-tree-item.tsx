@@ -161,9 +161,10 @@ export const NavTreeItem = observer(({
         transform: CSS.Translate.toString(transform)
     }), [transform])
 
+    const background = isOver ? dragDrop.toBackgroundColor() : 'default'
     const treeSx = useMemo(() => (
-        { background: isOver ? dragDrop.toBackgroundColor() : 'default', margin: 0, padding: 0 }
-    ), [isOver, dragDrop])
+        { background, margin: 0, padding: 0 }
+    ), [background])
 
     return <TreeItem
         itemId={itemId}
