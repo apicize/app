@@ -7,6 +7,8 @@ import { DraggableData, DroppableData } from "../models/drag-drop";
 import { createContext, ReactNode, useCallback, useContext } from "react";
 import { action, observable } from "mobx";
 import { IndexedEntityPosition } from "../models/workspace/indexed-entity-position";
+import { EntityType } from "../models/workspace/entity-type";
+import { useWorkspace } from "./workspace.context";
 
 export type DragDropPosition = IndexedEntityPosition | 'INVALID' | null
 
@@ -39,8 +41,7 @@ export class DragDropStore {
 
 export const DragDropProvider = ({ children }: { children?: ReactNode }) => {
     const store = new DragDropStore()
-
-    // const session = useNavigation()
+    const workspace = useWorkspace()
 
     const collisionDetection: CollisionDetection = useCallback((args) =>
         closestCenter({
@@ -78,6 +79,9 @@ export const DragDropProvider = ({ children }: { children?: ReactNode }) => {
 
         if (active.id === over.id) {
             return 'INVALID'
+        } else if (activeData.type === EntityType.Group &&
+            workspace.collectDescendantIds(active.id.toString()).has(over.id.toString())) {
+            return 'INVALID'
         } else if (overData.acceptsTypes.includes(activeData.type)) {
             if (overData.isHeader) {
                 if (overData.acceptAppend) {
@@ -103,8 +107,6 @@ export const DragDropProvider = ({ children }: { children?: ReactNode }) => {
     }
 
     const onDragEnd = (e: DragEndEvent) => {
-
-
         const { active, over } = e
         const endingPosition = positionFromEvent(e)
         if (!over || !active || endingPosition === 'INVALID' || endingPosition === null) {

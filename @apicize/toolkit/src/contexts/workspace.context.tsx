@@ -694,6 +694,30 @@ export class WorkspaceStore implements EditableEntityContext {
             .catch(e => this.feedback.toastError(e))
     }
 
+    collectDescendantIds(groupId: string): Set<string> {
+        const findGroup = (entries: NavigationRequestEntry[]): NavigationRequestEntry | null => {
+            for (const entry of entries) {
+                if (entry.id === groupId) return entry
+                if (entry.children) {
+                    const found = findGroup(entry.children)
+                    if (found) return found
+                }
+            }
+            return null
+        }
+        const group = findGroup(this.navigation.requests)
+        if (!group?.children) return new Set()
+        const ids = new Set<string>()
+        const collect = (entries: NavigationRequestEntry[]) => {
+            for (const entry of entries) {
+                ids.add(entry.id)
+                if (entry.children) collect(entry.children)
+            }
+        }
+        collect(group.children)
+        return ids
+    }
+
     async getScenario(id: string) {
         const result = await this.callbacks.get(EntityType.Scenario, id)
         if (result.entityTypeName === EntityTypeName.Scenario) {

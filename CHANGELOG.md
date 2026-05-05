@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.41.1
+
+* Prevent a group from being moved within itself
+
 ## 0.41.0
 
 * Support insertion of non-string data in JSON body payloads
