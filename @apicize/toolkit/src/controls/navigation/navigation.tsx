@@ -69,7 +69,7 @@ export const NavigationControl = observer(() => {
     }, [workspace])
 
     return isNarrowMode
-        ? <Box className='navigation-narrow' display='flex'>
+        ? <Box className='navigation-narrow' display='flex' bgcolor='toolbar.main'>
             <Stack direction='column' sx={{ flexGrow: 1 }} className='nav-selection-pane' typography='navigation'>
                 <ToggleButtonGroup orientation="vertical" value={workspace.mode}>
                     <ToggleButton title='Requests and Groups' value={WorkspaceMode.RequestList} onClick={() => toggleMode(WorkspaceMode.RequestList)}>

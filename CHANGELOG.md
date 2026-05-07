@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.42.1
+
+* Fix vertical navigation bar coloring
+
 ## 0.42.0
 
 * Improve new workspace startup state (execution state)
