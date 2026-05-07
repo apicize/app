@@ -35,13 +35,13 @@ export const iconsFromState = (entry: NavigationEntry) => {
     const icons: JSX.Element[] = []
 
     if (entry.executionState) {
-        const active = (entry.executionState & ExecutionState.running) === ExecutionState.running as number;
-        const running = (entry.executionState & ExecutionState.testStarted) === ExecutionState.testStarted as number
-        if (active || running) {
-            if (active) {
+        const running = (entry.executionState & ExecutionState.running) === ExecutionState.running as number;
+        const testStarted = (entry.executionState & ExecutionState.testStarted) === ExecutionState.testStarted as number
+        if (running || testStarted) {
+            if (running) {
                 icons.push(<PlayArrowIcon color="success" fontSize='medium' key={`play-${entry.id}`} />)
             }
-            if (running) {
+            if (testStarted) {
                 icons.push(<DirectionsRunIcon color="info" fontSize='medium' key={`running-${entry.id}`} />)
             }
         } else {

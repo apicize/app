@@ -9,7 +9,6 @@ export class FileOperationsStore {
     public readonly openWorkbook: (openInNewWindow: boolean, fileName?: string, doUpdateSettings?: boolean) => Promise<string>
     public readonly saveWorkbook: () => Promise<void>
     public readonly saveWorkbookAs: () => Promise<void>
-    public readonly cloneWorkspace: () => Promise<void>
     public readonly openSshFile: (fileType: SshFileType) => Promise<string | null>
     public readonly openFile: () => Promise<Uint8Array | null>
     public readonly saveSettings: () => void
@@ -25,7 +24,6 @@ export class FileOperationsStore {
         onOpenWorkbook: (openInNewWindow: boolean, fileName?: string, doUpdateSettings?: boolean) => Promise<string>,
         onSaveWorkbook: () => Promise<void>,
         onSaveWorkbookAs: () => Promise<void>,
-        onCloneWorkspace: () => Promise<void>,
         onOpenSshFile: (fileType: SshFileType) => Promise<string | null>,
         onOpenFile: () => Promise<Uint8Array | null>,
         onSaveSettings: () => void,
@@ -40,7 +38,6 @@ export class FileOperationsStore {
         this.openWorkbook = callbacks.onOpenWorkbook
         this.saveWorkbook = callbacks.onSaveWorkbook
         this.saveWorkbookAs = callbacks.onSaveWorkbookAs
-        this.cloneWorkspace = callbacks.onCloneWorkspace
         this.openSshFile = callbacks.onOpenSshFile
         this.openFile = callbacks.onOpenFile
         this.saveSettings = callbacks.onSaveSettings

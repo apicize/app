@@ -211,7 +211,7 @@ export class WorkspaceStore implements EditableEntityContext {
         this.warnOnWorkspaceCreds = true
         // this.invalidItems.clear()
         this.executingRequestIDs = []
-        this.processExecutionEvents(initialization.executions)
+        // this.processExecutionEvents(initialization.executions)
         this.pendingPkceRequests.clear()
         this.mode = initialization.session.mode ?? WorkspaceMode.Normal
         this.helpTopic = null

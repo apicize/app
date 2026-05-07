@@ -240,16 +240,6 @@ export function FileOperationsProvider(
         }
     }
 
-    const cloneWorkspace = async () => {
-        try {
-            await core.invoke('clone_workspace', {
-                sessionId: activeSessionId,
-            })
-        } catch (e) {
-            feedback.toastError(e)
-        }
-    }
-
     /**
      * Open SSH PEM, key or PFX file
      * @param fileType 
@@ -505,7 +495,6 @@ export function FileOperationsProvider(
         onOpenWorkbook: openWorkbook,
         onSaveWorkbook: saveWorkbook,
         onSaveWorkbookAs: saveWorkbookAs,
-        onCloneWorkspace: cloneWorkspace,
         onOpenSshFile: openSsshFile,
         onOpenFile: openFile,
         onSaveSettings: saveSettings,

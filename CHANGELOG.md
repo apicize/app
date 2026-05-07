@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.42.0
+
+* Improve new workspace startup state (execution state)
+
 ## 0.41.1
 
 * Prevent a group from being moved within itself
