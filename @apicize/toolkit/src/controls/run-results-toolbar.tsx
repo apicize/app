@@ -148,7 +148,7 @@ export const RunResultsToolbar = observer((
                 </FormControl>
                 : null
         }
-        <Box display='flex' flexDirection='row' flexGrow={1} justifyContent='end'>
+        <Box display='flex' flexDirection='row' flexGrow={1} justifyContent='end' alignContent='center'>
             <IconButton color='primary' title='View Previous Result' onClick={() => updateSelectedResult(selectedResultMenuItem.prevExecCtr)} disabled={disableUp}><ArrowUpwardIcon /></IconButton>
             <IconButton color='primary' title='View Next Result' onClick={() => updateSelectedResult(selectedResultMenuItem.nextExecCtr)} disabled={disableDown}><ArrowDownwardIcon /></IconButton>
             <IconButton color='primary' title='View Parent Result' onClick={() => updateSelectedResult(selectedResultMenuItem.parentExecCtr)} disabled={disableParent}><KeyboardReturnIcon /></IconButton>

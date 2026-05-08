@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.43.0
+
+* Add Response/Request toggle to response header and body viewers
+
 ## 0.42.1
 
 * Fix vertical navigation bar coloring

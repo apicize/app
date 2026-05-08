@@ -283,7 +283,7 @@ const RenderExecution = ({
                         />
                         {
                             depth > 0
-                                ? <Link title='View Details' underline='hover' display='inline-flex' marginLeft='0.5rem' alignItems='center' onClick={e => changeResult(e, result.execCtr)}><SvgIcon><ViewIcon /></SvgIcon></Link>
+                                ? <Link title='View Details' sx={{cursor: 'pointer'}} underline='hover' display='inline-flex' marginLeft='0.5rem' alignItems='center' onClick={e => changeResult(e, result.execCtr)}><SvgIcon><ViewIcon /></SvgIcon></Link>
                                 : null
                         }
                     </Grid>
@@ -418,7 +418,7 @@ export const ResultInfoViewer = observer(({
         position: 'absolute', top: 0, bottom: 0, right: 0, width: '100%', overflow: 'hidden', display: 'flex',
     }}>
         <Box sx={{ overflow: 'auto', bottom: 0, paddingRight: '24px', position: 'relative' }}>
-            <Box display='flex' flexDirection='row' alignItems='start' gap='1em' margin='0 1.5em 1.5em 1.5em'>
+            <Box display='flex' flexDirection='row' alignItems='start' gap='1em' margin='0 1.5em 1.5em 0'>
                 <Button
                     variant='outlined'
                     size='small'

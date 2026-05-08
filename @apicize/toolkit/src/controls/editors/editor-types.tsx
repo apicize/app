@@ -6,6 +6,7 @@ export enum RequestEditSessionType {
 
 export enum ResultEditSessionType {
     Preview = 'p',
+    PreviewRequest = 'pr',
     Raw = 'r',
     Base64 = 'b',
     Details = 'd',

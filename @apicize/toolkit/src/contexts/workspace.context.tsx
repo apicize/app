@@ -119,6 +119,7 @@ export class WorkspaceStore implements EditableEntityContext {
     @observable accessor requestPanel: RequestPanel = 'Info'
     @observable accessor groupPanel: GroupPanel = 'Info'
     @observable accessor settingsPanel: SettingsPanel = 'Workspace Defaults'
+    @observable accessor responseOrRequest: ResponseOrRequest = ResponseOrRequest.response
 
     @observable accessor executingRequestIDs: string[] = []
 
@@ -1126,17 +1127,30 @@ export class WorkspaceStore implements EditableEntityContext {
 
     @action
     changeRequestPanel(panel: RequestPanel) {
-        this.requestPanel = panel
+        if (panel) {
+            this.requestPanel = panel
+        }
     }
 
     @action
     changeGroupPanel(panel: GroupPanel) {
-        this.groupPanel = panel
+        if (panel) {
+            this.groupPanel = panel
+        }
+    }
+
+    @action
+    changeResponseOrRequest(value: ResponseOrRequest) {
+        if (value) {
+            this.responseOrRequest = value
+        }
     }
 
     @action
     changeSettingsPanel(panel: SettingsPanel) {
-        this.settingsPanel = panel
+        if (panel) {
+            this.settingsPanel = panel
+        }
     }
 
     @action
@@ -1276,10 +1290,18 @@ export class WorkspaceStore implements EditableEntityContext {
                             ? detail.testContext.response.body.data
                             : ''
                         break
-                    default:
+                    case ResultEditSessionType.Preview:
                         text = (detail.testContext.response?.body?.type !== 'Binary')
                             ? detail.testContext.response?.body?.text ?? ''
                             : ''
+                        break
+                    case ResultEditSessionType.PreviewRequest:
+                        text = (detail.testContext.request?.body?.type !== 'Binary')
+                            ? detail.testContext.request?.body?.text ?? ''
+                            : ''
+                        break
+                    default:
+                        text = ''
                         break
                 }
                 break
@@ -1291,11 +1313,6 @@ export class WorkspaceStore implements EditableEntityContext {
                 break
         }
 
-        const model = editor.createModel(text, mode) as IResultEditorTextModel
-        model.resultId = detail.id
-        model.execCtr = detail.execCtr
-        model.type = type
-
         let requestModels = this.resultModels.get(detail.id)
         if (!requestModels) {
             requestModels = new Map()
@@ -1306,6 +1323,15 @@ export class WorkspaceStore implements EditableEntityContext {
             entries = new Map()
             requestModels.set(detail.execCtr, entries)
         }
+        const existing = entries.get(type)
+        if (existing && !existing.isDisposed()) {
+            return existing
+        }
+
+        const model = editor.createModel(text, mode) as IResultEditorTextModel
+        model.resultId = detail.id
+        model.execCtr = detail.execCtr
+        model.type = type
         entries.set(type, model)
         return model
     }
@@ -1624,4 +1650,9 @@ export interface LockWithEnvVar {
 
 export interface Unlock {
     lock: 'None'
+}
+
+export enum ResponseOrRequest {
+    response = 1,
+    request = 2
 }

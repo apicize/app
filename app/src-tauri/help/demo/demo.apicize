@@ -33,7 +33,7 @@
                 {
                     "id": "707345a2-01cf-46d3-8bbe-8e528f715761",
                     "name": "Get original quote",
-                    "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('stored', () => {\n   const data = (response.body.type == BodyType.JSON)\n      ? response.body.data\n      : expect.fail('Response body is not JSON')\n\n   console.info(`Author: ${data.author}, Quote: \"${data.quote}\"`)\n\n   describe('author', () => {\n      it('equals configured author', () => {\n         expect(data.author).to.equal($.author)\n      })\n   })\n\n   describe('quote', () => {\n      it('equals original quote', () => {\n         expect(data.quote).to.equal($.quote)\n      })\n   })\n})\n",
+                    "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('stored', () => {\n   const data = (response.body.type == BodyType.JSON)\n      ? response.body.data\n      : expect.fail('Response body is not JSON')\n\n   describe('author', () => {\n      it('equals configured author', () => {\n         console.info(`Author: ${data.author}`)\n         expect(data.author).to.equal($.author)\n      })\n   })\n\n   describe('quote', () => {\n      it('equals original quote', () => {\n         console.info(`Quote: \"${data.quote}\"`)\n         expect(data.quote).to.equal($.quote)\n      })\n   })\n})\n",
                     "url": "{{url}}/quote/{{id}}",
                     "method": "GET",
                     "timeout": 30000,
@@ -68,7 +68,7 @@
                 {
                     "id": "2959d274-9523-40a4-93f8-a6eedafb6dc7",
                     "name": "Get updated quote",
-                    "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('quote', () => {\n   it('equals test quote', () => {\n      const result = (response.body.type == BodyType.JSON)\n         ? response.body.data\n         : expect.fail('Response body is not JSON')\n      console.info(`Author: ${result.author}, Quote: \"${result.quote}\"`)\n      expect(result.quote).to.equal($['test-quote'])\n   })\n})\n",
+                    "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('quote', () => {\n   it('equals test quote', () => {\n      const result = (response.body.type == BodyType.JSON)\n         ? response.body.data\n         : expect.fail('Response body is not JSON')\n      console.info(`Quote: \"${result.quote}\"`)\n      expect(result.quote).to.equal($['test-quote'])\n   })\n})\n",
                     "url": "{{url}}/quote/{{id}}",
                     "method": "GET",
                     "timeout": 30000,
@@ -103,7 +103,7 @@
                 {
                     "id": "070d2b68-0a7e-4172-b787-5a826fa6f5bb",
                     "name": "Get restored quote",
-                    "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('stored quote', () => {\n   it('equals original quote', () => {\n      const result = (response.body.type == BodyType.JSON)\n         ? response.body.data\n         : expect.fail('Response body is not JSON')\n      console.info(`Author: ${result.author}, Quote: \"${result.quote}\"`)\n      expect(result.quote).to.equal($.quote)\n   })\n})",
+                    "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('stored quote', () => {\n   it('equals original quote', () => {\n      const result = (response.body.type == BodyType.JSON)\n         ? response.body.data\n         : expect.fail('Response body is not JSON')\n      console.info(`Quote: \"${result.quote}\"`)\n      expect(result.quote).to.equal($.quote)\n   })\n})",
                     "url": "{{url}}/quote/{{id}}",
                     "method": "GET",
                     "timeout": 30000,

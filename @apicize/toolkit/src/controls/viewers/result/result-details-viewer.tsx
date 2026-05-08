@@ -36,7 +36,7 @@ export const ResultDetailsViewer = observer(({ detail }: { detail: ExecutionResu
 
     return (
         <Stack sx={{ bottom: 0, overflow: 'hidden', position: 'relative', height: '100%', display: 'flex' }}>
-            <Typography variant='h2' sx={{ marginTop: 0, flexGrow: 0 }} component='div'>Details
+            <Typography variant='h2' sx={{ marginTop: 0, flexGrow: 0, display: 'flex', alignItems: 'center' }} component='div'>Details
                 <IconButton
                     aria-label="copy deatils to clipboard"
                     title="Copy Details to Clipboard"

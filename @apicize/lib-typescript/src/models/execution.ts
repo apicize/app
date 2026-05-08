@@ -193,7 +193,7 @@ export type ApicizeBody = ApicizeBodyText | ApicizeBodyJSON | ApicizeBodyForm | 
 export interface ApicizeHttpRequest {
     url: string,
     method: string
-    headers: Map<string, string>
+    headers?: { [header: string]: string }
     body?: ApicizeBody
     variables?: Map<string, string | number | boolean>
 }

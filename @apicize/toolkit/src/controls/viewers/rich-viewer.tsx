@@ -63,6 +63,12 @@ export const RichViewer = observer(
             height='100%'
             editorDidMount={(me) => {
                 editorRef.current = me
+                const originalDispose = me.dispose.bind(me)
+                me.dispose = () => {
+                    try { originalDispose() } catch (e: unknown) {
+                        if ((e as { name?: string })?.name !== 'Canceled' && (e as { message?: string })?.message !== 'Canceled') throw e
+                    }
+                }
             }}
             options={{
                 automaticLayout: true,

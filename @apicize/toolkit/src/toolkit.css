@@ -452,6 +452,7 @@ pre.log {
 
 .button-column {
   width: 3rem;
+  margin-right: 1.5rem !important;
 }
 
 .editor {

@@ -6,6 +6,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Apicize</title>
+    <script>
+        // Suppress Monaco CancellationErrors before react-error-overlay registers its handlers.
+        // This must be an inline script so it runs before the webpack bundle loads.
+        (function () {
+            function isCanceled(e) {
+                return e && (e.name === 'Canceled' || e.message === 'Canceled');
+            }
+            window.addEventListener('unhandledrejection', function (evt) {
+                if (isCanceled(evt.reason)) {
+                    evt.stopImmediatePropagation();
+                    evt.stopPropagation();
+                    evt.preventDefault();
+                }
+            });
+            window.addEventListener('error', function (evt) {
+                if (isCanceled(evt.error)) {
+                    evt.stopImmediatePropagation();
+                    evt.stopPropagation();
+                    evt.preventDefault();
+                }
+            });
+        })();
+    </script>
 </head>
 
 <body>
