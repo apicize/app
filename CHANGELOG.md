@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.43.1
+
+* Restore Tauri "unstable" in Config.toml to fix PKCE auth in app
+
 ## 0.43.0
 
 * Add Response/Request toggle to response header and body viewers
