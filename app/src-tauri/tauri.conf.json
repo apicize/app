@@ -2,17 +2,18 @@
   "$schema": "../../node_modules/@tauri-apps/cli/config.schema.json",
   "identifier": "apicize",
   "productName": "Apicize",
-  "version": "0.43.1",
+  "version": "0.44.0",
   "app": {
     "security": {
       "csp": null
     },
     "windows": [
       {
+        "visible": false,
+        "devtools": false,
+        "create": false,
         "fullscreen": false,
         "resizable": true,
-        "create": false,
-        "visible": false,
         "title": "Apicize",
         "width": 1300,
         "height": 800,
@@ -54,8 +55,8 @@
         "depends": []
       }
     },
-    "shortDescription": "Apicize is an HTTP testing tool",
-    "longDescription": "This package installs the Apicize GUI for creating and executing HTTP calls.  There is a separate CLI runner for tests, see www.apcicze.com",
+    "shortDescription": "An HTTP testing tool",
+    "longDescription": "GUI for creating and executing HTTP calls, see www.apicize.com for links to a CLI test runner",
     "macOS": {
       "entitlements": "./entitlements.plist",
       "exceptionDomain": "",

@@ -1,9 +1,7 @@
 import Box from '@mui/material/Box'
 import { FormControl, Grid, IconButton, InputLabel, MenuItem, Select, Stack } from '@mui/material'
 import { NameValueEditor } from '../name-value-editor'
-import FileOpenIcon from '@mui/icons-material/FileOpen'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import ContentPasteGoIcon from '@mui/icons-material/ContentPasteGo';
 import FormatListBulletedAddIcon from '@mui/icons-material/FormatListBulletedAdd';
 import { BodyType, BodyTypes } from '@apicize/lib-typescript'
 import { observer } from 'mobx-react-lite'
@@ -20,79 +18,16 @@ import MonacoEditor from 'react-monaco-editor'
 import { useApicizeSettings } from '../../../contexts/apicize-settings.context'
 import { EditableRequest } from '../../../models/workspace/editable-request'
 import { RequestEditSessionType } from '../editor-types';
-import { ImageViewer, KNOWN_IMAGE_EXTENSIONS } from '../../viewers/image-viewer';
 import { EditorMode } from '../../../models/editor-mode';
 import { IRequestEditorTextModel } from '../../../models/editor-text-model';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { useMonacoClipboard } from '../../../hooks/use-monaco-clipboard';
+import { RawBodyEditor } from './body/raw-body-editor';
+import { GraphQLBodyEditor, GraphQLBodyEditorHandle } from './body/graphql-body-editor';
 
 const BODY_TYPE_MENU_ITEMS = BodyTypes.map(bodyType => (
   <MenuItem key={bodyType} value={bodyType}>{bodyType === BodyType.Raw ? 'Binary' : bodyType}</MenuItem>
 ))
-
-interface RawEditorProps {
-  bodyLength: number | null
-  bodyMimeType: string | null
-  data: string
-  hasClipboardImage: boolean
-  onOpenFile: () => void
-  onPasteFromClipboard: () => void
-}
-
-const RawEditor = observer(({ bodyLength, bodyMimeType, data, hasClipboardImage, onOpenFile, onPasteFromClipboard }: RawEditorProps) => {
-  let isImage: boolean
-  let ext: string | undefined
-
-  if (bodyMimeType?.startsWith('image/')) {
-    ext = bodyMimeType.substring(6).toLocaleLowerCase()
-    const idx = ext.indexOf('+')
-    if (idx !== -1) {
-      ext = ext.substring(0, idx)
-    }
-    isImage = KNOWN_IMAGE_EXTENSIONS.includes(ext)
-  } else {
-    isImage = false
-  }
-
-  return <Stack
-    display='flex'
-    direction='column'
-    flexGrow={1}
-    position='relative'
-    boxSizing='border-box'
-    width='100%'
-    maxWidth='100%'
-    height='100%'
-    gap='10px'
-  >
-    <Stack
-      direction='row'
-      sx={{
-        borderRadius: '4px',
-        overflow: 'hidden',
-        border: '1px solid #444!important',
-        width: 'fit-content',
-      }}
-    >
-      <IconButton aria-label='load body from file' title='Load Body from File' onClick={onOpenFile} sx={{ marginRight: '4px' }}>
-        <FileOpenIcon color='primary' />
-      </IconButton>
-      <IconButton aria-label='copy body from clipboard' title='Paste Body from Clipboard' disabled={!hasClipboardImage}
-        onClick={onPasteFromClipboard} sx={{ marginRight: '4px' }}>
-        <ContentPasteGoIcon color={hasClipboardImage ? 'primary' : 'disabled'} />
-      </IconButton>
-      <Stack direction='row' padding='10px' spacing='1rem'>
-        <Box>{bodyLength ? bodyLength.toLocaleString() + ' Bytes' : ''}</Box>
-        <Box>{bodyMimeType ? bodyMimeType : ''}</Box>
-      </Stack>
-    </Stack>
-    {
-      isImage
-        ? <ImageViewer base64Data={data} extensionToRender={ext} />
-        : null
-    }
-  </Stack>
-})
 
 export const RequestBodyEditor = observer(({ request }: { request: EditableRequest }) => {
   const workspace = useWorkspace()
@@ -108,6 +43,7 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
   const [isDragging, setIsDragging] = useState(false)
   const [model, setModel] = useState<IRequestEditorTextModel | null>(null)
   const editor = useRef<editor.IStandaloneCodeEditor | null>(null)
+  const graphqlEditor = useRef<GraphQLBodyEditorHandle>(null)
 
   // Hook Monaco clipboard to Tauri clipboard
   useMonacoClipboard(editor, false)
@@ -180,7 +116,6 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
     return null
   }
 
-
   let allowUpdateHeader
   const contentTypeHeader = request.headers?.find(h => h.name === 'Content-Type')
   if (request.bodyMimeType) {
@@ -200,6 +135,10 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
   }
 
   function performBeautify() {
+    if (request.body.type === BodyType.GraphQL) {
+      graphqlEditor.current?.performBeautify()
+      return
+    }
     if (editor.current) {
       try {
         const action = editor.current.getAction('editor.action.formatDocument')
@@ -272,7 +211,7 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
   }
 
   let allowCopy: boolean
-  const allowBeautify = [BodyType.JSON, BodyType.XML].includes(request.body.type)
+  const allowBeautify = [BodyType.JSON, BodyType.XML, BodyType.GraphQL].includes(request.body.type)
   switch (request.body.type) {
     case BodyType.Form:
     case BodyType.JSON:
@@ -280,6 +219,9 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
     case BodyType.Text:
     case BodyType.Raw:
       allowCopy = (request.body.data?.length ?? 0) > 0
+      break
+    case BodyType.GraphQL:
+      allowCopy = (request.body.data.query.length + (request.body.data.extensions?.length ?? 0)) > 0
       break
     default:
       allowCopy = false
@@ -375,7 +317,7 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
                 request.setBodyData(data ?? []).catch(e => feedback.toastError(e))
               }} />
             : request.body.type == BodyType.Raw
-              ? <RawEditor
+              ? <RawBodyEditor
                 bodyLength={request.bodyLength}
                 bodyMimeType={request.bodyMimeType}
                 data={request.body.data}
@@ -383,30 +325,32 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
                 onOpenFile={openFile}
                 onPasteFromClipboard={pasteImageFromClipboard}
               />
-              : <MonacoEditor
-                language={request.bodyLanguage ?? undefined}
-                width='100%'
-                height='100%'
-                theme={settings.colorScheme === "dark" ? 'vs-dark' : 'vs-light'}
-                value={request.body.data}
-                onChange={(text: string) => {
-                  request.setBodyData(text).catch(e => feedback.toastError(e))
-                }}
-                editorDidMount={(me) => {
-                  editor.current = me
-                }}
-                options={{
-                  automaticLayout: true,
-                  minimap: { enabled: false },
-                  model,
-                  detectIndentation: settings.editorDetectExistingIndent,
-                  tabSize: settings.editorIndentSize,
-                  autoIndent: 'full',
-                  formatOnType: true,
-                  formatOnPaste: true,
-                  fontSize: settings.fontSize
-                }}
-              />
+              : request.body.type === BodyType.GraphQL
+                ? <GraphQLBodyEditor ref={graphqlEditor} request={request} />
+                : <MonacoEditor
+                  language={request.bodyLanguage ?? undefined}
+                  width='100%'
+                  height='100%'
+                  theme={settings.colorScheme === "dark" ? 'vs-dark' : 'vs-light'}
+                  value={request.body.data}
+                  onChange={(text: string) => {
+                    request.setBodyData(text).catch(e => feedback.toastError(e))
+                  }}
+                  editorDidMount={(me) => {
+                    editor.current = me
+                  }}
+                  options={{
+                    automaticLayout: true,
+                    minimap: { enabled: false },
+                    model,
+                    detectIndentation: settings.editorDetectExistingIndent,
+                    tabSize: settings.editorIndentSize,
+                    autoIndent: 'full',
+                    formatOnType: true,
+                    formatOnPaste: true,
+                    fontSize: settings.fontSize
+                  }}
+                />
         }
       </Stack>
     </Box>

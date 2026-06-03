@@ -30,6 +30,7 @@ import {
     NO_SELECTION,
     ParameterLockStatus,
     ParameterStore,
+    BodyType,
 } from "@apicize/lib-typescript"
 import { EntityType } from "../models/workspace/entity-type"
 import { createContext, useContext } from "react"
@@ -333,7 +334,9 @@ export class WorkspaceStore implements EditableEntityContext {
                     if (selection.entityType === EntityType.Request && !selection.isBodyInitialized) {
                         this.callbacks.getRequestBody(id)
                             .then(bodyInfo => {
-                                selection.initializeBody(bodyInfo)
+                                runInAction(() => {
+                                    selection.initializeBody(bodyInfo)
+                                })
                             })
                             .catch(err1 => this.feedback.toastError(err1))
                     }
@@ -1247,7 +1250,8 @@ export class WorkspaceStore implements EditableEntityContext {
             if (!request.isBodyInitialized) {
                 throw new Error('Body is not yet initialized')
             }
-            if (request.body && typeof request.body.data === 'string') {
+            // TODO GRAPHQL - SET TEXT PROPERLY FOR GRAPHQL QUERY AND EXTENSIONS
+            if (request.body && request.body.type !== BodyType.GraphQL && typeof request.body.data === 'string') {
                 text = request.body.data
             } else {
                 text = ''

@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "es6",
+    "target": "es2020",
     "composite": true,
     "lib": [
       "dom",
@@ -11,7 +11,7 @@
     "skipLibCheck": true,
     "strict": true,
     "esModuleInterop": true,
-    "module": "es2015",
+    "module": "esnext",
     "moduleResolution": "bundler",
     "isolatedModules": true,
     "jsx": "react-jsx",
@@ -35,6 +35,7 @@
     "dist",
     "bdd.d.ts",
     "node_modules",
-    "src-tauri"
+    "src-tauri",
+    "vite.config.ts"
   ]
 }

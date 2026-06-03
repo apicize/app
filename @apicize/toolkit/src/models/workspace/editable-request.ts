@@ -1,7 +1,9 @@
 import {
     Selection, Body, BodyType, ExecutionConcurrency, Method, NameValuePair, Request, ValidationWarnings, ValidationErrors,
     BodyJSON, BodyNone, BodyRaw, BodyText, BodyXML, ValidationErrorList, DEFAULT_SELECTION_ID, NO_SELECTION_ID, NO_SELECTION,
-    DEFAULT_SELECTION
+    DEFAULT_SELECTION,
+    BodyGraphQL,
+    BodyGraphQLData
 } from "@apicize/lib-typescript"
 import { action, computed, observable, runInAction } from "mobx"
 import { EditableNameValuePair } from "./editable-name-value-pair"
@@ -260,7 +262,7 @@ export class EditableRequest extends EditableRequestEntry {
     }
 
     @action
-    setBodyData(value: string | EditableNameValuePair[]) {
+    setBodyData(value: string | BodyGraphQLData | EditableNameValuePair[]) {
         if (this.isBodyInitialized) {
             this.body.data = value
             return this.performUpdateBody(this.body)
@@ -455,21 +457,22 @@ export class EditableRequest extends EditableRequestEntry {
     }
 
     private static createEditableBody(body: Body | undefined): EditableBody {
-        if (body?.type === BodyType.Form) {
-            return {
-                type: BodyType.Form,
-                data: body.data.map(d => ({
-                    id: GenerateIdentifier(),
-                    name: d.name,
-                    value: d.value,
-                    disabled: d.disabled
-                }))
-            }
-        } else {
-            return body ?? {
-                type: BodyType.None,
-                data: undefined
-            }
+        switch (body?.type) {
+            case BodyType.Form:
+                return {
+                    type: BodyType.Form,
+                    data: body.data.map(d => ({
+                        id: GenerateIdentifier(),
+                        name: d.name,
+                        value: d.value,
+                        disabled: d.disabled
+                    }))
+                }
+            default:
+                return body ?? {
+                    type: BodyType.None,
+                    data: undefined
+                }
         }
     }
 
@@ -522,7 +525,7 @@ export interface RequestInfo extends ValidationWarnings, ValidationErrors {
     selectedData?: Selection,
 }
 
-export type EditableBody = BodyNone | BodyJSON | BodyXML | BodyText | EditableBodyForm | BodyRaw
+export type EditableBody = BodyNone | BodyJSON | BodyXML | BodyGraphQL | BodyText | EditableBodyForm | BodyRaw
 
 export interface EditableBodyForm {
     type: BodyType.Form

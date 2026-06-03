@@ -153,6 +153,7 @@ impl Workspaces {
             RequestBody::Text { .. } => "text/plain".to_string(),
             RequestBody::JSON { .. } => "application/json".to_string(),
             RequestBody::XML { .. } => "application/xml".to_string(),
+            RequestBody::GraphQL { .. } => "application/json".to_string(),
             RequestBody::Form { .. } => "application/x-www-form-urlencoded".to_string(),
             RequestBody::Raw { data } => FileType::from_bytes(data)
                 .media_types()
@@ -167,6 +168,7 @@ impl Workspaces {
             RequestBody::Text { data } => data.len(),
             RequestBody::JSON { data } => data.len(),
             RequestBody::XML { data } => data.len(),
+            RequestBody::GraphQL { data } => data.to_json().to_string().len(),
             RequestBody::Form { data } => data.len(),
             RequestBody::Raw { data } => data.len(),
         }
@@ -3383,6 +3385,9 @@ impl WorkspaceInfo {
                         }
                         RequestBody::XML { data } => {
                             Ok(Some(PersistableData::Text(data.to_string())))
+                        }
+                        RequestBody::GraphQL { data } => {
+                            Ok(Some(PersistableData::Text(data.to_json().to_string())))
                         }
                         RequestBody::Form { data } => Ok(Some(PersistableData::Text(
                             serde_urlencoded::to_string(

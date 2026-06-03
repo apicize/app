@@ -35,15 +35,16 @@ export enum BodyType {
     None = 'None',
     Text = 'Text',
     JSON = 'JSON',
+    GraphQL = 'GraphQL',
     XML = 'XML',
     Form = 'Form',
     Raw = 'Raw',
 }
 
 export const BodyTypes = [BodyType.None, BodyType.Text, BodyType.JSON,
-BodyType.XML, BodyType.Form, BodyType.Raw]
+BodyType.XML, BodyType.GraphQL, BodyType.Form, BodyType.Raw]
 
-export type Body = BodyNone | BodyJSON | BodyXML | BodyText | BodyForm | BodyRaw
+export type Body = BodyNone | BodyJSON | BodyXML | BodyGraphQL | BodyText | BodyForm | BodyRaw
 
 export interface BodyNone {
     type: BodyType.None
@@ -63,6 +64,15 @@ export interface BodyXML {
 export interface BodyText {
     type: BodyType.Text
     data: string
+}
+
+export interface BodyGraphQLData {
+    query: string
+    extensions?: string
+}
+export interface BodyGraphQL {
+    type: BodyType.GraphQL
+    data: BodyGraphQLData
 }
 
 export interface BodyForm {

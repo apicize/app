@@ -3,7 +3,7 @@ import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
 
 export default tseslint.config(
-    { ignores: ['dist/', 'webpack.config.*', 'src-tauri/'] },
+    { ignores: ['dist/', 'vite.config.*', 'src-tauri/'] },
     eslint.configs.recommended,
     ...tseslint.configs.strictTypeChecked,
     {

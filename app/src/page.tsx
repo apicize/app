@@ -15,8 +15,8 @@ import {
   LockStatusUpdate,
 } from '@apicize/toolkit'
 import { useEffect, useState } from 'react'
-import "@fontsource/roboto-mono/latin.css"
-import '@fontsource/roboto-flex'
+import "@fontsource/roboto-mono/latin-400.css"
+import '@fontsource/roboto-flex/latin-400.css'
 import { ClipboardProvider } from './providers/clipboard.provider';
 import { FeedbackProvider } from './providers/feedback.provider';
 import { FileOperationsProvider } from './providers/file-operations.provider';

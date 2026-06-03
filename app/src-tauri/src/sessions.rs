@@ -55,19 +55,13 @@ impl Sessions {
     }
 
     pub fn add_session(&mut self, session: Session) -> String {
-        let session_id = if self.counter == 0 {
-            "main".to_string()
-        } else {
-            let mut id = String::with_capacity(8); // "main-" + digits
-            id.push_str("main-");
-            use std::fmt::Write;
-            write!(&mut id, "{}", self.counter).unwrap();
-            id
-        };
-
         self.counter += 1;
-        self.sessions.insert(session_id.clone(), session);
-        session_id
+        let mut id = String::with_capacity(8); // "main-" + digits
+        id.push_str("apicize-");
+        use std::fmt::Write;
+        write!(&mut id, "{}", self.counter).unwrap();
+        self.sessions.insert(id.clone(), session);
+        id
     }
 
     pub fn remove_session(&mut self, session_id: &str) -> Result<(), ApicizeAppError> {

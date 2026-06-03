@@ -344,4 +344,23 @@ monaco.languages.registerDocumentFormattingEditProvider('json-handlebars', {
                 monaco.editor.setModelMarkers(model, OWNER, [])
             }
         })
-    })()
+    })();
+
+
+// MonacoEnvironment is configured by the host application (app/src/monaco-workers.ts)
+// to allow Vite to resolve worker module paths at build time from the app context.
+
+// ─── graphql formatter ───────────────────────────────────────────────────────
+// Synchronous formatter so no web worker is required — avoids CSP/WebView issues.
+import { parse as gqlParse, print as gqlPrint } from 'graphql'
+
+monaco.languages.registerDocumentFormattingEditProvider('graphql', {
+    provideDocumentFormattingEdits(model) {
+        try {
+            const formatted = gqlPrint(gqlParse(model.getValue()))
+            return [{ range: model.getFullModelRange(), text: formatted }]
+        } catch {
+            return []
+        }
+    },
+})

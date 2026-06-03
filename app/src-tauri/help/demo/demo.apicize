@@ -3,12 +3,12 @@
     "requests": [
         {
             "id": "043e3493-a768-4a27-9aaa-597c49348df3",
-            "name": "CRUD Operations",
+            "name": "CRUD Operations (REST)",
             "children": [
                 {
                     "id": "d1d67fe1-2e56-4e37-933a-08bafe089c51",
                     "name": "Create quote",
-                    "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('response', () => {\n   it('returns an ID', () => {\n      const data = (response.body.type == BodyType.JSON)\n         ? response.body.data\n         : expect.fail('Response body is not JSON')\n\n      const id = data.id\n      expect(id).not.to.be.empty\n      output('id', id)\n      console.info(`ID is ${id}`)\n   })\n})",
+                    "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('result', () => {\n   it('includes an ID', () => {\n      const data = (response.body.type == BodyType.JSON)\n         ? response.body.data\n         : expect.fail('Response body is not JSON')\n\n      const id = data.id\n      expect(id).not.to.be.empty\n      output('id', id)\n      console.info(`ID is ${id}`)\n   })\n})",
                     "url": "{{url}}/quote",
                     "method": "POST",
                     "timeout": 30000,
@@ -33,7 +33,7 @@
                 {
                     "id": "707345a2-01cf-46d3-8bbe-8e528f715761",
                     "name": "Get original quote",
-                    "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('stored', () => {\n   const data = (response.body.type == BodyType.JSON)\n      ? response.body.data\n      : expect.fail('Response body is not JSON')\n\n   describe('author', () => {\n      it('equals configured author', () => {\n         console.info(`Author: ${data.author}`)\n         expect(data.author).to.equal($.author)\n      })\n   })\n\n   describe('quote', () => {\n      it('equals original quote', () => {\n         console.info(`Quote: \"${data.quote}\"`)\n         expect(data.quote).to.equal($.quote)\n      })\n   })\n})\n",
+                    "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('result', () => {\n   const data = (response.body.type == BodyType.JSON)\n      ? response.body.data\n      : expect.fail('Response body is not JSON')\n\n   describe('author', () => {\n      it('equals configured author', () => {\n         console.info(`Author: ${data.author}`)\n         expect(data.author).to.equal($.author)\n      })\n   })\n\n   describe('quote', () => {\n      it('equals original quote', () => {\n         console.info(`Quote: \"${data.quote}\"`)\n         expect(data.quote).to.equal($.quote)\n      })\n   })\n})\n",
                     "url": "{{url}}/quote/{{id}}",
                     "method": "GET",
                     "timeout": 30000,
@@ -66,9 +66,9 @@
                     "multiRunExecution": "SEQUENTIAL"
                 },
                 {
-                    "id": "2959d274-9523-40a4-93f8-a6eedafb6dc7",
+                    "id": "457397fe-a69a-4b62-821d-ed6502f698f3",
                     "name": "Get updated quote",
-                    "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('quote', () => {\n   it('equals test quote', () => {\n      const result = (response.body.type == BodyType.JSON)\n         ? response.body.data\n         : expect.fail('Response body is not JSON')\n      console.info(`Quote: \"${result.quote}\"`)\n      expect(result.quote).to.equal($['test-quote'])\n   })\n})\n",
+                    "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('result', () => {\n   const data = (response.body.type == BodyType.JSON)\n      ? response.body.data\n      : expect.fail('Response body is not JSON')\n\n   describe('author', () => {\n      it('equals configured author', () => {\n         console.info(`Author: ${data.author}`)\n         expect(data.author).to.equal($.author)\n      })\n   })\n\n   describe('quote', () => {\n      it('equals original quote', () => {\n         console.info(`Quote: \"${data.quote}\"`)\n         expect(data.quote).to.equal($['test-quote'])\n      })\n   })\n})\n",
                     "url": "{{url}}/quote/{{id}}",
                     "method": "GET",
                     "timeout": 30000,
@@ -103,7 +103,7 @@
                 {
                     "id": "070d2b68-0a7e-4172-b787-5a826fa6f5bb",
                     "name": "Get restored quote",
-                    "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('stored quote', () => {\n   it('equals original quote', () => {\n      const result = (response.body.type == BodyType.JSON)\n         ? response.body.data\n         : expect.fail('Response body is not JSON')\n      console.info(`Quote: \"${result.quote}\"`)\n      expect(result.quote).to.equal($.quote)\n   })\n})",
+                    "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('result', () => {\n   const result = (response.body.type == BodyType.JSON)\n      ? response.body.data\n      : expect.fail('Response body is not JSON')\n\n   describe('quote', () => {\n      it('equals original quote', () => {\n         console.info(`Quote: \"${result.quote}\"`)\n         expect(result.quote).to.equal($.quote)\n      })\n   })\n})",
                     "url": "{{url}}/quote/{{id}}",
                     "method": "GET",
                     "timeout": 30000,
@@ -136,7 +136,158 @@
             ],
             "execution": "SEQUENTIAL",
             "runs": 1,
-            "multiRunExecution": "SEQUENTIAL",
+            "multiRunExecution": "CONCURRENT",
+            "selectedData": {
+                "id": "90a39691-8f30-403d-8f92-5651ad60adb2",
+                "name": "Embedded Data"
+            }
+        },
+        {
+            "id": "14fa8934-e341-4d4c-85bb-2d89b2e80225",
+            "name": "CRUD Operations (GraphQL)",
+            "children": [
+                {
+                    "id": "687b9fdf-263d-4b63-9e16-b64fc55e6a6f",
+                    "name": "Create quote",
+                    "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('result', () => {\n   it('includes an ID', () => {\n      const result = (response.body.type == BodyType.JSON)\n         ? response.body.data\n         : expect.fail('Response body is not JSON')\n\n      describe('errors', () => {\n         it('were not retuned', () => {\n            expect(result.errors).to.be.undefined\n         })\n      })\n\n      const id = result.data.createQuote.id\n      expect(id).not.to.be.empty\n      output('id', id)\n      console.info(`ID is ${id}`)\n   })\n})",
+                    "url": "{{url}}/quote/graphql",
+                    "method": "POST",
+                    "timeout": 30000,
+                    "headers": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": {
+                        "type": "GraphQL",
+                        "query": "mutation CreateQuote($author: String!, $quote: String!) {\n  createQuote(author: $author, quote: $quote) {\n    id\n  }\n}"
+                    },
+                    "numberOfRedirects": 10,
+                    "runs": 1,
+                    "multiRunExecution": "SEQUENTIAL"
+                },
+                {
+                    "id": "84a80e94-4a8c-490c-b29e-2124c227ef12",
+                    "name": "Get original quote",
+                    "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('result', () => {\n   const result = (response.body.type == BodyType.JSON)\n      ? response.body.data\n      : expect.fail('Response body is not JSON')\n\n   describe('errors', () => {\n      it('were not retuned', () => {\n         expect(result.errors).to.be.undefined\n      })\n   })\n\n   const getQuoteData = result.data.getQuote\n\n   describe('author', () => {\n      it('equals configured author', () => {\n         console.info(`Author: ${getQuoteData.author}`)\n         expect(getQuoteData.author).to.equal($.author)\n      })\n   })\n\n   describe('quote', () => {\n      it('equals original quote', () => {\n         console.info(`Quote: \"${getQuoteData.quote}\"`)\n         expect(getQuoteData.quote).to.equal($.quote)\n      })\n   })\n})\n",
+                    "url": "{{url}}/quote/graphql",
+                    "method": "POST",
+                    "timeout": 30000,
+                    "body": {
+                        "type": "GraphQL",
+                        "query": "query GetQuote($id: String!) {\n  getQuote(id: $id) {\n    author\n    quote\n  }\n}"
+                    },
+                    "numberOfRedirects": 10,
+                    "runs": 1,
+                    "multiRunExecution": "SEQUENTIAL"
+                },
+                {
+                    "id": "5f606189-69d0-4481-b16a-3354d94c0421",
+                    "name": "Update quote to test value",
+                    "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\n\ndescribe('result', () => {\n   const result = (response.body.type == BodyType.JSON)\n      ? response.body.data\n      : expect.fail('Response body is not JSON')\n\n   describe('errors', () => {\n      it('were not retuned', () => {\n         expect(result.errors).to.be.undefined\n      })\n   })\n\n   const updateQuoteData = result.data.updateQuote\n\n   describe('success', () => {\n      it('is true', () => {\n         expect(updateQuoteData.success).to.equal(true)\n      })\n   })\n})\n",
+                    "url": "{{url}}/quote/graphql",
+                    "method": "POST",
+                    "timeout": 30000,
+                    "headers": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": {
+                        "type": "GraphQL",
+                        "query": "mutation UpdateQuote($id: String!, $test_quote: String!) {\n  updateQuote(id: $id, quote: $test_quote) {\n    success\n  }\n}"
+                    },
+                    "numberOfRedirects": 10,
+                    "runs": 1,
+                    "multiRunExecution": "SEQUENTIAL"
+                },
+                {
+                    "id": "e7287379-5a00-4f87-9a62-8fc9334b1d22",
+                    "name": "Get updated quote",
+                    "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('result', () => {\n   const result = (response.body.type == BodyType.JSON)\n      ? response.body.data\n      : expect.fail('Response body is not JSON')\n\n   describe('errors', () => {\n      it('were not retuned', () => {\n         expect(result.errors).to.be.undefined\n      })\n   })\n\n   const getQuoteData = result.data.getQuote\n\n   describe('quote', () => {\n      it('equals test quote', () => {\n         console.info(`Quote: \"${getQuoteData.quote}\"`)\n         expect(getQuoteData.quote).to.equal($['test-quote'])\n      })\n   })\n})\n",
+                    "url": "{{url}}/quote/graphql",
+                    "method": "POST",
+                    "timeout": 30000,
+                    "body": {
+                        "type": "GraphQL",
+                        "query": "query GetQuote($id: String!) {\n  getQuote(id: $id) {\n    author\n    quote\n  }\n}"
+                    },
+                    "numberOfRedirects": 10,
+                    "runs": 1,
+                    "multiRunExecution": "SEQUENTIAL"
+                },
+                {
+                    "id": "7ad87fbb-3d55-412f-bc25-681e517d8340",
+                    "name": "Restore original quote",
+                    "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\n\ndescribe('result', () => {\n   const result = (response.body.type == BodyType.JSON)\n      ? response.body.data\n      : expect.fail('Response body is not JSON')\n\n   describe('errors', () => {\n      it('were not retuned', () => {\n         expect(result.errors).to.be.undefined\n      })\n   })\n\n   const updateQuoteData = result.data.updateQuote\n\n   describe('success', () => {\n      it('is true', () => {\n         expect(updateQuoteData.success).to.equal(true)\n      })\n   })\n})\n",
+                    "url": "{{url}}/quote/graphql",
+                    "method": "POST",
+                    "timeout": 30000,
+                    "headers": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": {
+                        "type": "GraphQL",
+                        "query": "mutation UpdateQuote($id: String!, $quote: String!) {\n  updateQuote(id: $id, quote: $quote) {\n    success\n  }\n}"
+                    },
+                    "numberOfRedirects": 10,
+                    "runs": 1,
+                    "multiRunExecution": "SEQUENTIAL"
+                },
+                {
+                    "id": "b27461a0-b200-491e-b491-8550a7beeb11",
+                    "name": "Get restored quote",
+                    "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('result', () => {\n   const result = (response.body.type == BodyType.JSON)\n      ? response.body.data\n      : expect.fail('Response body is not JSON')\n\n   describe('errors', () => {\n      it('were not retuned', () => {\n         expect(result.errors).to.be.undefined\n      })\n   })\n\n   const getQuoteData = result.data.getQuote\n\n   describe('quote', () => {\n      it('equals original quote', () => {\n         console.info(`Quote: \"${getQuoteData.quote}\"`)\n         expect(getQuoteData.quote).to.equal($.quote)\n      })\n   })\n})\n",
+                    "url": "{{url}}/quote/graphql",
+                    "method": "POST",
+                    "timeout": 30000,
+                    "body": {
+                        "type": "GraphQL",
+                        "query": "query GetQuote($id: String!) {\n  getQuote(id: $id) {\n    author\n    quote\n  }\n}"
+                    },
+                    "numberOfRedirects": 10,
+                    "runs": 1,
+                    "multiRunExecution": "SEQUENTIAL"
+                },
+                {
+                    "id": "bb0f0072-14d4-4341-b3bd-ea62d665f607",
+                    "name": "Delete quote",
+                    "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('result', () => {\n   const result = (response.body.type == BodyType.JSON)\n      ? response.body.data\n      : expect.fail('Response body is not JSON')\n\n   describe('errors', () => {\n      it('were not retuned', () => {\n         expect(result.errors).to.be.undefined\n      })\n   })\n\n   const deleteQuoteData = result.data.deleteQuote\n\n   describe('succcess', () => {\n      it('equals true', () => {\n         expect(deleteQuoteData.success).to.equal(true)\n      })\n   })\n})\n",
+                    "url": "{{url}}/quote/graphql",
+                    "method": "POST",
+                    "timeout": 30000,
+                    "body": {
+                        "type": "GraphQL",
+                        "query": "mutation DeleteQuote($id: String!) {\n  deleteQuote(id: $id) {\n    success\n  }\n}"
+                    },
+                    "numberOfRedirects": 10,
+                    "runs": 1,
+                    "multiRunExecution": "SEQUENTIAL"
+                },
+                {
+                    "id": "248795d5-3274-4236-94dc-26b51c475ade",
+                    "name": "Ensure quote is deleted",
+                    "test": "describe('status', () => {\n   it('equals 200', () => {\n      expect(response.status).to.equal(200)\n   })\n})\n\ndescribe('result', () => {\n   const result = (response.body.type == BodyType.JSON)\n      ? response.body.data\n      : expect.fail('Response body is not JSON')\n\n   describe('errors', () => {\n      it('include \\\"Quote not Found\\\"', () => {\n         expect(result.errors.find(x => x.message == \"Quote not found\")).to.not.be.undefined\n      })\n   })\n})\n",
+                    "url": "{{url}}/quote/graphql",
+                    "method": "POST",
+                    "timeout": 30000,
+                    "body": {
+                        "type": "GraphQL",
+                        "query": "query GetQuote($id: String!) {\n  getQuote(id: $id) {\n    author\n    quote\n  }\n}"
+                    },
+                    "numberOfRedirects": 10,
+                    "runs": 1,
+                    "multiRunExecution": "SEQUENTIAL"
+                }
+            ],
+            "execution": "SEQUENTIAL",
+            "runs": 1,
+            "multiRunExecution": "CONCURRENT",
             "selectedData": {
                 "id": "90a39691-8f30-403d-8f92-5651ad60adb2",
                 "name": "Embedded Data"

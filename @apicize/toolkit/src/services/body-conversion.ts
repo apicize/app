@@ -2,7 +2,9 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { Body, BodyForm, BodyJSON, BodyNone, BodyRaw, BodyText, BodyType, BodyXML, NameValuePair } from "@apicize/lib-typescript";
+/* eslint-disable @typescript-eslint/no-base-to-string */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+import { Body, BodyForm, BodyGraphQL, BodyJSON, BodyNone, BodyRaw, BodyText, BodyType, BodyXML, NameValuePair } from "@apicize/lib-typescript";
 import { EditableNameValuePair } from "../models/workspace/editable-name-value-pair";
 import { GenerateIdentifier } from "./random-identifier-generator";
 import { Parser, Builder } from 'xml2js'
@@ -13,8 +15,6 @@ export class BodyConversion {
 
     /**
      * Convert body to destination type
-     * @param destinationType 
-     * @returns 
      */
     public convert(destinationType: BodyType): Promise<Body> {
         switch (destinationType) {
@@ -30,6 +30,8 @@ export class BodyConversion {
                 return Promise.resolve(this.toText())
             case BodyType.None:
                 return Promise.resolve(this.toNone())
+            case BodyType.GraphQL:
+                return this.toGraphQL()
             default:
                 throw new Error(`Unhandled body type: ${destinationType satisfies never}`)
         }
@@ -37,37 +39,49 @@ export class BodyConversion {
 
     /**
      * Output body as JSON
-     * @returns Body object of type JSON
      */
     public async toJson(): Promise<BodyJSON> {
         const type = this.source.type
         switch (type) {
             case BodyType.JSON:
                 return this.source
-            case BodyType.Text:
+            case BodyType.Text: {
+                const parsed = await BodyConversion.parseText(this.source.data)
                 return {
                     type: BodyType.JSON,
-                    data: JSON.stringify(await BodyConversion.parseText(this.source.data), undefined, '   ')
+                    data: parsed !== undefined ? JSON.stringify(parsed, undefined, '   ') : ''
                 }
+            }
             case BodyType.Form:
                 return {
                     type: BodyType.JSON,
-                    data: JSON.stringify(BodyConversion.parsePairData(this.source.data), undefined, '   ')
+                    data: this.source.data?.length
+                        ? JSON.stringify(BodyConversion.formPairsToObject(this.source.data), undefined, '   ')
+                        : ''
                 }
-            case BodyType.XML:
+            case BodyType.XML: {
+                if (!this.source.data?.trim()) {
+                    return { type: BodyType.JSON, data: '' }
+                }
+                const parsed = await BodyConversion.parseXml(this.source.data)
                 return {
                     type: BodyType.JSON,
-                    data: JSON.stringify(await BodyConversion.parseXml(this.source.data), undefined, '   ')
+                    data: JSON.stringify(parsed, undefined, '   ')
                 }
-            case BodyType.Raw:
+            }
+            case BodyType.Raw: {
+                const parsed = await BodyConversion.parseText(this.source.data)
                 return {
                     type: BodyType.JSON,
-                    data: JSON.stringify(await BodyConversion.parseText(this.source.data), undefined, '   ')
+                    data: parsed !== undefined ? JSON.stringify(parsed, undefined, '   ') : ''
                 }
+            }
             case BodyType.None:
+                return { type: BodyType.JSON, data: '' }
+            case BodyType.GraphQL:
                 return {
                     type: BodyType.JSON,
-                    data: ''
+                    data: JSON.stringify(BodyConversion.graphqlBodyToObject(this.source), undefined, '   ')
                 }
             default:
                 throw new Error(`Unhandled body type: ${type satisfies never}`)
@@ -76,37 +90,54 @@ export class BodyConversion {
 
     /**
      * Output body as XML
-     * @returns Body object of type XML
      */
     public async toXML(): Promise<BodyXML> {
         const type = this.source.type
         switch (type) {
             case BodyType.XML:
                 return this.source
-            case BodyType.Text:
+            case BodyType.Text: {
+                if (!this.source.data?.trim()) {
+                    return { type: BodyType.XML, data: '' }
+                }
+                const parsed = await BodyConversion.parseText(this.source.data)
                 return {
                     type: BodyType.XML,
-                    data: (new Builder()).buildObject(await BodyConversion.parseText(this.source.data))
+                    data: parsed !== undefined ? (new Builder()).buildObject(parsed) : ''
                 }
+            }
             case BodyType.Form:
                 return {
                     type: BodyType.XML,
-                    data: (new Builder()).buildObject(BodyConversion.parsePairData(this.source.data))
+                    data: this.source.data?.length
+                        ? (new Builder()).buildObject({ root: BodyConversion.formPairsToObject(this.source.data) })
+                        : ''
                 }
-            case BodyType.JSON:
+            case BodyType.JSON: {
+                if (!this.source.data?.trim()) {
+                    return { type: BodyType.XML, data: '' }
+                }
                 return {
                     type: BodyType.XML,
                     data: (new Builder()).buildObject(JSON.parse(this.source.data))
                 }
-            case BodyType.Raw:
-                return {
-                    type: BodyType.XML,
-                    data: (new Builder()).buildObject(await BodyConversion.parseText(this.source.data))
+            }
+            case BodyType.Raw: {
+                if (!this.source.data?.trim()) {
+                    return { type: BodyType.XML, data: '' }
                 }
-            case BodyType.None:
+                const parsed = await BodyConversion.parseText(this.source.data)
                 return {
                     type: BodyType.XML,
-                    data: ''
+                    data: parsed !== undefined ? (new Builder()).buildObject(parsed) : ''
+                }
+            }
+            case BodyType.None:
+                return { type: BodyType.XML, data: '' }
+            case BodyType.GraphQL:
+                return {
+                    type: BodyType.XML,
+                    data: (new Builder()).buildObject(BodyConversion.graphqlBodyToObject(this.source))
                 }
             default:
                 throw new Error(`Unhandled body type: ${type satisfies never}`)
@@ -115,7 +146,6 @@ export class BodyConversion {
 
     /**
      * Output body as Text
-     * @returns Body object of type Text
      */
     public toText(): BodyText {
         const type = this.source.type
@@ -127,17 +157,19 @@ export class BodyConversion {
             case BodyType.Raw:
                 return {
                     type: BodyType.Text,
-                    data: this.source.data
+                    data: this.source.data ?? ''
                 }
             case BodyType.Form:
                 return {
                     type: BodyType.Text,
-                    data: this.source.data.map((nv) => `${nv.name.replace(',', '\\,')}=${nv.value.replace(',', '\\,')}`).join(', ')
+                    data: (this.source.data ?? []).map((nv) => `${nv.name.replace(',', '\\,')}=${nv.value.replace(',', '\\,')}`).join(', ')
                 }
             case BodyType.None:
+                return { type: BodyType.Text, data: '' }
+            case BodyType.GraphQL:
                 return {
                     type: BodyType.Text,
-                    data: ''
+                    data: JSON.stringify(BodyConversion.graphqlBodyToObject(this.source))
                 }
             default:
                 throw new Error(`Unhandled body type: ${type satisfies never}`)
@@ -146,7 +178,6 @@ export class BodyConversion {
 
     /**
      * Output body as Raw (Base64 Binary)
-     * @returns Body object of type Raw
      */
     public async toRaw(): Promise<BodyRaw> {
         const type = this.source.type
@@ -161,9 +192,12 @@ export class BodyConversion {
                     type: BodyType.Raw,
                     data: BodyConversion.isValidBase64(this.source.data)
                         ? this.source.data
-                        : base64Encode((new TextEncoder()).encode(this.source.data))
+                        : base64Encode((new TextEncoder()).encode(this.source.data ?? ''))
                 }
             case BodyType.JSON:
+                if (!this.source.data?.trim()) {
+                    return { type: BodyType.Raw, data: '' }
+                }
                 jsonData = JSON.parse(this.source.data)
                 return {
                     type: BodyType.Raw,
@@ -172,6 +206,9 @@ export class BodyConversion {
                         : base64Encode((new TextEncoder()).encode(this.source.data))
                 }
             case BodyType.XML:
+                if (!this.source.data?.trim()) {
+                    return { type: BodyType.Raw, data: '' }
+                }
                 xmlData = await BodyConversion.parseXml(this.source.data)
                 return {
                     type: BodyType.Raw,
@@ -183,13 +220,17 @@ export class BodyConversion {
                 return {
                     type: BodyType.Raw,
                     data: base64Encode((new TextEncoder()).encode(
-                        JSON.stringify(BodyConversion.parsePairData(this.source.data))
+                        JSON.stringify(BodyConversion.parsePairData(this.source.data ?? []))
                     ))
                 }
             case BodyType.None:
+                return { type: BodyType.Raw, data: '' }
+            case BodyType.GraphQL:
                 return {
                     type: BodyType.Raw,
-                    data: ''
+                    data: base64Encode((new TextEncoder()).encode(
+                        JSON.stringify(BodyConversion.graphqlBodyToObject(this.source))
+                    ))
                 }
             default:
                 throw new Error(`Unhandled body type: ${type satisfies never}`)
@@ -198,34 +239,49 @@ export class BodyConversion {
 
     /**
      * Output body as Form
-     * @returns Body object of type Form
      */
     public async toForm(): Promise<BodyForm> {
         const type = this.source.type
-        let obj: any
-        let raw: any
         switch (type) {
             case BodyType.Form:
                 return this.source
-            case BodyType.JSON:
+            case BodyType.JSON: {
+                if (!this.source.data?.trim()) {
+                    return { type: BodyType.Form, data: [] }
+                }
+                const obj = JSON.parse(this.source.data)
+                return {
+                    type: BodyType.Form,
+                    data: BodyConversion.objectToFormPairs(obj)
+                }
+            }
+            case BodyType.XML: {
+                if (!this.source.data?.trim()) {
+                    return { type: BodyType.Form, data: [] }
+                }
+                const obj = await BodyConversion.parseXml(this.source.data)
+                return {
+                    type: BodyType.Form,
+                    data: BodyConversion.objectToFormPairs(obj)
+                }
+            }
             case BodyType.Text:
-            case BodyType.XML:
-                obj = await BodyConversion.parseText(this.source.data)
+            case BodyType.Raw: {
+                if (!this.source.data?.trim()) {
+                    return { type: BodyType.Form, data: [] }
+                }
+                const parsed = await BodyConversion.parseText(this.source.data)
+                if (parsed === undefined || typeof parsed === 'string') {
+                    return { type: BodyType.Form, data: [] }
+                }
                 return {
                     type: BodyType.Form,
-                    data: BodyConversion.parsePairData(obj)
+                    data: BodyConversion.objectToFormPairs(parsed)
                 }
-            case BodyType.Raw:
-                raw = await BodyConversion.parseText(this.source.data)
-                return {
-                    type: BodyType.Form,
-                    data: BodyConversion.parsePairData(raw as unknown as NameValuePair[])
-                }
+            }
             case BodyType.None:
-                return {
-                    type: BodyType.Form,
-                    data: []
-                }
+            case BodyType.GraphQL:
+                return { type: BodyType.Form, data: [] }
             default:
                 throw new Error(`Unhandled body type: ${type satisfies never}`)
         }
@@ -236,6 +292,73 @@ export class BodyConversion {
             type: BodyType.None,
             data: undefined
         }
+    }
+
+    /**
+     * Converts form name-value pairs to a plain object for JSON/XML conversion.
+     * Entries with duplicate names are combined into arrays; IDs are not included.
+     */
+    private static formPairsToObject(pairs: NameValuePair[]): Record<string, string | string[]> {
+        const result: Record<string, string | string[]> = {}
+        for (const pair of pairs) {
+            if (!pair.name) continue
+            const val = pair.value ?? ''
+            if (pair.name in result) {
+                const existing = result[pair.name]
+                if (Array.isArray(existing)) {
+                    existing.push(val)
+                } else {
+                    result[pair.name] = [existing, val]
+                }
+            } else {
+                result[pair.name] = val
+            }
+        }
+        return result
+    }
+
+    /**
+     * Converts a plain object or NameValuePair array to EditableNameValuePair entries.
+     * Array-valued properties expand to multiple entries with the same name.
+     */
+    private static objectToFormPairs(obj: any): EditableNameValuePair[] {
+        if (!obj) return []
+
+        if (Array.isArray(obj)) {
+            return obj
+                .map(item => ({
+                    id: GenerateIdentifier(),
+                    name: String(item?.name ?? ''),
+                    value: String(item?.value ?? '')
+                }))
+                .filter(pair => pair.name || pair.value)
+        }
+
+        if (typeof obj !== 'object') return []
+
+        const pairs: EditableNameValuePair[] = []
+        for (const [key, value] of Object.entries(obj)) {
+            if (Array.isArray(value)) {
+                for (const item of value) {
+                    pairs.push({
+                        id: GenerateIdentifier(),
+                        name: key,
+                        value: item !== null && item !== undefined
+                            ? (typeof item === 'object' ? JSON.stringify(item) : String(item))
+                            : ''
+                    })
+                }
+            } else {
+                pairs.push({
+                    id: GenerateIdentifier(),
+                    name: key,
+                    value: value !== null && value !== undefined
+                        ? (typeof value === 'object' ? JSON.stringify(value) : String(value))
+                        : ''
+                })
+            }
+        }
+        return pairs
     }
 
     private static async parseText(source: string, checkBase64: boolean = true): Promise<any> {
@@ -331,9 +454,89 @@ export class BodyConversion {
     }
 
     /**
+     * Output body as GraphQL
+     */
+    public async toGraphQL(): Promise<BodyGraphQL> {
+        const type = this.source.type
+        switch (type) {
+            case BodyType.GraphQL:
+                return this.source
+            case BodyType.JSON: {
+                if (!this.source.data?.trim()) {
+                    return { type: BodyType.GraphQL, data: { query: '' } }
+                }
+                return BodyConversion.objectToGraphQL(JSON.parse(this.source.data))
+            }
+            case BodyType.XML: {
+                if (!this.source.data?.trim()) {
+                    return { type: BodyType.GraphQL, data: { query: '' } }
+                }
+                const obj = await BodyConversion.parseXml(this.source.data)
+                return BodyConversion.objectToGraphQL(obj)
+            }
+            case BodyType.Text: {
+                if (!this.source.data?.trim()) {
+                    return { type: BodyType.GraphQL, data: { query: '' } }
+                }
+                const parsed = await BodyConversion.parseText(this.source.data)
+                if (parsed !== null && typeof parsed === 'object') {
+                    return BodyConversion.objectToGraphQL(parsed)
+                }
+                return { type: BodyType.GraphQL, data: { query: typeof parsed === 'string' ? parsed : '' } }
+            }
+            case BodyType.Raw: {
+                if (!this.source.data?.trim()) {
+                    return { type: BodyType.GraphQL, data: { query: '' } }
+                }
+                try {
+                    const decoded = (new TextDecoder()).decode(base64Decode(this.source.data))
+                    try {
+                        return BodyConversion.objectToGraphQL(JSON.parse(decoded))
+                    } catch {
+                        return { type: BodyType.GraphQL, data: { query: decoded } }
+                    }
+                } catch {
+                    return { type: BodyType.GraphQL, data: { query: '' } }
+                }
+            }
+            case BodyType.Form:
+            case BodyType.None:
+                return { type: BodyType.GraphQL, data: { query: '' } }
+            default:
+                throw new Error(`Unhandled body type: ${type satisfies never}`)
+        }
+    }
+
+    private static graphqlBodyToObject(source: BodyGraphQL): Record<string, any> {
+        const data = source.data
+        const obj: Record<string, any> = { query: data.query }
+        if (data.extensions !== undefined) {
+            try {
+                obj.extensions = JSON.parse(data.extensions)
+            } catch {
+                obj.extensions = data.extensions
+            }
+        }
+        return obj
+    }
+
+    private static objectToGraphQL(obj: any): BodyGraphQL {
+        const result: BodyGraphQL = {
+            type: BodyType.GraphQL,
+            data: {
+                query: typeof obj?.query === 'string' ? obj.query : ''
+            }
+        }
+        if (obj?.extensions != null) {
+            result.data.extensions = typeof obj.extensions === 'object'
+                ? JSON.stringify(obj.extensions)
+                : String(obj.extensions)
+        }
+        return result
+    }
+
+    /**
      * Tests whether a string appears to be valid Base64 encoded data.
-     * @param text The text to test
-     * @returns true if the text appears to be valid Base64, false otherwise
      */
     private static isValidBase64(text: string): boolean {
         if (!text || text.length === 0) {

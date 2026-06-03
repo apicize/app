@@ -48,6 +48,7 @@ declare enum BodyType {
     Text = 'Text',
     JSON = 'JSON',
     XML = 'XML',
+    GraphQL = 'GraphQL',
     Form = 'Form',
     Binary = 'Binary'
 }
@@ -102,6 +103,27 @@ declare interface BodyXML {
      * Deserialized data
      */
     data: any
+}
+
+/**
+ * GraphQL body data
+ */
+declare interface BodyGraphQL {
+    type: BodyType.GraphQL
+    data: {
+        /**
+         * GraqhQL query
+         */
+        query: String,
+        /**
+         * GraphQL operaton name
+         */
+        operationName?: string,
+        /**
+         * GraphQL request extensions
+         */
+        extensions?: string
+    }
 }
 
 /**

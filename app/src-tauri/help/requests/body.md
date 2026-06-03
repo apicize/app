@@ -2,7 +2,7 @@
 
 ## Body Pane :icon[body]
 
-When performing a POST or PUT, you can optionally include body payload of text (incl. JSON or XML), form data or "raw" data (Base64 encoded).  Multipart form data is not yet supported. You will have the option of updating the Content-Type header based upon the body content type, you can also update it manually from the [headers](help:requests/headers) panel.
+When performing a POST or PUT, you can optionally include body payload of text (incl. JSON, GraphQL or XML), form data or "raw" data (Base64 encoded).  Multipart form data is not yet supported. You will have the option of updating the Content-Type header based upon the body content type, you can also update it manually from the [headers](help:requests/headers) panel.
 
 * :icon[copy] Copy body data to clipboard
 * :icon[beautify] Format JSON or XML text

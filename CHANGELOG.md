@@ -1,5 +1,10 @@
 # Change Log
 
+## 0.44.0
+
+* Add GraphQL support
+* Move bundling from Webpack to Vite to support Monaco GraphQL extension
+
 ## 0.43.1
 
 * Restore Tauri "unstable" in Config.toml to fix PKCE auth in app
