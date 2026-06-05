@@ -1,0 +1,19 @@
+{
+  "name": "webdriver",
+  "private": true,
+  "scripts": {
+    "test": "wdio run wdio.conf.ts"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10",
+    "@types/node": "^20",
+    "@wdio/cli": "^8",
+    "@wdio/globals": "^8",
+    "@wdio/local-runner": "^8",
+    "@wdio/mocha-framework": "^8",
+    "@wdio/spec-reporter": "^8",
+    "ts-node": "^10",
+    "typescript": "^5",
+    "webdriverio": "^8"
+  }
+}

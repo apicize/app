@@ -1,5 +1,10 @@
 # Change Log
 
+## 0.44.1
+
+* Refactor to mitigate contention during progress update
+* Added initial Webdriver tests
+
 ## 0.44.0
 
 * Add GraphQL support

@@ -50,6 +50,7 @@ use tauri::async_runtime::RwLock;
 use tauri::{
     AppHandle, Emitter, LogicalSize, Manager, PhysicalSize, State, WebviewWindowBuilder, Wry,
 };
+use tauri_plugin_log::{Target, TargetKind};
 use tokio_util::sync::CancellationToken;
 use trace::{ReqwestEvent, ReqwestLogger};
 use workspaces::{
@@ -236,20 +237,20 @@ async fn main() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        // .plugin(
-        //     tauri_plugin_log::Builder::new()
-        //         .level(log::LevelFilter::Warn)
-        //         .level_for("reqwest", log::LevelFilter::Trace)
-        //         // .level_for("apicize", log::LevelFilter::Trace)
-        //         // .level_for("apicize::workspaces", log::LevelFilter::Trace)
-        //         // .level_for("apicize::sessions", log::LevelFilter::Trace)
-        //         .targets([
-        //             Target::new(TargetKind::Stdout),
-        //             // Target::new(TargetKind::LogDir { file_name: None }),
-        //             // Target::new(TargetKind::Webview),                ])
-        //         ])
-        //         .build(),
-        // )
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .level(log::LevelFilter::Warn)
+                // .level_for("reqwest", log::LevelFilter::Trace)
+                // // .level_for("apicize", log::LevelFilter::Trace)
+                // // .level_for("apicize::workspaces", log::LevelFilter::Trace)
+                // // .level_for("apicize::sessions", log::LevelFilter::Trace)
+                .targets([
+                    Target::new(TargetKind::Stdout),
+                    // Target::new(TargetKind::LogDir { file_name: None }),
+                    Target::new(TargetKind::Webview),
+                ])
+                .build(),
+        )
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             tokio::task::block_in_place(|| {
                 tauri::async_runtime::block_on(new_workspace(
@@ -1608,7 +1609,12 @@ async fn start_execution(
         let workspace_id = workspace_id.clone();
 
         move |progress: &ExecutionProgress| {
-            let session_ids = if let Ok(s) = sessions.try_read() {
+            let session_ids = if let Ok(s) = tokio::task::block_in_place(|| {
+                tauri::async_runtime::block_on(tokio::time::timeout(
+                    std::time::Duration::from_secs(3),
+                    sessions.read(),
+                ))
+            }) {
                 s.get_workspace_session_ids(&workspace_id)
                     .iter()
                     .map(|s| s.to_string())
@@ -1621,50 +1627,65 @@ async fn start_execution(
             let count = progress.exec_ctr as i32;
             increment_counters(&local_execution_counters, id, count);
 
-            let Ok(mut workspaces) = workspaces.try_write() else {
-                println!("Unable to access workspaces during progress");
-                return;
-            };
-
-            let Ok(info) = workspaces.get_workspace_info_mut(&workspace_id) else {
-                println!(
-                    "Unable to access workspace {} during progress",
-                    &workspace_id
-                );
-                return;
-            };
-
-            let is_testing = id == executing_request_or_group_id;
-
-            let (execution_event, execution_state) =
-                match increment_counters(&info.execution_counters, id, count) {
-                    ExecutionCounterResult::EmitStart => {
-                        let execution_state = if is_testing {
-                            ExecutionState::TEST_STARTED | ExecutionState::RUNNING
-                        } else {
-                            ExecutionState::TEST_STARTED
-                        };
-
-                        (
-                            Some(ExecutionEvent::TestStarted { execution_state }),
-                            execution_state,
-                        )
-                    }
-                    ExecutionCounterResult::EmitEnd => {
-                        let execution_state = if is_testing {
-                            ExecutionState::TEST_ENDED | ExecutionState::RUNNING
-                        } else {
-                            ExecutionState::TEST_ENDED
-                        };
-                        (
-                            Some(ExecutionEvent::TestEnded { execution_state }),
-                            execution_state,
-                        )
-                    }
-                    _ => (None, ExecutionState::RUNNING),
+            let execution_event = {
+                let Ok(mut workspaces) = tokio::task::block_in_place(|| {
+                    tauri::async_runtime::block_on(tokio::time::timeout(
+                        std::time::Duration::from_secs(3),
+                        workspaces.write(),
+                    ))
+                }) else {
+                    println!("Unable to access workspaces during progress");
+                    return;
                 };
 
-            // Emit execution event
+                let Ok(info) = workspaces.get_workspace_info_mut(&workspace_id) else {
+                    println!(
+                        "Unable to access workspace {} during progress",
+                        &workspace_id
+                    );
+                    return;
+                };
+
+                let is_testing = id == executing_request_or_group_id;
+
+                let (execution_event, execution_state) =
+                    match increment_counters(&info.execution_counters, id, count) {
+                        ExecutionCounterResult::EmitStart => {
+                            let execution_state = if is_testing {
+                                ExecutionState::TEST_STARTED | ExecutionState::RUNNING
+                            } else {
+                                ExecutionState::TEST_STARTED
+                            };
+
+                            (
+                                Some(ExecutionEvent::TestStarted { execution_state }),
+                                execution_state,
+                            )
+                        }
+                        ExecutionCounterResult::EmitEnd => {
+                            let execution_state = if is_testing {
+                                ExecutionState::TEST_ENDED | ExecutionState::RUNNING
+                            } else {
+                                ExecutionState::TEST_ENDED
+                            };
+                            (
+                                Some(ExecutionEvent::TestEnded { execution_state }),
+                                execution_state,
+                            )
+                        }
+                        _ => (None, ExecutionState::RUNNING),
+                    };
+
+                // Update navigation before releasing the lock
+                if let Some(r) = info.get_navigation_mut(id) {
+                    r.execution_state = execution_state;
+                }
+
+                execution_event
+                // workspaces write lock released here
+            };
+
+            // Emit execution event outside the lock
             if let Some(event) = execution_event {
                 for emit_to_session_id in &session_ids {
                     app.emit_to(
@@ -1674,11 +1695,6 @@ async fn start_execution(
                     )
                     .unwrap();
                 }
-            }
-
-            // Update navigation
-            if let Some(r) = info.get_navigation_mut(id) {
-                r.execution_state = execution_state;
             }
         }
     };
