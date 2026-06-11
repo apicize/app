@@ -197,20 +197,34 @@ monaco.languages.setMonarchTokensProvider('json-handlebars', {
     tokenizer: {
         root: [
             [/[ \t\r\n]+/, ''],
+            [/\{\{[^}]*\}\}/, 'variable.name'],
             [/[{}[\]]/, '@brackets'],
             [/[,:]/, 'delimiter'],
-            [/"/, { token: 'string.quote', bracket: '@open', next: '@string' }],
+            // Strings followed by a colon are property keys (string.key.json),
+            // matching the token the built-in JSON language emits so themes
+            // color keys and values consistently with the plain JSON editor
+            [/"(?=(?:[^"\\]|\\.)*"\s*:)/, { token: 'string.key', next: '@stringKey' }],
+            [/"/, { token: 'string.value', next: '@stringValue' }],
             [/-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/, 'number'],
             [/\b(?:true|false|null)\b/, 'keyword'],
         ],
-        string: [
+        stringKey: [
             [/\{\{[^}]*\}\}/, 'variable.name'],
             [/\\(?:["\\/bfnrt])/, 'string.escape'],
             [/\\u[0-9A-Fa-f]{4}/, 'string.escape'],
             [/\\./, 'string.escape.invalid'],
-            [/"/, { token: 'string.quote', bracket: '@close', next: '@pop' }],
-            [/[^"\\{]+/, 'string'],
-            [/\{/, 'string'],
+            [/"/, { token: 'string.key', next: '@pop' }],
+            [/[^"\\{]+/, 'string.key'],
+            [/\{/, 'string.key'],
+        ],
+        stringValue: [
+            [/\{\{[^}]*\}\}/, 'variable.name'],
+            [/\\(?:["\\/bfnrt])/, 'string.escape'],
+            [/\\u[0-9A-Fa-f]{4}/, 'string.escape'],
+            [/\\./, 'string.escape.invalid'],
+            [/"/, { token: 'string.value', next: '@pop' }],
+            [/[^"\\{]+/, 'string.value'],
+            [/\{/, 'string.value'],
         ],
     },
 } as monaco.languages.IMonarchLanguage)

@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.44.2
+
+* Update formatter on JSON handlebars body editor
+
 ## 0.44.1
 
 * Refactor to mitigate contention during progress update
