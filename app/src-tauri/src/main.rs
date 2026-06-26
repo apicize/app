@@ -193,7 +193,7 @@ async fn main() {
                 &mut workspaces,
                 &mut settings,
                 ClipboardDataType::None,
-                load_workbook.map(|file_name| OpenExisting::FileName(file_name)),
+                load_workbook.map(OpenExisting::FileName),
                 true,
                 None,
                 true,
