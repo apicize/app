@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::sync::{Arc, RwLock};
 
 use chrono::Local;
-use log::{Metadata, Record};
+use log::{Level, Metadata, Record};
 use regex::Regex;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, async_runtime::Sender};
@@ -84,6 +84,21 @@ impl ReqwestLogger {
         }
     }
 
+    /// Queue an event for emission. Runs on the `log::Log` path, so it must
+    /// never panic: a saturated buffer (e.g. during a large transfer) or a
+    /// shut-down receiver simply drops the event.
+    fn send_event(&self, event: ReqwestEvent) {
+        match self.event_sender.try_send(event) {
+            Ok(()) => {}
+            Err(mpsc::error::TrySendError::Full(_)) => {
+                eprintln!("Reqwest buffer full");
+            }
+            Err(mpsc::error::TrySendError::Closed(_)) => {
+                // Receiver task has shut down; nothing left to do.
+            }
+        }
+    }
+
     pub fn clear_logs(&self) -> Result<(), ApicizeAppError> {
         match self.stored_log.write() {
             Ok(mut logs) => {
@@ -97,8 +112,10 @@ impl ReqwestLogger {
 }
 
 impl log::Log for ReqwestLogger {
-    fn enabled(&self, _: &Metadata) -> bool {
-        true
+    fn enabled(&self, metadata: &Metadata) -> bool {
+        // Capture reqwest connection activity at any level, plus warnings and
+        // errors from anything else (replacing the dropped tauri_plugin_log).
+        metadata.target().starts_with("reqwest::connect") || metadata.level() <= Level::Warn
     }
 
     fn log(&self, record: &Record) {
@@ -112,7 +129,7 @@ impl log::Log for ReqwestLogger {
                     timestamp: Local::now().format("%H:%M:%S%.3f").to_string(),
                     host: host.as_str().to_string(),
                 });
-                self.event_sender.try_send(event).unwrap();
+                self.send_event(event);
                 // self.app.emit("log", &event).unwrap();
                 // self.event_sender.blocking_send(event).unwrap();
             }
@@ -132,7 +149,7 @@ impl log::Log for ReqwestLogger {
                                 .replace("\\r\\n", "\r\n")
                                 .replace("\\n", "\n"),
                         });
-                        self.event_sender.try_send(event).unwrap();
+                        self.send_event(event);
                         // self.app.emit("log", &event).unwrap();
                         // self.event_sender.blocking_send(event).unwrap();
                     }
@@ -144,12 +161,27 @@ impl log::Log for ReqwestLogger {
                                 .replace("\\r\\n", "\r\n")
                                 .replace("\\n", "\n"),
                         });
-                        self.event_sender.try_send(event).unwrap();
+                        self.send_event(event);
                         // self.app.emit("log", &event).unwrap();
                         // self.event_sender.blocking_send(event).unwrap();
                     }
                     _ => {}
                 }
+            }
+        } else if record.level() <= Level::Warn {
+            // Forward general warnings/errors to the console now that this is
+            // the sole global logger.
+            let line = format!(
+                "{} [{}] {}: {}",
+                Local::now().format("%H:%M:%S%.3f"),
+                record.level(),
+                target,
+                record.args()
+            );
+            if record.level() == Level::Error {
+                eprintln!("{line}");
+            } else {
+                println!("{line}");
             }
         }
     }

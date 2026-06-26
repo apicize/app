@@ -50,7 +50,6 @@ use tauri::async_runtime::RwLock;
 use tauri::{
     AppHandle, Emitter, LogicalSize, Manager, PhysicalSize, State, WebviewWindowBuilder, Wry,
 };
-use tauri_plugin_log::{Target, TargetKind};
 use tokio_util::sync::CancellationToken;
 use trace::{ReqwestEvent, ReqwestLogger};
 use workspaces::{
@@ -182,7 +181,9 @@ async fn main() {
                 ReqwestLogger::new(app.handle().clone())
             });
 
-            let _ = log::set_logger(reqwest_logger);
+            if let Err(e) = log::set_logger(reqwest_logger) {
+                eprintln!("Unable to register ReqwestLogger as global logger: {e}");
+            }
 
             log::set_max_level(log::LevelFilter::Trace);
 
@@ -192,7 +193,7 @@ async fn main() {
                 &mut workspaces,
                 &mut settings,
                 ClipboardDataType::None,
-                load_workbook,
+                load_workbook.map(|file_name| OpenExisting::FileName(file_name)),
                 true,
                 None,
                 true,
@@ -237,20 +238,6 @@ async fn main() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(
-            tauri_plugin_log::Builder::new()
-                .level(log::LevelFilter::Warn)
-                // .level_for("reqwest", log::LevelFilter::Trace)
-                // // .level_for("apicize", log::LevelFilter::Trace)
-                // // .level_for("apicize::workspaces", log::LevelFilter::Trace)
-                // // .level_for("apicize::sessions", log::LevelFilter::Trace)
-                .targets([
-                    Target::new(TargetKind::Stdout),
-                    // Target::new(TargetKind::LogDir { file_name: None }),
-                    Target::new(TargetKind::Webview),
-                ])
-                .build(),
-        )
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             tokio::task::block_in_place(|| {
                 tauri::async_runtime::block_on(new_workspace(
@@ -270,6 +257,7 @@ async fn main() {
         .invoke_handler(tauri::generate_handler![
             generate_settings_defaults,
             new_workspace,
+            clone_workspace,
             open_workspace,
             save_workspace,
             close_workspace,
@@ -414,7 +402,7 @@ fn create_workspace(
     workspaces: &mut Workspaces,
     settings: &mut ApicizeSettings,
     clipboard_data_type: ClipboardDataType,
-    open_existing_file_name: Option<String>,
+    open_existing: Option<OpenExisting>,
     create_new_if_error: bool,
     current_session_id: Option<String>,
     open_in_new_session: bool,
@@ -423,19 +411,21 @@ fn create_workspace(
     let private_env_var_set = workspaces.private_env_var_set;
     let vault_env_var_set = workspaces.vault_env_var_set;
 
-    for (id, info) in &workspaces.workspaces {
-        println!("*** Open workspace {} ({id})", info.file_name);
-    }
-
-    // Find the existing workspace for the file, if there is one
-    let mut existing_workspace_id = match &open_existing_file_name {
-        Some(file_name) => workspaces.workspaces.iter().find_map(|(id, info)| {
-            if !info.file_name.is_empty() && file_name.eq(&info.file_name) {
-                Some(id.clone())
-            } else {
-                None
-            }
-        }),
+    // Find the existing workspace for the specified session or file, if there is one
+    let mut existing_workspace_id = match &open_existing {
+        Some(OpenExisting::FileName(file_name)) => {
+            workspaces.workspaces.iter().find_map(|(id, info)| {
+                if !info.file_name.is_empty() && file_name.eq(&info.file_name) {
+                    Some(id.clone())
+                } else {
+                    None
+                }
+            })
+        }
+        Some(OpenExisting::SessionId(session_id)) => sessions
+            .get_session(session_id)
+            .ok()
+            .map(|session| session.workspace_id.clone()),
         None => None,
     };
 
@@ -461,8 +451,8 @@ fn create_workspace(
         existing_workspace_id = None;
     }
 
-    let workspace_result = match &open_existing_file_name {
-        Some(file_name) => {
+    let workspace_result = match &open_existing {
+        Some(OpenExisting::FileName(file_name)) => {
             if let Some(existing_workspace_id) = &existing_workspace_id {
                 // If there is a workspace already open for this file, switch to that
                 let workspace = workspaces.workspaces.get(existing_workspace_id).unwrap();
@@ -502,6 +492,23 @@ fn create_workspace(
                     }
                 }
             }
+        }
+        Some(OpenExisting::SessionId(session_id)) => {
+            let result = match &existing_workspace_id {
+                Some(id) => workspaces
+                    .workspaces
+                    .get(id)
+                    .map(|info| OpenWorkspaceResult {
+                        workspace_id: id.to_string(),
+                        directory: info.directory.to_string(),
+                        display_name: info.display_name.to_string(),
+                        error: None,
+                    }),
+                None => None,
+            };
+            result.ok_or(ApicizeError::Error {
+                description: format!("Session {session_id} does not refer to a valid workspace"),
+            })
         }
         None => Ok(workspaces.add_workspace(Workspace::new()?, "", true)),
     }?;
@@ -873,6 +880,32 @@ async fn new_workspace(
 }
 
 #[tauri::command]
+async fn clone_workspace(
+    app: AppHandle,
+    sessions_state: State<'_, SessionsState>,
+    workspaces_state: State<'_, WorkspacesState>,
+    settings_state: State<'_, SettingsState>,
+    clipboard_state: State<'_, ClipboardState>,
+    current_session_id: String,
+) -> Result<String, ApicizeAppError> {
+    let sessions = &mut sessions_state.sessions.write().await;
+    let workspaces = &mut workspaces_state.workspaces.write().await;
+    let settings = &mut settings_state.settings.write().await;
+
+    create_workspace(
+        app,
+        sessions,
+        workspaces,
+        settings,
+        clipboard_state.inner().get_data_type(),
+        Some(OpenExisting::SessionId(current_session_id.to_string())),
+        false,
+        Some(current_session_id),
+        true,
+    )
+}
+
+#[tauri::command]
 #[allow(clippy::too_many_arguments)]
 async fn open_workspace(
     app: AppHandle,
@@ -894,7 +927,7 @@ async fn open_workspace(
         workspaces,
         settings,
         clipboard_state.inner().get_data_type(),
-        Some(file_name),
+        Some(OpenExisting::FileName(file_name)),
         false,
         session_id,
         open_in_new_session,
@@ -3430,4 +3463,11 @@ struct StorageInformation {
 enum LockStatusUpdate {
     Vault { status: ParameterLockStatus },
     Private { status: ParameterLockStatus },
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+enum OpenExisting {
+    FileName(String),
+    SessionId(String),
 }

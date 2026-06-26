@@ -6,6 +6,7 @@ import { DataSourceType } from "@apicize/lib-typescript";
 
 export class FileOperationsStore {
     public readonly newWorkbook: (openInNewWindow: boolean) => Promise<string>
+    public readonly cloneWorkspace: () => Promise<string>
     public readonly openWorkbook: (openInNewWindow: boolean, fileName?: string, doUpdateSettings?: boolean) => Promise<string>
     public readonly saveWorkbook: () => Promise<void>
     public readonly saveWorkbookAs: () => Promise<void>
@@ -21,6 +22,7 @@ export class FileOperationsStore {
 
     constructor(callbacks: {
         onNewWorkbook: (openInNewWindow: boolean) => Promise<string>,
+        onCloneWorkspace: () => Promise<string>,
         onOpenWorkbook: (openInNewWindow: boolean, fileName?: string, doUpdateSettings?: boolean) => Promise<string>,
         onSaveWorkbook: () => Promise<void>,
         onSaveWorkbookAs: () => Promise<void>,
@@ -35,6 +37,7 @@ export class FileOperationsStore {
         onSaveDataSetAs: (dataSetId: string, sourceType: DataSourceType) => Promise<string | null>,
     }) {
         this.newWorkbook = callbacks.onNewWorkbook
+        this.cloneWorkspace = callbacks.onCloneWorkspace
         this.openWorkbook = callbacks.onOpenWorkbook
         this.saveWorkbook = callbacks.onSaveWorkbook
         this.saveWorkbookAs = callbacks.onSaveWorkbookAs

@@ -106,6 +106,12 @@ export function FileOperationsProvider(
         return response
     }
 
+    const cloneWorkspace = async (): Promise<string> => {
+        const response = await core.invoke<string>('clone_workspace', { currentSessionId: activeSessionId })
+        feedback.toast('Cloned workbook', ToastSeverity.Success)
+        return response
+    }
+
     /**
      * Loads the specified workbook (if named), otherwise, prompts for workbook
      * @param defaultFileName 
@@ -492,6 +498,7 @@ export function FileOperationsProvider(
 
     const fileOpsStore = new FileOperationsStore({
         onNewWorkbook: newWorkbook,
+        onCloneWorkspace: cloneWorkspace,
         onOpenWorkbook: openWorkbook,
         onSaveWorkbook: saveWorkbook,
         onSaveWorkbookAs: saveWorkbookAs,

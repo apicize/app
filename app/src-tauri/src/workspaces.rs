@@ -143,7 +143,17 @@ impl Workspaces {
         for (id, info) in &self.workspaces {
             println!(
                 "      ID: {}, Name: {}, Path: {}",
-                id, info.display_name, info.file_name
+                id,
+                if info.display_name.is_empty() {
+                    "(Unnamed)"
+                } else {
+                    &info.display_name
+                },
+                if info.file_name.is_empty() {
+                    "(Unsaved)"
+                } else {
+                    &info.file_name
+                }
             );
         }
     }

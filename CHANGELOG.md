@@ -1,5 +1,10 @@
 # Change Log
 
+## 0.44.3
+
+* Add clone workspace to New menu
+* Restore I/O logging (replace Tauri log plugin)
+
 ## 0.44.2
 
 * Update formatter on JSON handlebars body editor

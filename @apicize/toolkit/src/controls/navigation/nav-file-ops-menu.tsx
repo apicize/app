@@ -13,6 +13,8 @@ import SaveIcon from '@mui/icons-material/Save'
 import SaveAsIcon from '@mui/icons-material/SaveAs'
 import OpenInBrowserIcon from '@mui/icons-material/OpenInBrowser'
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+
 import { ToastSeverity, useFeedback } from "../../contexts/feedback.context"
 
 export const NavFileOpsMenu = observer(({ sx, orientation }: { sx?: SxProps, orientation: 'horizontal' | 'vertical' }) => {
@@ -60,6 +62,14 @@ export const NavFileOpsMenu = observer(({ sx, orientation }: { sx?: SxProps, ori
 
     const handleOpenNewInNewWindow = () => {
         fileOps.newWorkbook(true)
+            .then((newSessionId) => {
+                feedback.toast('Opening New Session...', ToastSeverity.Info, newSessionId)
+            })
+            .catch(err => feedback.toastError(err))
+    }
+
+    const handleCloneInNewWindow = () => {
+        fileOps.cloneWorkspace()
             .then((newSessionId) => {
                 feedback.toast('Opening New Session...', ToastSeverity.Info, newSessionId)
             })
@@ -169,6 +179,10 @@ export const NavFileOpsMenu = observer(({ sx, orientation }: { sx?: SxProps, ori
             <MenuItem autoFocus={true} key='nav-new-file' className='recent-file' sx={{ fontSize: 'inherit' }} disableRipple onClick={() => handleOpenNewInNewWindow()}>
                 <Box className='filename'>Open New Workspace in New Window</Box>
                 <OpenInBrowserIcon sx={{ marginRight: 0 }} fontSize='inherit' />
+            </MenuItem>
+            <MenuItem autoFocus={true} key='nav-clone-file' className='recent-file' sx={{ fontSize: 'inherit' }} disableRipple onClick={() => handleCloneInNewWindow()}>
+                <Box className='filename'>Clone Workspace in New Window</Box>
+                <ContentCopyIcon sx={{ marginRight: 0 }} fontSize='inherit' />
             </MenuItem>
         </DropdownMenu>
 
