@@ -3520,28 +3520,11 @@ impl WorkspaceInfo {
                 }
             }
             ClipboardPayloadRequest::ResponseDetail { exec_ctr } => {
-                let mut detail: ExecutionResultDetail =
+                let detail: ExecutionResultDetail =
                     self.execution_results.get_detail(&exec_ctr)?.clone();
-                if let ExecutionResultDetail::Request(detail) = &mut detail {
-                    detail.curl = None;
-                }
                 Ok(Some(PersistableData::Text(serde_json::to_string_pretty(
                     &detail,
                 )?)))
-            }
-            ClipboardPayloadRequest::ResponseCurl { exec_ctr } => {
-                let detail: &ExecutionResultDetail =
-                    self.execution_results.get_detail(&exec_ctr)?;
-                if let ExecutionResultDetail::Request(detail) = detail
-                    && let Some(curl) = &detail.curl
-                    && !curl.is_empty()
-                {
-                    Ok(Some(PersistableData::Text(curl.to_string())))
-                } else {
-                    Err(ApicizeAppError::ClipboardError(
-                        "CURL command not available".to_string(),
-                    ))
-                }
             }
         }
     }
@@ -3894,8 +3877,6 @@ pub enum ClipboardPayloadRequest {
     ResponseBodyPreview { exec_ctr: usize },
     #[serde(rename_all = "camelCase")]
     ResponseDetail { exec_ctr: usize },
-    #[serde(rename_all = "camelCase")]
-    ResponseCurl { exec_ctr: usize },
 }
 
 /// Describe data to read and write from clipboard or file

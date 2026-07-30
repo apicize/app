@@ -71,6 +71,7 @@ const JsonEditor = observer(forwardRef<JsonEditorHandle, {
     useImperativeHandle(ref, () => ({ performBeautify }))
 
     return <MonacoEditor
+        key={dataSet.id}
         language='json'
         theme={settings.colorScheme === "dark" ? 'vs-dark' : 'vs-light'}
         value={dataSet.text}

@@ -6,7 +6,6 @@ export type ClipboardPaylodRequest = ClipboardPayloadRequest | ClipboardPayloadS
     | ClipboardPayloadRequestTest | ClipboardPayloadGroupSetup
     | ClipboardPayloadResponseSummaryJson | ClipboardPayloadResponseSummaryCsv
     | ClipboardPayloadResponseBodyRaw | ClipboardPayloadResponseBodyPreview | ClipboardPayloadResponseDetail
-    | ClipboardPayloadResponseCurl
 
 export interface ClipboardPayloadRequest {
     payloadType: 'Request'
@@ -70,10 +69,5 @@ export interface ClipboardPayloadResponseBodyPreview {
 
 export interface ClipboardPayloadResponseDetail {
     payloadType: 'ResponseDetail'
-    execCtr: number
-}
-
-export interface ClipboardPayloadResponseCurl {
-    payloadType: 'ResponseCurl'
     execCtr: number
 }

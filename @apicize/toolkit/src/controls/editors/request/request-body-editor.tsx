@@ -244,8 +244,8 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
             <FormControl>
               <InputLabel id='request-body-type-label-id'>Body Content Type</InputLabel>
               <Select
-                labelId='request-method-label-id'
-                id="request-method"
+                labelId='request-body-type-label-id'
+                id="request-body-type"
                 value={request.body.type}
                 label="Body Content Type"
                 sx={{
@@ -328,6 +328,7 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
               : request.body.type === BodyType.GraphQL
                 ? <GraphQLBodyEditor ref={graphqlEditor} request={request} />
                 : <MonacoEditor
+                  key={`${request.id}:${request.bodyLanguage}`}
                   language={request.bodyLanguage ?? undefined}
                   width='100%'
                   height='100%'

@@ -1,9 +1,10 @@
 import { Selection, ExecutionConcurrency, ExecutionResultSummary, ExecutionState, DEFAULT_SELECTION, NO_SELECTION } from "@apicize/lib-typescript"
 import { Editable, EditableEntityContext } from "../editable"
-import { action, computed, observable } from "mobx"
+import { action, computed, observable, runInAction } from "mobx"
 import { ResultsPanel } from "../../contexts/workspace.context"
 import { ExecutionEvent, ExecutionMenuItem, ExecutionResultViewState } from "./execution"
 import { RequestExecution } from "../request-execution"
+import { CodeGenLanguage } from "../code-generation"
 
 export abstract class EditableRequestEntry extends Editable {
     @observable accessor disabled = false
@@ -14,6 +15,15 @@ export abstract class EditableRequestEntry extends Editable {
     @observable public accessor selectedResultMenuItem: ExecutionMenuItem | null = null
     @observable public accessor isRunning: boolean = false
     @observable public accessor resultsPanel: ResultsPanel = 'Info'
+
+    // Code generation: a cache of generated code keyed by
+    // `${execCtr}:${language}:${includeSecrets}` so switching between
+    // results/languages/options does not re-invoke the backend unnecessarily.
+    // The selected language and include-secrets option are workspace-wide (see
+    // WorkspaceStore), not stored per entry.
+    @observable public accessor codeGenPending: boolean = false
+    @observable public accessor codeGenError: string | null = null
+    private codeGenCache = observable.map<string, string>()
 
     @observable accessor selectedScenario: Selection = DEFAULT_SELECTION
     @observable accessor selectedAuthorization: Selection = DEFAULT_SELECTION
@@ -72,8 +82,50 @@ export abstract class EditableRequestEntry extends Editable {
         this.resultsPanel = value
     }
 
+    private codeGenKey(execCtr: number, language: CodeGenLanguage, includeSecrets: boolean): string {
+        return `${execCtr}:${language}:${includeSecrets}`
+    }
+
+    /** Returns the cached generated code for the execution/language/option, if available */
+    public getGeneratedCode(execCtr: number, language: CodeGenLanguage, includeSecrets: boolean): string | undefined {
+        return this.codeGenCache.get(this.codeGenKey(execCtr, language, includeSecrets))
+    }
+
+    /**
+     * Ensure generated code for the given execution/language/option is available,
+     * fetching it from the backend and caching the result if not already cached.
+     */
+    @action
+    public loadGeneratedCode(execCtr: number, language: CodeGenLanguage, includeSecrets: boolean) {
+        if (language === CodeGenLanguage.None) {
+            return
+        }
+        this.codeGenError = null
+        const key = this.codeGenKey(execCtr, language, includeSecrets)
+        if (this.codeGenCache.has(key)) {
+            return
+        }
+        this.codeGenPending = true
+        this.codeGenError = null
+        this.workspace.generateCode(execCtr, language, includeSecrets)
+            .then(code => runInAction(() => {
+                this.codeGenCache.set(key, code)
+                this.codeGenPending = false
+            }))
+            .catch(e => runInAction(() => {
+                this.codeGenError = `${e}`
+                this.codeGenPending = false
+            }))
+    }
+
     applyExecution(execution: RequestExecution) {
         this.isRunning = execution.executionState === ExecutionState.running
+
+        // Generated code is tied to specific execution results; invalidate the
+        // cache whenever the execution results are (re)applied.
+        this.codeGenCache.clear()
+        this.codeGenError = null
+        this.codeGenPending = false
 
         if (execution.menu.length < 1) {
             this.selectedResultMenuItem = null

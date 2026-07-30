@@ -1,6 +1,4 @@
-use apicize_lib::{
-    ExecutionConcurrency, NameValuePair, Request, RequestBody, RequestMethod, Selection,
-};
+use apicize_lib::{ExecutionConcurrency, NameValuePair, Request, RequestBody, Selection};
 use serde::{Deserialize, Serialize};
 
 use crate::workspaces::{EntityType, RequestBodyInfo};
@@ -19,7 +17,7 @@ pub struct RequestUpdate {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub method: Option<RequestMethod>,
+    pub method: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub runs: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]

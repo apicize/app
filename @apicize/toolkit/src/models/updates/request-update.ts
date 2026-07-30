@@ -1,4 +1,4 @@
-import { ExecutionConcurrency, Method, NameValuePair, Body, Selection } from "@apicize/lib-typescript"
+import { ExecutionConcurrency, NameValuePair, Body, Selection } from "@apicize/lib-typescript"
 import { EntityType } from "../workspace/entity-type"
 import { EntityTypeName } from "../../contexts/workspace.context"
 
@@ -10,7 +10,7 @@ export interface RequestUpdate {
     disabled?: boolean
     key?: string
     url?: string
-    method?: Method
+    method?: string
     runs?: number
     multiRunExecution?: ExecutionConcurrency
     timeout?: number

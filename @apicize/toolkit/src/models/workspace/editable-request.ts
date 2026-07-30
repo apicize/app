@@ -1,5 +1,5 @@
 import {
-    Selection, Body, BodyType, ExecutionConcurrency, Method, NameValuePair, Request, ValidationWarnings, ValidationErrors,
+    Selection, Body, BodyType, ExecutionConcurrency, NameValuePair, Request, ValidationWarnings, ValidationErrors,
     BodyJSON, BodyNone, BodyRaw, BodyText, BodyXML, ValidationErrorList, DEFAULT_SELECTION_ID, NO_SELECTION_ID, NO_SELECTION,
     DEFAULT_SELECTION,
     BodyGraphQL,
@@ -29,7 +29,7 @@ export class EditableRequest extends EditableRequestEntry {
     @observable public accessor key = ''
     @observable public accessor url = ''
 
-    @observable public accessor method = Method.Get
+    @observable public accessor method = 'GET'
     @observable public accessor timeout = 30000
     @observable public accessor keepAlive = false
     @observable public accessor acceptInvalidCerts = false
@@ -78,7 +78,7 @@ export class EditableRequest extends EditableRequestEntry {
         this.validationErrors = entry.validationErrors ?? {}
 
         this.url = entry.url ?? ''
-        this.method = entry.method ?? Method.Get
+        this.method = entry.method ?? 'GET'
         this.timeout = entry.timeout ?? 30000
         this.acceptInvalidCerts = entry.acceptInvalidCerts
         this.keepAlive = entry.keepAlive
@@ -191,7 +191,7 @@ export class EditableRequest extends EditableRequestEntry {
     }
 
     @action
-    setMethod(value: Method) {
+    setMethod(value: string) {
         this.method = value
         return this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, method: value })
     }
@@ -503,7 +503,7 @@ export interface RequestInfo extends ValidationWarnings, ValidationErrors {
     name: string
     key?: string
     url: string
-    method: Method
+    method: string
     timeout: number
     keepAlive: boolean
     acceptInvalidCerts: boolean

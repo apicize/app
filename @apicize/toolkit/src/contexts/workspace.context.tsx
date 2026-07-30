@@ -48,6 +48,7 @@ import { ReqwestEvent } from "../models/trace"
 import { editor } from "monaco-editor"
 import { EditorMode } from "../models/editor-mode"
 import { ClipboardPaylodRequest } from "../models/clipboard_payload_request"
+import { CodeGenLanguage } from "../models/code-generation"
 import { RequestExecution } from "../models/request-execution"
 import { IDataSetEditorTextModel, IRequestEditorTextModel, IResultEditorTextModel } from "../models/editor-text-model"
 import { EditableEntityContext, UpdateResponse } from "../models/editable"
@@ -71,7 +72,7 @@ export enum WorkspaceMode {
     DataSetList = 10,
 }
 
-export type ResultsPanel = 'Info' | 'Headers' | 'Preview' | 'Text' | 'Curl' | 'Details'
+export type ResultsPanel = 'Info' | 'Headers' | 'Preview' | 'Text' | 'Code' | 'Details'
 export type RequestPanel = 'Info' | 'Headers' | 'Query String' | 'Body' | 'Test Script' | 'Execution Parameters' | 'Warnings'
 export type GroupPanel = 'Info' | 'Test Setup Script' | 'Execution Parameters' | 'Warnings'
 export type SettingsPanel = 'Workspace Defaults' | 'Locks' | 'Application' | 'Warnings'
@@ -101,6 +102,12 @@ export class WorkspaceStore implements EditableEntityContext {
 
     @observable accessor activeSelection: ActiveSelection | null = null
     @observable accessor activeParameters: ActiveParameters | null = null
+
+    // Code generation selection is a workspace-wide preference so that choosing
+    // a runtime applies to every request's Code tab (and is applied
+    // synchronously, avoiding a "select a language" flash on tab load).
+    @observable accessor codeGenLanguage: CodeGenLanguage = CodeGenLanguage.None
+    @observable accessor codeGenIncludeSecrets: boolean = false
     @observable accessor privateLockStatus: ParameterLockStatus = ParameterLockStatus.UnlockedNoPassword
     @observable accessor vaultLockStatus: ParameterLockStatus = ParameterLockStatus.UnlockedNoPassword
     public vaultEnvVarSet = false
@@ -177,6 +184,7 @@ export class WorkspaceStore implements EditableEntityContext {
             getExecutionResultViewState: (requestId: string) => Promise<ExecutionResultViewState>,
             updateExecutionResultViewState: (requestId: string, executionResultViewState: ExecutionResultViewState) => Promise<undefined>,
             getResultDetail: (execCtr: number) => Promise<ExecutionResultDetail>,
+            generateCode: (execCtr: number, language: CodeGenLanguage, includeSecrets: boolean) => Promise<string>,
             getEntityType: (entityId: string) => Promise<EntityType | null>,
             getDataSetContent: (dataSetId: string) => Promise<DataSetContent>,
             findDescendantGroups: (groupId: string) => Promise<string[]>,
@@ -185,6 +193,7 @@ export class WorkspaceStore implements EditableEntityContext {
             closePkce: (data: { authorizationId: string }) => Promise<void>,
             refreshToken: (data: { authorizationId: string }) => Promise<void>,
             copyToClipboard: (payloadRequest: ClipboardPaylodRequest) => Promise<void>,
+            copyTextToClipboard: (text: string) => Promise<void>,
             clipboardPasteData: (relativeToId: string | null, relativePosition: IndexedEntityPosition | null, dataType: ClipboardDataType) => Promise<[string, EntityType]>,
             getRequestBody: (requestId: string) => Promise<RequestBodyInfo>,
             updateRequestBody: (requestId: string, body?: Body) => Promise<RequestBodyMimeInfo>,
@@ -1286,9 +1295,6 @@ export class WorkspaceStore implements EditableEntityContext {
         switch (detail.entityType) {
             case 'request':
                 switch (type) {
-                    case ResultEditSessionType.Curl:
-                        text = detail.curl ?? ''
-                        break
                     case ResultEditSessionType.Base64:
                         text = (detail.testContext.response?.body?.type === 'Binary')
                             ? detail.testContext.response.body.data
@@ -1341,6 +1347,43 @@ export class WorkspaceStore implements EditableEntityContext {
     }
 
     /**
+     * Returns a read-only Monaco model for displaying generated code. Unlike
+     * getResultEditModel, the text is supplied by the caller (fetched from the
+     * backend) rather than derived from the result detail. The model is reused
+     * across language changes, updating its contents and syntax mode in place.
+     */
+    getGeneratedCodeModel(detail: ExecutionResultDetail, mode: EditorMode, code: string): editor.ITextModel {
+        let requestModels = this.resultModels.get(detail.id)
+        if (!requestModels) {
+            requestModels = new Map()
+            this.resultModels.set(detail.id, requestModels)
+        }
+        let entries = requestModels.get(detail.execCtr)
+        if (!entries) {
+            entries = new Map()
+            requestModels.set(detail.execCtr, entries)
+        }
+        const existing = entries.get(ResultEditSessionType.GeneratedCode)
+        if (existing && !existing.isDisposed()) {
+            if (existing.getValue() !== code) {
+                existing.setValue(code)
+            }
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+            if (existing.getLanguageId() !== mode) {
+                editor.setModelLanguage(existing, mode)
+            }
+            return existing
+        }
+
+        const model = editor.createModel(code, mode) as IResultEditorTextModel
+        model.resultId = detail.id
+        model.execCtr = detail.execCtr
+        model.type = ResultEditSessionType.GeneratedCode
+        entries.set(ResultEditSessionType.GeneratedCode, model)
+        return model
+    }
+
+    /**
      * Returns edit model if exists for the specified request/group
      * Note:  request.body should already be initialized when this is called
      * @param requestId
@@ -1371,6 +1414,32 @@ export class WorkspaceStore implements EditableEntityContext {
 
     public async copyToClipboard(payloadRequest: ClipboardPaylodRequest, description: string) {
         await this.callbacks.copyToClipboard(payloadRequest)
+        this.feedback.toast(`${description} copied to clipboard`, ToastSeverity.Info)
+    }
+
+    /**
+     * Generate a runnable code snippet reproducing the dispatched request for
+     * the specified execution result in the requested language/runtime.
+     */
+    public generateCode(execCtr: number, language: CodeGenLanguage, includeSecrets: boolean): Promise<string> {
+        return this.callbacks.generateCode(execCtr, language, includeSecrets)
+    }
+
+    @action
+    public setCodeGenLanguage(language: CodeGenLanguage) {
+        this.codeGenLanguage = language
+    }
+
+    @action
+    public setCodeGenIncludeSecrets(includeSecrets: boolean) {
+        this.codeGenIncludeSecrets = includeSecrets
+    }
+
+    /**
+     * Copy arbitrary text (e.g. generated code) to the clipboard
+     */
+    public async copyTextToClipboard(text: string, description: string) {
+        await this.callbacks.copyTextToClipboard(text)
         this.feedback.toast(`${description} copied to clipboard`, ToastSeverity.Info)
     }
 

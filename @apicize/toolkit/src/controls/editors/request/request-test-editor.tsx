@@ -135,6 +135,7 @@ export const RequestTestEditor = observer(({ request }: { request: EditableReque
 
             <Box id='req-test-editor' ref={refContainer} position='relative' width='100%' height='100%'>
                 <MonacoEditor
+                    key={request.id}
                     language='javascript'
                     theme={settings.colorScheme === "dark" ? 'vs-dark' : 'vs-light'}
                     value={request.test}

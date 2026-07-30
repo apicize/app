@@ -1,5 +1,13 @@
 # Change Log
 
+## 0.45.0
+
+* Add support for custom HTTP methods
+* Persist response tab after each execution
+* Fix issue with monaco editor state caching
+* Remove CURL generation support
+* Fix issue with test scripts lacking ending CR
+
 ## 0.44.3
 
 * Add clone workspace to New menu

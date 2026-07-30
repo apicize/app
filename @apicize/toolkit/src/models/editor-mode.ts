@@ -7,4 +7,8 @@ export enum EditorMode {
     css = 'css',
     txt = 'plaintext',
     shell = 'shell',
+    python = 'python',
+    go = 'go',
+    csharp = 'csharp',
+    java = 'java',
 }

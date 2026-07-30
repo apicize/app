@@ -11,6 +11,7 @@ import { EditableDefaults } from "./workspace/editable-defaults"
 import { EntityUpdate } from "./updates/entity-update"
 import { ExecutionResultViewState } from "./workspace/execution"
 import { RequestBodyMimeInfo } from "./workspace/request-body-info"
+import { CodeGenLanguage } from "./code-generation"
 
 export type EditableEntity = EditableRequest | EditableRequestGroup | EditableScenario | EditableAuthorization
     | EditableCertificate | EditableProxy | EditableDefaults
@@ -24,6 +25,7 @@ export interface EditableEntityContext {
     updateExecutionDetail(execCtr: number): void
     updateExecutionResultViewState(requestOrGroupId: string, executionResultViewState: ExecutionResultViewState): void
     updateRequestBody(requestId: string, body: Body | undefined): Promise<RequestBodyMimeInfo | null>
+    generateCode(execCtr: number, language: CodeGenLanguage, includeSecrets: boolean): Promise<string>
 }
 
 export interface UpdateResponse {

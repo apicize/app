@@ -10,5 +10,5 @@ export enum ResultEditSessionType {
     Raw = 'r',
     Base64 = 'b',
     Details = 'd',
-    Curl = 'c'
+    GeneratedCode = 'g'
 }

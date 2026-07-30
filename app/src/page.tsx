@@ -13,6 +13,7 @@ import {
   ClipboardDataType,
   PasswordLockType,
   LockStatusUpdate,
+  CodeGenLanguage,
 } from '@apicize/toolkit'
 import { useEffect, useState } from 'react'
 import "@fontsource/roboto-mono/latin-400.css"
@@ -164,6 +165,9 @@ const workspaceStore = new WorkspaceStore(
     getResultDetail: (execCtr) => core.invoke(
       'get_execution_result', { sessionId, execCtr }
     ),
+    generateCode: (execCtr: number, language: CodeGenLanguage, includeSecrets: boolean) => core.invoke<string>(
+      'generate_request_code', { sessionId, execCtr, language, includeSecrets }
+    ),
     getExecutionResultViewState: (requestId) => core.invoke(
       'get_execution_result_view_state', { sessionId, requestId }
     ),
@@ -186,6 +190,9 @@ const workspaceStore = new WorkspaceStore(
       emit('oauth2-refresh-token', data),
     copyToClipboard: (payloadRequest: ClipboardPaylodRequest) => core.invoke(
       'copy_to_clipboard', { sessionId, payloadRequest }
+    ),
+    copyTextToClipboard: (text: string) => core.invoke(
+      'copy_text_to_clipboard', { text }
     ),
     getRequestBody: (requestId) => core.invoke<RequestBodyInfo>(
       'get_request_body', { sessionId, requestId }

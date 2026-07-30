@@ -168,6 +168,7 @@ export const RequestSetupEditor = observer(({ group }: { group: EditableRequestG
 
             <Box id='req-setup-editor' ref={refContainer} position='relative' width='100%' height='100%'>
                 <MonacoEditor
+                    key={group.id}
                     language='javascript'
                     theme={settings.colorScheme === "dark" ? 'vs-dark' : 'vs-light'}
                     value={group.setup}

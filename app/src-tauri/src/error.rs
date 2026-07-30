@@ -77,6 +77,9 @@ pub enum ApicizeAppError {
     #[error("Concurrency Error '{0}'")]
     ConcurrencyError(String),
 
+    #[error("code generation error '{0}'")]
+    CodeGenerationError(String),
+
     #[error(transparent)]
     FromUtf8Error(#[from] FromUtf8Error),
 }

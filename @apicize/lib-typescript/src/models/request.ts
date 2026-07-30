@@ -11,26 +11,6 @@ import { NameValuePair } from './name-value-pair';
 import { SelectedParameters } from './selected-parameters';
 import { ValidationWarnings, ValidationErrors, ValidationState } from './validation';
 
-export enum Method {
-    Get = 'GET',
-    Post = 'POST',
-    Put = 'PUT',
-    Delete = 'DELETE',
-    Patch = 'PATCH',
-    Head = 'HEAD',
-    Options = 'OPTIONS'
-}
-
-export const Methods = [
-    Method.Get,
-    Method.Post,
-    Method.Put,
-    Method.Delete,
-    Method.Patch,
-    Method.Head,
-    Method.Options
-]
-
 export enum BodyType {
     None = 'None',
     Text = 'Text',
@@ -93,7 +73,7 @@ export interface RequestEntry extends Identifiable, Named, SelectedParameters, E
 
 export interface Request extends RequestEntry {
     url: string
-    method: Method
+    method: string
     timeout: number
     keepAlive: boolean
     acceptInvalidCerts: boolean

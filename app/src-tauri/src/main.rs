@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 pub mod clipboard;
+pub mod codegeneration;
 pub mod dragdrop;
 pub mod error;
 pub mod navigation;
@@ -24,6 +25,7 @@ use apicize_lib::{
 };
 
 use clipboard::{ClipboardData, ClipboardDataType, ClipboardState};
+use codegeneration::{CodeGenLanguage, generate_code};
 use dirs::home_dir;
 use dragdrop::DroppedFile;
 use error::ApicizeAppError;
@@ -272,6 +274,7 @@ async fn main() {
             get_execution,
             clear_execution,
             get_execution_result,
+            generate_request_code,
             get_execution_result_view_state,
             update_execution_result_view_state,
             store_token,
@@ -312,6 +315,7 @@ async fn main() {
             open_data_set_file_from,
             save_data_set_file,
             copy_to_clipboard,
+            copy_text_to_clipboard,
             clipboard_get_file_data,
             clipboard_write_text,
             clipboard_read_text,
@@ -1740,7 +1744,6 @@ async fn start_execution(
         single_run_no_timeout: single_run,
         allowed_data_path: &allowed_data_path,
         enable_trace: true,
-        generate_curl: true,
         execution_counter_callback: Some(Box::new(increment_execution_counters)),
     }));
 
@@ -1982,6 +1985,31 @@ async fn get_execution_result(
     let session = sessions.get_session(session_id)?;
     let workspaces = workspaces_state.workspaces.read().await;
     workspaces.get_execution_result(&session.workspace_id, exec_ctr)
+}
+
+/// Generate a runnable code snippet reproducing the dispatched request for the
+/// specified execution result, in the requested language/runtime.
+#[tauri::command]
+async fn generate_request_code(
+    sessions_state: State<'_, SessionsState>,
+    workspaces_state: State<'_, WorkspacesState>,
+    session_id: &str,
+    exec_ctr: usize,
+    language: CodeGenLanguage,
+    include_secrets: bool,
+) -> Result<String, ApicizeAppError> {
+    let sessions = sessions_state.sessions.read().await;
+    let session = sessions.get_session(session_id)?;
+    let workspaces = workspaces_state.workspaces.read().await;
+    let detail = workspaces.get_execution_result(&session.workspace_id, exec_ctr)?;
+    match detail {
+        ExecutionResultDetail::Request(request) => {
+            generate_code(&request, language, include_secrets)
+        }
+        ExecutionResultDetail::Grouped(_) => Err(ApicizeAppError::CodeGenerationError(
+            "code generation is only available for individual requests".to_string(),
+        )),
+    }
 }
 
 #[tauri::command]
@@ -3275,6 +3303,15 @@ async fn copy_to_clipboard(
     } else {
         Ok(())
     }
+}
+
+/// Copy arbitrary text (e.g. generated code) to the system clipboard.
+#[tauri::command]
+fn copy_text_to_clipboard(
+    clipboard_state: State<'_, ClipboardState>,
+    text: String,
+) -> Result<(), ApicizeAppError> {
+    clipboard_state.inner().set_text(text)
 }
 
 #[tauri::command]

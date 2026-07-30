@@ -1,5 +1,5 @@
 import { TextField, Select, MenuItem, FormControl, InputLabel, Grid, ToggleButton, Checkbox, FormControlLabel } from '@mui/material'
-import { ExecutionConcurrency, Method, Methods } from '@apicize/lib-typescript'
+import { ExecutionConcurrency } from '@apicize/lib-typescript'
 import { EditableRequest } from '../../../models/workspace/editable-request'
 import { observer } from 'mobx-react-lite'
 import { useWorkspace } from '../../../contexts/workspace.context'
@@ -7,9 +7,15 @@ import { useFeedback } from '../../../contexts/feedback.context'
 import PlayCircleFilledIcon from '@mui/icons-material/PlayCircleFilled'
 import { useState, useEffect } from 'react'
 
-const METHOD_MENU_ITEMS = Methods.map(method => (
-    <MenuItem key={method} value={method}>{method}</MenuItem>
-))
+const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'QUERY', 'HEAD', 'OPTIONS']
+const OTHER_METHOD = 'Other'
+
+const METHOD_MENU_ITEMS = [
+    ...HTTP_METHODS.map(method => (
+        <MenuItem key={method} value={method}>{method}</MenuItem>
+    )),
+    <MenuItem key={OTHER_METHOD} value={OTHER_METHOD}>{OTHER_METHOD}</MenuItem>
+]
 
 export const RequestInfoEditor = observer(({ request }: { request: EditableRequest }) => {
     const workspace = useWorkspace()
@@ -21,6 +27,9 @@ export const RequestInfoEditor = observer(({ request }: { request: EditableReque
     // Register dropdowns so they can be hidden on modal dialogs
     const [showMethodMenu, setShowMethodMenu] = useState(false)
     const [showMultiRunMenu, setShowMultiRunMenu] = useState(false)
+
+    // Track whether the user has chosen a custom ("Other") method not in the standard list
+    const [otherMethod, setOtherMethod] = useState(!HTTP_METHODS.includes(request.method))
     useEffect(() => {
         const disposer1 = feedback.registerModalBlocker(() => setShowMethodMenu(false))
         const disposer2 = feedback.registerModalBlocker(() => setShowMultiRunMenu(false))
@@ -79,21 +88,43 @@ export const RequestInfoEditor = observer(({ request }: { request: EditableReque
                             labelId='request-method-label-id'
                             aria-labelledby='request-method-label-id'
                             id="request-method"
-                            value={request.method}
+                            value={otherMethod ? OTHER_METHOD : request.method}
                             title="HTTP method"
                             open={showMethodMenu}
                             onClose={() => setShowMethodMenu(false)}
                             onOpen={() => setShowMethodMenu(true)}
                             onChange={e => {
-                                request.setMethod(e.target.value as Method).catch(err => feedback.toastError(err))
+                                const value = e.target.value
+                                if (value === OTHER_METHOD) {
+                                    setOtherMethod(true)
+                                } else {
+                                    setOtherMethod(false)
+                                    request.setMethod(value).catch(err => feedback.toastError(err))
+                                }
                             }}
                             size='small'
+                            sx={{ minWidth: '8em' }}
                             label="Method"
                         >
                             {METHOD_MENU_ITEMS}
                         </Select>
                     </FormControl>
                 </Grid>
+                {otherMethod &&
+                    <Grid>
+                        <TextField
+                            id='request-method-other'
+                            label="Custom Method"
+                            aria-label='custom HTTP method'
+                            size="small"
+                            title="Custom HTTP method"
+                            value={request.method}
+                            onChange={e => {
+                                request.setMethod(e.target.value).catch(err => feedback.toastError(err))
+                            }}
+                        />
+                    </Grid>
+                }
                 <Grid flexGrow={1}>
                     <TextField
                         id='request-url'
