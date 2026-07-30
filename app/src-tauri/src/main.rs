@@ -1678,7 +1678,7 @@ async fn start_execution(
                 let Ok(info) = workspaces.get_workspace_info_mut(&workspace_id) else {
                     println!(
                         "Unable to access workspace {} during progress",
-                        &workspace_id
+                        workspace_id
                     );
                     return;
                 };

@@ -210,7 +210,7 @@ impl ApicizeSettings {
         if !Path::new(&dir).is_dir()
             && let Err(err) = create_dir_all(&dir)
         {
-            panic!("Unable to create {} - {}", &dir.to_string_lossy(), err);
+            panic!("Unable to create {} - {}", dir.to_string_lossy(), err);
         }
         save_data_file(&Self::get_settings_filename(), self).map_err(ApicizeAppError::ApicizeError)
     }
