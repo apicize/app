@@ -18,13 +18,13 @@ export const NavOpsMenu = observer(({ sx, orientation }: { sx?: SxProps, orienta
             : 'inherit'
 
     return <ToggleButtonGroup orientation={orientation} value={workspace.mode} sx={sx}>
-        <ToggleButton size='large' title='Settings' value={WorkspaceMode.Settings} sx={{ border: 'none', padding: '8px' }} onClick={() => workspace.setMode(WorkspaceMode.Settings)}>
+        <ToggleButton size='large' title='Settings' value={WorkspaceMode.Settings} sx={{ border: 'none', padding: '8px' }} onClick={() => workspace.toggleMode(WorkspaceMode.Settings)}>
             <SettingsIcon color={settingsColor} />
         </ToggleButton>
-        <ToggleButton size='large' title='Communication Logs' value={WorkspaceMode.Console} sx={{ border: 'none', padding: '8px' }} onClick={() => { workspace.setMode(WorkspaceMode.Console) }}>
+        <ToggleButton size='large' title='Communication Logs' value={WorkspaceMode.Console} sx={{ border: 'none', padding: '8px' }} onClick={() => { workspace.toggleMode(WorkspaceMode.Console) }}>
             <SvgIcon><LogIcon /></SvgIcon>
         </ToggleButton>
-        <ToggleButton size='large' title='Help' value={WorkspaceMode.Help} sx={{ border: 'none', padding: '8px' }} onClick={() => { workspace.showNextHelpTopic() }}>
+        <ToggleButton size='large' title='Help' value={WorkspaceMode.Help} sx={{ border: 'none', padding: '8px' }} onClick={() => { workspace.toggleNextHelpTopic() }}>
             <SvgIcon><HelpIcon /></SvgIcon>
         </ToggleButton>
     </ToggleButtonGroup>

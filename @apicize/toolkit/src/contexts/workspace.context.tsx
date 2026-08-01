@@ -291,6 +291,16 @@ export class WorkspaceStore implements EditableEntityContext {
     }
 
     @action
+    toggleMode(mode: WorkspaceMode) {
+        const newMode = this.mode === mode
+            ? WorkspaceMode.Normal
+            : mode
+        this.mode = newMode
+        this.callbacks.updateMode(newMode)
+            .catch(e => this.feedback.toastError(e))
+    }
+
+    @action
     updateExpanded(id: string | string[], isExpanded: boolean) {
         const expanded = [...this.expandedItems]
         for (const thisId of Array.isArray(id) ? id : [id]) {
@@ -417,10 +427,16 @@ export class WorkspaceStore implements EditableEntityContext {
         }, 100)
     }
 
-    @action showNextHelpTopic() {
-        this.showHelp(
-            (this.nextHelpTopic && this.nextHelpTopic.length > 0) ? this.nextHelpTopic : 'home'
-        )
+    @action toggleNextHelpTopic() {
+        if (this.mode === WorkspaceMode.Help) {
+            this.mode = WorkspaceMode.Normal
+            this.callbacks.updateMode(this.mode)
+                .catch(e => this.feedback.toastError(e))
+        } else {
+            this.showHelp(
+                (this.nextHelpTopic && this.nextHelpTopic.length > 0) ? this.nextHelpTopic : 'home'
+            )
+        }
     }
 
     @action

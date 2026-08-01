@@ -268,17 +268,6 @@ export const RequestSection = observer(({ includeHeader }: { includeHeader?: boo
             return null
         }
 
-        let positionType: IndexedEntityPosition
-        let action: string
-
-        if (requestMenu.type === EntityType.Group) {
-            positionType = IndexedEntityPosition.Under
-            action = 'Add'
-        } else {
-            positionType = IndexedEntityPosition.Before
-            action = 'Insert'
-        }
-
         const desc = requestMenu.type === EntityType.Group ? 'Group' : 'Request'
         return <Menu
             id='req-menu'
@@ -295,12 +284,12 @@ export const RequestSection = observer(({ includeHeader }: { includeHeader?: boo
                 sx={{ fontSize: 'inherit' }}
                 onClick={() => handleAddRequest(
                     requestMenu.id,
-                    positionType
+                    IndexedEntityPosition.Under
                 )}>
                 <ListItemIcon>
                     <SvgIcon color='request' fontSize='inherit'><RequestIcon /></SvgIcon>
                 </ListItemIcon>
-                <ListItemText disableTypography>{action} Request</ListItemText>
+                <ListItemText disableTypography>Add Request</ListItemText>
             </MenuItem>
             <MenuItem
                 className='navigation-menu-item'
@@ -308,12 +297,12 @@ export const RequestSection = observer(({ includeHeader }: { includeHeader?: boo
                 onClick={() =>
                     handleAddRequestGroup(
                         requestMenu.id,
-                        positionType
+                        IndexedEntityPosition.Under
                     )}>
                 <ListItemIcon>
                     <SvgIcon color='folder' fontSize='inherit'><FolderIcon /></SvgIcon>
                 </ListItemIcon>
-                <ListItemText disableTypography>{action} Request Group</ListItemText>
+                <ListItemText disableTypography>Add Request Group</ListItemText>
             </MenuItem>
             <Divider />
             <MenuItem
@@ -323,7 +312,7 @@ export const RequestSection = observer(({ includeHeader }: { includeHeader?: boo
                 <ListItemIcon>
                     <ContentCopyOutlinedIcon color='request' fontSize='inherit' />
                 </ListItemIcon>
-                <ListItemText disableTypography>{action} Duplicate {desc}</ListItemText>
+                <ListItemText disableTypography>Add Duplicate {desc}</ListItemText>
             </MenuItem>
             <MenuItem
                 className='navigation-menu-item'

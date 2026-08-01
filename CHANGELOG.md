@@ -1,5 +1,10 @@
 # Change Log
 
+## 0.45.1
+
+* Make settings, console and help buttons toggle
+* Update Request duplicate to append
+
 ## 0.45.0
 
 * Add support for custom HTTP methods
