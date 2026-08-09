@@ -199,6 +199,7 @@ export interface ApicizeHttpRequest {
 }
 
 export interface ApicizeHttpResponse {
+    duration: number
     status: number
     statusText: string
     headers?: { [header: string]: string }

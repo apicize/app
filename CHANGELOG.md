@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.46.0
+
+* Update duration handling to exclude test execution
+* Include duration in response test context
+* Fix new request/group added onto a request being hidden from navigation
+
 ## 0.45.1
 
 * Make settings, console and help buttons toggle

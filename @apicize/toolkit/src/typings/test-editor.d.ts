@@ -188,6 +188,10 @@ declare interface OAuth2Token {
 
 declare interface ApicizeResponse {
     /**
+     * Duration of HTTP execution (milliseconds)
+     */
+    duration: number
+    /**
      * HTTP status code
      */
     status: number

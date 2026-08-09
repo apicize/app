@@ -268,7 +268,8 @@ export const RequestSection = observer(({ includeHeader }: { includeHeader?: boo
             return null
         }
 
-        const desc = requestMenu.type === EntityType.Group ? 'Group' : 'Request'
+        const isGroup = requestMenu.type === EntityType.Group
+        const desc = isGroup ? 'Group' : 'Request'
         return <Menu
             id='req-menu'
             open={requestMenu !== undefined}
@@ -284,7 +285,7 @@ export const RequestSection = observer(({ includeHeader }: { includeHeader?: boo
                 sx={{ fontSize: 'inherit' }}
                 onClick={() => handleAddRequest(
                     requestMenu.id,
-                    IndexedEntityPosition.Under
+                    isGroup ? IndexedEntityPosition.Under : IndexedEntityPosition.After
                 )}>
                 <ListItemIcon>
                     <SvgIcon color='request' fontSize='inherit'><RequestIcon /></SvgIcon>
@@ -297,7 +298,7 @@ export const RequestSection = observer(({ includeHeader }: { includeHeader?: boo
                 onClick={() =>
                     handleAddRequestGroup(
                         requestMenu.id,
-                        IndexedEntityPosition.Under
+                        isGroup ? IndexedEntityPosition.Under : IndexedEntityPosition.After
                     )}>
                 <ListItemIcon>
                     <SvgIcon color='folder' fontSize='inherit'><FolderIcon /></SvgIcon>
