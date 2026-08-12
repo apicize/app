@@ -14,6 +14,7 @@ import { useApicizeSettings } from "../contexts/apicize-settings.context";
 import { EditableRequestEntry } from "../models/workspace/editable-request-entry";
 import { useWorkspace } from "../contexts/workspace.context";
 import { useFeedback } from "../contexts/feedback.context";
+import { truncateResultName } from "../services/truncate-name";
 
 // Memoized component to display execution state icon
 const ExecutionStateIcon = React.memo(({ executionState }: { executionState: ExecutionState }) => {
@@ -117,9 +118,10 @@ export const RunResultsToolbar = observer((
                     >
                         {
                             menuItems.map(result => {
+                                const name = truncateResultName(result.name)
                                 let label = result.executingName && result.level === 0
-                                    ? `${result.name} [${result.executingName}]`
-                                    : result.name
+                                    ? `${name} [${result.executingName}]`
+                                    : name
 
                                 if (settings.showDiagnosticInfo) {
                                     label += ` (${result.execCtr}, prev: ${result.prevExecCtr ?? 'N/A'}, next: ${result.nextExecCtr ?? 'N/A'}, parent: ${result.parentExecCtr ?? 'N/A'})`

@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.46.1
+
+* Fix regression introduced in 0.46.0 request/group addition
+* Truncate long entity names in navigation, title and results
+* Add Ctrl/Cmd +/- for font resizing
+
 ## 0.46.0
 
 * Update duration handling to exclude test execution

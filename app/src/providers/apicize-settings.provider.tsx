@@ -17,6 +17,26 @@ export function ApicizeSettingsProvider({
         let contextMenuHandler: ((event: Event) => void) | null = null;
         let keydownHandler: ((event: KeyboardEvent) => void) | null = null;
 
+        // Cmd/Ctrl + '+' / '-' adjust both the main and navigation font sizes together (clamped 1-99).
+        // Use the platform accelerator: Cmd on macOS, Ctrl elsewhere.
+        const clampFontSize = (value: number) => Math.min(99, Math.max(1, value))
+        const fontSizeHandler = (event: KeyboardEvent) => {
+            const accelerator = settings.ctrlKey === 'Cmd' ? event.metaKey : event.ctrlKey
+            if (!accelerator) return
+            let delta: number
+            if (event.key === '+' || event.key === '=') {
+                delta = 1
+            } else if (event.key === '-' || event.key === '_') {
+                delta = -1
+            } else {
+                return
+            }
+            event.preventDefault()
+            settings.setFontSize(clampFontSize(settings.fontSize + delta))
+            settings.setNavigationFontSize(clampFontSize(settings.navigationFontSize + delta))
+        }
+        document.addEventListener('keydown', fontSizeHandler);
+
         (async () => {
             const [name, version, isReleaseMode, storage] = await Promise.all([
                 app.getName(),
@@ -52,6 +72,7 @@ export function ApicizeSettingsProvider({
         })().catch(console.error)
 
         return () => {
+            document.removeEventListener('keydown', fontSizeHandler)
             if (contextMenuHandler) {
                 document.removeEventListener('contextmenu', contextMenuHandler)
             }
