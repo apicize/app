@@ -23,7 +23,7 @@ import {
 } from "../../icons"
 import { ExecutionState, ValidationState } from "@apicize/lib-typescript"
 import { IconColors } from "../../theme"
-import { truncateName } from "../../services/truncate-name"
+import { setTitleIfTruncated } from "../../services/truncate-name"
 
 const stateIconSxFirst = { fontSize: '1.1rem', marginLeft: 'none' } as const
 const stateIconSxSubsequent = { fontSize: '1.1rem', marginLeft: '0.5em' } as const
@@ -220,7 +220,13 @@ export const NavTreeItem = observer(({
                     alignItems='center'
                     display='flex'
                 >
-                    {entry.name.length > 0 ? truncateName(entry.name) : '(Unnamed)'}
+                    <Box
+                        component='span'
+                        className='nav-node-name'
+                        onMouseEnter={(e) => setTitleIfTruncated(e.currentTarget, entry.name)}
+                    >
+                        {entry.name.length > 0 ? entry.name : '(Unnamed)'}
+                    </Box>
                     <Box className='nav-node-text-state'>
                         {iconsFromState(entry)}
                     </Box>

@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.46.2
+
+* Refined name/title truncation
+
 ## 0.46.1
 
 * Fix regression introduced in 0.46.0 request/group addition

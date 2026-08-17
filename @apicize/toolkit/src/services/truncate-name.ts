@@ -1,4 +1,13 @@
 /**
+ * When an element is visually truncated via CSS (overflow/text-overflow), set its
+ * native `title` to the full text so hovering reveals it; otherwise clear the title.
+ * Intended to be called from an onMouseEnter handler on the truncating element.
+ */
+export function setTitleIfTruncated(element: HTMLElement, fullText: string): void {
+    element.title = element.scrollWidth > element.clientWidth ? fullText : ''
+}
+
+/**
  * Truncate an entity name for display. Names longer than 40 characters are
  * shortened to the first 37 characters followed by an ellipsis, keeping the
  * displayed text at a maximum of 40 characters.

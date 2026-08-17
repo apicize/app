@@ -340,6 +340,17 @@ pre.log {
   flex-grow: 1;
   display: flex;
   align-content: center;
+  min-width: 0;
+}
+
+/* Assume a maximum navigation name width of 40 characters; longer names are
+   truncated with an ellipsis and the full name is shown on hover. */
+.nav-node-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 40ch;
+  min-width: 0;
 }
 
 .nav-node-text.disabled {
@@ -488,9 +499,19 @@ pre.log {
   height: 4rem;
 }
 
+/* Keep the header's action toolbar/buttons at their natural width so the title
+   shrinks to fill only the space that remains, adapting to the actual button count. */
+.editor-panel-header > :not(.editor-title) {
+  flex-shrink: 0;
+}
+
 .editor-title {
   display: flex;
+  align-items: center;
   align-content: center;
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
 }
 
 .editor-title .icon {
@@ -498,11 +519,21 @@ pre.log {
   position: relative;
   display: inline-flex;
   align-items: center;
+  flex: 0 0 auto;
 }
 
 .editor-title .text {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
   position: relative;
+}
+
+.editor-title-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .editor-panel {

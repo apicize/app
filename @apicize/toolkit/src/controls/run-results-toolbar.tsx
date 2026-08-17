@@ -131,6 +131,7 @@ export const RunResultsToolbar = observer((
                                     <MenuItem
                                         key={`${result.executingRequestOrGroupId}-${result.execCtr}`}
                                         className="run-toolbar-menuitem"
+                                        title={name !== result.name ? result.name : undefined}
                                         sx={{
                                             borderTop: result.executingOffset === 0 ? '0.2em solid #404040' : 'none',
                                             paddingTop: '0.5em',
