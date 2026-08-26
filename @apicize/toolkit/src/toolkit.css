@@ -322,7 +322,9 @@ pre.log {
 }
 
 .MuiCollapse-root.MuiTreeItem-groupTransition {
-  padding-left: 2rem;
+  /* em (not rem) so per-level indent tracks Navigation Text Size, which is set as
+     font-size on the tree and inherited here, rather than Main Text Size. */
+  padding-left: 2em;
 }
 
 .MuiTreeItem-iconContainer {
@@ -396,7 +398,10 @@ pre.log {
   flex-grow: 0;
   display: flex;
   justify-items: center;
-  width: 2rem;
+  /* em (not rem) so the icon box width matches the 2em per-level child indent
+     (see .MuiTreeItem-groupTransition); this keeps a group's name and its child
+     request names aligned on the same left edge at any Navigation Text Size. */
+  width: 2em;
 }
 
 .nav-icon-context {

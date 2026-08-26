@@ -1,5 +1,10 @@
 # Change Log
 
+## 0.46.3
+
+* Fix changing data set of request
+* Improve drag/drop detection
+
 ## 0.46.2
 
 * Refined name/title truncation

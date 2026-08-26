@@ -330,7 +330,7 @@ export class EditableRequest extends EditableRequestEntry {
             : { id: entityId, name: this.workspace.getNavigationName(entityId) }
         return this.performUpdate({
             type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id,
-            selecteData: this.selectedDataSet ?? { id: DEFAULT_SELECTION_ID, name: '(Default)' }
+            selectedData: this.selectedDataSet ?? { id: DEFAULT_SELECTION_ID, name: '(Default)' }
         })
     }
 
@@ -434,8 +434,8 @@ export class EditableRequest extends EditableRequestEntry {
         if (update.selectedProxy !== undefined) {
             this.selectedProxy = update.selectedProxy
         }
-        if (update.selecteData !== undefined) {
-            this.selectedDataSet = update.selecteData
+        if (update.selectedData !== undefined) {
+            this.selectedDataSet = update.selectedData
         }
     }
 

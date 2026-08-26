@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/restrict-plus-operands */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { closestCenter, CollisionDetection, DndContext, DragEndEvent, DragMoveEvent, MouseSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { closestCenter, CollisionDetection, DndContext, DragEndEvent, DragMoveEvent, MouseSensor, pointerWithin, useSensor, useSensors } from "@dnd-kit/core";
 import { DraggableData, DroppableData } from "../models/drag-drop";
 import { createContext, ReactNode, useCallback, useContext } from "react";
 import { action, observable } from "mobx";
@@ -43,11 +43,19 @@ export const DragDropProvider = ({ children }: { children?: ReactNode }) => {
     const store = new DragDropStore()
     const workspace = useWorkspace()
 
-    const collisionDetection: CollisionDetection = useCallback((args) =>
-        closestCenter({
+    const collisionDetection: CollisionDetection = useCallback((args) => {
+        const filtered = {
             ...args,
             droppableContainers: args.droppableContainers.filter(c => c.id !== args.active.id)
-        }), [])
+        }
+        // Prefer the row the pointer is actually over so the whole row (including a
+        // short, empty group) is a valid target. closestCenter (which compares the
+        // dragged item's center to each row's center) otherwise gives a short empty
+        // group only a half-row catchment, so dropping into it only worked near its
+        // top edge. Fall back to closestCenter when the pointer is over no row.
+        const pointerCollisions = pointerWithin(filtered)
+        return pointerCollisions.length > 0 ? pointerCollisions : closestCenter(filtered)
+    }, [])
 
     const sensors = useSensors(
         useSensor(MouseSensor, {
@@ -77,6 +85,13 @@ export const DragDropProvider = ({ children }: { children?: ReactNode }) => {
 
         const r = e.over?.rect
 
+        // The tree indents 2em per nesting level (see .MuiTreeItem-groupTransition in
+        // toolkit.css), and em resolves against the nav tree's font-size (Navigation
+        // Text Size). Read it live so the drop-into threshold scales with that setting
+        // rather than assuming a fixed pixel indent.
+        const navEl = document.getElementById('navigation')
+        const emPx = parseFloat(getComputedStyle(navEl ?? document.documentElement).fontSize) || 16
+
         if (active.id === over.id) {
             return 'INVALID'
         } else if (activeData.type === EntityType.Group &&
@@ -88,7 +103,12 @@ export const DragDropProvider = ({ children }: { children?: ReactNode }) => {
                     return IndexedEntityPosition.Under
                 }
             } else if (overData.acceptAppend &&
-                ((!overData.acceptReposition) || x < (overData.depth + 4) * 16)) {
+                ((!overData.acceptReposition)
+                    // Anchor the drop-into zone to the row's actual left edge (r.left),
+                    // which is where the folder icon starts, so the icon (~2em box plus
+                    // row padding) plus a small margin into the name all count as
+                    // "drop into". Falls back to a depth-based estimate if no rect.
+                    || (r ? x < r.left + 3 * emPx : x < (overData.depth * 2 + 4) * emPx))) {
                 return IndexedEntityPosition.Under
             } else if (overData.acceptReposition) {
                 if (r) {

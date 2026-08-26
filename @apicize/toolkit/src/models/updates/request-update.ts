@@ -32,6 +32,6 @@ export interface RequestUpdate {
     selectedAuthorization?: Selection
     selectedCertificate?: Selection
     selectedProxy?: Selection
-    selecteData?: Selection
+    selectedData?: Selection
     validationWarnings?: string[]
 }
