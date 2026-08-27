@@ -1,0 +1,111 @@
+{
+  "version": 1.0,
+  "requests": [
+    {
+      "id": "c0000000-0000-0000-0000-000000000001",
+      "name": "Alpha",
+      "url": "{{url}}/calc",
+      "method": "POST",
+      "timeout": 30000,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "text/plain"
+        }
+      ],
+      "body": {
+        "type": "Text",
+        "data": "1+1"
+      },
+      "numberOfRedirects": 10,
+      "runs": 1,
+      "multiRunExecution": "SEQUENTIAL"
+    },
+    {
+      "id": "c0000000-0000-0000-0000-000000000002",
+      "name": "Beta",
+      "url": "{{url}}/calc",
+      "method": "POST",
+      "timeout": 30000,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "text/plain"
+        }
+      ],
+      "body": {
+        "type": "Text",
+        "data": "1+1"
+      },
+      "numberOfRedirects": 10,
+      "runs": 1,
+      "multiRunExecution": "SEQUENTIAL"
+    },
+    {
+      "id": "d0000000-0000-0000-0000-000000000001",
+      "name": "Group One",
+      "execution": "SEQUENTIAL",
+      "runs": 1,
+      "multiRunExecution": "SEQUENTIAL",
+      "children": []
+    },
+    {
+      "id": "d0000000-0000-0000-0000-000000000002",
+      "name": "Group Two",
+      "execution": "SEQUENTIAL",
+      "runs": 1,
+      "multiRunExecution": "SEQUENTIAL",
+      "children": []
+    },
+    {
+      "id": "e0000000-0000-0000-0000-000000000001",
+      "name": "Parent",
+      "execution": "SEQUENTIAL",
+      "runs": 1,
+      "multiRunExecution": "SEQUENTIAL",
+      "children": [
+        {
+          "id": "e0000000-0000-0000-0000-000000000002",
+          "name": "Child",
+          "execution": "SEQUENTIAL",
+          "runs": 1,
+          "multiRunExecution": "SEQUENTIAL",
+          "children": [
+            {
+              "id": "e0000000-0000-0000-0000-000000000003",
+              "name": "Grandchild",
+              "url": "{{url}}/calc",
+              "method": "POST",
+              "timeout": 30000,
+              "headers": [
+                {
+                  "name": "Content-Type",
+                  "value": "text/plain"
+                }
+              ],
+              "body": {
+                "type": "Text",
+                "data": "1+1"
+              },
+              "numberOfRedirects": 10,
+              "runs": 1,
+              "multiRunExecution": "SEQUENTIAL"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "5ce22222-2222-2222-2222-222222222222",
+      "name": "Local Vars",
+      "variables": [
+        {
+          "name": "url",
+          "value": "http://localhost:3000"
+        }
+      ]
+    }
+  ]
+}

@@ -16,7 +16,7 @@ export const Toast = observer(() => {
     return (
         <>
             <Snackbar open={store.toastOpen} autoHideDuration={6000} onClose={() => store.closeToast()}>
-                <Alert onClose={() => store.closeToast()} severity={store.toastSeverity} sx={{ width: '100%' }}>
+                <Alert data-testid='toast' data-severity={store.toastSeverity} onClose={() => store.closeToast()} severity={store.toastSeverity} sx={{ width: '100%' }}>
                     {store.toastMessage}
                 </Alert>
             </Snackbar>

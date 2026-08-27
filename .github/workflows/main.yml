@@ -5,6 +5,8 @@ permissions:
 
 on:
   push:
+    branches:
+      - 'release'
     tags:
       - 'v*'
   workflow_dispatch:
@@ -23,6 +25,10 @@ jobs:
   setup:
     name: Setup Build
     runs-on: ubuntu-22.04
+    # Publishing derives the version from a v* tag, so only run setup (and the
+    # downstream publish job that needs it) for tags or manual dispatch. Pushes
+    # to the release branch run lint + e2e only.
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' }}
     outputs:
       version: ${{ steps.get-version.outputs.version }}
       display_version: ${{ steps.get-version.outputs.display_version }}
@@ -107,11 +113,65 @@ jobs:
         working-directory: ./app/src-tauri
         run: cargo clippy -- -D warnings
 
+  e2e:
+    name: End-to-End Tests
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+      - name: Setup NodeJS
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: 'yarn'
+      - name: Enable Corepack
+        run: corepack enable
+      - name: Install Rust
+        run: curl https://sh.rustup.rs -sSf | sh -s -- -y
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/src-tauri
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf webkit2gtk-driver xvfb
+      - name: Install tauri-driver
+        run: cargo install tauri-driver --locked
+      - name: Install dependencies
+        run: yarn install
+      # Builds lib-typescript + toolkit (with the e2e data-testid hooks) and the
+      # release binary that the WebdriverIO suite drives.
+      - name: Build release binary
+        run: yarn build:prod
+      - name: Start sample API backend (Docker)
+        run: docker compose -f e2e/docker/docker-compose.yml up -d --build
+      - name: Wait for API to become healthy
+        run: |
+          for i in $(seq 1 45); do
+            if curl -sf http://localhost:3000/health > /dev/null; then
+              echo "Sample API is healthy"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Sample API did not become healthy in time"
+          docker compose -f e2e/docker/docker-compose.yml logs
+          exit 1
+      # WebKitWebDriver needs a display; xvfb-run provides a virtual one.
+      - name: Run end-to-end tests
+        run: xvfb-run --auto-servernum yarn workspace apicize-e2e test
+      - name: Show backend logs on failure
+        if: failure()
+        run: docker compose -f e2e/docker/docker-compose.yml logs
+      - name: Stop backend
+        if: always()
+        run: docker compose -f e2e/docker/docker-compose.yml down -v
+
   publish-tauri:
     name: Release Tauri app
     permissions:
       contents: write
-    needs: ['setup', 'lint']
+    needs: ['setup', 'lint', 'e2e']
     strategy:
       fail-fast: false
       matrix:

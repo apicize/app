@@ -1,0 +1,75 @@
+# Local, deterministic backend for the Apicize e2e suite.
+#
+# - `dynamodb` runs AWS DynamoDB Local (in-memory).
+# - `api` runs the real apicize-api-samples Lambda handlers behind a small
+#   API Gateway emulator, published on host port 3000 so it matches the
+#   "Local Development" scenario/authorization in the bundled demo workbook
+#   (accessTokenUrl http://localhost:3000/token, url http://localhost:3000).
+# - `socks` is a SOCKS5 proxy used by the proxy e2e test.
+#
+# All services sit on a fixed-subnet network with static IPs so tests can
+# target the API's docker-internal address (172.28.5.10) and assert that a
+# request routed through the SOCKS proxy is seen coming from the proxy's IP
+# (172.28.5.20) via the API's /whoami endpoint.
+#
+# Usage:
+#   docker compose -f e2e/docker/docker-compose.yml up -d --build
+#   docker compose -f e2e/docker/docker-compose.yml down -v
+
+services:
+  dynamodb:
+    image: amazon/dynamodb-local:latest
+    command: ['-jar', 'DynamoDBLocal.jar', '-inMemory', '-sharedDb']
+    networks:
+      apicize-net:
+        ipv4_address: 172.28.5.30
+    healthcheck:
+      test: ['CMD-SHELL', 'true']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - dynamodb
+    ports:
+      - '3000:3000'
+    networks:
+      apicize-net:
+        ipv4_address: 172.28.5.10
+    environment:
+      PORT: '3000'
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: dummy
+      AWS_SECRET_ACCESS_KEY: dummy
+      AWS_ENDPOINT_URL_DYNAMODB: http://dynamodb:8000
+      TABLE_NAME_TOKENS: apicize-sample-tokens
+      TABLE_NAME_QUOTES: apicize-sample-quotes
+      # Matches env.example.json from apicize-api-samples (fake key, safe to commit)
+      CIPHER_KEY: 'ivB2q9O3UKqWzFxw+htnXsRs8cqxC7juc9yaDqlr+6w='
+    healthcheck:
+      test: ['CMD-SHELL', 'node -e "fetch(\"http://localhost:3000/health\").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  socks:
+    image: serjs/go-socks5-proxy:latest
+    environment:
+      REQUIRE_AUTH: 'false'
+    ports:
+      - '1080:1080'
+    networks:
+      apicize-net:
+        ipv4_address: 172.28.5.20
+
+networks:
+  apicize-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.5.0/24
+          gateway: 172.28.5.1

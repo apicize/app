@@ -223,6 +223,8 @@ export const NavTreeItem = observer(({
                     <Box
                         component='span'
                         className='nav-node-name'
+                        data-testid='nav-item'
+                        data-name={entry.name}
                         onMouseEnter={(e) => setTitleIfTruncated(e.currentTarget, entry.name)}
                     >
                         {entry.name.length > 0 ? entry.name : '(Unnamed)'}

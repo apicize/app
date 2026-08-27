@@ -1,0 +1,203 @@
+{
+  "version": 1.0,
+  "requests": [
+    {
+      "id": "a0000000-0000-0000-0000-000000000001",
+      "name": "Add Numbers (text)",
+      "test": "describe('status', () => {\n    it('equals 200', () => {\n        expect(response.status).to.equal(200)\n    })\n})\ndescribe('response', () => {\n    it('equals 7', () => {\n        if (response.body.type !== BodyType.Text) {\n            expect.fail('response not text')\n        }\n        expect(response.body.text).equals('7')\n    })\n})",
+      "url": "{{url}}/calc",
+      "method": "POST",
+      "timeout": 30000,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "text/plain"
+        }
+      ],
+      "body": {
+        "type": "Text",
+        "data": "1+2*3"
+      },
+      "numberOfRedirects": 10,
+      "runs": 1,
+      "multiRunExecution": "SEQUENTIAL"
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000002",
+      "name": "Subtract (JSON)",
+      "test": "describe('status', () => {\n    it('equals 200', () => {\n        expect(response.status).to.equal(200)\n    })\n})\ndescribe('response', () => {\n    it('equals 17', () => {\n        if (response.body.type !== BodyType.JSON) {\n            expect.fail('response not JSON')\n        }\n        expect(parseInt(response.body.data.result)).equals(17)\n    })\n})",
+      "url": "{{url}}/calc",
+      "method": "POST",
+      "timeout": 30000,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        },
+        {
+          "name": "Accept",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "type": "JSON",
+        "data": "20-3",
+        "formatted": "\"20-3\""
+      },
+      "numberOfRedirects": 10,
+      "runs": 1,
+      "multiRunExecution": "SEQUENTIAL"
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000003",
+      "name": "Intentional Failure",
+      "test": "describe('status', () => {\n    it('equals 200', () => {\n        expect(response.status).to.equal(200)\n    })\n})\ndescribe('response', () => {\n    it('equals 5 (intentionally wrong)', () => {\n        expect(response.body.text).equals('5')\n    })\n})",
+      "url": "{{url}}/calc",
+      "method": "POST",
+      "timeout": 30000,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "text/plain"
+        }
+      ],
+      "body": {
+        "type": "Text",
+        "data": "2+2"
+      },
+      "numberOfRedirects": 10,
+      "runs": 1,
+      "multiRunExecution": "SEQUENTIAL"
+    },
+    {
+      "id": "a0000000-0000-0000-0000-000000000004",
+      "name": "GraphQL Create",
+      "test": "describe('status', () => {\n    it('equals 200', () => {\n        expect(response.status).to.equal(200)\n    })\n})\ndescribe('graphql', () => {\n    it('returns a created id', () => {\n        const data = response.body.data\n        expect(data.data.createQuote.id).not.to.be.empty\n    })\n})",
+      "url": "{{url}}/quote/graphql",
+      "method": "POST",
+      "timeout": 30000,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "type": "GraphQL",
+        "query": "mutation {\n  createQuote(author: \"GraphQL Author\", quote: \"Made via GraphQL\") {\n    id\n  }\n}"
+      },
+      "numberOfRedirects": 10,
+      "runs": 1,
+      "multiRunExecution": "SEQUENTIAL"
+    },
+    {
+      "id": "b0000000-0000-0000-0000-000000000000",
+      "name": "Quote Lifecycle",
+      "execution": "SEQUENTIAL",
+      "runs": 1,
+      "multiRunExecution": "SEQUENTIAL",
+      "children": [
+        {
+          "id": "b0000000-0000-0000-0000-000000000001",
+          "name": "Create Quote",
+          "test": "describe('status', () => {\n    it('equals 200', () => {\n        expect(response.status).to.equal(200)\n    })\n})\ndescribe('result', () => {\n    it('includes an ID', () => {\n        const data = (response.body.type == BodyType.JSON)\n            ? response.body.data\n            : expect.fail('Response body is not JSON')\n        expect(data.id).not.to.be.empty\n        output('id', data.id)\n    })\n})",
+          "url": "{{url}}/quote",
+          "method": "POST",
+          "timeout": 30000,
+          "headers": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": {
+            "type": "JSON",
+            "data": {
+              "author": "{{author}}",
+              "quote": "{{quote}}"
+            },
+            "formatted": "{\n  \"author\": \"{{author}}\",\n  \"quote\": \"{{quote}}\"\n}"
+          },
+          "numberOfRedirects": 10,
+          "runs": 1,
+          "multiRunExecution": "SEQUENTIAL"
+        },
+        {
+          "id": "b0000000-0000-0000-0000-000000000002",
+          "name": "Get Quote",
+          "test": "describe('status', () => {\n    it('equals 200', () => {\n        expect(response.status).to.equal(200)\n    })\n})\ndescribe('author', () => {\n    it('matches configured author', () => {\n        const data = response.body.data\n        expect(data.author).to.equal($.author)\n    })\n})",
+          "url": "{{url}}/quote/{{id}}",
+          "method": "GET",
+          "timeout": 30000,
+          "numberOfRedirects": 10,
+          "runs": 1,
+          "multiRunExecution": "SEQUENTIAL"
+        },
+        {
+          "id": "b0000000-0000-0000-0000-000000000003",
+          "name": "Delete Quote",
+          "test": "describe('status', () => {\n    it('equals 200', () => {\n        expect(response.status).to.equal(200)\n    })\n})\ndescribe('result', () => {\n    it('reports success', () => {\n        expect(response.body.data.success).to.equal(true)\n    })\n})",
+          "url": "{{url}}/quote/{{id}}",
+          "method": "DELETE",
+          "timeout": 30000,
+          "numberOfRedirects": 10,
+          "runs": 1,
+          "multiRunExecution": "SEQUENTIAL"
+        },
+        {
+          "id": "b0000000-0000-0000-0000-000000000004",
+          "name": "Verify Deleted",
+          "test": "describe('status', () => {\n    it('equals 404', () => {\n        expect(response.status).to.equal(404)\n    })\n})",
+          "url": "{{url}}/quote/{{id}}",
+          "method": "GET",
+          "timeout": 30000,
+          "numberOfRedirects": 10,
+          "runs": 1,
+          "multiRunExecution": "SEQUENTIAL"
+        }
+      ]
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "5ce11111-1111-1111-1111-111111111111",
+      "name": "Local Vars",
+      "variables": [
+        {
+          "name": "url",
+          "value": "http://localhost:3000"
+        },
+        {
+          "name": "author",
+          "value": "Ada Lovelace"
+        },
+        {
+          "name": "quote",
+          "value": "That brain of mine is something more than merely mortal."
+        }
+      ]
+    }
+  ],
+  "authorizations": [
+    {
+      "type": "OAuth2Client",
+      "id": "a0711111-1111-1111-1111-111111111111",
+      "name": "Local Auth",
+      "accessTokenUrl": "http://localhost:3000/token",
+      "clientId": "apicize",
+      "clientSecret": "",
+      "scope": "image quote calc",
+      "sendCredentialsInBody": false
+    }
+  ],
+  "defaults": {
+    "selectedScenario": {
+      "id": "5ce11111-1111-1111-1111-111111111111",
+      "name": "Local Vars"
+    },
+    "selectedAuthorization": {
+      "id": "a0711111-1111-1111-1111-111111111111",
+      "name": "Local Auth"
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "version": 1.0,
+  "requests": [
+    {
+      "id": "c0000000-0000-0000-0000-0000000000dd",
+      "name": "Dummy",
+      "url": "{{url}}/calc",
+      "method": "POST",
+      "timeout": 30000,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "text/plain"
+        }
+      ],
+      "body": {
+        "type": "Text",
+        "data": "1+1"
+      },
+      "numberOfRedirects": 10,
+      "runs": 1,
+      "multiRunExecution": "SEQUENTIAL"
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "5ce44444-0000-0000-0000-000000000001",
+      "name": "Local Vars",
+      "variables": [
+        {
+          "name": "url",
+          "value": "http://localhost:3000"
+        }
+      ]
+    }
+  ]
+}

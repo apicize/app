@@ -4492,6 +4492,23 @@ __metadata:
   languageName: node
   linkType: hard
 
+"apicize-e2e@workspace:e2e":
+  version: 0.0.0-use.local
+  resolution: "apicize-e2e@workspace:e2e"
+  dependencies:
+    "@types/mocha": "npm:^10"
+    "@types/node": "npm:^20"
+    "@wdio/cli": "npm:^8"
+    "@wdio/globals": "npm:^8"
+    "@wdio/local-runner": "npm:^8"
+    "@wdio/mocha-framework": "npm:^8"
+    "@wdio/spec-reporter": "npm:^8"
+    ts-node: "npm:^10"
+    typescript: "npm:^5"
+    webdriverio: "npm:^8"
+  languageName: unknown
+  linkType: soft
+
 "apicize@workspace:.":
   version: 0.0.0-use.local
   resolution: "apicize@workspace:."
@@ -14490,23 +14507,6 @@ __metadata:
   checksum: 10c0/37e599a73c14eb5220652606e0c76060bf2e13cda3134c622ed735cec9e1773b106006625dbcf66fdb5f7a7792f3d42949a2fa75c833ebc36ca917a7fb8672ef
   languageName: node
   linkType: hard
-
-"webdriver@workspace:webdriver":
-  version: 0.0.0-use.local
-  resolution: "webdriver@workspace:webdriver"
-  dependencies:
-    "@types/mocha": "npm:^10"
-    "@types/node": "npm:^20"
-    "@wdio/cli": "npm:^8"
-    "@wdio/globals": "npm:^8"
-    "@wdio/local-runner": "npm:^8"
-    "@wdio/mocha-framework": "npm:^8"
-    "@wdio/spec-reporter": "npm:^8"
-    ts-node: "npm:^10"
-    typescript: "npm:^5"
-    webdriverio: "npm:^8"
-  languageName: unknown
-  linkType: soft
 
 "webdriverio@npm:8.46.0, webdriverio@npm:^8, webdriverio@npm:^8.29.3":
   version: 8.46.0

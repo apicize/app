@@ -30,10 +30,10 @@ export const ConfirmationDialog = observer(() => {
                 </DialogContentText>
             </DialogContent>
             <DialogActions>
-                <Button onClick={() => feedback.closeConfirm(true)} autoFocus={feedback.confirmOptions.defaultToCancel !== true}>
+                <Button data-testid='confirm-ok' onClick={() => feedback.closeConfirm(true)} autoFocus={feedback.confirmOptions.defaultToCancel !== true}>
                     {feedback.confirmOptions.okButton ?? 'Ok'}
                 </Button>
-                <Button onClick={() => feedback.closeConfirm(false)} autoFocus={feedback.confirmOptions.defaultToCancel === true}>
+                <Button data-testid='confirm-cancel' onClick={() => feedback.closeConfirm(false)} autoFocus={feedback.confirmOptions.defaultToCancel === true}>
                     {feedback.confirmOptions.cancelButton ?? 'Cancel'}
                 </Button>
             </DialogActions>

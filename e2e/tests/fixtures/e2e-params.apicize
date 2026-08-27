@@ -1,0 +1,61 @@
+{
+  "version": 1.0,
+  "requests": [
+    {
+      "id": "c0000000-0000-0000-0000-0000000000aa",
+      "name": "Dummy",
+      "url": "{{url}}/calc",
+      "method": "POST",
+      "timeout": 30000,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "text/plain"
+        }
+      ],
+      "body": {
+        "type": "Text",
+        "data": "1+1"
+      },
+      "numberOfRedirects": 10,
+      "runs": 1,
+      "multiRunExecution": "SEQUENTIAL"
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "5ce33333-0000-0000-0000-000000000001",
+      "name": "Scn A",
+      "variables": [
+        {
+          "name": "url",
+          "value": "http://localhost:3000"
+        }
+      ]
+    }
+  ],
+  "authorizations": [
+    {
+      "type": "Basic",
+      "id": "a0733333-0000-0000-0000-000000000001",
+      "name": "Auth A",
+      "username": "user",
+      "password": "pass"
+    }
+  ],
+  "certificates": [
+    {
+      "type": "PEM",
+      "id": "ce833333-0000-0000-0000-000000000001",
+      "name": "Cert A",
+      "pem": "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0t"
+    }
+  ],
+  "proxies": [
+    {
+      "id": "90933333-0000-0000-0000-000000000001",
+      "name": "Proxy A",
+      "url": "http://localhost:8888"
+    }
+  ]
+}

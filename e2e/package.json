@@ -1,0 +1,24 @@
+{
+  "name": "apicize-e2e",
+  "private": true,
+  "description": "End-to-end UI test suite for the Apicize Tauri desktop application",
+  "scripts": {
+    "api:up": "docker compose -f docker/docker-compose.yml up -d --build",
+    "api:down": "docker compose -f docker/docker-compose.yml down -v",
+    "api:logs": "docker compose -f docker/docker-compose.yml logs -f api",
+    "test": "wdio run wdio.conf.ts",
+    "test:full": "yarn api:up && wdio run wdio.conf.ts; yarn api:down"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10",
+    "@types/node": "^20",
+    "@wdio/cli": "^8",
+    "@wdio/globals": "^8",
+    "@wdio/local-runner": "^8",
+    "@wdio/mocha-framework": "^8",
+    "@wdio/spec-reporter": "^8",
+    "ts-node": "^10",
+    "typescript": "^5",
+    "webdriverio": "^8"
+  }
+}

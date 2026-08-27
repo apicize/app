@@ -1,0 +1,16 @@
+{
+  "name": "apicize-sample-api-emulator",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "API Gateway emulator running the vendored apicize-api-samples Lambda handlers for e2e testing",
+  "scripts": {
+    "start": "node init-dynamo.mjs && node server.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1059.0",
+    "@aws-sdk/lib-dynamodb": "^3.1059.0",
+    "graphql": "^16.14.1",
+    "jimp": "^1.6.0"
+  }
+}

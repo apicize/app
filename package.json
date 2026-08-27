@@ -7,7 +7,7 @@
       "@apicize/lib-typescript",
       "@apicize/toolkit",
       "app",
-      "webdriver"
+      "e2e"
     ]
   },
   "scripts": {
@@ -29,7 +29,8 @@
     "lint": "yarn workspace @apicize/lib-typescript lint; yarn workspace @apicize/toolkit lint; yarn workspace app lint",
     "site:dev": "yarn generate-docs && astro dev",
     "site:build": "yarn generate-docs && rimraf ./.dist-site && astro build",
-    "test:webdriver": "yarn build:prod && yarn workspace webdriver test"
+    "test:e2e": "yarn workspace apicize-e2e test",
+    "test:e2e:full": "yarn build:prod && yarn workspace apicize-e2e test:full"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

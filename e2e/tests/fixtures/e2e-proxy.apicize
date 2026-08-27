@@ -1,0 +1,42 @@
+{
+  "version": 1.0,
+  "requests": [
+    {
+      "id": "f0000000-0000-0000-0000-000000000001",
+      "name": "Proxied Whoami",
+      "url": "http://172.28.5.10:3000/whoami",
+      "method": "GET",
+      "timeout": 30000,
+      "numberOfRedirects": 10,
+      "runs": 1,
+      "multiRunExecution": "SEQUENTIAL",
+      "test": "describe('status', () => {\n    it('equals 200', () => {\n        expect(response.status).to.equal(200)\n    })\n})\ndescribe('proxy', () => {\n    it('client address is 172.28.5.20', () => {\n        const data = (response.body.type == BodyType.JSON) ? response.body.data : expect.fail('not JSON')\n        expect(data.remoteAddress).to.equal('172.28.5.20')\n    })\n})",
+      "selectedProxy": {
+        "id": "90944444-0000-0000-0000-000000000001",
+        "name": "Test SOCKS"
+      }
+    },
+    {
+      "id": "f0000000-0000-0000-0000-000000000002",
+      "name": "Direct Whoami",
+      "url": "http://172.28.5.10:3000/whoami",
+      "method": "GET",
+      "timeout": 30000,
+      "numberOfRedirects": 10,
+      "runs": 1,
+      "multiRunExecution": "SEQUENTIAL",
+      "test": "describe('status', () => {\n    it('equals 200', () => {\n        expect(response.status).to.equal(200)\n    })\n})\ndescribe('proxy', () => {\n    it('client address is 172.28.5.1', () => {\n        const data = (response.body.type == BodyType.JSON) ? response.body.data : expect.fail('not JSON')\n        expect(data.remoteAddress).to.equal('172.28.5.1')\n    })\n})",
+      "selectedProxy": {
+        "id": "\tNONE\t",
+        "name": "Off"
+      }
+    }
+  ],
+  "proxies": [
+    {
+      "id": "90944444-0000-0000-0000-000000000001",
+      "name": "Test SOCKS",
+      "url": "socks5://localhost:1080"
+    }
+  ]
+}

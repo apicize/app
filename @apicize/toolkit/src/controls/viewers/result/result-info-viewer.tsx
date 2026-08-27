@@ -43,7 +43,7 @@ const TestBehavior = ({ behavior }: { behavior: ApicizeTestBehavior }) => {
     const className = 'test-result-behavior'
 
     return (error || logs)
-        ? <Box className={className}>
+        ? <Box className={className} data-testid='test-result' data-status={behavior.success ? 'pass' : 'fail'} data-name={behavior.name}>
             <Stack direction='row'>
                 <Box className='test-result-icon'>
                     {behavior.success ? (<CheckIcon color='success' />) : (<BlockIcon color='warning' />)}
@@ -72,7 +72,7 @@ const TestBehavior = ({ behavior }: { behavior: ApicizeTestBehavior }) => {
                 </Stack>
             </Stack>
         </Box >
-        : <Box className={className}>
+        : <Box className={className} data-testid='test-result' data-status={behavior.success ? 'pass' : 'fail'} data-name={behavior.name}>
             <Stack direction='row' className='test-result-detail'>
                 <Box className='test-result-icon'>
                     {behavior.success ? (<CheckIcon color='success' />) : (<BlockIcon color='error' />)}
@@ -234,7 +234,7 @@ const RenderExecution = ({
             break
     }
 
-    return <Box key={`exec-${result.execCtr}`} className='results-test-section'>
+    return <Box key={`exec-${result.execCtr}`} className='results-test-section' data-testid='result-section'>
         <>
             {
                 depth === 0 && executingTitle
@@ -261,7 +261,7 @@ const RenderExecution = ({
                             }
                             {
                                 result.status
-                                    ? (<Box>{`Status: ${result.status} ${result.statusText}`}</Box>)
+                                    ? (<Box data-testid='result-status' data-status-code={result.status}>{`Status: ${result.status} ${result.statusText}`}</Box>)
                                     : (null)
                             }
                             {
@@ -422,6 +422,8 @@ export const ResultInfoViewer = observer(({
                 <Button
                     variant='outlined'
                     size='small'
+                    data-testid='result-summary-success'
+                    data-count={selectedSummary.requestSuccessCount}
                     disabled={!enableSuccessFilter}
                     className={hasSuccess ? '' : 'borderless'}
                     color={hideSuccess ? 'unselected' : 'success'}
@@ -432,6 +434,8 @@ export const ResultInfoViewer = observer(({
                 <Button
                     variant='outlined'
                     size='small'
+                    data-testid='result-summary-failure'
+                    data-count={selectedSummary.requestFailureCount}
                     disabled={!enableFailureFilter}
                     className={hasFailure ? '' : 'borderless'}
                     color={hideFailure ? 'unselected' : 'warning'}
@@ -442,6 +446,8 @@ export const ResultInfoViewer = observer(({
                 <Button
                     variant='outlined'
                     size='small'
+                    data-testid='result-summary-error'
+                    data-count={selectedSummary.requestErrorCount}
                     disabled={!enableErrorFilter}
                     className={hasError ? '' : 'borderless'}
                     color={hideError ? 'unselected' : 'error'}
