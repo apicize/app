@@ -1,5 +1,6 @@
-import { browser } from '@wdio/globals'
+import { browser, $$ } from '@wdio/globals'
 import * as path from 'path'
+import nav from '../pageobjects/navigation.page'
 
 /** Base URL of the dockerized sample API (matches the fixture scenario). */
 export const API_BASE_URL = 'http://localhost:3000'
@@ -65,9 +66,27 @@ export async function openWorkbook(fixtureFileName: string): Promise<void> {
     sessionId,
     openInNewSession: false,
   })
-  // Wait for the tree to render at least one navigation item from the workbook
-  await browser.waitUntil(
-    async () => (await $$('[data-testid="nav-item"]').length) > 0,
-    { timeout: 15_000, interval: 300, timeoutMsg: 'Workbook navigation did not render after open' }
-  )
+
+  // Wait for the wide navigation tree (#navigation) to render. There is a brief
+  // initial narrow render before the window size is known, so wait specifically
+  // for the tree rather than treating a transient narrow state as fatal. If the
+  // window is genuinely < 1200px wide the tree never appears (narrow mode).
+  await browser.waitUntil(() => browser.execute(() => !!document.querySelector('#navigation')), {
+    timeout: 20_000,
+    interval: 300,
+    timeoutMsg:
+      'Navigation tree (#navigation) did not render after open_workspace ' +
+      '(window may be under 1200px wide / narrow mode, or the workspace failed to open)',
+  })
+
+  // A clean machine has no persisted expanded state, so the Requests section may
+  // open collapsed. Expand it (idempotent) before waiting for request items.
+  await nav.expandSectionByTitle('Requests')
+
+  // Wait for the tree to render at least one navigation item from the workbook.
+  await browser.waitUntil(async () => (await $$('[data-testid="nav-item"]').length) > 0, {
+    timeout: 15_000,
+    interval: 300,
+    timeoutMsg: 'Workbook navigation items did not render after open',
+  })
 }

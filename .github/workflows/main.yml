@@ -157,9 +157,11 @@ jobs:
           echo "::error::Sample API did not become healthy in time"
           docker compose -f e2e/docker/docker-compose.yml logs
           exit 1
-      # WebKitWebDriver needs a display; xvfb-run provides a virtual one.
+      # WebKitWebDriver needs a display; xvfb-run provides a virtual one. Use a
+      # large virtual screen so the app window is wider than the 1200px
+      # navigation-tree threshold (a small screen forces narrow mode with no tree).
       - name: Run end-to-end tests
-        run: xvfb-run --auto-servernum yarn workspace apicize-e2e test
+        run: xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24" yarn workspace apicize-e2e test
       - name: Show backend logs on failure
         if: failure()
         run: docker compose -f e2e/docker/docker-compose.yml logs
