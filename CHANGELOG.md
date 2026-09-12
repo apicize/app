@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.46.4
+
+* Resolve handlebars replacement issue with escaped quotes
+
 ## 0.46.3
 
 * Fix changing data set of request
