@@ -87,8 +87,12 @@ export const NavFileOpsMenu = observer(({ sx, orientation }: { sx?: SxProps, ori
     }
 
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
-        if (e.ctrlKey) {
-            switch (e.key) {
+        // Use the platform accelerator: Cmd on macOS, Ctrl elsewhere
+        const accelerator = settings.ctrlKey === 'Cmd' ? e.metaKey : e.ctrlKey
+        if (accelerator) {
+            // Shift reports upper-case letters (ex. 'S'), so compare letters case-insensitively
+            const key = e.key.length === 1 ? e.key.toLowerCase() : e.key
+            switch (key) {
                 case 'Enter':
                     if (!(workspace.activeSelection && (workspace.activeSelection.entityType === EntityType.Request || workspace.activeSelection.entityType === EntityType.Group))) {
                         return
@@ -116,14 +120,15 @@ export const NavFileOpsMenu = observer(({ sx, orientation }: { sx?: SxProps, ori
                     if (e.shiftKey) {
                         fileOps.saveWorkbookAs()
                             .catch(err => feedback.toastError(err))
-                    } else {
+                    } else if (workspace.fileName.length > 0) {
+                        // Save is disabled for new workbooks that have not yet been named
                         fileOps.saveWorkbook()
                             .catch(err => feedback.toastError(err))
                     }
                     break
             }
         }
-    }, [workspace, fileOps, feedback])
+    }, [workspace, fileOps, feedback, settings])
 
     useEffect(() => {
         window.addEventListener('keydown', handleKeyDown)

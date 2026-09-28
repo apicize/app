@@ -857,6 +857,14 @@ impl Workspaces {
             };
         }
 
+        if let Some(setup) = &update.setup {
+            request.setup = if setup.is_empty() {
+                None
+            } else {
+                Some(setup.clone())
+            };
+        }
+
         if let Some(test) = &update.test {
             request.test = if test.is_empty() {
                 None
@@ -3321,6 +3329,66 @@ impl WorkspaceInfo {
             }
         };
 
+        fn body_to_raw(
+            body: Option<&apicize_lib::ApicizeBody>,
+        ) -> Result<Option<PersistableData>, ApicizeAppError> {
+            let Some(body) = body else {
+                return Ok(None);
+            };
+            match body {
+                apicize_lib::ApicizeBody::Text { text } => {
+                    Ok(Some(PersistableData::Text(text.to_string())))
+                }
+                apicize_lib::ApicizeBody::JSON { text, .. } => {
+                    Ok(Some(PersistableData::Text(text.to_string())))
+                }
+                apicize_lib::ApicizeBody::XML { text, .. } => {
+                    Ok(Some(PersistableData::Text(text.to_string())))
+                }
+                apicize_lib::ApicizeBody::Form { text, .. } => {
+                    Ok(Some(PersistableData::Text(text.to_string())))
+                }
+                apicize_lib::ApicizeBody::Binary { data } => {
+                    Ok(Some(PersistableData::Binary(data.clone())))
+                }
+            }
+        }
+
+        fn body_to_preview(
+            body: Option<&apicize_lib::ApicizeBody>,
+            indent: usize,
+        ) -> Result<Option<PersistableData>, ApicizeAppError> {
+            let Some(body) = body else {
+                return Ok(None);
+            };
+            match body {
+                apicize_lib::ApicizeBody::Text { text } => {
+                    Ok(Some(PersistableData::Text(text.to_string())))
+                }
+                apicize_lib::ApicizeBody::JSON { data, .. } => {
+                    let mut buf = Vec::new();
+                    let spacer = " ".repeat(indent);
+                    let formatter = PrettyFormatter::with_indent(spacer.as_bytes());
+                    let mut serializer =
+                        serde_json::Serializer::with_formatter(&mut buf, formatter);
+                    data.serialize(&mut serializer)?;
+                    Ok(Some(PersistableData::Text(String::from_utf8(buf)?)))
+                }
+                apicize_lib::ApicizeBody::XML { data, .. } => {
+                    Ok(Some(PersistableData::Text(serde_xml_rs::to_string(&data)?)))
+                }
+                apicize_lib::ApicizeBody::Form { data, .. } => Ok(Some(PersistableData::Text(
+                    data.iter()
+                        .map(|(name, value)| format!("{name} = {value}"))
+                        .collect::<Vec<String>>()
+                        .join("\n"),
+                ))),
+                apicize_lib::ApicizeBody::Binary { data } => {
+                    Ok(Some(PersistableData::Binary(data.clone())))
+                }
+            }
+        }
+
         match payload_request {
             ClipboardPayloadRequest::Request { request_id } => {
                 let entry = get_request_entry_recursive(&request_id)?;
@@ -3426,6 +3494,16 @@ impl WorkspaceInfo {
                     Ok(None)
                 }
             }
+            ClipboardPayloadRequest::RequestSetup { request_id } => {
+                let request = get_request(&request_id)?;
+                if let Some(setup) = &request.setup
+                    && !setup.is_empty()
+                {
+                    Ok(Some(PersistableData::Text(setup.to_string())))
+                } else {
+                    Ok(None)
+                }
+            }
             ClipboardPayloadRequest::GroupSetup { group_id } => {
                 let group = get_group(&group_id)?;
                 if let Some(setup) = &group.setup
@@ -3458,66 +3536,45 @@ impl WorkspaceInfo {
             }
             ClipboardPayloadRequest::ResponseBodyRaw { exec_ctr } => {
                 let detail = get_request_execution_detail(&exec_ctr)?;
-                if let Some(response) = &detail.test_context.response
-                    && let Some(body) = &response.body
-                {
-                    match body {
-                        apicize_lib::ApicizeBody::Text { text } => {
-                            Ok(Some(PersistableData::Text(text.to_string())))
-                        }
-                        apicize_lib::ApicizeBody::JSON { text, .. } => {
-                            Ok(Some(PersistableData::Text(text.to_string())))
-                        }
-                        apicize_lib::ApicizeBody::XML { text, .. } => {
-                            Ok(Some(PersistableData::Text(text.to_string())))
-                        }
-                        apicize_lib::ApicizeBody::Form { text, .. } => {
-                            Ok(Some(PersistableData::Text(text.to_string())))
-                        }
-                        apicize_lib::ApicizeBody::Binary { data } => {
-                            Ok(Some(PersistableData::Binary(data.clone())))
-                        }
-                    }
-                } else {
-                    Ok(None)
-                }
+                body_to_raw(
+                    detail
+                        .test_context
+                        .response
+                        .as_ref()
+                        .and_then(|r| r.body.as_ref()),
+                )
             }
             ClipboardPayloadRequest::ResponseBodyPreview { exec_ctr } => {
                 let detail = get_request_execution_detail(&exec_ctr)?;
-                if let Some(response) = &detail.test_context.response
-                    && let Some(body) = &response.body
-                {
-                    match body {
-                        apicize_lib::ApicizeBody::Text { text } => {
-                            Ok(Some(PersistableData::Text(text.to_string())))
-                        }
-                        apicize_lib::ApicizeBody::JSON { data, .. } => {
-                            let mut buf = Vec::new();
-                            let spacer = " ".repeat(indent);
-                            let formatter = PrettyFormatter::with_indent(spacer.as_bytes());
-                            let mut serializer =
-                                serde_json::Serializer::with_formatter(&mut buf, formatter);
-                            data.serialize(&mut serializer)?;
-                            Ok(Some(PersistableData::Text(String::from_utf8(buf)?)))
-                        }
-                        apicize_lib::ApicizeBody::XML { data, .. } => {
-                            Ok(Some(PersistableData::Text(serde_xml_rs::to_string(&data)?)))
-                        }
-                        apicize_lib::ApicizeBody::Form { data, .. } => {
-                            Ok(Some(PersistableData::Text(
-                                data.iter()
-                                    .map(|(name, value)| format!("{name} = {value}"))
-                                    .collect::<Vec<String>>()
-                                    .join("\n"),
-                            )))
-                        }
-                        apicize_lib::ApicizeBody::Binary { data } => {
-                            Ok(Some(PersistableData::Binary(data.clone())))
-                        }
-                    }
-                } else {
-                    Ok(None)
-                }
+                body_to_preview(
+                    detail
+                        .test_context
+                        .response
+                        .as_ref()
+                        .and_then(|r| r.body.as_ref()),
+                    indent,
+                )
+            }
+            ClipboardPayloadRequest::ResultRequestBodyRaw { exec_ctr } => {
+                let detail = get_request_execution_detail(&exec_ctr)?;
+                body_to_raw(
+                    detail
+                        .test_context
+                        .request
+                        .as_ref()
+                        .and_then(|r| r.body.as_ref()),
+                )
+            }
+            ClipboardPayloadRequest::ResultRequestBodyPreview { exec_ctr } => {
+                let detail = get_request_execution_detail(&exec_ctr)?;
+                body_to_preview(
+                    detail
+                        .test_context
+                        .request
+                        .as_ref()
+                        .and_then(|r| r.body.as_ref()),
+                    indent,
+                )
             }
             ClipboardPayloadRequest::ResponseDetail { exec_ctr } => {
                 let detail: ExecutionResultDetail =
@@ -3866,6 +3923,8 @@ pub enum ClipboardPayloadRequest {
     #[serde(rename_all = "camelCase")]
     RequestTest { request_id: String },
     #[serde(rename_all = "camelCase")]
+    RequestSetup { request_id: String },
+    #[serde(rename_all = "camelCase")]
     GroupSetup { group_id: String },
     #[serde(rename_all = "camelCase")]
     ResponseSummaryJson { exec_ctr: usize },
@@ -3875,6 +3934,10 @@ pub enum ClipboardPayloadRequest {
     ResponseBodyRaw { exec_ctr: usize },
     #[serde(rename_all = "camelCase")]
     ResponseBodyPreview { exec_ctr: usize },
+    #[serde(rename_all = "camelCase")]
+    ResultRequestBodyRaw { exec_ctr: usize },
+    #[serde(rename_all = "camelCase")]
+    ResultRequestBodyPreview { exec_ctr: usize },
     #[serde(rename_all = "camelCase")]
     ResponseDetail { exec_ctr: usize },
 }

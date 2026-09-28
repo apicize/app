@@ -63,7 +63,7 @@ export const ResponseCodeViewer = observer((
             content = <Typography sx={{ marginTop: '1em' }}>Generating code...</Typography>
         } else if (detail) {
             const model = workspace.getGeneratedCodeModel(detail, option.mode, code)
-            content = <RichViewer text={code} model={model} wrap={false} mode={option.mode} />
+            content = <RichViewer model={model} wrap={false} />
         } else {
             content = ''
         }

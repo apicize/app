@@ -1,6 +1,6 @@
 # :icon[group] Request Groups :toolbar
 
-## Setup Pane :icon[test]
+## Setup Pane :icon[setup-script]
 
 Use the Setup pane to initialize dynamic variables used by child requests during testing. 
 

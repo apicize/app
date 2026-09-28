@@ -7,6 +7,7 @@
     "api:down": "docker compose -f docker/docker-compose.yml down -v",
     "api:logs": "docker compose -f docker/docker-compose.yml logs -f api",
     "test": "wdio run wdio.conf.ts",
+    "chaos": "wdio run wdio.conf.ts --spec tests/chaos/chaos-monkey.spec.ts",
     "test:full": "yarn api:up && wdio run wdio.conf.ts; yarn api:down"
   },
   "devDependencies": {

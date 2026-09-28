@@ -3,9 +3,11 @@
  */
 export type ClipboardPaylodRequest = ClipboardPayloadRequest | ClipboardPayloadScenario | ClipboardPayloadAuthorization
     | ClipboardPayloadCertificate | ClipboardPayloadProxy | ClipboardPayloadRequestBody
-    | ClipboardPayloadRequestTest | ClipboardPayloadGroupSetup
+    | ClipboardPayloadRequestSetup | ClipboardPayloadRequestTest | ClipboardPayloadGroupSetup
     | ClipboardPayloadResponseSummaryJson | ClipboardPayloadResponseSummaryCsv
-    | ClipboardPayloadResponseBodyRaw | ClipboardPayloadResponseBodyPreview | ClipboardPayloadResponseDetail
+    | ClipboardPayloadResponseBodyRaw | ClipboardPayloadResponseBodyPreview
+    | ClipboardPayloadResultRequestBodyRaw | ClipboardPayloadResultRequestBodyPreview
+    | ClipboardPayloadResponseDetail
 
 export interface ClipboardPayloadRequest {
     payloadType: 'Request'
@@ -37,6 +39,11 @@ export interface ClipboardPayloadRequestBody {
     requestId: string
 }
 
+export interface ClipboardPayloadRequestSetup {
+    payloadType: 'RequestSetup'
+    requestId: string
+}
+
 export interface ClipboardPayloadRequestTest {
     payloadType: 'RequestTest'
     requestId: string
@@ -64,6 +71,16 @@ export interface ClipboardPayloadResponseBodyRaw {
 
 export interface ClipboardPayloadResponseBodyPreview {
     payloadType: 'ResponseBodyPreview'
+    execCtr: number
+}
+
+export interface ClipboardPayloadResultRequestBodyRaw {
+    payloadType: 'ResultRequestBodyRaw'
+    execCtr: number
+}
+
+export interface ClipboardPayloadResultRequestBodyPreview {
+    payloadType: 'ResultRequestBodyPreview'
     execCtr: number
 }
 

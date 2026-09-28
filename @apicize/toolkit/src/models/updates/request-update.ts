@@ -24,6 +24,7 @@ export interface RequestUpdate {
     // referrer?: string | null
     // referrerPolicy?: ReferrerPolicy | null
     // duplex?: RequestDuplex | null
+    setup?: string
     test?: string
     body?: Body
     bodyMimeType?: string | null

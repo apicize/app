@@ -33,6 +33,7 @@ e2e/
 │       ├── init-dynamo.mjs     # creates the token/quote tables
 │       └── src/                # vendored handlers from apicize-api-samples
 ├── tests/
+│   ├── chaos/                  # chaos monkey (yarn chaos), see below
 │   ├── fixtures/               # .apicize workbooks used by the specs
 │   ├── helpers/app.ts          # app bootstrap (open workbook via IPC, waits)
 │   ├── pageobjects/            # navigation / request-editor / results / editors
@@ -108,6 +109,56 @@ yarn workspace apicize-e2e api:logs    # tail the api container logs
 | `10-parameter-persistence` | Move scenarios/authorizations/certificates/proxies between the Public / Private / Vault subsections (drag-and-drop) |
 | `11-proxy` | Route a request through the SOCKS5 proxy and prove it (client IP = proxy) vs. a direct request (client IP = gateway) |
 | `12-data-sets` | Create internal-JSON / external-JSON / external-CSV data sets and convert between all three types (JSON↔CSV round-trip, JSON↔external-JSON) |
+
+## Chaos monkey
+
+`tests/chaos/` holds a randomized "chaos monkey" that drives the UI with a
+seeded stream of user actions against a copy of the bundled **demo workbook**
+(`app/src-tauri/help/demo`, with defaults switched to the "Local Development"
+scenario/authorization so it runs against the docker API). It is not part of
+the default suite.
+
+```bash
+# with the docker API up and the release binary built
+yarn test:chaos                              # from the repo root
+yarn chaos                                   # or from e2e/
+CHAOS_SEED=42 CHAOS_STEPS=300 yarn chaos     # replay / lengthen a run
+```
+
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `CHAOS_SEED` | time-based | PRNG seed; the same seed replays the same action sequence |
+| `CHAOS_STEPS` | `150` | Number of random actions |
+| `CHAOS_CHECKPOINT_EVERY` | `25` | Steps between full model/backend consistency checks |
+
+**Actions** (weighted): select tree items, expand/collapse groups and
+sections, switch request and group panels, toggle the Test/Setup script mode,
+run requests/groups (waiting, wandering off mid-run, or cancelling), clear
+results, switch result viewer panels, append a comment to a test/setup script,
+rename a request and restore it, add and delete requests (accepting or
+cancelling the confirmation), open/close Settings and Help, Escape/Tab noise,
+and Ctrl+S (answering any confirmation).
+
+**Checked after every action:** no uncaught webview errors or unhandled
+rejections, no error toasts, no page reload, the tree is still rendered, no
+unexpected confirmation dialog, plus each action's own expectations (the editor
+shows the selected entity, the chosen panel/tab is active, the Test/Setup mode
+is remembered across requests, edits reach the backend exactly as typed, deletes
+honor the confirmation, runs finish, Ctrl+S clears the dirty flag, ...).
+
+**Checked at checkpoints and the end:** nothing is left running, the Requests
+tree exactly matches the monkey's model, and the backend's names match the
+tree. The deterministic entries (Math, Image Rotation, and the CRUD groups when
+run as a whole) must pass every test whenever they run, and are run again at
+the end.
+
+Each run writes `chaos-reports/chaos-<seed>.json` (action history, counts,
+toasts seen) and, on a violation, a screenshot. The failure message includes
+the last actions and the command to reproduce it.
+
+> WebKitWebDriver drops repeated characters (`//` → `/`) when a string is sent
+> in one `keys()`/`setValue()` call, so the monkey types character by character
+> and verifies what arrived.
 
 ## How the backend works
 

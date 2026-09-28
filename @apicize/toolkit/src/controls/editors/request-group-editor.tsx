@@ -3,8 +3,9 @@ import { ToggleButtonGroup, ToggleButton, Box, Stack, SxProps, SvgIcon } from '@
 import DisplaySettingsIcon from '@mui/icons-material/DisplaySettings'
 import FolderIcon from '../../icons/folder-icon'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import BuildIcon from '@mui/icons-material/Build';
 import AltRouteIcon from '@mui/icons-material/AltRoute'
-import { ScienceIcon, WarningAmberIcon } from '../../icons';
+import { WarningAmberIcon } from '../../icons';
 import { ResultsViewer } from '../viewers/results-viewer'
 import { EditorTitle } from '../editor-title';
 import { RequestParametersEditor } from './request/request-parameters-editor';
@@ -34,7 +35,7 @@ const GroupPanelView = observer(({ group, settings, usePanel, hasWarnings, onPan
     const feedback = useFeedback()
 
     const panelsClass = React.useMemo(() =>
-        (usePanel === 'Test Setup Script') ? 'panels full-width' : 'panels',
+        (usePanel === 'Setup Script') ? 'panels full-width' : 'panels',
         [usePanel]
     )
     return <>
@@ -59,7 +60,7 @@ const GroupPanelView = observer(({ group, settings, usePanel, hasWarnings, onPan
                     sx={{ marginRight: '12px', zIndex: 100 }}
                     aria-label="text alignment">
                     <ToggleButton value="Info" title="Information" aria-label='show info' size='small'><DisplaySettingsIcon /></ToggleButton>
-                    <ToggleButton value="Test Setup Script" title="Test Setup Script" aria-label='show testsetup' size='small'><ScienceIcon /></ToggleButton>
+                    <ToggleButton value="Setup Script" title="Setup Script" aria-label='show setup' size='small'><BuildIcon /></ToggleButton>
                     <ToggleButton value="Execution Parameters" title="Execution Parameters" aria-label='show test' size='small'><AltRouteIcon /></ToggleButton>
                     {
                         hasWarnings
@@ -69,7 +70,7 @@ const GroupPanelView = observer(({ group, settings, usePanel, hasWarnings, onPan
                 </ToggleButtonGroup>
                 <Box flexGrow={1} className={panelsClass}>
                     {usePanel === 'Info' ? <RequestGroupInfoEditor group={group} />
-                        : usePanel === 'Test Setup Script' ? <RequestSetupEditor group={group} />
+                        : usePanel === 'Setup Script' ? <RequestSetupEditor entry={group} />
                             : usePanel === 'Execution Parameters' ? <RequestParametersEditor requestOrGroup={group} />
                                 : usePanel === 'Warnings' ? <WarningsEditor warnings={group.validationWarnings} onDelete={(id) => {
                                     group.deleteWarning(id).catch(err => feedback.toastError(err))
@@ -112,7 +113,7 @@ const GroupEditorLayout = observer(({ group, settings, workspace, usePanel, hasW
 
     return group.resultMenuItems.length > 0 && group.selectedResultMenuItem
         ? <Box sx={sx} >
-            <PanelGroup defaultLayout={defaultLayout} onLayoutChange={onLayoutChanged} orientation='horizontal' className='editor split'>
+            <PanelGroup defaultLayout={defaultLayout} onLayoutChanged={onLayoutChanged} orientation='horizontal' className='editor split'>
                 <Panel id='request-editor' defaultSize={50} minSize={400} className='split-left'>
                     <GroupPanelView group={group} settings={settings} usePanel={usePanel} hasWarnings={hasWarnings} onPanelChanged={onPanelChanged} />
                 </Panel>

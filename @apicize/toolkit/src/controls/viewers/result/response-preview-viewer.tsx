@@ -5,7 +5,8 @@ import OutputIcon from '@mui/icons-material/Output';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import beautify from "js-beautify";
 import { EditorMode } from "../../../models/editor-mode";
-import { RichViewer } from "../rich-viewer";
+import { formatViewerText, RichViewer } from "../rich-viewer";
+import { useApicizeSettings } from "../../../contexts/apicize-settings.context";
 import { ResultEditSessionType } from "../../editors/editor-types";
 import { ResponseOrRequest, useWorkspace } from "../../../contexts/workspace.context";
 import { ApicizeBody, ExecutionResultDetail } from "@apicize/lib-typescript";
@@ -16,6 +17,7 @@ import { editor } from "monaco-editor";
 export const ResultResponsePreview = observer(({ detail }: { detail: ExecutionResultDetail | null }) => {
     const workspace = useWorkspace()
     const feedback = useFeedback()
+    const settings = useApicizeSettings()
 
     if (detail?.entityType !== 'request') {
         return
@@ -68,42 +70,38 @@ export const ResultResponsePreview = observer(({ detail }: { detail: ExecutionRe
         }
     }
 
-    let isImage = false
-    let text: string = ''
+    const isImage = body.type === 'Binary'
+        && KNOWN_IMAGE_EXTENSIONS.indexOf(extension) !== -1 && body.data.length > 0
 
-    switch (body.type) {
-        case 'Binary':
-            isImage = KNOWN_IMAGE_EXTENSIONS.indexOf(extension) !== -1 && body.data.length > 0
-            break
-        case 'JSON':
-            text = beautify.js_beautify(JSON.stringify(body.data), {})
-            break
-        default:
-            switch (extension) {
-                case 'html':
-                case 'xml':
-                    text = beautify.html_beautify(body.text, {})
-                    break
-                case 'css':
-                    text = beautify.css_beautify(body.text, {})
-                    break
-                case 'js':
-                    text = beautify.js_beautify(body.text, {})
-                    break
-                case 'json':
-                    text = beautify.js_beautify(body.text, {})
-                    break
-                default:
-                    text = body.text
-            }
+    // Only generated when the view model is (re)built, since beautifying large bodies is expensive
+    const getText = (): string => {
+        switch (body.type) {
+            case 'Binary':
+                return ''
+            case 'JSON':
+                return beautify.js_beautify(JSON.stringify(body.data), {})
+            default:
+                switch (extension) {
+                    case 'html':
+                    case 'xml':
+                        return beautify.html_beautify(body.text, {})
+                    case 'css':
+                        return beautify.css_beautify(body.text, {})
+                    case 'js':
+                    case 'json':
+                        return beautify.js_beautify(body.text, {})
+                    default:
+                        return body.text
+                }
+        }
     }
 
-    const hasText = text.length > 0
+    const hasText = body.type === 'JSON' || (body.type !== 'Binary' && body.text.length > 0)
 
-    let textMode: EditorMode | undefined
     let textModel: editor.ITextModel | undefined
 
     if (hasText) {
+        let textMode: EditorMode
         switch (extension) {
             case 'json':
                 textMode = EditorMode.json
@@ -124,12 +122,16 @@ export const ResultResponsePreview = observer(({ detail }: { detail: ExecutionRe
                 textMode = EditorMode.txt
         }
 
+        const mode = textMode
+        const indentSize = settings.editorIndentSize
         textModel = workspace.getResultEditModel(
             detail,
             responseOrRequest === ResponseOrRequest.response
                 ? ResultEditSessionType.Preview
                 : ResultEditSessionType.PreviewRequest,
-            textMode)
+            mode,
+            () => formatViewerText(getText(), mode, indentSize),
+            `${indentSize}`)
     }
 
     return (
@@ -144,7 +146,9 @@ export const ResultResponsePreview = observer(({ detail }: { detail: ExecutionRe
                         sx={{ marginLeft: '16px' }}
                         onClick={_ => {
                             workspace.copyToClipboard({
-                                payloadType: 'ResponseBodyPreview',
+                                payloadType: responseOrRequest === ResponseOrRequest.response
+                                    ? 'ResponseBodyPreview'
+                                    : 'ResultRequestBodyPreview',
                                 execCtr: detail.execCtr
                             }, isImage ? 'Image' : 'Data')
                                 .catch(err => feedback.toastError(err))
@@ -163,14 +167,8 @@ export const ResultResponsePreview = observer(({ detail }: { detail: ExecutionRe
             {
                 (isImage && body?.type === 'Binary' && body.data.length > 0 && extension)
                     ? <ImageViewer base64Data={body.data} extensionToRender={extension} />
-                    : (textMode && textModel)
-                        ? <RichViewer
-                            text={text}
-                            model={textModel}
-                            mode={textMode}
-                            beautify={true}
-                            wrap={true}
-                        />
+                    : textModel
+                        ? <RichViewer model={textModel} wrap={true} />
                         : null
             }
         </Stack>

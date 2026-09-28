@@ -1,5 +1,20 @@
 # Change Log
 
+## 0.47.0
+
+* Add request setup scripts (executed before the request is dispatched), edited from the Test pane via a Test (After Execution) / Setup (Before Execution) toggle
+* Rename group "Test Setup Script" pane to "Setup Script (Before Requests)"
+* Setup script editors use the same typings as test scripts, excluding Chai and `describe`/`it`/`tag`, and include the updatable `request` (headers and query string parameters can be set by name)
+* Add `data` to test and setup script typings
+* Update Test pane and group Setup help, adding test/setup script glyphs
+* Disable Ctrl/Cmd+S for new workbooks without a file name
+* Fix Ctrl/Cmd+Shift+S and Ctrl/Cmd+Shift+O shortcuts, and use Cmd for file/run shortcuts on macOS
+* Fix Requests section menu not opening while the section is collapsed, and expand the section when appending to it
+* Fix Help showing an error when opened before anything is selected
+* Ctrl/Cmd +/- now adjusts only the main text size; Ctrl+Alt (Cmd+Option on macOS) +/- adjusts the navigation text size
+* Add chaos monkey UI simulator (`yarn test:chaos`) using the demo workbook
+* Require apicize_lib 0.45
+
 ## 0.46.4
 
 * Resolve handlebars replacement issue with escaped quotes

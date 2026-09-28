@@ -51,21 +51,23 @@ export const ResultRawPreview = observer(({ detail }: { detail: ExecutionResultD
         ? Object.entries(h).find(([k]) => k.toLowerCase() === 'content-type')?.[1]?.toLowerCase() ?? ''
         : ''
 
+    const isResponse = responseOrRequest === ResponseOrRequest.response
     let isBinary: boolean
-    let text: string
     let model: editor.ITextModel
     let mode: EditorMode
 
     switch (body?.type) {
         case 'Binary':
             isBinary = true
-            text = body.data ?? ''
             mode = EditorMode.txt
-            model = workspace.getResultEditModel(detail, ResultEditSessionType.Base64, mode)
+            model = workspace.getResultEditModel(
+                detail,
+                isResponse ? ResultEditSessionType.Base64 : ResultEditSessionType.Base64Request,
+                mode,
+                () => body.data ?? '')
             break
         default:
             isBinary = false
-            text = body.text
             if (contentType.includes('json')) {
                 mode = EditorMode.json
             } else if (contentType.includes('xml')) {
@@ -79,7 +81,11 @@ export const ResultRawPreview = observer(({ detail }: { detail: ExecutionResultD
             } else {
                 mode = EditorMode.txt
             }
-            model = workspace.getResultEditModel(detail, ResultEditSessionType.Raw, mode)
+            model = workspace.getResultEditModel(
+                detail,
+                isResponse ? ResultEditSessionType.Raw : ResultEditSessionType.RawRequest,
+                mode,
+                () => body.text)
             break
     }
 
@@ -96,7 +102,9 @@ export const ResultRawPreview = observer(({ detail }: { detail: ExecutionResultD
                             sx={{ marginLeft: '16px' }}
                             onClick={_ => {
                                 workspace.copyToClipboard({
-                                    payloadType: 'ResponseBodyRaw',
+                                    payloadType: responseOrRequest === ResponseOrRequest.response
+                                        ? 'ResponseBodyRaw'
+                                        : 'ResultRequestBodyRaw',
                                     execCtr: detail.execCtr,
                                 }, 'Data')
                                     .catch(err => feedback.toastError(err))
@@ -119,11 +127,11 @@ export const ResultRawPreview = observer(({ detail }: { detail: ExecutionResultD
                     ? (
                         <>
                             <Typography aria-label="base64 response data" variant='h3' sx={{ marginTop: '2em' }} component='div'>Base 64</Typography>
-                            <RichViewer text={text} model={model} wrap={true} mode={mode} />
+                            <RichViewer model={model} wrap={true} />
                         </>
                     )
                     : (
-                        <RichViewer text={text} model={model} wrap={true} mode={mode} />
+                        <RichViewer model={model} wrap={true} />
                     )
             }
         </Stack>

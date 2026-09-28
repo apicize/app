@@ -11,6 +11,8 @@ import KeyIcon from '@mui/icons-material/Key'
 import ViewListIcon from '@mui/icons-material/ViewList'
 import ViewListOutlinedIcon from '@mui/icons-material/ViewListOutlined'
 import ScienceIcon from '@mui/icons-material/Science'
+import BiotechIcon from '@mui/icons-material/Biotech'
+import BuildIcon from '@mui/icons-material/Build'
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined'
 import ClearAllIcon from '@mui/icons-material/ClearAll'
 import DataSetIcon from '@mui/icons-material/Dataset'
@@ -64,6 +66,10 @@ export function renderHelpIcon(name: string): JSX.Element | null {
             return <AltRouteIcon className='help-icon' />
         case 'test':
             return <ScienceIcon className='help-icon' />
+        case 'test-script':
+            return <SvgIcon className='help-icon'><BiotechIcon color='primary' /></SvgIcon>
+        case 'setup-script':
+            return <SvgIcon className='help-icon'><BuildIcon color='primary' /></SvgIcon>
         case 'dataset':
             return <SvgIcon className='help-icon' color='data'><DataSetIcon /></SvgIcon>
         case 'authorization':
@@ -148,6 +154,7 @@ export function renderHelpIcon(name: string): JSX.Element | null {
 export function getRenderedIconNames(): string[] {
     return [
         'request', 'group', 'info', 'query', 'headers', 'body', 'parameters', 'test',
+        'test-script', 'setup-script',
         'dataset', 'authorization', 'scenario', 'certificate', 'proxy', 'defaults',
         'settings', 'logs', 'display', 'public', 'private', 'vault', 'apicize',
         'runonce', 'run', 'seed', 'workbook-new', 'workbook-open', 'file-open',

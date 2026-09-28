@@ -8,8 +8,8 @@ Settings are saved as they are updated.
 
 ## Display Settings
 
-* **Main Text Size**:  This is the base text size for everything that is not the Navigation menu
-* **Navigation Text Size**:  This is the base text size for items in the Navigation menu
+* **Main Text Size**:  This is the base text size for everything that is not the Navigation menu (press **:info[ctrlkey] + Plus/Minus** to adjust)
+* **Navigation Text Size**:  This is the base text size for items in the Navigation menu (press **:info[ctrlkey] + :info[altkey] + Plus/Minus** to adjust)
 * **Color Mode**:  Currently Dark and Light modes are available.  Don't select Light unless you want your retinas stabbed with a thousand needles (it needs work)
 * **Always Hide Nav Menu**:  Set this to "Yes" if you don't want to see the persistent navigation menu, and would rather have the minimized toolbar shown at all times
 

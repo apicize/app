@@ -62,6 +62,8 @@ export const AppSettingsEditor = observer(({ sx }: { sx?: SxProps }) => {
             .catch(e => feedback.toastError(e))
     }
 
+    const altKey = settings.ctrlKey === 'Cmd' ? 'Option' : 'Alt'
+
     return <Stack spacing={4} className='panels full-width' sx={sx}>
         <BorderedSection sx={{ marginTop: '2em' }} title='Display Settings'>
             <Stack direction='column' spacing={1}>
@@ -74,6 +76,7 @@ export const AppSettingsEditor = observer(({ sx }: { sx?: SxProps }) => {
                         onChange={(e) => {
                             settings.setFontSize(parseInt(e.target.value))
                         }} />
+                    <InputLabel>({settings.ctrlKey} + Plus/Minus)</InputLabel>
                 </Stack>
                 <Stack direction={'row'} spacing={'1em'} display='flex' alignItems='center' justifyContent='left'>
                     <InputLabel id='text-size-label-id' sx={{ width: '12em' }} >Navigation Text Size:</InputLabel>
@@ -84,6 +87,7 @@ export const AppSettingsEditor = observer(({ sx }: { sx?: SxProps }) => {
                         onChange={(e) => {
                             settings.setNavigationFontSize(parseInt(e.target.value))
                         }} />
+                    <InputLabel>({settings.ctrlKey} + {altKey} + Plus/Minus)</InputLabel>
                 </Stack>
                 <Stack direction={'row'} spacing={'1em'} display='flex' alignItems='center' justifyContent='left'>
                     <InputLabel id='color-mode-label-id' sx={{ width: '12em' }}>Color Mode:</InputLabel>

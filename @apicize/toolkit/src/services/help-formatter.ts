@@ -69,6 +69,9 @@ export function createRemarkApicizeDirectives(config: HelpFormatConfig) {
             case 'ctrlkey':
                 replaceWith = ctrlKey
                 break
+            case 'altkey':
+                replaceWith = ctrlKey === 'Cmd' ? 'Option' : 'Alt'
+                break
             default:
                 return false
         }

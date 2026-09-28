@@ -2,13 +2,14 @@ import { EditableRequest } from "../../../models/workspace/editable-request";
 import { observer } from "mobx-react-lite";
 import { useEffect, useRef, useState } from "react";
 import { useWorkspace } from "../../../contexts/workspace.context";
-import { Box, IconButton, Stack } from "@mui/material";
+import { Box, IconButton, Stack, Typography } from "@mui/material";
 import { DroppedFile, useFileDragDrop } from "../../../contexts/file-dragdrop.context";
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { useFeedback } from "../../../contexts/feedback.context";
 import MonacoEditor, { monaco } from 'react-monaco-editor';
 
+import COMMON_DEFS_RAW from '../../../typings/script-common.d.ts?raw'
 import EDITOR_DEFS_RAW from '../../../typings/test-editor.d.ts?raw'
 import CHAI_RAW from '../../../typings/chai.d.ts?raw'
 import ES5_RAW from '../../../../../../node_modules/typescript/lib/lib.es5.d.ts?raw'
@@ -27,6 +28,7 @@ import { RequestEditSessionType } from "../editor-types";
 import { EditorMode } from "../../../models/editor-mode";
 import { IRequestEditorTextModel } from "../../../models/editor-text-model";
 import { useMonacoClipboard } from "../../../hooks/use-monaco-clipboard";
+import { RequestScriptModeToggle } from "./request-script-mode-toggle";
 
 export const RequestTestEditor = observer(({ request }: { request: EditableRequest }) => {
     const workspace = useWorkspace()
@@ -100,6 +102,9 @@ export const RequestTestEditor = observer(({ request }: { request: EditableReque
     return <Box id='request-test-container' position='relative' width='100%' height='100%'>
         <Stack direction='column' spacing={3} position='relative' width='100%' height='100%'>
             <Stack direction='row' justifyContent='center' display='flex'>
+                <Typography variant='h2' sx={{ marginTop: 0, marginBottom: 0, flexGrow: 0, display: 'flex', alignItems: 'center' }} component='div'>
+                    Test Script (After Execution)
+                </Typography>
                 <IconButton
                     aria-label="copy tests to clipboard"
                     title="Copy Tests to Clipboard"
@@ -122,6 +127,9 @@ export const RequestTestEditor = observer(({ request }: { request: EditableReque
                     onClick={performBeautify}>
                     <AutoAwesomeIcon />
                 </IconButton>
+                <Box marginLeft='1em'>
+                    <RequestScriptModeToggle />
+                </Box>
             </Stack>
 
             <Box top={0}
@@ -178,6 +186,7 @@ export const RequestTestEditor = observer(({ request }: { request: EditableReque
                             monaco.editor.getModel(monaco.Uri.parse('ts:filename/setup-defs.d.ts'))?.dispose()
 
                             monaco.languages.typescript.javascriptDefaults.setExtraLibs([
+                                { content: COMMON_DEFS_RAW, filePath: 'ts:filename/script-common-defs.d.ts' },
                                 { content: EDITOR_DEFS_RAW, filePath: 'ts:filename/editor-defs.d.ts' },
                                 { content: CHAI_RAW, filePath: 'ts:filename/chai.d.ts' },
                                 { content: ES5_RAW, filePath: 'file://node_modules/typescript/lib/lib.es5.d.ts' },

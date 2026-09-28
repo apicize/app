@@ -136,15 +136,24 @@ export const RequestSection = observer(({ includeHeader }: { includeHeader?: boo
             workspace.showHelp(helpTopic, headerId)
         }
     }
+    // Adding to the section itself (no target) expands it so the new entry is visible
+    const expandIfSectionTarget = (targetRequestId: string | null) => {
+        if (targetRequestId === null) {
+            workspace.updateExpanded('hdr-r', true)
+        }
+    }
+
     const handleAddRequest = (targetRequestId: string | null, targetPosition: IndexedEntityPosition) => {
         closeRequestsMenu()
         closeRequestMenu()
+        expandIfSectionTarget(targetRequestId)
         workspace.addRequest(targetRequestId, targetPosition, null)
     }
 
     const handleAddRequestGroup = (targetRequestId: string | null, targetPosition: IndexedEntityPosition) => {
         closeRequestsMenu()
         closeRequestMenu()
+        expandIfSectionTarget(targetRequestId)
         workspace.addGroup(targetRequestId, targetPosition, null)
     }
 
@@ -220,6 +229,7 @@ export const RequestSection = observer(({ includeHeader }: { includeHeader?: boo
     const handlePasteRequest = (relativeToId: string | null, relativePosition: IndexedEntityPosition) => {
         closeRequestMenu()
         closeRequestsMenu()
+        expandIfSectionTarget(relativeToId)
         workspace.pasteFromClipboard(relativeToId, relativePosition, ClipboardDataType.RequestEntry)
             .catch(err => feedback.toastError(err))
     }
@@ -375,7 +385,7 @@ export const RequestSection = observer(({ includeHeader }: { includeHeader?: boo
     )
 
     return includeHeader
-        ? <TreeItem
+        ? <><TreeItem
             itemId='hdr-r'
             key='hdr-r'
             onClick={e => {
@@ -424,9 +434,11 @@ export const RequestSection = observer(({ includeHeader }: { includeHeader?: boo
                 </Box >
             )}>
             {renderRequestTreeItems()}
-            <RequestsMenu />
-            <RequestMenu />
         </TreeItem >
+        {/* Menus render outside the TreeItem so they still open while the section is collapsed */}
+        <RequestsMenu />
+        <RequestMenu />
+        </>
         : <>
             {renderRequestTreeItems()}
             <RequestsMenu />

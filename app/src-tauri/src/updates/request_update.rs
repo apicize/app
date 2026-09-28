@@ -35,6 +35,8 @@ pub struct RequestUpdate {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub headers: Option<Vec<NameValuePair>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub setup: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub test: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub body: Option<Option<RequestBody>>,
@@ -77,6 +79,7 @@ impl RequestUpdate {
             number_of_redirects: None,
             query_string_params: None,
             headers: None,
+            setup: None,
             test: None,
             selected_scenario: None,
             selected_authorization: None,
@@ -104,6 +107,7 @@ impl RequestUpdate {
             number_of_redirects: None,
             query_string_params: None,
             headers: None,
+            setup: None,
             test: None,
             body: None,
             body_mime_type: None,

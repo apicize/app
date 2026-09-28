@@ -11,11 +11,12 @@ import { RequestHeadersEditor } from './request/request-headers-editor'
 import { ScienceIcon, WarningAmberIcon } from '../../icons';
 import { RequestQueryStringEditor } from './request/request-query-string-editor'
 import { RequestTestEditor } from './request/request-test-editor'
+import { RequestSetupEditor } from './request/request-setup-editor'
 import { ResultsViewer } from '../viewers/results-viewer'
 import { EditorTitle } from '../editor-title';
 import { observer } from 'mobx-react-lite';
 import { RunToolbar } from '../run-toolbar';
-import { useWorkspace, RequestPanel } from '../../contexts/workspace.context';
+import { useWorkspace, RequestPanel, RequestScriptMode } from '../../contexts/workspace.context';
 import { RunResultsToolbar } from '../run-results-toolbar';
 import { Panel, Group as PanelGroup, Separator, useDefaultLayout } from "react-resizable-panels";
 import RequestIcon from '../../icons/request-icon';
@@ -37,6 +38,8 @@ const RequestPanel = observer(({
     const settings = useApicizeSettings()
 
     const selectedPanel = workspace.requestPanel
+    const isSetupMode = workspace.requestScriptMode === RequestScriptMode.setup
+    const panelTitle = (selectedPanel === 'Test Script' && isSetupMode) ? 'Setup Script' : selectedPanel
     const hasWarnings = request.validationWarnings.hasEntries
 
     const handlePanelChanged = (_: React.SyntheticEvent, newValue: RequestPanel) => {
@@ -60,7 +63,7 @@ const RequestPanel = observer(({
         <Stack direction='row' className='editor-panel-header'>
             <EditorTitle
                 icon={<SvgIcon color='request'><RequestIcon /></SvgIcon>}
-                name={(request.name.length > 0) ? `${request.name} - ${selectedPanel}` : `(Unnamed) - ${selectedPanel}`}
+                name={(request.name.length > 0) ? `${request.name} - ${panelTitle}` : `(Unnamed) - ${panelTitle}`}
                 diag={settings.showDiagnosticInfo ? request.id : undefined}
             >
                 <Box display='inline-flex' paddingLeft='1em' visibility={request.isRunning ? "visible" : "hidden"} width='2em'><PlayArrowIcon color="success" /></Box>
@@ -81,7 +84,7 @@ const RequestPanel = observer(({
                     <ToggleButton value="Query String" title="Query String Parameters" aria-label='show query string' size='small'><ViewListIcon /></ToggleButton>
                     <ToggleButton value="Headers" title="Headers" aria-label='show headers' size='small'><ViewListOutlinedIcon /></ToggleButton>
                     <ToggleButton value="Body" title="Body" aria-label='show body' size='small'><ArticleOutlinedIcon /></ToggleButton>
-                    <ToggleButton value="Test Script" title="Test Script" aria-label='show test' size='small'><ScienceIcon /></ToggleButton>
+                    <ToggleButton value="Test Script" title="Test and Setup Scripts" aria-label='show test and setup scripts' size='small'><ScienceIcon /></ToggleButton>
                     <ToggleButton value="Execution Parameters" title="Execution Parameters" aria-label='show parameters' size='small'><AltRouteIcon /></ToggleButton>
                     {
                         hasWarnings
@@ -96,7 +99,7 @@ const RequestPanel = observer(({
                         : selectedPanel === 'Headers' ? <RequestHeadersEditor request={request} />
                             : selectedPanel === 'Query String' ? <RequestQueryStringEditor request={request} />
                                 : selectedPanel === 'Body' ? <RequestBodyEditor request={request} />
-                                    : selectedPanel === 'Test Script' ? <RequestTestEditor request={request} />
+                                    : selectedPanel === 'Test Script' ? (isSetupMode ? <RequestSetupEditor entry={request} /> : <RequestTestEditor request={request} />)
                                         : selectedPanel === 'Execution Parameters' ? <RequestParametersEditor requestOrGroup={request} />
                                             : selectedPanel === 'Warnings' ? <WarningsEditor warnings={request.validationWarnings} onDelete={(id) => {
                                                 request.deleteWarning(id).catch(err => feedback.toastError(err))
@@ -143,7 +146,7 @@ export const RequestEditor = observer(({ sx, request }: { sx?: SxProps, request:
 
     return (resultMenuItems.length > 0 && selectedResultMenuItem)
         ? <Box sx={sx}>
-            <PanelGroup defaultLayout={defaultLayout} onLayoutChange={onLayoutChanged} orientation='horizontal' className='editor split'>
+            <PanelGroup defaultLayout={defaultLayout} onLayoutChanged={onLayoutChanged} orientation='horizontal' className='editor split'>
                 <Panel id='request-editor' defaultSize={50} minSize={400} className='split-left'>
                     <RequestPanel request={request} />
                 </Panel>

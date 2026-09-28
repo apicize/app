@@ -42,6 +42,7 @@ export class EditableRequest extends EditableRequestEntry {
     @observable public accessor referrerPolicy: ReferrerPolicy | null = null
     @observable public accessor duplex: RequestDuplex | null = null
 
+    @observable public accessor setup = ''
     @observable public accessor test = ''
 
     @observable public accessor isBodyInitialized = false
@@ -109,6 +110,7 @@ export class EditableRequest extends EditableRequestEntry {
         //     type: BodyType.None,
         //     data: undefined,
         // }
+        this.setup = entry.setup ?? ''
         this.test = entry.test ?? ''
 
         this.mode = entry.mode ?? null
@@ -235,6 +237,11 @@ export class EditableRequest extends EditableRequestEntry {
     }
 
     @action
+    setSetup(value: string | undefined) {
+        this.setup = value ?? ''
+        return this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, setup: value })
+    }
+
     setTest(value: string | undefined) {
         this.test = value ?? ''
         return this.performUpdate({ type: EntityTypeName.Request, entityType: EntityType.Request, id: this.id, test: value })
@@ -404,6 +411,10 @@ export class EditableRequest extends EditableRequestEntry {
         // }
 
 
+        if (update.setup !== undefined) {
+            this.setup = update.setup
+        }
+
         if (update.test !== undefined) {
             this.test = update.test
         }
@@ -517,6 +528,7 @@ export interface RequestInfo extends ValidationWarnings, ValidationErrors {
     referrer?: string
     referrerPolicy?: ReferrerPolicy
     duplex?: RequestDuplex
+    setup?: string,
     test?: string,
     selectedScenario?: Selection,
     selectedAuthorization?: Selection,

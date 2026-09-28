@@ -86,6 +86,7 @@ export interface Request extends RequestEntry {
     referrer?: string
     referrerPolicy?: ReferrerPolicy
     duplex?: RequestDuplex
+    setup?: string,
     test?: string,
     body?: Body
 }

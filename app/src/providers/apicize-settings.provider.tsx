@@ -17,23 +17,28 @@ export function ApicizeSettingsProvider({
         let contextMenuHandler: ((event: Event) => void) | null = null;
         let keydownHandler: ((event: KeyboardEvent) => void) | null = null;
 
-        // Cmd/Ctrl + '+' / '-' adjust both the main and navigation font sizes together (clamped 1-99).
-        // Use the platform accelerator: Cmd on macOS, Ctrl elsewhere.
+        // Cmd/Ctrl + '+' / '-' adjust the main font size; Cmd/Ctrl + Alt/Option + '+' / '-' adjust the
+        // navigation font size (clamped 1-99). Shift combinations are ignored. Use the platform accelerator:
+        // Cmd on macOS, Ctrl elsewhere. Option on macOS changes event.key (e.g. '≠', '–'), so fall back to
+        // the physical key code.
         const clampFontSize = (value: number) => Math.min(99, Math.max(1, value))
         const fontSizeHandler = (event: KeyboardEvent) => {
             const accelerator = settings.ctrlKey === 'Cmd' ? event.metaKey : event.ctrlKey
-            if (!accelerator) return
+            if (!accelerator || event.shiftKey) return
             let delta: number
-            if (event.key === '+' || event.key === '=') {
+            if (event.key === '+' || event.key === '=' || event.code === 'Equal' || event.code === 'NumpadAdd') {
                 delta = 1
-            } else if (event.key === '-' || event.key === '_') {
+            } else if (event.key === '-' || event.code === 'Minus' || event.code === 'NumpadSubtract') {
                 delta = -1
             } else {
                 return
             }
             event.preventDefault()
-            settings.setFontSize(clampFontSize(settings.fontSize + delta))
-            settings.setNavigationFontSize(clampFontSize(settings.navigationFontSize + delta))
+            if (event.altKey) {
+                settings.setNavigationFontSize(clampFontSize(settings.navigationFontSize + delta))
+            } else {
+                settings.setFontSize(clampFontSize(settings.fontSize + delta))
+            }
         }
         document.addEventListener('keydown', fontSizeHandler);
 

@@ -35,6 +35,8 @@ export const MUI_ICON_FILES: Record<string, string> = {
   body: 'ArticleOutlined',
   parameters: 'AltRoute',
   test: 'Science',
+  'test-script': 'Biotech',
+  'setup-script': 'Build',
   dataset: 'Dataset',
   settings: 'Settings',
   display: 'DisplaySettings',

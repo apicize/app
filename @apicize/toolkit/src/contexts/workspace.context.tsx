@@ -74,7 +74,7 @@ export enum WorkspaceMode {
 
 export type ResultsPanel = 'Info' | 'Headers' | 'Preview' | 'Text' | 'Code' | 'Details'
 export type RequestPanel = 'Info' | 'Headers' | 'Query String' | 'Body' | 'Test Script' | 'Execution Parameters' | 'Warnings'
-export type GroupPanel = 'Info' | 'Test Setup Script' | 'Execution Parameters' | 'Warnings'
+export type GroupPanel = 'Info' | 'Setup Script' | 'Execution Parameters' | 'Warnings'
 export type SettingsPanel = 'Workspace Defaults' | 'Locks' | 'Application' | 'Warnings'
 
 export type ActiveSelection = EditableRequest | EditableRequestGroup | EditableScenario |
@@ -128,6 +128,7 @@ export class WorkspaceStore implements EditableEntityContext {
     @observable accessor groupPanel: GroupPanel = 'Info'
     @observable accessor settingsPanel: SettingsPanel = 'Workspace Defaults'
     @observable accessor responseOrRequest: ResponseOrRequest = ResponseOrRequest.response
+    @observable accessor requestScriptMode: RequestScriptMode = RequestScriptMode.test
 
     @observable accessor executingRequestIDs: string[] = []
 
@@ -229,7 +230,7 @@ export class WorkspaceStore implements EditableEntityContext {
         this.helpTopicHistory = []
         this.nextHelpTopic = null
         this.requestModels.clear()
-        this.resultModels.clear()
+        this.disposeResultModels()
         this.dataSetModels.clear()
         this.expandedItems = initialization.session.expandedItems ?? []
         if (initialization.session.activeEntity) {
@@ -434,7 +435,7 @@ export class WorkspaceStore implements EditableEntityContext {
                 .catch(e => this.feedback.toastError(e))
         } else {
             this.showHelp(
-                (this.nextHelpTopic && this.nextHelpTopic.length > 0) ? this.nextHelpTopic : 'home'
+                (this.nextHelpTopic && this.nextHelpTopic.length > 0) ? this.nextHelpTopic : 'index'
             )
         }
     }
@@ -1110,7 +1111,7 @@ export class WorkspaceStore implements EditableEntityContext {
                 requestOrGroupId,
                 this.fileName,
                 singleRun)
-            this.resultModels.delete(requestOrGroupId)
+            this.disposeResultModels(requestOrGroupId)
         } catch (error) {
             const msg = `${error}`
             const asWarning = msg == 'Cancelled' || msg == 'No results returned'
@@ -1171,6 +1172,13 @@ export class WorkspaceStore implements EditableEntityContext {
     changeResponseOrRequest(value: ResponseOrRequest) {
         if (value) {
             this.responseOrRequest = value
+        }
+    }
+
+    @action
+    changeRequestScriptMode(value: RequestScriptMode) {
+        if (value) {
+            this.requestScriptMode = value
         }
     }
 
@@ -1281,7 +1289,7 @@ export class WorkspaceStore implements EditableEntityContext {
             } else {
                 text = ''
             }
-        } else if (type === RequestEditSessionType.Setup && request.entityType === EntityType.Group) {
+        } else if (type === RequestEditSessionType.Setup) {
             text = request.setup
         } else {
             throw new Error(`Invalid edit model type "${type}"`)
@@ -1299,46 +1307,21 @@ export class WorkspaceStore implements EditableEntityContext {
     }
 
     /**
-    * Returns edit model if exists for the specified result
-    * @param requestOrGroupId
-    * @param execCtr
-    * @param type 
-    * @returns 
+    * Returns the cached view model for the specified result, generating its text only when
+    * the model is first created, the result detail is refreshed, or formatting settings change
+    * @param detail
+    * @param type
+    * @param mode
+    * @param getText generates the (formatted) text to display
+    * @param formatKey identifies formatting settings used by getText
+    * @returns
     */
-    getResultEditModel(detail: ExecutionResultDetail, type: ResultEditSessionType, mode: EditorMode): editor.ITextModel {
-        let text: string
-
-        switch (detail.entityType) {
-            case 'request':
-                switch (type) {
-                    case ResultEditSessionType.Base64:
-                        text = (detail.testContext.response?.body?.type === 'Binary')
-                            ? detail.testContext.response.body.data
-                            : ''
-                        break
-                    case ResultEditSessionType.Preview:
-                        text = (detail.testContext.response?.body?.type !== 'Binary')
-                            ? detail.testContext.response?.body?.text ?? ''
-                            : ''
-                        break
-                    case ResultEditSessionType.PreviewRequest:
-                        text = (detail.testContext.request?.body?.type !== 'Binary')
-                            ? detail.testContext.request?.body?.text ?? ''
-                            : ''
-                        break
-                    default:
-                        text = ''
-                        break
-                }
-                break
-            case 'grouped':
-                text = JSON.stringify(detail)
-                break
-            default:
-                text = ''
-                break
-        }
-
+    getResultEditModel(
+        detail: ExecutionResultDetail,
+        type: ResultEditSessionType,
+        mode: EditorMode,
+        getText: () => string,
+        formatKey: string = ''): editor.ITextModel {
         let requestModels = this.resultModels.get(detail.id)
         if (!requestModels) {
             requestModels = new Map()
@@ -1351,13 +1334,24 @@ export class WorkspaceStore implements EditableEntityContext {
         }
         const existing = entries.get(type)
         if (existing && !existing.isDisposed()) {
+            if (existing.source !== detail || existing.formatKey !== formatKey) {
+                // Update in place so any editor showing the model keeps it
+                existing.setValue(getText())
+                existing.source = detail
+                existing.formatKey = formatKey
+            }
+            if (existing.getLanguageId() !== (mode as string)) {
+                editor.setModelLanguage(existing, mode)
+            }
             return existing
         }
 
-        const model = editor.createModel(text, mode) as IResultEditorTextModel
+        const model = editor.createModel(getText(), mode) as IResultEditorTextModel
         model.resultId = detail.id
         model.execCtr = detail.execCtr
         model.type = type
+        model.source = detail
+        model.formatKey = formatKey
         entries.set(type, model)
         return model
     }
@@ -1395,8 +1389,32 @@ export class WorkspaceStore implements EditableEntityContext {
         model.resultId = detail.id
         model.execCtr = detail.execCtr
         model.type = ResultEditSessionType.GeneratedCode
+        model.source = detail
+        model.formatKey = ''
         entries.set(ResultEditSessionType.GeneratedCode, model)
         return model
+    }
+
+    /**
+     * Dispose of cached result view models, for one request/group or all of them
+     * @param requestOrGroupId
+     */
+    private disposeResultModels(requestOrGroupId?: string) {
+        const toDispose = requestOrGroupId === undefined
+            ? [...this.resultModels.values()]
+            : [this.resultModels.get(requestOrGroupId)]
+        for (const requestModels of toDispose) {
+            for (const entries of requestModels?.values() ?? []) {
+                for (const model of entries.values()) {
+                    model.dispose()
+                }
+            }
+        }
+        if (requestOrGroupId === undefined) {
+            this.resultModels.clear()
+        } else {
+            this.resultModels.delete(requestOrGroupId)
+        }
     }
 
     /**
@@ -1744,4 +1762,9 @@ export interface Unlock {
 export enum ResponseOrRequest {
     response = 1,
     request = 2
+}
+
+export enum RequestScriptMode {
+    test = 1,
+    setup = 2
 }

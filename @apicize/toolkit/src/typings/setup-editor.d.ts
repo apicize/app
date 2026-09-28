@@ -1,97 +1,168 @@
 // @ts-nocheck
 
-/** @deprecated describe() is not available in Group Setup scripts */
+/******************************************************************************
+ * Setup script definitions (shared definitions are in script-common.d.ts)
+ ******************************************************************************/
+
+/** @deprecated describe() is not available in Setup scripts */
 declare function describe(...args: never[]): never
 
-/** @deprecated it() is not available in Group Setup scripts */
+/** @deprecated it() is not available in Setup scripts */
 declare function it(...args: never[]): never
 
-/** @deprecated tag() is not available in Group Setup scripts */
+/** @deprecated tag() is not available in Setup scripts */
 declare function tag(...args: never[]): never
 
 /**
- * Makes the specified value available to subsequent requests
- * @param name Name of the value
- * @param value JSON serializable value
+ * Type of request body data
  */
-declare function output(name: string, value: any): void
-
-/**
- * Key value pairs
- */
-declare interface KeyValuePairs {
-    [key: string]: any
+declare enum BodyType {
+    Text = 'Text',
+    JSON = 'JSON',
+    XML = 'XML',
+    GraphQL = 'GraphQL',
+    Form = 'Form',
+    Raw = 'Raw'
 }
 
 /**
- * Name string pairs
+ * Name/value pair (header, query string parameter or form value)
  */
-declare interface NameStringPairs {
-    [key: string]: string
+declare interface NameValuePair {
+    name: string
+    value: string
+    disabled?: boolean
 }
 
 /**
- * Merged scenario and output variables used for populating handlebar values
+ * List of name/value pairs that can also be read, set or deleted by name
+ * (ex. `request.headers['Accept'] = 'text/plain'`, `delete request.headers['Accept']`).
+ * Names that match array members (ex. `length`, `map`) retain their array meaning
  */
-declare const $: KeyValuePairs
+declare type NamedValuePairs = NameValuePair[] & { [name: string]: any }
 
 /**
- * Scenario variables specified in request or parent
+ * Text body data
  */
-declare const scenario: KeyValuePairs
+declare interface SetupBodyText {
+    type: BodyType.Text
+    data: string
+}
 
 /**
- * @deprecated Apicize requests are not available in Group Setup scripts
+ * JSON body data
  */
-declare const request: never
+declare interface SetupBodyJSON {
+    type: BodyType.JSON
+    /**
+     * Serialized JSON (objects assigned here will be serialized)
+     */
+    data: string | any
+}
 
 /**
- * @deprecated Apicize response are not available in Group Setup scripts
+ * XML body data
+ */
+declare interface SetupBodyXML {
+    type: BodyType.XML
+    data: string
+}
+
+/**
+ * GraphQL body data
+ */
+declare interface SetupBodyGraphQL {
+    type: BodyType.GraphQL
+    data: {
+        /**
+         * GraphQL query
+         */
+        query: string
+        /**
+         * GraphQL request extensions (objects assigned here will be serialized)
+         */
+        extensions?: string | any | null
+    }
+}
+
+/**
+ * Form body data
+ */
+declare interface SetupBodyForm {
+    type: BodyType.Form
+    data: NameValuePair[]
+}
+
+/**
+ * Raw body data
+ */
+declare interface SetupBodyRaw {
+    type: BodyType.Raw
+    /**
+     * Base64 encoded binary data
+     */
+    data: string
+}
+
+/**
+ * Body to submit with request
+ */
+declare type SetupBody = SetupBodyText | SetupBodyJSON | SetupBodyXML | SetupBodyGraphQL | SetupBodyForm | SetupBodyRaw
+
+/**
+ * Apicize request information, updates are applied before the request is dispatched
+ */
+declare interface ApicizeSetupRequest {
+    /**
+     * URL of the request
+     */
+    url: string
+    /**
+     * HTTP method of the request
+     */
+    method?: string
+    /**
+     * Headers to submit with the request (names are case-insensitive)
+     */
+    headers: NamedValuePairs
+    /**
+     * Query string parameters to submit with the request (names are case-sensitive)
+     */
+    queryStringParams: NamedValuePairs
+    /**
+     * Body to submit with the request
+     */
+    body?: SetupBody
+    /**
+     * Set the specified header, replacing any existing header with the same name (case-insensitive)
+     * @param name Header name
+     * @param value Header value
+     */
+    setHeader(name: string, value: any): void
+    /**
+     * Remove the specified header (case-insensitive)
+     * @param name Header name
+     */
+    removeHeader(name: string): void
+    /**
+     * Set the specified query string parameter, replacing any existing parameter with the same name
+     * @param name Parameter name
+     * @param value Parameter value
+     */
+    setQueryParam(name: string, value: any): void
+    /**
+     * Remove the specified query string parameter
+     * @param name Parameter name
+     */
+    removeQueryParam(name: string): void
+}
+
+/**
+ * HTTP Request to be dispatched (not available in Group Setup scripts)
+ */
+declare const request: ApicizeSetupRequest
+
+/**
+ * @deprecated response is not available in Setup scripts
  */
 declare const response: never
-
-/**
- * Console commands to log output from tests
- */
-declare const console: ApicizeConsole
-
-/**
- * Variables (alias)
- */
-declare const variables: KeyValuePairs
-
-/**
- * Subset of console used to log output
- */
-interface ApicizeConsole {
-    /**
-     * Log console information as info
-     * @param data 
-     */
-    info(...data: any[]): void;
-    /**
-     * Log console information
-     * @param data 
-     */
-    log(...data: any[]): void;
-    /**
-     * Log console information as trace data
-     * @param data 
-     */
-    trace(...data: any[]): void;
-    /**
-     * Log console information as a warning
-     * @param data 
-     */
-    warn(...data: any[]): void;
-    /**
-     * Log console information as an error
-     * @param data 
-     */
-    error(...data: any[]): void;
-    /**
-     * Log console information as a debug message
-     * @param data 
-     */
-    debug(...data: any[]): void;
-}

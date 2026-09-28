@@ -1,13 +1,14 @@
 import { observer } from "mobx-react-lite";
 import { useEffect, useRef, useState } from "react";
 import { useWorkspace } from "../../../contexts/workspace.context";
-import { Box, IconButton, Stack } from "@mui/material";
+import { Box, IconButton, Stack, Typography } from "@mui/material";
 import { DroppedFile, useFileDragDrop } from "../../../contexts/file-dragdrop.context";
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { useFeedback } from "../../../contexts/feedback.context";
 import MonacoEditor, { monaco } from 'react-monaco-editor';
 
+import COMMON_DEFS_RAW from '../../../typings/script-common.d.ts?raw'
 import SETUP_DEFS_RAW from '../../../typings/setup-editor.d.ts?raw'
 import ES5_RAW from '../../../../../../node_modules/typescript/lib/lib.es5.d.ts?raw'
 import ES2015_CORE from '../../../../../../node_modules/typescript/lib/lib.es2015.core.d.ts?raw'
@@ -25,17 +26,25 @@ import { RequestEditSessionType } from "../editor-types";
 import { EditorMode } from "../../../models/editor-mode";
 import { IRequestEditorTextModel } from "../../../models/editor-text-model";
 import { EditableRequestGroup } from "../../../models/workspace/editable-request-group";
+import { EditableRequest } from "../../../models/workspace/editable-request";
+import { EntityType } from "../../../models/workspace/entity-type";
 import { useMonacoClipboard } from "../../../hooks/use-monaco-clipboard";
+import { RequestScriptModeToggle } from "./request-script-mode-toggle";
 
 const DISALLOWED_NAMES = [
-    { pattern: /\bdescribe\b/g, message: 'describe() is not available in Group Setup scripts' },
-    { pattern: /\bit\b/g, message: 'it() is not available in Group Setup scripts' },
-    { pattern: /\btag\b/g, message: 'tag() is not available in Group Setup scripts' },
-    { pattern: /\brequest\b/g, message: 'request is not available in Group Setup scripts' },
-    { pattern: /\bresponse\b/g, message: 'response is not available in Group Setup scripts' },
+    { pattern: /\bdescribe\b/g, message: 'describe() is not available in Setup scripts' },
+    { pattern: /\bit\b/g, message: 'it() is not available in Setup scripts' },
+    { pattern: /\btag\b/g, message: 'tag() is not available in Setup scripts' },
+    { pattern: /\bresponse\b/g, message: 'response is not available in Setup scripts' },
 ]
 
-export const RequestSetupEditor = observer(({ group }: { group: EditableRequestGroup }) => {
+const GROUP_DISALLOWED_NAMES = [
+    ...DISALLOWED_NAMES,
+    { pattern: /\brequest\b/g, message: 'request is not available in Group Setup scripts' },
+]
+
+export const RequestSetupEditor = observer(({ entry }: { entry: EditableRequest | EditableRequestGroup }) => {
+    const isGroup = entry.entityType === EntityType.Group
     const workspace = useWorkspace()
     const settings = useApicizeSettings()
     const feedback = useFeedback()
@@ -52,7 +61,7 @@ export const RequestSetupEditor = observer(({ group }: { group: EditableRequestG
     // Hook Monaco clipboard to Tauri clipboard
     useMonacoClipboard(refEditor, false)
 
-    useEffect(() => { workspace.nextHelpTopic = 'groups/setup' }, [workspace])
+    useEffect(() => { workspace.nextHelpTopic = isGroup ? 'groups/setup' : 'requests/test' }, [workspace, isGroup])
 
     useEffect(() => {
         if (refContainer.current) {
@@ -74,7 +83,7 @@ export const RequestSetupEditor = observer(({ group }: { group: EditableRequestG
                     switch (file.type) {
                         case 'text':
                             runInAction(() => {
-                                group.setSetup(file.data).catch(err => feedback.toastError(err))
+                                entry.setSetup(file.data).catch(err => feedback.toastError(err))
                             })
                             break
                     }
@@ -84,7 +93,7 @@ export const RequestSetupEditor = observer(({ group }: { group: EditableRequestG
                 unregisterDragDrop()
             })
         }
-    }, [feedback, fileDragDrop, group, isDragingValid, refContainer])
+    }, [feedback, fileDragDrop, entry, isDragingValid, refContainer])
 
     function performBeautify() {
         if (refEditor.current) {
@@ -104,7 +113,7 @@ export const RequestSetupEditor = observer(({ group }: { group: EditableRequestG
         const markers: editor.IMarkerData[] = []
         for (let lineNumber = 1; lineNumber <= editorModel.getLineCount(); lineNumber++) {
             const lineContent = editorModel.getLineContent(lineNumber)
-            for (const { pattern, message } of DISALLOWED_NAMES) {
+            for (const { pattern, message } of (isGroup ? GROUP_DISALLOWED_NAMES : DISALLOWED_NAMES)) {
                 const regex = new RegExp(pattern.source, 'g')
                 let match: RegExpExecArray | null
                 while ((match = regex.exec(lineContent)) !== null) {
@@ -123,8 +132,8 @@ export const RequestSetupEditor = observer(({ group }: { group: EditableRequestG
     }
 
     // Make sure we have the editor setup model
-    if (!model || model.requestId !== group.id || model.type !== RequestEditSessionType.Setup) {
-        const model = workspace.getRequestEditModel(group, RequestEditSessionType.Setup, EditorMode.js)
+    if (!model || model.requestId !== entry.id || model.type !== RequestEditSessionType.Setup) {
+        const model = workspace.getRequestEditModel(entry, RequestEditSessionType.Setup, EditorMode.js)
         setModel(model)
         return null
     }
@@ -132,16 +141,19 @@ export const RequestSetupEditor = observer(({ group }: { group: EditableRequestG
     return <Box id='request-setup-container' position='relative' width='100%' height='100%'>
         <Stack direction='column' spacing={3} position='relative' width='100%' height='100%'>
             <Stack direction='row' justifyContent='center' display='flex'>
+                <Typography variant='h2' sx={{ marginTop: 0, marginBottom: 0, flexGrow: 0, display: 'flex', alignItems: 'center' }} component='div'>
+                    {isGroup ? 'Setup Script (Before Requests)' : 'Setup Script (Before Execution)'}
+                </Typography>
                 <IconButton
                     aria-label="copy setup to clipboard"
                     title="Copy Setup to Clipboard"
                     color='primary'
                     sx={{ marginLeft: '16px' }}
                     onClick={_ => {
-                        workspace.copyToClipboard({
-                            payloadType: 'GroupSetup',
-                            groupId: group.id,
-                        }, 'Setup')
+                        workspace.copyToClipboard(isGroup
+                            ? { payloadType: 'GroupSetup', groupId: entry.id }
+                            : { payloadType: 'RequestSetup', requestId: entry.id },
+                            'Setup')
                             .catch(err => feedback.toastError(err))
                     }}>
                     <ContentCopyIcon />
@@ -155,6 +167,9 @@ export const RequestSetupEditor = observer(({ group }: { group: EditableRequestG
                     onClick={performBeautify}>
                     <AutoAwesomeIcon />
                 </IconButton>
+                {isGroup ? null : <Box marginLeft='1em'>
+                    <RequestScriptModeToggle />
+                </Box>}
             </Stack>
 
             <Box top={0}
@@ -168,12 +183,12 @@ export const RequestSetupEditor = observer(({ group }: { group: EditableRequestG
 
             <Box id='req-setup-editor' ref={refContainer} position='relative' width='100%' height='100%'>
                 <MonacoEditor
-                    key={group.id}
+                    key={entry.id}
                     language='javascript'
                     theme={settings.colorScheme === "dark" ? 'vs-dark' : 'vs-light'}
-                    value={group.setup}
+                    value={entry.setup}
                     onChange={(value) => {
-                        group.setSetup(value).catch(err => feedback.toastError(err))
+                        entry.setSetup(value).catch(err => feedback.toastError(err))
                     }}
                     options={{
                         automaticLayout: true,
@@ -210,12 +225,13 @@ export const RequestSetupEditor = observer(({ group }: { group: EditableRequestG
                                 noSyntaxValidation: !settings.editorCheckJsSyntax,
                             });
 
-                            // Dispose stale request type-definition models
+                            // Dispose stale test type-definition models
                             for (const uri of ['ts:filename/editor-defs.d.ts', 'ts:filename/chai.d.ts']) {
                                 monaco.editor.getModel(monaco.Uri.parse(uri))?.dispose()
                             }
 
                             monaco.languages.typescript.javascriptDefaults.setExtraLibs([
+                                { content: COMMON_DEFS_RAW, filePath: 'ts:filename/script-common-defs.d.ts' },
                                 { content: SETUP_DEFS_RAW, filePath: 'ts:filename/setup-defs.d.ts' },
                                 { content: ES5_RAW, filePath: 'file://node_modules/typescript/lib/lib.es5.d.ts' },
                                 { content: ES2015_COLLECTION_RAW, filePath: 'file://node_modules/typescript/lib/lib.es2015.collection.d.ts' },

@@ -1,10 +1,9 @@
 import { IconButton, Typography } from "@mui/material"
 import { Stack } from "@mui/material"
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
-import beautify from "js-beautify"
-import { useMemo } from "react"
 import { observer } from "mobx-react-lite"
-import { RichViewer } from "../rich-viewer"
+import { formatViewerText, RichViewer } from "../rich-viewer"
+import { useApicizeSettings } from "../../../contexts/apicize-settings.context"
 import { EditorMode } from "../../../models/editor-mode"
 import { ResultEditSessionType } from "../../editors/editor-types"
 import { useWorkspace } from "../../../contexts/workspace.context"
@@ -16,23 +15,27 @@ export const ResultDetailsViewer = observer(({ detail }: { detail: ExecutionResu
 
     const workspace = useWorkspace()
     const feedback = useFeedback()
-
-    // Remove tracking elements from displayed result details
-    const text = useMemo(() => {
-        if (!detail) return ''
-        const detailToRender = {
-            ...structuredClone(toJS(detail)),
-            entityType: undefined,
-            execCtr: undefined,
-        }
-        return beautify.js_beautify(JSON.stringify(detailToRender), {})
-    }, [detail])
+    const settings = useApicizeSettings()
 
     if (!detail) {
         return
     }
 
-    const model = workspace.getResultEditModel(detail, ResultEditSessionType.Details, EditorMode.json)
+    const indentSize = settings.editorIndentSize
+    const model = workspace.getResultEditModel(
+        detail,
+        ResultEditSessionType.Details,
+        EditorMode.json,
+        () => {
+            // Remove tracking elements from displayed result details
+            const detailToRender = {
+                ...structuredClone(toJS(detail)),
+                entityType: undefined,
+                execCtr: undefined,
+            }
+            return formatViewerText(JSON.stringify(detailToRender), EditorMode.json, indentSize)
+        },
+        `${indentSize}`)
 
     return (
         <Stack sx={{ bottom: 0, overflow: 'hidden', position: 'relative', height: '100%', display: 'flex' }}>
@@ -52,7 +55,7 @@ export const ResultDetailsViewer = observer(({ detail }: { detail: ExecutionResu
                     <ContentCopyIcon />
                 </IconButton>
             </Typography>
-            <RichViewer text={text} model={model} mode={EditorMode.json} beautify={true} wrap={true} />
+            <RichViewer model={model} wrap={true} />
         </Stack>
     )
 })
