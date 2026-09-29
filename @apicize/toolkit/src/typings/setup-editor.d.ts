@@ -99,9 +99,9 @@ declare interface SetupBodyForm {
 declare interface SetupBodyRaw {
     type: BodyType.Raw
     /**
-     * Base64 encoded binary data
+     * Base64 encoded binary data (arrays of bytes, typed arrays and ArrayBuffers are base64 encoded automatically)
      */
-    data: string
+    data: string | number[] | Uint8Array | ArrayBufferView | ArrayBuffer
 }
 
 /**

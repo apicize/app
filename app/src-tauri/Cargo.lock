@@ -403,6 +403,7 @@ dependencies = [
  "csv",
  "dirs 6.0.0",
  "encoding_rs",
+ "form_urlencoded",
  "futures",
  "hmac",
  "indexmap 2.14.2",

@@ -90,6 +90,37 @@ impl RequestUpdate {
         }
     }
 
+    pub fn from_url_and_query_string_params(request: &Request) -> Self {
+        RequestUpdate {
+            id: request.id.to_string(),
+            entity_type: EntityType::Request,
+            name: None,
+            disabled: None,
+            key: None,
+            url: Some(request.url.clone()),
+            method: None,
+            runs: None,
+            multi_run_execution: None,
+            timeout: None,
+            keep_alive: None,
+            accept_invalid_certs: None,
+            number_of_redirects: None,
+            query_string_params: Some(request.query_string_params.clone().unwrap_or_default()),
+            headers: None,
+            setup: None,
+            test: None,
+            body: None,
+            body_mime_type: None,
+            body_length: None,
+            selected_scenario: None,
+            selected_authorization: None,
+            selected_certificate: None,
+            selected_proxy: None,
+            selected_data: None,
+            validation_warnings: None,
+        }
+    }
+
     pub fn from_selections(request: &Request) -> Self {
         RequestUpdate {
             id: request.id.to_string(),

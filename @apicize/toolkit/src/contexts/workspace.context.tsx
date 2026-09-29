@@ -233,6 +233,8 @@ export class WorkspaceStore implements EditableEntityContext {
         this.disposeResultModels()
         this.dataSetModels.clear()
         this.expandedItems = initialization.session.expandedItems ?? []
+        // Clear the active selection so that it is regenerated from the (re)loaded workspace
+        this.activeSelection = null
         if (initialization.session.activeEntity) {
             this.performChangeActive(
                 initialization.session.activeEntity.entityType,
@@ -1521,6 +1523,28 @@ export class WorkspaceStore implements EditableEntityContext {
                 break
         }
         return this.callbacks.update(update)
+    }
+
+    /**
+     * Returns true if the Info panel of any of the specified requests is being viewed
+     * @param requestIds IDs of requests
+     */
+    isViewingRequestInfo(requestIds: string[]) {
+        const activeSelection = this.activeSelection
+        return this.mode === WorkspaceMode.Normal
+            && this.requestPanel === 'Info'
+            && activeSelection?.entityType === EntityType.Request
+            && requestIds.includes(activeSelection.id)
+    }
+
+    /**
+     * Notify the user if query string parameters were moved out of the URL of the request being viewed
+     * @param requestIds IDs of requests whose URL query string parameters were moved
+     */
+    notifyQueryStringParamsMoved(requestIds: string[]) {
+        if (this.isViewingRequestInfo(requestIds)) {
+            this.feedback.toast('Query string parameters moved from URL to list', ToastSeverity.Info)
+        }
     }
 
     @action

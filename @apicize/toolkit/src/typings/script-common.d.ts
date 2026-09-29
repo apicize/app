@@ -51,6 +51,53 @@ declare const console: ApicizeConsole
 declare const variables: KeyValuePairs
 
 /**
+ * Encode a "binary" (Latin-1) string to base64; use base64.encode for Unicode text
+ * @param value String whose characters are all in the Latin-1 range (0-255)
+ * @throws Error if the string contains characters outside of the Latin-1 range
+ */
+declare function btoa(value: string): string
+
+/**
+ * Decode base64 to a "binary" (Latin-1) string; use base64.decodeText for UTF-8 text
+ * @param value Base64 string (padding and whitespace are optional)
+ * @throws Error if the value is not valid base64
+ */
+declare function atob(value: string): string
+
+/**
+ * Value that can be base64 encoded (strings are encoded as UTF-8)
+ */
+declare type Base64Encodable = string | number[] | Uint8Array | ArrayBufferView | ArrayBuffer
+
+/**
+ * Base64 encoding and decoding helpers
+ */
+declare interface ApicizeBase64 {
+    /**
+     * Encode a string (as UTF-8), array of bytes, typed array or ArrayBuffer to base64
+     * @param value Value to encode
+     */
+    encode(value: Base64Encodable): string
+    /**
+     * Decode base64 to bytes
+     * @param value Base64 string (padding and whitespace are optional)
+     * @throws Error if the value is not valid base64
+     */
+    decode(value: string): Uint8Array
+    /**
+     * Decode base64 to a string (as UTF-8)
+     * @param value Base64 string (padding and whitespace are optional)
+     * @throws Error if the value is not valid base64 or UTF-8
+     */
+    decodeText(value: string): string
+}
+
+/**
+ * Base64 encoding and decoding helpers
+ */
+declare const base64: ApicizeBase64
+
+/**
  * Subset of console used to log output
  */
 interface ApicizeConsole {

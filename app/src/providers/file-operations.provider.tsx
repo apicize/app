@@ -188,6 +188,19 @@ export function FileOperationsProvider(
     }
 
     /**
+     * Notify that the workbook was saved, including whether query string parameters
+     * were moved from the URL of the request being viewed
+     * @param movedRequestIds IDs of requests whose URL query string parameters were moved
+     */
+    const toastSaved = (movedRequestIds: string[]) => {
+        if (workspaceStore.isViewingRequestInfo(movedRequestIds)) {
+            feedback.toast('Workbook saved, query string parameters moved from URL to list', ToastSeverity.Success)
+        } else {
+            feedback.toast('Workbook saved', ToastSeverity.Success)
+        }
+    }
+
+    /**
      * Saves the current worspake under its current name
      * @returns 
      */
@@ -196,10 +209,10 @@ export function FileOperationsProvider(
             if (! await checkWorkspaceStatus()) {
                 return
             }
-            await core.invoke('save_workspace', {
+            const movedRequestIds = await core.invoke<string[]>('save_workspace', {
                 sessionId: activeSessionId
             })
-            feedback.toast('Workbook saved', ToastSeverity.Success)
+            toastSaved(movedRequestIds)
         } catch (e) {
             feedback.toastError(e)
         }
@@ -236,11 +249,11 @@ export function FileOperationsProvider(
                 fileName += `.${EXT}`
             }
 
-            await core.invoke('save_workspace', {
+            const movedRequestIds = await core.invoke<string[]>('save_workspace', {
                 sessionId: activeSessionId,
                 fileName,
             })
-            feedback.toast('Workbook saved', ToastSeverity.Success)
+            toastSaved(movedRequestIds)
         } catch (e) {
             feedback.toastError(e)
         }

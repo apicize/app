@@ -946,7 +946,7 @@ async fn save_workspace(
     settings_state: State<'_, SettingsState>,
     session_id: &str,
     file_name: Option<String>,
-) -> Result<(), ApicizeAppError> {
+) -> Result<Vec<String>, ApicizeAppError> {
     IN_FLIGHT_SAVES.fetch_add(1, Ordering::SeqCst);
     let result = save_workspace_inner(
         app,
@@ -968,7 +968,7 @@ async fn save_workspace_inner(
     settings_state: State<'_, SettingsState>,
     session_id: &str,
     file_name: Option<String>,
-) -> Result<(), ApicizeAppError> {
+) -> Result<Vec<String>, ApicizeAppError> {
     let sessions = sessions_state.sessions.write().await;
     let session = sessions.get_session(session_id)?;
 
@@ -1007,7 +1007,37 @@ async fn save_workspace_inner(
         include_vault,
     };
 
+    let url_updates = if save_params.include_workbook {
+        workspaces::move_url_query_params(&mut info.workspace)
+    } else {
+        Vec::new()
+    };
     info.workspace.save(&save_params)?;
+
+    // Let sessions know about any query string parameters moved out of URLs; the IDs of
+    // requests that were changed are returned to the saving session, and sent to the others
+    let moved_request_ids = url_updates
+        .iter()
+        .filter_map(|u| match u {
+            EntityUpdate::Request(r) => Some(r.id.clone()),
+            _ => None,
+        })
+        .collect::<Vec<String>>();
+    if !url_updates.is_empty() {
+        for workspace_session_id in sessions.get_workspace_session_ids(&session.workspace_id) {
+            app.emit_to(workspace_session_id, "update", &url_updates)
+                .unwrap();
+            if workspace_session_id != session_id {
+                app.emit_to(
+                    workspace_session_id,
+                    "query_string_params_moved",
+                    &moved_request_ids,
+                )
+                .unwrap();
+            }
+        }
+    }
+
     if save_params.include_workbook
         && let Some(save_as) = &save_params.workbook_path
         && let Some(save_as_file_name) = &save_as_file_name
@@ -1044,7 +1074,7 @@ async fn save_workspace_inner(
 
         dispatch_save_state(&app, &sessions, &session.workspace_id, info, false);
     }
-    Ok(())
+    Ok(moved_request_ids)
 }
 
 fn perform_save_data_set_file(

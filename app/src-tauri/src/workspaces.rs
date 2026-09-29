@@ -1,7 +1,7 @@
 use apicize_lib::{
     ApicizeError, Authorization, Certificate, DataSet, DataSourceType, ExecutionReportFormat,
     ExecutionResultBuilder, ExecutionResultDetail, ExecutionResultSuccess, ExecutionResultSummary,
-    ExecutionState, Identifiable, IndexedEntities, PERSIST_PRIVATE, PERSIST_VAULT,
+    ExecutionState, Identifiable, IndexedEntities, NameValuePair, PERSIST_PRIVATE, PERSIST_VAULT,
     ParameterLockStatus, ParameterStore, Parameters, Proxy, Request, RequestBody, RequestEntry,
     RequestGroup, SaveWorkspaceParameters, Scenario, SelectedParameters, Selection,
     StoredRequestEntry, Validated, ValidationState, WorkbookDefaultParameters, Workspace,
@@ -2962,6 +2962,55 @@ impl Workspaces {
     }
 }
 
+/// Move any query string parameters included in request URLs to the requests'
+/// query string parameters (appended after any existing parameters),
+/// returning updates for each request that was changed
+pub fn move_url_query_params(workspace: &mut Workspace) -> Vec<EntityUpdate> {
+    let mut updates = Vec::new();
+    for entry in workspace.requests.entities.values_mut() {
+        if let RequestEntry::Request(request) = entry
+            && move_request_url_query_params(request)
+        {
+            updates.push(EntityUpdate::Request(
+                RequestUpdate::from_url_and_query_string_params(request),
+            ));
+        }
+    }
+    updates
+}
+
+/// Move query string parameters from the request URL, returning true if the request was changed
+fn move_request_url_query_params(request: &mut Request) -> bool {
+    let Some(idx_query) = request.url.find('?') else {
+        return false;
+    };
+
+    let after_query = &request.url[idx_query + 1..];
+    let (query, fragment) = match after_query.find('#') {
+        Some(idx_fragment) => after_query.split_at(idx_fragment),
+        None => (after_query, ""),
+    };
+
+    let Ok(url_params) = serde_urlencoded::from_str::<Vec<(String, String)>>(query) else {
+        return false;
+    };
+
+    let params = request.query_string_params.get_or_insert_with(Vec::new);
+    for (name, value) in url_params {
+        params.push(NameValuePair {
+            name,
+            value,
+            disabled: None,
+        });
+    }
+    if params.is_empty() {
+        request.query_string_params = None;
+    }
+
+    request.url = format!("{}{}", &request.url[..idx_query], fragment);
+    true
+}
+
 impl WorkspaceInfo {
     /// Check parameter and returns update to navigation if required
     pub fn check_parameter_navigation_update(
@@ -4152,4 +4201,102 @@ pub fn increment_counters(
     }
 
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn request_with(url: &str, params: Option<Vec<(&str, &str)>>) -> Request {
+        Request {
+            url: url.to_string(),
+            query_string_params: params.map(|p| {
+                p.into_iter()
+                    .map(|(name, value)| NameValuePair {
+                        name: name.to_string(),
+                        value: value.to_string(),
+                        disabled: None,
+                    })
+                    .collect()
+            }),
+            ..Default::default()
+        }
+    }
+
+    fn param_tuples(request: &Request) -> Option<Vec<(String, String)>> {
+        request.query_string_params.as_ref().map(|p| {
+            p.iter()
+                .map(|nv| (nv.name.clone(), nv.value.clone()))
+                .collect()
+        })
+    }
+
+    #[test]
+    fn url_without_query_is_unchanged() {
+        let mut request = request_with("https://example.com/api", None);
+        assert!(!move_request_url_query_params(&mut request));
+        assert_eq!(request.url, "https://example.com/api");
+        assert!(request.query_string_params.is_none());
+    }
+
+    #[test]
+    fn query_params_are_moved_and_decoded() {
+        let mut request = request_with("https://example.com/api?a=1&b=hello%20world&c", None);
+        move_request_url_query_params(&mut request);
+        assert_eq!(request.url, "https://example.com/api");
+        assert_eq!(
+            param_tuples(&request),
+            Some(vec![
+                ("a".to_string(), "1".to_string()),
+                ("b".to_string(), "hello world".to_string()),
+                ("c".to_string(), "".to_string()),
+            ])
+        );
+    }
+
+    #[test]
+    fn url_params_are_appended_to_existing_params() {
+        let mut request = request_with("http://foo.com?a=2&b=3&b=4", Some(vec![("a", "1")]));
+        move_request_url_query_params(&mut request);
+        assert_eq!(request.url, "http://foo.com");
+        assert_eq!(
+            param_tuples(&request),
+            Some(vec![
+                ("a".to_string(), "1".to_string()),
+                ("a".to_string(), "2".to_string()),
+                ("b".to_string(), "3".to_string()),
+                ("b".to_string(), "4".to_string()),
+            ])
+        );
+    }
+
+    #[test]
+    fn fragment_is_retained() {
+        let mut request = request_with("https://example.com/api?a=1#section", None);
+        move_request_url_query_params(&mut request);
+        assert_eq!(request.url, "https://example.com/api#section");
+        assert_eq!(
+            param_tuples(&request),
+            Some(vec![("a".to_string(), "1".to_string())])
+        );
+    }
+
+    #[test]
+    fn empty_query_is_removed() {
+        let mut request = request_with("https://example.com/api?", None);
+        move_request_url_query_params(&mut request);
+        assert_eq!(request.url, "https://example.com/api");
+        assert!(request.query_string_params.is_none());
+    }
+
+    #[test]
+    fn handlebars_are_preserved() {
+        let mut request = request_with("{{baseUrl}}/api?id={{id}}", None);
+        move_request_url_query_params(&mut request);
+        assert_eq!(request.url, "{{baseUrl}}/api");
+        assert_eq!(
+            param_tuples(&request),
+            Some(vec![("id".to_string(), "{{id}}".to_string())])
+        );
+    }
 }

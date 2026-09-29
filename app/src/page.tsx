@@ -246,6 +246,10 @@ export default function Home() {
         workspaceStore.refreshFromExternalUpdate(data.payload)
       })
     })
+    // Notification when saving moves query string parameters out of request URLs
+    const unlistenQueryStringParamsMoved = w.listen<string[]>('query_string_params_moved', (data) => {
+      workspaceStore.notifyQueryStringParamsMoved(data.payload)
+    })
     // // Notification on request execution starts or stops
     // let unlistenExecution = w.listen<ExecutionStatus>('update_execution', (data) => {
     //   workspaceStore.updateExecutionStatus(data.payload)
@@ -278,6 +282,7 @@ export default function Home() {
       unlistenSaveState.then(() => { }).catch(console.error)
       unlistenLockStatus.then(() => { }).catch(console.error)
       unlistenUpdate.then(() => { }).catch(console.error)
+      unlistenQueryStringParamsMoved.then(() => { }).catch(console.error)
       unlistenExecutionResults.then(() => { }).catch(console.error)
       unlistenSettingsUpdate.then(() => { }).catch(console.error)
       unlistenListLogs.then(() => { }).catch(console.error)

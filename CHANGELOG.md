@@ -1,5 +1,13 @@
 # Change Log
 
+## 0.47.1
+
+* Add `btoa`, `atob` and `base64` (`encode`, `decode`, `decodeText`) to test and setup script typings
+* Setup script typings allow Raw body data to be assigned as an array, typed array or ArrayBuffer (base64 encoded automatically)
+* Move query string parameters in request URLs to the request's query string parameters when saving a workbook, appending them after existing parameters
+* Notify when saving moves query string parameters from the URL of the request being viewed
+* Fix reopening a workbook showing stale (unsaved) values for the selected request
+
 ## 0.47.0
 
 * Add request setup scripts (executed before the request is dispatched), edited from the Test pane via a Test (After Execution) / Setup (Before Execution) toggle

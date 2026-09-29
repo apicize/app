@@ -96,13 +96,11 @@ export class EditableRequest extends EditableRequestEntry {
         if (idxQuery !== -1) {
             const params = new URLSearchParams(this.url.substring(idxQuery + 1))
             for (const [name, value] of params) {
-                if (!this.queryStringParams.find(p => p.name === name)) {
-                    this.queryStringParams.push({
-                        id: GenerateIdentifier(),
-                        name,
-                        value
-                    })
-                }
+                this.queryStringParams.push({
+                    id: GenerateIdentifier(),
+                    name,
+                    value
+                })
             }
             this.url = this.url.substring(0, idxQuery)
         }
@@ -384,6 +382,7 @@ export class EditableRequest extends EditableRequestEntry {
                 id: GenerateIdentifier(),
                 name: nv.name,
                 value: nv.value,
+                disabled: nv.disabled,
             }))
         }
         if (update.headers !== undefined) {
@@ -391,6 +390,7 @@ export class EditableRequest extends EditableRequestEntry {
                 id: GenerateIdentifier(),
                 name: nv.name,
                 value: nv.value,
+                disabled: nv.disabled,
             }))
         }
 
