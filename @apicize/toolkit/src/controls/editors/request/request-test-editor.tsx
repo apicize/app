@@ -7,7 +7,8 @@ import { DroppedFile, useFileDragDrop } from "../../../contexts/file-dragdrop.co
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { useFeedback } from "../../../contexts/feedback.context";
-import MonacoEditor, { monaco } from 'react-monaco-editor';
+import { monaco } from 'react-monaco-editor';
+import { ApicizeMonacoEditor } from '../apicize-monaco-editor';
 
 import COMMON_DEFS_RAW from '../../../typings/script-common.d.ts?raw'
 import EDITOR_DEFS_RAW from '../../../typings/test-editor.d.ts?raw'
@@ -142,7 +143,7 @@ export const RequestTestEditor = observer(({ request }: { request: EditableReque
                 sx={{ zIndex: 99999, opacity: 0.5, transition: "opacity 225ms cubic-bezier(0.4, 0, 0.2, 1) 0ms", backgroundColor: isDragingValid ? "#008000" : "#800000" }} />
 
             <Box id='req-test-editor' ref={refContainer} position='relative' width='100%' height='100%'>
-                <MonacoEditor
+                <ApicizeMonacoEditor
                     key={request.id}
                     language='javascript'
                     theme={settings.colorScheme === "dark" ? 'vs-dark' : 'vs-light'}

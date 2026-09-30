@@ -25,12 +25,14 @@ impl DroppedFile {
                 parsed = Some(String::from_utf8_lossy(&data).to_string());
             } else if data.starts_with(&[0xFF, 0xFE]) {
                 if len.is_multiple_of(2) {
-                    let iter = (0..len).map(|i| u16::from_le_bytes([data[2 * i], data[2 * i + 1]]));
+                    let iter =
+                        (0..len / 2).map(|i| u16::from_le_bytes([data[2 * i], data[2 * i + 1]]));
                     parsed = Some(String::from_utf16_lossy(&iter.collect::<Vec<u16>>()));
                 }
             } else if data.starts_with(&[0xFE, 0xFF]) {
                 if len.is_multiple_of(2) {
-                    let iter = (0..len).map(|i| u16::from_be_bytes([data[2 * i], data[2 * i + 1]]));
+                    let iter =
+                        (0..len / 2).map(|i| u16::from_be_bytes([data[2 * i], data[2 * i + 1]]));
                     parsed = Some(String::from_utf16_lossy(&iter.collect::<Vec<u16>>()));
                 }
             } else {
@@ -49,5 +51,31 @@ impl DroppedFile {
         }
 
         DroppedFile::Binary { data, extension }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn from_data_decodes_utf16_le() {
+        let data = vec![0xFF, 0xFE, b'h', 0, b'i', 0];
+        match DroppedFile::from_data(&"test.txt".to_string(), data) {
+            DroppedFile::Text { data, extension } => {
+                assert_eq!(data, "\u{FEFF}hi");
+                assert_eq!(extension, "txt");
+            }
+            DroppedFile::Binary { .. } => panic!("Expected text"),
+        }
+    }
+
+    #[test]
+    fn from_data_decodes_utf16_be() {
+        let data = vec![0xFE, 0xFF, 0, b'h', 0, b'i'];
+        match DroppedFile::from_data(&"test.txt".to_string(), data) {
+            DroppedFile::Text { data, .. } => assert_eq!(data, "\u{FEFF}hi"),
+            DroppedFile::Binary { .. } => panic!("Expected text"),
+        }
     }
 }

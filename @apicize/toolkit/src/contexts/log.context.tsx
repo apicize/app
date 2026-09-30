@@ -24,8 +24,9 @@ export class LogStore {
         if (this.initialized) {
             if (event.event === 'Clear') {
                 this.events = []
-            } else if (this.events.length > 100) {
-                this.events = [...this.events.slice(0, 99), event]
+            } else if (this.events.length >= 100) {
+                // Drop the oldest events, matching the backend's stored log
+                this.events = [...this.events.slice(-99), event]
             } else {
                 this.events.push(event)
             }

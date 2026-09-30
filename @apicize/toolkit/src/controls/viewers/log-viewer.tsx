@@ -35,7 +35,8 @@ export const LogViewer = observer(({
         })
 
         const disposer = reaction(
-            () => ({ follow: log.follow, _length: log.events.length }),
+            // Track the last event too, since length stays constant once the log is full
+            () => ({ follow: log.follow, _length: log.events.length, _last: log.events[log.events.length - 1] }),
             ({ follow }) => {
                 // bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
                 setTimeout(() => {

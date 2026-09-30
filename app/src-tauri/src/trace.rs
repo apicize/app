@@ -111,6 +111,28 @@ impl ReqwestLogger {
     }
 }
 
+/// Maximum number of bytes of read/write data retained per trace event
+const MAX_TRACE_DATA_LENGTH: usize = 64 * 1024;
+
+/// Unescape line breaks in traced data, truncating to MAX_TRACE_DATA_LENGTH so that
+/// large transfers do not bloat the stored (and emitted) log
+fn format_trace_data(data: &str) -> String {
+    let (data, truncated) = if data.len() > MAX_TRACE_DATA_LENGTH {
+        let mut end = MAX_TRACE_DATA_LENGTH;
+        while !data.is_char_boundary(end) {
+            end -= 1;
+        }
+        (&data[..end], data.len() - end)
+    } else {
+        (data, 0)
+    };
+    let mut result = data.replace("\\r\\n", "\r\n").replace("\\n", "\n");
+    if truncated > 0 {
+        result.push_str(&format!("... [{truncated} bytes truncated]"));
+    }
+    result
+}
+
 impl log::Log for ReqwestLogger {
     fn enabled(&self, metadata: &Metadata) -> bool {
         // Capture reqwest connection activity at any level, plus warnings and
@@ -145,9 +167,7 @@ impl log::Log for ReqwestLogger {
                         let event = ReqwestEvent::Read(ReqwestEventRead {
                             timestamp: Local::now().format("%H:%M:%S%.3f").to_string(),
                             id: request_id.as_str().to_string(),
-                            data: String::from(data.as_str())
-                                .replace("\\r\\n", "\r\n")
-                                .replace("\\n", "\n"),
+                            data: format_trace_data(data.as_str()),
                         });
                         self.send_event(event);
                         // self.app.emit("log", &event).unwrap();
@@ -157,9 +177,7 @@ impl log::Log for ReqwestLogger {
                         let event = ReqwestEvent::Write(ReqwestEventWrite {
                             timestamp: Local::now().format("%H:%M:%S%.3f").to_string(),
                             id: request_id.as_str().to_string(),
-                            data: String::from(data.as_str())
-                                .replace("\\r\\n", "\r\n")
-                                .replace("\\n", "\n"),
+                            data: format_trace_data(data.as_str()),
                         });
                         self.send_event(event);
                         // self.app.emit("log", &event).unwrap();
@@ -187,4 +205,29 @@ impl log::Log for ReqwestLogger {
     }
 
     fn flush(&self) {}
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn format_trace_data_unescapes_line_breaks() {
+        assert_eq!(format_trace_data(r"a\r\nb\nc"), "a\r\nb\nc");
+    }
+
+    #[test]
+    fn format_trace_data_truncates_large_data() {
+        let data = "x".repeat(MAX_TRACE_DATA_LENGTH + 10);
+        let result = format_trace_data(&data);
+        assert!(result.starts_with(&"x".repeat(MAX_TRACE_DATA_LENGTH)));
+        assert!(result.ends_with("... [10 bytes truncated]"));
+    }
+
+    #[test]
+    fn format_trace_data_truncates_on_char_boundary() {
+        let data = format!("{}é", "x".repeat(MAX_TRACE_DATA_LENGTH - 1));
+        let result = format_trace_data(&data);
+        assert!(result.ends_with("... [2 bytes truncated]"));
+    }
 }

@@ -16,7 +16,7 @@ import { DataSourceType } from '@apicize/lib-typescript'
 import { FormControl, InputLabel, Select, MenuItem, Button, Dialog, DialogTitle, DialogContent, DialogActions, ListItemIcon, Divider, IconButton, Box, Typography } from '@mui/material'
 import { FeedbackStore, ToastSeverity, useFeedback } from '../../contexts/feedback.context'
 import { useState, useEffect, useRef, useMemo, useImperativeHandle, forwardRef } from 'react'
-import MonacoEditor from 'react-monaco-editor';
+import { ApicizeMonacoEditor } from './apicize-monaco-editor'
 import { IDataSetEditorTextModel } from '../../models/editor-text-model'
 import { useFileOperations } from '../../contexts/file-operations.context'
 import { runInAction } from 'mobx'
@@ -70,7 +70,7 @@ const JsonEditor = observer(forwardRef<JsonEditorHandle, {
 
     useImperativeHandle(ref, () => ({ performBeautify }))
 
-    return <MonacoEditor
+    return <ApicizeMonacoEditor
         key={dataSet.id}
         language='json'
         theme={settings.colorScheme === "dark" ? 'vs-dark' : 'vs-light'}

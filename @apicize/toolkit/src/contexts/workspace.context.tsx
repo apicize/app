@@ -139,6 +139,8 @@ export class WorkspaceStore implements EditableEntityContext {
     @observable accessor helpTopic: string | null = null
 
     @observable public accessor currentExecutionDetail: ExecutionResultDetail | null = null
+    // Execution counter of the most recently requested execution detail
+    private requestedExecCtr: number | null = null
 
     @observable public accessor hideSuccess = false
     @observable public accessor hideFailure = false
@@ -229,9 +231,9 @@ export class WorkspaceStore implements EditableEntityContext {
         this.helpTopic = null
         this.helpTopicHistory = []
         this.nextHelpTopic = null
-        this.requestModels.clear()
+        this.disposeRequestModels()
         this.disposeResultModels()
-        this.dataSetModels.clear()
+        this.disposeDataSetModels()
         this.expandedItems = initialization.session.expandedItems ?? []
         // Clear the active selection so that it is regenerated from the (re)loaded workspace
         this.activeSelection = null
@@ -682,6 +684,8 @@ export class WorkspaceStore implements EditableEntityContext {
         this.callbacks.delete(EntityType.Request, id)
             .then(() => {
                 this.clearActiveConditionally(EntityType.Request, id)
+                this.disposeRequestModels(id)
+                this.disposeResultModels(id)
             })
             .catch(e => this.feedback.toastError(e))
     }
@@ -965,6 +969,7 @@ export class WorkspaceStore implements EditableEntityContext {
             .then(() => {
                 this.clearActiveConditionally(EntityType.DataSet, id)
                 this.clearParameterList()
+                this.disposeDataSetModels(id)
             })
             .catch(e => this.feedback.toastError(e))
     }
@@ -1044,11 +1049,19 @@ export class WorkspaceStore implements EditableEntityContext {
     @action
     updateExecutionDetail(execCtr: number) {
         this.currentExecutionDetail = null
+        this.requestedExecCtr = execCtr
         this.callbacks.getResultDetail(execCtr)
             .then((d: ExecutionResultDetail) => runInAction(() => {
-                this.currentExecutionDetail = d
+                if (this.requestedExecCtr === execCtr) {
+                    this.currentExecutionDetail = d
+                }
             }))
-            .catch(e => this.feedback.toastError(e))
+            .catch(e => {
+                // Results from superseded executions are pruned, ignore errors for stale requests
+                if (this.requestedExecCtr === execCtr) {
+                    this.feedback.toastError(e)
+                }
+            })
     }
 
     @action
@@ -1059,6 +1072,13 @@ export class WorkspaceStore implements EditableEntityContext {
                     r.processExecutionEvent(event)
                     if (this.activeSelection?.id === r.id && r.selectedResultMenuItem !== null) {
                         this.updateExecutionDetail(r.selectedResultMenuItem.execCtr)
+                    }
+                    if (event.eventType === 'complete' || event.eventType === 'reset') {
+                        const activeExecCtrs = new Set(event.menu.map(m => m.execCtr))
+                        for (const execCtr of Object.keys(event.activeSummaries)) {
+                            activeExecCtrs.add(parseInt(execCtr))
+                        }
+                        this.pruneResultModels(requestOrGroupId, activeExecCtrs)
                     }
                 }))
                 .catch(e => this.feedback.toastError(e))
@@ -1272,9 +1292,12 @@ export class WorkspaceStore implements EditableEntityContext {
         if (models) {
             const model = models.get(type)
             if (model) {
-                if (model.getLanguageId() as EditorMode === mode) {
+                if (model.getLanguageId() as EditorMode === mode && !model.isDisposed()) {
                     return model
                 }
+                // Replaced by a model for the new language (editors detach disposed models)
+                models.delete(type)
+                model.dispose()
             }
         }
 
@@ -1398,6 +1421,75 @@ export class WorkspaceStore implements EditableEntityContext {
     }
 
     /**
+     * Dispose of cached request edit models, for one request/group or all of them
+     * @param requestOrGroupId
+     */
+    private disposeRequestModels(requestOrGroupId?: string) {
+        const toDispose = requestOrGroupId === undefined
+            ? [...this.requestModels.values()]
+            : [this.requestModels.get(requestOrGroupId)]
+        for (const models of toDispose) {
+            for (const model of models?.values() ?? []) {
+                model.dispose()
+            }
+        }
+        if (requestOrGroupId === undefined) {
+            this.requestModels.clear()
+        } else {
+            this.requestModels.delete(requestOrGroupId)
+        }
+    }
+
+    /**
+     * Dispose of cached data set edit models, for one data set or all of them
+     * @param dataSetId
+     */
+    private disposeDataSetModels(dataSetId?: string) {
+        const toDispose = dataSetId === undefined
+            ? [...this.dataSetModels.values()]
+            : [this.dataSetModels.get(dataSetId)]
+        for (const model of toDispose) {
+            model?.dispose()
+        }
+        if (dataSetId === undefined) {
+            this.dataSetModels.clear()
+        } else {
+            this.dataSetModels.delete(dataSetId)
+        }
+    }
+
+    /**
+     * Dispose of cached result view models for a request/group whose execution counters
+     * are no longer active (i.e. replaced by a subsequent execution).  Models currently
+     * displayed in an editor are retained.
+     * @param requestOrGroupId
+     * @param activeExecCtrs
+     */
+    private pruneResultModels(requestOrGroupId: string, activeExecCtrs: Set<number>) {
+        const requestModels = this.resultModels.get(requestOrGroupId)
+        if (!requestModels) {
+            return
+        }
+        for (const [execCtr, entries] of requestModels) {
+            if (activeExecCtrs.has(execCtr)) {
+                continue
+            }
+            for (const [type, model] of entries) {
+                if (model.isDisposed() || !model.isAttachedToEditor()) {
+                    model.dispose()
+                    entries.delete(type)
+                }
+            }
+            if (entries.size === 0) {
+                requestModels.delete(execCtr)
+            }
+        }
+        if (requestModels.size === 0) {
+            this.resultModels.delete(requestOrGroupId)
+        }
+    }
+
+    /**
      * Dispose of cached result view models, for one request/group or all of them
      * @param requestOrGroupId
      */
@@ -1430,7 +1522,7 @@ export class WorkspaceStore implements EditableEntityContext {
         const dataSetId = dataSet.id
 
         let model = this.dataSetModels.get(dataSetId)
-        if (model) {
+        if (model && !model.isDisposed()) {
             return model
         }
 

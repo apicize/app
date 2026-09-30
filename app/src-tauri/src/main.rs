@@ -325,8 +325,25 @@ async fn main() {
         ])
         .build(tauri::generate_context!())
         .expect("error building Apicize")
-        .run(|_app: &AppHandle, event| {
+        .run(|app: &AppHandle, event| {
             match event {
+                tauri::RunEvent::WindowEvent {
+                    label,
+                    event: tauri::WindowEvent::Destroyed,
+                    ..
+                } => {
+                    // Backstop for when the frontend's close_workspace call never reaches us
+                    // (e.g. webview crashed or was torn down first); if the session was already
+                    // released, there is nothing to do
+                    let app = app.clone();
+                    tauri::async_runtime::spawn(async move {
+                        let sessions = app.state::<SessionsState>().sessions.clone();
+                        let workspaces = app.state::<WorkspacesState>().workspaces.clone();
+                        if sessions.read().await.get_session(&label).is_ok() {
+                            let _ = release_session(&app, &sessions, &workspaces, &label).await;
+                        }
+                    });
+                }
                 tauri::RunEvent::ExitRequested { api, .. }
                     if IN_FLIGHT_SAVES.load(Ordering::SeqCst) > 0 =>
                 {
@@ -1215,7 +1232,23 @@ async fn close_workspace(
     workspaces_state: State<'_, WorkspacesState>,
     session_id: &str,
 ) -> Result<(), ApicizeAppError> {
-    let mut sessions = sessions_state.sessions.write().await;
+    release_session(
+        &app,
+        &sessions_state.sessions,
+        &workspaces_state.workspaces,
+        session_id,
+    )
+    .await
+}
+
+/// Remove the session, and its workspace if no other sessions are using it
+async fn release_session(
+    app: &AppHandle,
+    sessions_lock: &RwLock<Sessions>,
+    workspaces_lock: &RwLock<Workspaces>,
+    session_id: &str,
+) -> Result<(), ApicizeAppError> {
+    let mut sessions = sessions_lock.write().await;
     let session = sessions.get_session(session_id)?;
     let workspace_id = session.workspace_id.clone();
 
@@ -1223,7 +1256,7 @@ async fn close_workspace(
 
     let trace_title: String;
     {
-        let workspaces = workspaces_state.workspaces.read().await;
+        let workspaces = workspaces_lock.read().await;
         let info = workspaces.get_workspace_info(&workspace_id)?;
         trace_title = {
             let mut title = String::with_capacity(32 + session_id.len() + info.display_name.len());
@@ -1234,10 +1267,10 @@ async fn close_workspace(
             title.push(')');
             title
         };
-        dispatch_save_state(&app, &sessions, &workspace_id, info, false);
+        dispatch_save_state(app, &sessions, &workspace_id, info, false);
     }
     {
-        let mut workspaces = workspaces_state.workspaces.write().await;
+        let mut workspaces = workspaces_lock.write().await;
         let editor_count = sessions.get_workspace_session_ids(&workspace_id).len();
         if editor_count == 0 {
             let workbook_auth_ids = workspaces.list_workbook_authorization_ids(&workspace_id)?;

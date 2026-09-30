@@ -14,7 +14,7 @@ import { useEffect, useRef, useState } from 'react'
 import { DroppedFile, useFileDragDrop } from '../../../contexts/file-dragdrop.context'
 import { GenerateIdentifier } from '../../../services/random-identifier-generator'
 import { editor } from 'monaco-editor'
-import MonacoEditor from 'react-monaco-editor'
+import { ApicizeMonacoEditor } from '../apicize-monaco-editor'
 import { useApicizeSettings } from '../../../contexts/apicize-settings.context'
 import { EditableRequest } from '../../../models/workspace/editable-request'
 import { RequestEditSessionType } from '../editor-types';
@@ -327,7 +327,7 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
               />
               : request.body.type === BodyType.GraphQL
                 ? <GraphQLBodyEditor ref={graphqlEditor} request={request} />
-                : <MonacoEditor
+                : <ApicizeMonacoEditor
                   key={`${request.id}:${request.bodyLanguage}`}
                   language={request.bodyLanguage ?? undefined}
                   width='100%'

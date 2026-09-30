@@ -2,7 +2,7 @@ import { observer } from 'mobx-react-lite'
 import { BodyType } from '@apicize/lib-typescript';
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import Grid from '@mui/material/Grid';
-import MonacoEditor from 'react-monaco-editor';
+import { ApicizeMonacoEditor } from '../../apicize-monaco-editor'
 import { editor } from 'monaco-editor';
 import { useApicizeSettings } from '../../../../contexts/apicize-settings.context';
 import { useMonacoClipboard } from '../../../../hooks/use-monaco-clipboard';
@@ -83,7 +83,7 @@ export const GraphQLBodyEditor = observer(forwardRef<GraphQLBodyEditorHandle, { 
             flex={3} border={2} padding='0.5em' sx={{ borderColor: queryFocused ? theme.palette.primary.main : theme.palette.divider }}>
             <Box component='legend' sx={{ color: queryFocused ? theme.palette.primary.main : theme.palette.text.secondary }}><label style={{ padding: '0 0.5rem' }}>GraphQL Query</label></Box>
             <Grid flex={1}>
-                <MonacoEditor
+                <ApicizeMonacoEditor
                     language='graphql'
                     theme={colorTheme}
                     value={data.query}
@@ -109,7 +109,7 @@ export const GraphQLBodyEditor = observer(forwardRef<GraphQLBodyEditorHandle, { 
         <Grid container component='fieldset' display='flex' direction='column' flex={1} border={2} padding='0.5em' sx={{ borderColor: extensionsFocused ? theme.palette.primary.main : theme.palette.divider }}>
             <Box component='legend' sx={{ color: extensionsFocused ? theme.palette.primary.main : theme.palette.text.secondary }}><label style={{ padding: '0 0.5rem' }}>GraphQL Extensions (Optional)</label></Box>
             <Grid flex={1}>
-                <MonacoEditor
+                <ApicizeMonacoEditor
                     language='json'
                     theme={colorTheme}
                     value={data.extensions ?? ''}
