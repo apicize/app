@@ -144,27 +144,19 @@ impl ApicizeSettings {
             changed = true;
         }
 
-        match self.recent_workbook_file_names.as_mut() {
-            Some(recent) => {
-                if changed && recent.len() > 9 {
-                    recent.truncate(9);
-                }
-                match recent.iter().position(|r| r == file_name) {
-                    Some(index) => {
-                        if index != 0 {
-                            recent.remove(index);
-                            recent.insert(0, file_name.to_string());
-                        }
-                    }
-                    None => {
-                        recent.push(file_name.to_string());
-                        changed = true;
-                    }
-                }
+        // Move (or add) the file name to the top of the list, keeping at most 10 entries
+        let recent = self.recent_workbook_file_names.get_or_insert_with(Vec::new);
+        match recent.iter().position(|r| r == file_name) {
+            Some(0) => {}
+            Some(index) => {
+                recent.remove(index);
+                recent.insert(0, file_name.to_string());
+                changed = true;
             }
             None => {
-                self.recent_workbook_file_names = Some(vec![file_name.to_string()]);
-                changed = true
+                recent.insert(0, file_name.to_string());
+                recent.truncate(10);
+                changed = true;
             }
         }
 
@@ -213,5 +205,82 @@ impl ApicizeSettings {
             panic!("Unable to create {} - {}", dir.to_string_lossy(), err);
         }
         save_data_file(&Self::get_settings_filename(), self).map_err(ApicizeAppError::ApicizeError)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn settings_with(recent: Option<Vec<&str>>) -> ApicizeSettings {
+        ApicizeSettings {
+            last_workbook_file_name: None,
+            workbook_directory: None,
+            font_size: 12,
+            navigation_font_size: 12,
+            color_scheme: ColorScheme::Dark,
+            editor_panels: String::from(""),
+            recent_workbook_file_names: recent
+                .map(|r| r.into_iter().map(String::from).collect::<Vec<String>>()),
+            pkce_listener_port: 8080,
+            always_hide_nav_tree: false,
+            show_diagnostic_info: false,
+            report_format: ExecutionReportFormat::JSON,
+            editor_indent_size: 3,
+            editor_check_js_syntax: true,
+            editor_detect_existing_indent: true,
+        }
+    }
+
+    fn recent(settings: &ApicizeSettings) -> Vec<&str> {
+        settings
+            .recent_workbook_file_names
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|s| s.as_str())
+            .collect()
+    }
+
+    #[test]
+    fn new_file_is_added_to_top() {
+        let mut settings = settings_with(Some(vec!["a", "b"]));
+        assert!(settings.update_recent_workbook_file_name("c"));
+        assert_eq!(recent(&settings), vec!["c", "a", "b"]);
+        assert_eq!(settings.last_workbook_file_name.as_deref(), Some("c"));
+    }
+
+    #[test]
+    fn existing_file_is_moved_to_top() {
+        let mut settings = settings_with(Some(vec!["a", "b", "c"]));
+        settings.last_workbook_file_name = Some("c".to_string());
+        assert!(settings.update_recent_workbook_file_name("c"));
+        assert_eq!(recent(&settings), vec!["c", "a", "b"]);
+    }
+
+    #[test]
+    fn top_file_is_unchanged() {
+        let mut settings = settings_with(Some(vec!["a", "b"]));
+        settings.last_workbook_file_name = Some("a".to_string());
+        assert!(!settings.update_recent_workbook_file_name("a"));
+        assert_eq!(recent(&settings), vec!["a", "b"]);
+    }
+
+    #[test]
+    fn list_is_created_when_missing() {
+        let mut settings = settings_with(None);
+        assert!(settings.update_recent_workbook_file_name("a"));
+        assert_eq!(recent(&settings), vec!["a"]);
+    }
+
+    #[test]
+    fn list_is_limited_to_ten() {
+        let names = (0..10).map(|i| i.to_string()).collect::<Vec<String>>();
+        let mut settings = settings_with(Some(names.iter().map(|s| s.as_str()).collect()));
+        assert!(settings.update_recent_workbook_file_name("new"));
+        let result = recent(&settings);
+        assert_eq!(result.len(), 10);
+        assert_eq!(result[0], "new");
+        assert_eq!(result[9], "8");
     }
 }

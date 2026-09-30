@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.48.1
+
+* Fix opened workbooks not moving to the top of the recent workbooks list (including workbooks already open in another window)
+* Fix closing one of several windows open on the same workbook prompting to discard unsaved changes; only the last window for the workbook prompts
+* Update @tauri-apps/plugin-opener to 2.7.0 to match the Rust crate
+
 ## 0.48.0
 
 * Fix memory growth from execution results of re-run requests/groups being retained until the workbook is closed

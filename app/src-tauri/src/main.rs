@@ -450,6 +450,15 @@ fn create_workspace(
         None => None,
     };
 
+    // Workspace the current session is leaving, if it is being reassigned
+    let previous_workspace_id = match &current_session_id {
+        Some(id) if !open_in_new_session => sessions
+            .get_session(id)
+            .ok()
+            .map(|session| session.workspace_id.clone()),
+        _ => None,
+    };
+
     // If this is an open workspace, and we are on the last session, then close the workspace
     // to clear any changes made *without* saving
     let session_to_clear = if let Some(current_session_id) = &current_session_id
@@ -477,6 +486,7 @@ fn create_workspace(
             if let Some(existing_workspace_id) = &existing_workspace_id {
                 // If there is a workspace already open for this file, switch to that
                 let workspace = workspaces.workspaces.get(existing_workspace_id).unwrap();
+                save_recent_file_name = Some(file_name.clone());
 
                 Ok(OpenWorkspaceResult {
                     workspace_id: existing_workspace_id.to_string(),
@@ -535,8 +545,9 @@ fn create_workspace(
     }?;
 
     // Update the recently accessed workbook list in settings
-    if let Some(file_name) = save_recent_file_name {
-        settings.update_recent_workbook_file_name(&file_name);
+    if let Some(file_name) = save_recent_file_name
+        && settings.update_recent_workbook_file_name(&file_name)
+    {
         settings.save()?;
         app.emit("update_settings", settings.clone()).unwrap();
     }
@@ -711,9 +722,11 @@ fn create_workspace(
                     directory: info.directory.clone(),
                     display_name: info.display_name.clone(),
                     dirty: info.dirty,
+                    // Include the session about to be added for this window
                     editor_count: sessions
                         .get_workspace_session_ids(&session.workspace_id)
-                        .len(),
+                        .len()
+                        + 1,
                 },
                 private_lock_status: info.workspace.private_lock_status,
                 vault_lock_status: info.workspace.vault_lock_status,
@@ -803,6 +816,16 @@ fn create_workspace(
 
     for workspace_id in workspace_ids_to_remove {
         workspaces.remove_workspace(workspace_id.as_str());
+    }
+
+    // Let other windows on the opened (and previous) workspace know the updated editor count
+    for workspace_id in [Some(&workspace_result.workspace_id), previous_workspace_id.as_ref()]
+        .into_iter()
+        .flatten()
+    {
+        if let Ok(info) = workspaces.get_workspace_info(workspace_id) {
+            dispatch_save_state(&app, sessions, workspace_id, info, false);
+        }
     }
 
     println!("*** {trace_title} ***");
