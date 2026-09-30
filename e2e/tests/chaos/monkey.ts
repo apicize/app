@@ -992,9 +992,15 @@ export class ChaosMonkey {
           const entry = { id: sel.id!, kind: 'request' as const }
           const tempName = `${sel.name} ~${++this.model.counter}`
           const tempPath = sel.path.split(SEP).slice(0, -1).concat(tempName).join(SEP)
-          // The row is only rendered while its parent group is expanded; checkpoints verify the rest
+          // The row is only rendered while its parent group is expanded; checkpoints verify the rest.
+          // A collapse may still be animating (rows unmount once it completes), so a row that is
+          // no longer rendered under either name also passes
           const rendered = (await navItems()).some((i) => i.path === sel.path)
-          const inTree = async (p: string) => !rendered || (await navItems()).some((i) => i.path === p)
+          const inTree = async (p: string) => {
+            if (!rendered) return true
+            const items = await navItems()
+            return items.some((i) => i.path === p) || !items.some((i) => i.path === sel.path || i.path === tempPath)
+          }
           await clickEditorTab('Info')
           await setInputValue('request-name', tempName)
           await waitFor(async () => inTree(tempPath), 5_000, `Tree did not show renamed "${tempPath}"`)

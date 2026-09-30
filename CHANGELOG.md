@@ -1,5 +1,20 @@
 # Change Log
 
+## 0.48.0
+
+* Fix memory growth from execution results of re-run requests/groups being retained until the workbook is closed
+* Fix Monaco editor models leaking on each body/test/setup/data set/GraphQL editor mount, language change, workbook reload and request/data set deletion
+* Dispose cached result view models for superseded executions
+* Release a window's session and workspace when the window is destroyed, even if the close notification never reached the backend
+* Truncate traced request/response data to 64KB per log event, and keep the most recent events in the log viewer
+* Fix crash when dropping UTF-16 encoded files
+* Fix the PKCE listener continuing to run after being disabled, and a possible hang when restarting it
+* Fix cancellation tokens and temporary data set directories left behind when execution setup fails, and cancel all active runs of a request/group
+* Remove Tauri event listeners, drag/drop targets and resize observers when no longer needed
+* Fix dropping a file onto the body editor after switching requests
+* Add a drop indicator to the body, test and setup editors, showing whether the file can be dropped and how it will be loaded
+* Require apicize_lib 0.46.1
+
 ## 0.47.1
 
 * Add `btoa`, `atob` and `base64` (`encode`, `decode`, `decodeText`) to test and setup script typings

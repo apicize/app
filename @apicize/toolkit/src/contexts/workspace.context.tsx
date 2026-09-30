@@ -559,6 +559,14 @@ export class WorkspaceStore implements EditableEntityContext {
         this.navigation = navigation
         this.updateIndexedNames()
 
+        // If the active request/group is no longer in navigation (i.e. it was deleted), clear it
+        // now rather than re-rendering its editor, which would query the backend for a missing entity
+        if (this.activeSelection
+            && [EntityType.RequestEntry, EntityType.Request, EntityType.Group].includes(this.activeSelection.entityType)
+            && !this.indexedNavigationEntries.has(this.activeSelection.id)) {
+            this.activeSelection = null
+        }
+
         // When updating all of navigation, we should just redraw parameter lists being displayed
         if (this.mode === WorkspaceMode.Settings || (
             this.activeSelection && [EntityType.RequestEntry, EntityType.Request, EntityType.Group].includes(this.activeSelection.entityType)
