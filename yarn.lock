@@ -3240,12 +3240,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tauri-apps/plugin-opener@npm:^2.6.0":
-  version: 2.6.0
-  resolution: "@tauri-apps/plugin-opener@npm:2.6.0"
+"@tauri-apps/plugin-opener@npm:^2.7.0":
+  version: 2.7.0
+  resolution: "@tauri-apps/plugin-opener@npm:2.7.0"
   dependencies:
     "@tauri-apps/api": "npm:^2.12.0"
-  checksum: 10c0/10f620520aa0d1373e8624cea1729e68a213a93a6fc6f0cb22281588cbe3cdff3ff414ef71dacc2683969907a5375b70e8edd31a969f238ef9cb6a0d9c712524
+  checksum: 10c0/857d06496549c3660083db9ce38a8da47e39186faf7c0fb47a443f7dd5fd08100aefa09756331fb95872684285d35edb9b6612fba354ab906c886902c5b732ef
   languageName: node
   linkType: hard
 
@@ -4381,7 +4381,7 @@ __metadata:
     "@tauri-apps/cli": "npm:^2"
     "@tauri-apps/plugin-dialog": "npm:^2.7.1"
     "@tauri-apps/plugin-fs": "npm:^2.5.1"
-    "@tauri-apps/plugin-opener": "npm:^2.6.0"
+    "@tauri-apps/plugin-opener": "npm:^2.7.0"
     "@tauri-apps/plugin-os": "npm:^2.4.0"
     "@types/react": "npm:^18.3.3"
     "@types/react-dom": "npm:^18.3"

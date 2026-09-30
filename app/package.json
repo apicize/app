@@ -19,7 +19,7 @@
     "@tauri-apps/api": "^2.11",
     "@tauri-apps/plugin-dialog": "^2.7.1",
     "@tauri-apps/plugin-fs": "^2.5.1",
-    "@tauri-apps/plugin-opener": "^2.6.0",
+    "@tauri-apps/plugin-opener": "^2.7.0",
     "@tauri-apps/plugin-os": "^2.4.0",
     "graphql": "^16.14.1",
     "mobx": "^6.13.7",
