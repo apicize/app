@@ -819,9 +819,12 @@ fn create_workspace(
     }
 
     // Let other windows on the opened (and previous) workspace know the updated editor count
-    for workspace_id in [Some(&workspace_result.workspace_id), previous_workspace_id.as_ref()]
-        .into_iter()
-        .flatten()
+    for workspace_id in [
+        Some(&workspace_result.workspace_id),
+        previous_workspace_id.as_ref(),
+    ]
+    .into_iter()
+    .flatten()
     {
         if let Ok(info) = workspaces.get_workspace_info(workspace_id) {
             dispatch_save_state(&app, sessions, workspace_id, info, false);
