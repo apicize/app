@@ -28,7 +28,7 @@ export class FileDragDropStore {
                 }
             }
         } else {
-            setTimeout(this.updateIfSettled, 500)
+            setTimeout(() => this.updateIfSettled(entries), 500)
         }
     }
 
@@ -61,26 +61,36 @@ export class FileDragDropStore {
     }
 
     register(refContainer: RefObject<HTMLElement>, callbacks: DragDropCallbacks) {
-        const id = refContainer.current?.id
-        if (!id) {
+        const element = refContainer.current
+        const id = element?.id
+        if (!element || !id) {
             throw new Error('Drag/Drop container must have an ID')
         }
-        this.observedTargets.set(id, {
-            rect: refContainer?.current.getClientRects()[0],
+        const target: DragDropTarget = {
+            rect: element.getClientRects()[0],
             callbacks
-        })
-        this.resizeObserver.observe(refContainer.current, {
+        }
+        this.observedTargets.set(id, target)
+        this.resizeObserver.observe(element, {
             box: undefined
         })
+        // Use the element and ID captured at registration, since the ref is usually
+        // cleared by the time an effect's cleanup runs
         return () => {
-            this.unregister(refContainer)
+            this.resizeObserver.unobserve(element)
+            if (this.observedTargets.get(id) === target) {
+                this.observedTargets.delete(id)
+            }
         }
     }
 
     unregister(refContainer: RefObject<HTMLElement>) {
-        const id = refContainer.current?.id
-        if (id) {
-            this.observedTargets.delete(id)
+        const element = refContainer.current
+        if (element) {
+            this.resizeObserver.unobserve(element)
+            if (element.id) {
+                this.observedTargets.delete(element.id)
+            }
         }
     }
 

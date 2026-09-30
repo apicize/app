@@ -593,6 +593,7 @@ fn create_workspace(
                 }
             }
             session.request_exec_ctrs.clear();
+            session.execution_result_view_state.clear();
             session.mode = WorkspaceMode::Normal;
             session.help_topic = None;
 

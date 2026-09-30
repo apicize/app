@@ -16,6 +16,8 @@ export function ApicizeSettingsProvider({
 
         let contextMenuHandler: ((event: Event) => void) | null = null;
         let keydownHandler: ((event: KeyboardEvent) => void) | null = null;
+        // Set on cleanup, so handlers are not added after cleanup if it runs before setup completes
+        let cancelled = false
 
         // Cmd/Ctrl + '+' / '-' adjust the main font size; Cmd/Ctrl + Alt/Option + '+' / '-' adjust the
         // navigation font size (clamped 1-99). Shift combinations are ignored. Use the platform accelerator:
@@ -50,6 +52,8 @@ export function ApicizeSettingsProvider({
                 core.invoke<StorageInformation>('get_storage_information'),
             ])
 
+            if (cancelled) return
+
             if (isReleaseMode) {
                 contextMenuHandler = (event: Event) => event.preventDefault()
                 document.addEventListener('contextmenu', contextMenuHandler)
@@ -77,6 +81,7 @@ export function ApicizeSettingsProvider({
         })().catch(console.error)
 
         return () => {
+            cancelled = true
             document.removeEventListener('keydown', fontSizeHandler)
             if (contextMenuHandler) {
                 document.removeEventListener('contextmenu', contextMenuHandler)

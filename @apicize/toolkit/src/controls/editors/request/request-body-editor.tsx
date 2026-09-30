@@ -1,5 +1,6 @@
 import Box from '@mui/material/Box'
 import { FormControl, Grid, IconButton, InputLabel, MenuItem, Select, Stack } from '@mui/material'
+import { FileDropOverlay } from '../file-drop-overlay'
 import { NameValueEditor } from '../name-value-editor'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import FormatListBulletedAddIcon from '@mui/icons-material/FormatListBulletedAdd';
@@ -25,6 +26,21 @@ import { useMonacoClipboard } from '../../../hooks/use-monaco-clipboard';
 import { RawBodyEditor } from './body/raw-body-editor';
 import { GraphQLBodyEditor, GraphQLBodyEditorHandle } from './body/graphql-body-editor';
 
+/**
+ * Describe the body type a dropped file will be loaded as (see onDrop)
+ * @param extensions extensions of the files being dragged
+ */
+function describeDropBodyType(extensions: string[]) {
+  switch (extensions[0]) {
+    case 'json':
+      return 'JSON'
+    case 'xml':
+      return 'XML'
+    default:
+      return 'Text or Binary'
+  }
+}
+
 const BODY_TYPE_MENU_ITEMS = BodyTypes.map(bodyType => (
   <MenuItem key={bodyType} value={bodyType}>{bodyType === BodyType.Raw ? 'Binary' : bodyType}</MenuItem>
 ))
@@ -41,6 +57,7 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
 
   const refContainer = useRef<HTMLElement>(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [dropBodyType, setDropBodyType] = useState('')
   const [model, setModel] = useState<IRequestEditorTextModel | null>(null)
   const editor = useRef<editor.IStandaloneCodeEditor | null>(null)
   const graphqlEditor = useRef<GraphQLBodyEditorHandle>(null)
@@ -62,10 +79,12 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
   useEffect(() => {
     if (refContainer.current) {
       const unregisterDragDrop = fileDragDrop.register(refContainer, {
-        onEnter: (_x, _y, _paths) => {
+        onEnter: (_x, _y, extensions) => {
+          setDropBodyType(describeDropBodyType(extensions))
           setIsDragging(true)
         },
-        onOver: (_x, _y) => {
+        onOver: (_x, _y, extensions) => {
+          setDropBodyType(describeDropBodyType(extensions))
           setIsDragging(true)
         },
         onLeave: () => {
@@ -97,7 +116,8 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
         unregisterDragDrop()
       })
     }
-  }, [feedback, fileDragDrop, refContainer, request])
+    // Re-register once the body is initialized, since the container is not rendered until then
+  }, [feedback, fileDragDrop, refContainer, request, request.isBodyInitialized])
 
   // Request body hasn't been retrieved yet, wait for it
   if (!request.isBodyInitialized) {
@@ -229,14 +249,10 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
 
   return (
     <Box id='request-body-container' ref={refContainer} position='relative' width='100%' height='100%'>
-      <Box top={0}
-        left={0}
-        width='100%'
-        height='100%'
-        position='absolute'
-        display={isDragging ? 'block' : 'none'}
-        className="MuiBackdrop-root MuiModal-backdrop"
-        sx={{ zIndex: 99999, opacity: 0.5, transition: "opacity 225ms cubic-bezier(0.4, 0, 0.2, 1) 0ms" }} />
+      <FileDropOverlay
+        visible={isDragging}
+        title='Drop file to replace request body'
+        subtitle={`Body type: ${dropBodyType}`} />
 
       <Stack direction='column' spacing={3} position='relative' width='100%' height='100%'>
         <Grid container direction='row' display='flex' justifyContent='space-between' maxWidth='65em' paddingTop='0.5rem'>

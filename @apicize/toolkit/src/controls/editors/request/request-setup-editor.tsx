@@ -8,6 +8,7 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { useFeedback } from "../../../contexts/feedback.context";
 import { monaco } from 'react-monaco-editor';
 import { ApicizeMonacoEditor } from '../apicize-monaco-editor';
+import { FileDropOverlay } from '../file-drop-overlay';
 
 import COMMON_DEFS_RAW from '../../../typings/script-common.d.ts?raw'
 import SETUP_DEFS_RAW from '../../../typings/setup-editor.d.ts?raw'
@@ -68,6 +69,7 @@ export const RequestSetupEditor = observer(({ entry }: { entry: EditableRequest 
         if (refContainer.current) {
             const unregisterDragDrop = fileDragDrop.register(refContainer, {
                 onEnter: (_x, _y, extensions) => {
+                    setIsDragging(true)
                     setIsDraggingValid(extensions.includes('js'))
                 },
                 onOver: (_x, _y, extensions) => {
@@ -173,14 +175,11 @@ export const RequestSetupEditor = observer(({ entry }: { entry: EditableRequest 
                 </Box>}
             </Stack>
 
-            <Box top={0}
-                left={0}
-                width='100%'
-                height='100%'
-                position='absolute'
-                display={isDragging ? 'block' : 'none'}
-                className="MuiBackdrop-root MuiModal-backdrop"
-                sx={{ zIndex: 99999, opacity: 0.5, transition: "opacity 225ms cubic-bezier(0.4, 0, 0.2, 1) 0ms", backgroundColor: isDragingValid ? "#008000" : "#800000" }} />
+            <FileDropOverlay
+                visible={isDragging}
+                valid={isDragingValid}
+                title={isDragingValid ? 'Drop file to replace setup script' : 'Only JavaScript files can be dropped here'}
+                subtitle='JavaScript (.js)' />
 
             <Box id='req-setup-editor' ref={refContainer} position='relative' width='100%' height='100%'>
                 <ApicizeMonacoEditor

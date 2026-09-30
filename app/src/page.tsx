@@ -270,23 +270,24 @@ export default function Home() {
     })
 
     // Show the winodow once everything is mostly set up
-    setTimeout(() => {
+    const showSessionTimeout = setTimeout(() => {
       core.invoke('show_session', { sessionId }).catch(console.error)
     }, 100)
 
     return () => {
-      unlistenInitialize.then(() => { }).catch(console.error)
-      unlistenNavigation.then(() => { }).catch(console.error)
-      unlistenToast.then(() => { }).catch(console.error)
-      unlistenNavigationEntry.then(() => { }).catch(console.error)
-      unlistenSaveState.then(() => { }).catch(console.error)
-      unlistenLockStatus.then(() => { }).catch(console.error)
-      unlistenUpdate.then(() => { }).catch(console.error)
-      unlistenQueryStringParamsMoved.then(() => { }).catch(console.error)
-      unlistenExecutionResults.then(() => { }).catch(console.error)
-      unlistenSettingsUpdate.then(() => { }).catch(console.error)
-      unlistenListLogs.then(() => { }).catch(console.error)
-      unlistenSessionOpened.then(() => { }).catch(console.error)
+      clearTimeout(showSessionTimeout)
+      unlistenInitialize.then(f => f()).catch(console.error)
+      unlistenNavigation.then(f => f()).catch(console.error)
+      unlistenToast.then(f => f()).catch(console.error)
+      unlistenNavigationEntry.then(f => f()).catch(console.error)
+      unlistenSaveState.then(f => f()).catch(console.error)
+      unlistenLockStatus.then(f => f()).catch(console.error)
+      unlistenUpdate.then(f => f()).catch(console.error)
+      unlistenQueryStringParamsMoved.then(f => f()).catch(console.error)
+      unlistenExecutionResults.then(f => f()).catch(console.error)
+      unlistenSettingsUpdate.then(f => f()).catch(console.error)
+      unlistenListLogs.then(f => f()).catch(console.error)
+      unlistenSessionOpened.then(f => f()).catch(console.error)
     }
   }, [])
 

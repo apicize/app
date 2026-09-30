@@ -42,7 +42,7 @@ export function FileDragDropProvider({
         })
 
         return () => {
-            unlisten.then(() => { }).catch(console.error)
+            unlisten.then(f => f()).catch(console.error)
         }
     }, [store, feedback])
 
