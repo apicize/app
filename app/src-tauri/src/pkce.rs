@@ -91,11 +91,7 @@ impl OAuth2PkceService {
 
         self.port = Some(port);
 
-        if port == 0 {
-            println!("*** PKCE listener is disabled ***");
-            return;
-        }
-
+        // Stop any existing listener, including when disabling PKCE
         let stop_handle = self.stop.take();
         let server = self.server.take();
 
@@ -109,6 +105,11 @@ impl OAuth2PkceService {
             self.tauri
                 .emit("oauth2-pkce-error", format!("{err:?}"))
                 .unwrap();
+        }
+
+        if port == 0 {
+            println!("*** PKCE listener is disabled ***");
+            return;
         }
 
         let app_handle = self.tauri.clone();
@@ -244,20 +245,47 @@ async fn process_pkce_response(
 
 #[derive(Default)]
 struct StopHandle {
-    inner: parking_lot::Mutex<Option<ServerHandle>>,
+    inner: parking_lot::Mutex<StopHandleState>,
+}
+
+#[derive(Default)]
+struct StopHandleState {
+    handle: Option<ServerHandle>,
+    /// Set if stop was requested, so a server registering afterwards is stopped immediately
+    stop_requested: Option<bool>,
 }
 
 impl StopHandle {
-    /// Sets the server handle to stop.
+    /// Sets the server handle to stop, stopping it immediately if a stop was already requested
     pub(crate) fn register(&self, handle: ServerHandle) {
-        *self.inner.lock() = Some(handle);
+        let mut state = self.inner.lock();
+        if let Some(graceful) = state.stop_requested {
+            #[allow(clippy::let_underscore_future)]
+            let _ = handle.stop(graceful);
+        }
+        state.handle = Some(handle);
     }
 
-    /// Sends stop signal through contained server handle.
+    /// Sends stop signal through contained server handle, or records it if the
+    /// server has not yet registered its handle
     pub(crate) fn stop(&self, graceful: bool) {
-        if let Some(h) = self.inner.lock().as_ref() {
+        let mut state = self.inner.lock();
+        state.stop_requested = Some(graceful);
+        if let Some(h) = state.handle.as_ref() {
             #[allow(clippy::let_underscore_future)]
             let _ = h.stop(graceful);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stop_handle_records_stop_requested_before_register() {
+        let stop_handle = StopHandle::default();
+        stop_handle.stop(false);
+        assert_eq!(stop_handle.inner.lock().stop_requested, Some(false));
     }
 }

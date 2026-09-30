@@ -44,7 +44,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{
         Arc, Mutex, OnceLock, RwLock as StdRwLock,
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicU64, AtomicUsize, Ordering},
     },
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -359,7 +359,7 @@ async fn main() {
                     }
 
                     let tokens = cancellation_tokens().read().unwrap();
-                    for token in tokens.values() {
+                    for (_, token) in tokens.values().flatten() {
                         token.cancel();
                     }
                 }
@@ -1557,9 +1557,60 @@ async fn save_settings(
     }
 }
 
-fn cancellation_tokens() -> &'static StdRwLock<FxHashMap<String, CancellationToken>> {
-    static TOKENS: OnceLock<StdRwLock<FxHashMap<String, CancellationToken>>> = OnceLock::new();
+/// Cancellation tokens for active executions, by request/group ID and then by run ID
+/// (the same request/group can be executing more than once, e.g. from multiple windows)
+type CancellationTokens = FxHashMap<String, Vec<(u64, CancellationToken)>>;
+
+fn cancellation_tokens() -> &'static StdRwLock<CancellationTokens> {
+    static TOKENS: OnceLock<StdRwLock<CancellationTokens>> = OnceLock::new();
     TOKENS.get_or_init(|| StdRwLock::new(FxHashMap::default()))
+}
+
+/// Registers an execution's cancellation token, and removes it (along with any temporary
+/// data directory) when dropped, including when execution setup fails
+struct ExecutionGuard {
+    request_or_group_id: String,
+    run_id: u64,
+    temp_data_path: Option<PathBuf>,
+}
+
+impl ExecutionGuard {
+    fn new(request_or_group_id: &str, cancellation: &CancellationToken) -> Self {
+        static NEXT_RUN_ID: AtomicU64 = AtomicU64::new(1);
+        let run_id = NEXT_RUN_ID.fetch_add(1, Ordering::Relaxed);
+        cancellation_tokens()
+            .write()
+            .unwrap()
+            .entry(request_or_group_id.to_owned())
+            .or_default()
+            .push((run_id, cancellation.clone()));
+        ExecutionGuard {
+            request_or_group_id: request_or_group_id.to_owned(),
+            run_id,
+            temp_data_path: None,
+        }
+    }
+}
+
+impl Drop for ExecutionGuard {
+    fn drop(&mut self) {
+        if let Ok(mut tokens) = cancellation_tokens().write()
+            && let Some(entries) = tokens.get_mut(&self.request_or_group_id)
+        {
+            entries.retain(|(run_id, _)| *run_id != self.run_id);
+            if entries.is_empty() {
+                tokens.remove(&self.request_or_group_id);
+            }
+        }
+        if let Some(temp_data_path) = self.temp_data_path.take()
+            && let Err(err) = remove_dir_all(&temp_data_path)
+        {
+            eprintln!(
+                "Unable to remove temporary data directory {}: {err}",
+                temp_data_path.to_string_lossy()
+            );
+        }
+    }
 }
 
 #[tauri::command]
@@ -1573,12 +1624,7 @@ async fn start_execution(
     single_run: bool,
 ) -> Result<(), ApicizeAppError> {
     let cancellation = CancellationToken::new();
-    {
-        cancellation_tokens()
-            .write()
-            .unwrap()
-            .insert(request_or_group_id.to_owned(), cancellation.clone());
-    }
+    let mut execution_guard = ExecutionGuard::new(request_or_group_id, &cancellation);
 
     let mut allowed_data_path: Option<PathBuf> = if workbook_full_name.is_empty() {
         None
@@ -1591,8 +1637,6 @@ async fn start_execution(
                 .to_path_buf(),
         )
     };
-
-    let mut using_temp_data_path = false;
 
     // Phase 1: Read session data with minimal lock scope
     let workspace_id = {
@@ -1621,6 +1665,7 @@ async fn start_execution(
                     .as_millis()
             ));
             create_dir_all(&temp_directory)?;
+            execution_guard.temp_data_path = Some(temp_directory.clone());
 
             for data_set in cloned_workspace.data.entities.values_mut() {
                 match data_set.source_type {
@@ -1648,7 +1693,6 @@ async fn start_execution(
                 }
             }
             allowed_data_path = Some(temp_directory);
-            using_temp_data_path = true;
         }
 
         let exec = info.get_execution_mut(request_or_group_id);
@@ -1814,14 +1858,7 @@ async fn start_execution(
     let responses = context.run(vec![request_or_group_id.to_string()]).await;
 
     // Clean up cancellation token and temp directory
-    cancellation_tokens()
-        .write()
-        .unwrap()
-        .remove(request_or_group_id);
-
-    if using_temp_data_path && let Some(allowed_data_path) = allowed_data_path {
-        remove_dir_all(allowed_data_path)?;
-    }
+    drop(execution_guard);
 
     // Clean up routine if result of execution is an Error or unexpected empty result
     let cleanup =
@@ -1984,8 +2021,10 @@ async fn start_execution(
 #[tauri::command]
 async fn cancel_execution(request_or_group_id: String) {
     let tokens = cancellation_tokens().read().unwrap();
-    if let Some(token) = tokens.get(&request_or_group_id) {
-        token.cancel()
+    if let Some(entries) = tokens.get(&request_or_group_id) {
+        for (_, token) in entries {
+            token.cancel()
+        }
     }
 }
 
@@ -3570,4 +3609,66 @@ enum LockStatusUpdate {
 enum OpenExisting {
     FileName(String),
     SessionId(String),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn registered_run_count(request_or_group_id: &str) -> usize {
+        cancellation_tokens()
+            .read()
+            .unwrap()
+            .get(request_or_group_id)
+            .map(|entries| entries.len())
+            .unwrap_or(0)
+    }
+
+    #[test]
+    fn execution_guard_removes_token_on_drop() {
+        let guard = ExecutionGuard::new("guard-test-drop", &CancellationToken::new());
+        assert_eq!(registered_run_count("guard-test-drop"), 1);
+        drop(guard);
+        assert_eq!(registered_run_count("guard-test-drop"), 0);
+        assert!(
+            !cancellation_tokens()
+                .read()
+                .unwrap()
+                .contains_key("guard-test-drop")
+        );
+    }
+
+    #[test]
+    fn execution_guard_keeps_concurrent_runs_of_same_request() {
+        let first_token = CancellationToken::new();
+        let second_token = CancellationToken::new();
+        let first = ExecutionGuard::new("guard-test-concurrent", &first_token);
+        let second = ExecutionGuard::new("guard-test-concurrent", &second_token);
+        assert_eq!(registered_run_count("guard-test-concurrent"), 2);
+
+        drop(first);
+        assert_eq!(registered_run_count("guard-test-concurrent"), 1);
+
+        tauri::async_runtime::block_on(cancel_execution("guard-test-concurrent".to_string()));
+        assert!(second_token.is_cancelled());
+        assert!(!first_token.is_cancelled());
+
+        drop(second);
+        assert_eq!(registered_run_count("guard-test-concurrent"), 0);
+    }
+
+    #[test]
+    fn execution_guard_removes_temp_data_directory() {
+        let temp_directory = std::env::temp_dir()
+            .join("apicize")
+            .join(format!("guard-test-{}", std::process::id()));
+        create_dir_all(&temp_directory).unwrap();
+        fs::write(temp_directory.join("data.csv"), "a,b").unwrap();
+
+        let mut guard = ExecutionGuard::new("guard-test-temp", &CancellationToken::new());
+        guard.temp_data_path = Some(temp_directory.clone());
+        drop(guard);
+
+        assert!(!temp_directory.exists());
+    }
 }
