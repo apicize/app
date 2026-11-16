@@ -177,6 +177,17 @@ export interface ApicizeBodyForm {
     text: string
 }
 
+export interface ApicizeMultipartFormFile {
+    fileName: string
+    contentType: string
+    size: number
+}
+
+export interface ApicizeBodyMultipartForm {
+    type: 'MultipartForm'
+    data: { [name: string]: string | ApicizeMultipartFormFile }
+}
+
 export interface ApicizeBodyXML {
     type: 'XML'
     data: object
@@ -188,7 +199,7 @@ export interface ApicizeBodyBinary {
     data: string
 }
 
-export type ApicizeBody = ApicizeBodyText | ApicizeBodyJSON | ApicizeBodyForm | ApicizeBodyBinary
+export type ApicizeBody = ApicizeBodyText | ApicizeBodyJSON | ApicizeBodyForm | ApicizeBodyMultipartForm | ApicizeBodyBinary
 
 export interface ApicizeHttpRequest {
     url: string,

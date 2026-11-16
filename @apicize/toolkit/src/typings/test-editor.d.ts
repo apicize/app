@@ -29,6 +29,7 @@ declare enum BodyType {
     XML = 'XML',
     GraphQL = 'GraphQL',
     Form = 'Form',
+    MultipartForm = 'MultipartForm',
     Binary = 'Binary'
 }
 
@@ -117,9 +118,32 @@ declare interface BodyForm {
 }
 
 /**
+ * Multipart form file information (file contents are not included)
+ */
+declare interface MultipartFormFile {
+    fileName: string
+    contentType: string
+    /**
+     * Size of file contents in bytes
+     */
+    size: number
+}
+
+/**
+ * Multipart form body data
+ */
+declare interface BodyMultipartForm {
+    type: BodyType.MultipartForm
+    /**
+     * Submitted form values (text values or file information)
+     */
+    data: { [name: string]: string | MultipartFormFile }
+}
+
+/**
  * Body submitted with request or received in response
  */
-declare type Body = BodyBinary | BodyText | BodyJSON | BodyXML | BodyForm
+declare type Body = BodyBinary | BodyText | BodyJSON | BodyXML | BodyForm | BodyMultipartForm
 
 /**
  * Apicize request information

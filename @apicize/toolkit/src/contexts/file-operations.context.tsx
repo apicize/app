@@ -4,6 +4,14 @@ import { EditableSettings } from "../models/editable-settings";
 import { OpenDataSetFileResponse } from "./workspace.context";
 import { DataSourceType } from "@apicize/lib-typescript";
 
+/**
+ * File selected by the user (name excludes the directory)
+ */
+export interface OpenedFile {
+    fileName: string
+    data: Uint8Array
+}
+
 export class FileOperationsStore {
     public readonly newWorkbook: (openInNewWindow: boolean) => Promise<string>
     public readonly cloneWorkspace: () => Promise<string>
@@ -11,7 +19,7 @@ export class FileOperationsStore {
     public readonly saveWorkbook: () => Promise<void>
     public readonly saveWorkbookAs: () => Promise<void>
     public readonly openSshFile: (fileType: SshFileType) => Promise<string | null>
-    public readonly openFile: () => Promise<Uint8Array | null>
+    public readonly openFile: () => Promise<OpenedFile | null>
     public readonly saveSettings: () => void
     public readonly retrieveHelpTopic: (showTopic: string) => Promise<string>
     public readonly selectWorkbookDirectory: () => Promise<string | null>
@@ -27,7 +35,7 @@ export class FileOperationsStore {
         onSaveWorkbook: () => Promise<void>,
         onSaveWorkbookAs: () => Promise<void>,
         onOpenSshFile: (fileType: SshFileType) => Promise<string | null>,
-        onOpenFile: () => Promise<Uint8Array | null>,
+        onOpenFile: () => Promise<OpenedFile | null>,
         onSaveSettings: () => void,
         onRetrieveHelpTopic: (showTopic: string) => Promise<string>,
         onSelectWorkbookDirectory: () => Promise<string | null>,

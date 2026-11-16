@@ -1,5 +1,12 @@
 # Change Log
 
+## 0.49.0
+
+* Add Multipart Form support
+* Add an enabled checkbox to header, query string parameter and form body items
+* Update Tauri packages
+* Require apicize_lib 0.47
+
 ## 0.48.1
 
 * Fix opened workbooks not moving to the top of the recent workbooks list (including workbooks already open in another window)

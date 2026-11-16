@@ -5,8 +5,9 @@ import {
     BodyGraphQL,
     BodyGraphQLData
 } from "@apicize/lib-typescript"
-import { action, computed, observable, runInAction } from "mobx"
+import { action, computed, observable, runInAction, toJS } from "mobx"
 import { EditableNameValuePair } from "./editable-name-value-pair"
+import { EditableMultipartFormItem } from "./editable-multipart-form-item"
 import { GenerateIdentifier } from "../../services/random-identifier-generator"
 import { EntityType } from "./entity-type"
 import { EditableEntityContext } from "../editable"
@@ -18,7 +19,7 @@ import { RequestExecution } from "../request-execution"
 import { EditorMode } from "../editor-mode"
 import { ExecutionResultViewState } from "./execution"
 import { base64Encode } from "../../services/base64"
-import { BodyConversion } from "../../services/body-conversion"
+import { BodyConversion, RetainedMultipartFile } from "../../services/body-conversion"
 import { RequestUpdate } from "../updates/request-update"
 import { RequestBodyInfo } from "./request-body-info"
 import { EntityUpdate } from "../updates/entity-update"
@@ -50,6 +51,11 @@ export class EditableRequest extends EditableRequestEntry {
     @observable public accessor bodyMimeType: string | null = null
     @observable public accessor bodyLength: number | null = null
     @observable public accessor bodyLanguage: EditorMode | null = null
+
+    /**
+     * Multipart form File items retained while the body is switched to a type that cannot hold files
+     */
+    private retainedMultipartFiles: RetainedMultipartFile[] = []
 
     @observable accessor validationErrors: ValidationErrorList = {}
     @observable accessor validationWarnings = new EditableWarnings()
@@ -261,13 +267,19 @@ export class EditableRequest extends EditableRequestEntry {
     @action
     async setBodyType(newBodyType: BodyType) {
         this.markAsDirty()
-        return this.performUpdateBody(
-            EditableRequest.createEditableBody(await (new BodyConversion(this.body)).convert(newBodyType))
-        )
+        if (this.body.type === BodyType.MultipartForm && newBodyType !== BodyType.MultipartForm) {
+            this.retainedMultipartFiles = BodyConversion.extractMultipartFiles(toJS(this.body))
+        }
+        let body = await (new BodyConversion(this.body)).convert(newBodyType)
+        if (body.type === BodyType.MultipartForm && this.retainedMultipartFiles.length > 0) {
+            body = BodyConversion.restoreMultipartFiles(body, this.retainedMultipartFiles)
+            this.retainedMultipartFiles = []
+        }
+        return this.performUpdateBody(EditableRequest.createEditableBody(body))
     }
 
     @action
-    setBodyData(value: string | BodyGraphQLData | EditableNameValuePair[]) {
+    setBodyData(value: string | BodyGraphQLData | EditableNameValuePair[] | EditableMultipartFormItem[]) {
         if (this.isBodyInitialized) {
             this.body.data = value
             return this.performUpdateBody(this.body)
@@ -479,6 +491,20 @@ export class EditableRequest extends EditableRequestEntry {
                         disabled: d.disabled
                     }))
                 }
+            case BodyType.MultipartForm:
+                return {
+                    type: BodyType.MultipartForm,
+                    // Retain existing IDs, since they are used as keys when rendering items
+                    data: body.data.map(d => ({
+                        id: (d as Partial<EditableMultipartFormItem>).id ?? GenerateIdentifier(),
+                        name: d.name,
+                        type: d.type,
+                        value: d.value,
+                        fileName: d.fileName,
+                        data: d.data,
+                        disabled: d.disabled
+                    }))
+                }
             default:
                 return body ?? {
                     type: BodyType.None,
@@ -537,9 +563,14 @@ export interface RequestInfo extends ValidationWarnings, ValidationErrors {
     selectedData?: Selection,
 }
 
-export type EditableBody = BodyNone | BodyJSON | BodyXML | BodyGraphQL | BodyText | EditableBodyForm | BodyRaw
+export type EditableBody = BodyNone | BodyJSON | BodyXML | BodyGraphQL | BodyText | EditableBodyForm | EditableBodyMultipartForm | BodyRaw
 
 export interface EditableBodyForm {
     type: BodyType.Form
     data: EditableNameValuePair[]
+}
+
+export interface EditableBodyMultipartForm {
+    type: BodyType.MultipartForm
+    data: EditableMultipartFormItem[]
 }

@@ -165,6 +165,9 @@ impl Workspaces {
             RequestBody::XML { .. } => "application/xml".to_string(),
             RequestBody::GraphQL { .. } => "application/json".to_string(),
             RequestBody::Form { .. } => "application/x-www-form-urlencoded".to_string(),
+            // Content-Type (with boundary) is generated when dispatching, and a
+            // Content-Type header set by the user would be sent in addition to it
+            RequestBody::MultipartForm { .. } => String::new(),
             RequestBody::Raw { data } => FileType::from_bytes(data)
                 .media_types()
                 .first()
@@ -180,6 +183,7 @@ impl Workspaces {
             RequestBody::XML { data } => data.len(),
             RequestBody::GraphQL { data } => data.to_json().to_string().len(),
             RequestBody::Form { data } => data.len(),
+            RequestBody::MultipartForm { data } => data.len(),
             RequestBody::Raw { data } => data.len(),
         }
     }
@@ -3378,6 +3382,24 @@ impl WorkspaceInfo {
             }
         };
 
+        fn describe_multipart_form(
+            data: &HashMap<String, apicize_lib::ApicizeMultipartFormValue>,
+        ) -> String {
+            data.iter()
+                .map(|(name, value)| match value {
+                    apicize_lib::ApicizeMultipartFormValue::Text(text) => {
+                        format!("{name} = {text}")
+                    }
+                    apicize_lib::ApicizeMultipartFormValue::File {
+                        file_name,
+                        content_type,
+                        size,
+                    } => format!("{name} = [File: {file_name}, {content_type}, {size} bytes]"),
+                })
+                .collect::<Vec<String>>()
+                .join("\n")
+        }
+
         fn body_to_raw(
             body: Option<&apicize_lib::ApicizeBody>,
         ) -> Result<Option<PersistableData>, ApicizeAppError> {
@@ -3396,6 +3418,9 @@ impl WorkspaceInfo {
                 }
                 apicize_lib::ApicizeBody::Form { text, .. } => {
                     Ok(Some(PersistableData::Text(text.to_string())))
+                }
+                apicize_lib::ApicizeBody::MultipartForm { data } => {
+                    Ok(Some(PersistableData::Text(describe_multipart_form(data))))
                 }
                 apicize_lib::ApicizeBody::Binary { data } => {
                     Ok(Some(PersistableData::Binary(data.clone())))
@@ -3432,6 +3457,9 @@ impl WorkspaceInfo {
                         .collect::<Vec<String>>()
                         .join("\n"),
                 ))),
+                apicize_lib::ApicizeBody::MultipartForm { data } => {
+                    Ok(Some(PersistableData::Text(describe_multipart_form(data))))
+                }
                 apicize_lib::ApicizeBody::Binary { data } => {
                     Ok(Some(PersistableData::Binary(data.clone())))
                 }
@@ -3525,6 +3553,9 @@ impl WorkspaceInfo {
                             .map_err(|err| ApicizeAppError::ClipboardError(err.to_string()))?
                             .to_owned(),
                         ))),
+                        RequestBody::MultipartForm { data } => {
+                            Ok(Some(PersistableData::Text(serde_json::to_string(data)?)))
+                        }
                         RequestBody::Raw { data } => {
                             Ok(Some(PersistableData::Binary(data.clone())))
                         }

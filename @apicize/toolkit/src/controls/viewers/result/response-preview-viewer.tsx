@@ -13,6 +13,7 @@ import { ApicizeBody, ExecutionResultDetail } from "@apicize/lib-typescript";
 import { useFeedback } from "../../../contexts/feedback.context";
 import { observer } from "mobx-react-lite";
 import { editor } from "monaco-editor";
+import { describeMultipartFormBody } from "../../../services/multipart-form-description";
 
 export const ResultResponsePreview = observer(({ detail }: { detail: ExecutionResultDetail | null }) => {
     const workspace = useWorkspace()
@@ -80,6 +81,8 @@ export const ResultResponsePreview = observer(({ detail }: { detail: ExecutionRe
                 return ''
             case 'JSON':
                 return beautify.js_beautify(JSON.stringify(body.data), {})
+            case 'MultipartForm':
+                return describeMultipartFormBody(body)
             default:
                 switch (extension) {
                     case 'html':
@@ -96,7 +99,9 @@ export const ResultResponsePreview = observer(({ detail }: { detail: ExecutionRe
         }
     }
 
-    const hasText = body.type === 'JSON' || (body.type !== 'Binary' && body.text.length > 0)
+    const hasText = body.type === 'JSON'
+        || (body.type === 'MultipartForm' && Object.keys(body.data).length > 0)
+        || (body.type !== 'Binary' && body.type !== 'MultipartForm' && body.text.length > 0)
 
     let textModel: editor.ITextModel | undefined
 

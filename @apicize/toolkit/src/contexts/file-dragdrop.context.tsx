@@ -156,10 +156,12 @@ export interface DroppedTextFile {
     type: 'text'
     data: string
     extension: string
+    fileName: string
 }
 
 export interface DroppedBinaryFile {
     type: 'binary'
     data: Uint8Array
     extension: string
+    fileName: string
 }

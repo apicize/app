@@ -3,11 +3,19 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, PartialEq, Clone)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", rename_all_fields = "camelCase")]
 #[serde(tag = "type")]
 pub enum DroppedFile {
-    Text { data: String, extension: String },
-    Binary { data: Vec<u8>, extension: String },
+    Text {
+        data: String,
+        extension: String,
+        file_name: String,
+    },
+    Binary {
+        data: Vec<u8>,
+        extension: String,
+        file_name: String,
+    },
 }
 
 impl DroppedFile {
@@ -15,6 +23,10 @@ impl DroppedFile {
         let path = Path::new(&file_path);
         let extension = match path.extension() {
             Some(ext) => ext.to_ascii_lowercase().to_string_lossy().to_string(),
+            None => "".to_string(),
+        };
+        let file_name = match path.file_name() {
+            Some(name) => name.to_string_lossy().to_string(),
             None => "".to_string(),
         };
 
@@ -46,11 +58,16 @@ impl DroppedFile {
                 return DroppedFile::Text {
                     data: text,
                     extension,
+                    file_name,
                 };
             }
         }
 
-        DroppedFile::Binary { data, extension }
+        DroppedFile::Binary {
+            data,
+            extension,
+            file_name,
+        }
     }
 }
 
@@ -62,12 +79,25 @@ mod tests {
     fn from_data_decodes_utf16_le() {
         let data = vec![0xFF, 0xFE, b'h', 0, b'i', 0];
         match DroppedFile::from_data(&"test.txt".to_string(), data) {
-            DroppedFile::Text { data, extension } => {
+            DroppedFile::Text {
+                data,
+                extension,
+                file_name,
+            } => {
                 assert_eq!(data, "\u{FEFF}hi");
                 assert_eq!(extension, "txt");
+                assert_eq!(file_name, "test.txt");
             }
             DroppedFile::Binary { .. } => panic!("Expected text"),
         }
+    }
+
+    #[test]
+    fn serializes_file_name_as_camel_case() {
+        let file = DroppedFile::from_data(&"/tmp/data.bin".to_string(), vec![0x80, 0x81, 0xFF]);
+        let json = serde_json::to_value(&file).unwrap();
+        assert_eq!(json["type"], "binary");
+        assert_eq!(json["fileName"], "data.bin");
     }
 
     #[test]

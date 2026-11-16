@@ -14,7 +14,9 @@
 //! controls whether they are emitted verbatim (`include_secrets == true`) or
 //! replaced with a placeholder (`include_secrets == false`).
 
-use apicize_lib::{ApicizeBody, ApicizeHttpRequest, ExecutionResultDetailRequest};
+use apicize_lib::{
+    ApicizeBody, ApicizeHttpRequest, ApicizeMultipartFormValue, ExecutionResultDetailRequest,
+};
 use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
@@ -82,6 +84,34 @@ enum GenBody {
     Text(String),
     /// Raw binary body (embedded as Base64 and decoded in the target language).
     Binary(Vec<u8>),
+    /// Multipart form body (file contents are not captured when dispatching,
+    /// so files are read from disk using their file name).
+    Multipart(Vec<GenPart>),
+}
+
+/// Part of a multipart form body.
+enum GenPart {
+    Text {
+        name: String,
+        value: String,
+    },
+    File {
+        name: String,
+        file_name: String,
+        content_type: String,
+    },
+}
+
+impl GenPart {
+    fn is_file(&self) -> bool {
+        matches!(self, GenPart::File { .. })
+    }
+}
+
+impl GenBody {
+    fn has_files(&self) -> bool {
+        matches!(self, GenBody::Multipart(parts) if parts.iter().any(GenPart::is_file))
+    }
 }
 
 /// Language-agnostic view of the request used by the generators.
@@ -99,10 +129,48 @@ impl Dispatch {
         include_secrets: bool,
         language: CodeGenLanguage,
     ) -> Self {
+        let body = match &http.body {
+            None => GenBody::None,
+            Some(ApicizeBody::Text { text }) => GenBody::Text(text.clone()),
+            Some(ApicizeBody::JSON { text, .. }) => GenBody::Text(text.clone()),
+            Some(ApicizeBody::XML { text, .. }) => GenBody::Text(text.clone()),
+            Some(ApicizeBody::Form { text, .. }) => GenBody::Text(text.clone()),
+            Some(ApicizeBody::MultipartForm { data }) => {
+                let mut parts: Vec<GenPart> = data
+                    .iter()
+                    .map(|(name, value)| match value {
+                        ApicizeMultipartFormValue::Text(text) => GenPart::Text {
+                            name: name.clone(),
+                            value: text.clone(),
+                        },
+                        ApicizeMultipartFormValue::File {
+                            file_name,
+                            content_type,
+                            ..
+                        } => GenPart::File {
+                            name: name.clone(),
+                            file_name: file_name.clone(),
+                            content_type: content_type.clone(),
+                        },
+                    })
+                    .collect();
+                parts.sort_by(|a, b| part_name(a).cmp(part_name(b)));
+                GenBody::Multipart(parts)
+            }
+            Some(ApicizeBody::Binary { data }) => GenBody::Binary(data.clone()),
+        };
+
+        // The dispatched multipart Content-Type includes a boundary that the
+        // target client will generate on its own
+        let is_multipart = matches!(body, GenBody::Multipart(_));
+
         let mut headers: Vec<(String, String)> = http
             .headers
             .iter()
-            .filter(|(name, _)| !skip_header(name, language))
+            .filter(|(name, _)| {
+                !skip_header(name, language)
+                    && !(is_multipart && name.eq_ignore_ascii_case("content-type"))
+            })
             .map(|(name, value)| {
                 let value = if !include_secrets && is_sensitive_header(name) {
                     SECRET_PLACEHOLDER.to_string()
@@ -113,15 +181,6 @@ impl Dispatch {
             })
             .collect();
         headers.sort_by_key(|a| a.0.to_ascii_lowercase());
-
-        let body = match &http.body {
-            None => GenBody::None,
-            Some(ApicizeBody::Text { text }) => GenBody::Text(text.clone()),
-            Some(ApicizeBody::JSON { text, .. }) => GenBody::Text(text.clone()),
-            Some(ApicizeBody::XML { text, .. }) => GenBody::Text(text.clone()),
-            Some(ApicizeBody::Form { text, .. }) => GenBody::Text(text.clone()),
-            Some(ApicizeBody::Binary { data }) => GenBody::Binary(data.clone()),
-        };
 
         Dispatch {
             method: http.method.clone(),
@@ -194,6 +253,12 @@ fn base64_of(data: &[u8]) -> String {
     BASE64.encode(data)
 }
 
+fn part_name(part: &GenPart) -> &str {
+    match part {
+        GenPart::Text { name, .. } | GenPart::File { name, .. } => name,
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Node.js (async fetch)
 // ---------------------------------------------------------------------------
@@ -202,6 +267,7 @@ fn gen_node_fetch_async(d: &Dispatch) -> String {
     // Assumes execution inside a module where top-level await is available, so
     // no async IIFE wrapper is needed.
     let headers = js_headers(&d.headers, 2);
+    let mut setup = String::new();
     let body_line = match &d.body {
         GenBody::None => String::new(),
         GenBody::Text(text) => format!("  body: \"{}\",\n", esc(text)),
@@ -211,9 +277,38 @@ fn gen_node_fetch_async(d: &Dispatch) -> String {
                 base64_of(data)
             )
         }
+        GenBody::Multipart(parts) => {
+            if d.body.has_files() {
+                setup.push_str("import { readFile } from \"node:fs/promises\";\n\n");
+            }
+            setup.push_str("const form = new FormData();\n");
+            for part in parts {
+                match part {
+                    GenPart::Text { name, value } => setup.push_str(&format!(
+                        "form.append(\"{}\", \"{}\");\n",
+                        esc(name),
+                        esc(value)
+                    )),
+                    GenPart::File {
+                        name,
+                        file_name,
+                        content_type,
+                    } => setup.push_str(&format!(
+                        "form.append(\"{}\", new Blob([await readFile(\"{}\")], {{ type: \"{}\" }}), \"{}\");\n",
+                        esc(name),
+                        esc(file_name),
+                        esc(content_type),
+                        esc(file_name)
+                    )),
+                }
+            }
+            setup.push('\n');
+            "  body: form,\n".to_string()
+        }
     };
     format!(
-        "const response = await fetch(\"{url}\", {{\n  method: \"{method}\",\n{headers}{body}}});",
+        "{setup}const response = await fetch(\"{url}\", {{\n  method: \"{method}\",\n{headers}{body}}});",
+        setup = setup,
         url = esc(&d.url),
         method = esc(&d.method),
         headers = headers,
@@ -254,6 +349,33 @@ fn gen_python(d: &Dispatch) -> String {
         GenBody::Binary(data) => {
             format!(",\n    data=base64.b64decode(\"{}\")", base64_of(data))
         }
+        GenBody::Multipart(parts) => {
+            // Text values are passed as (None, value) tuples so requests sends
+            // multipart (rather than urlencoded) data even without files
+            let mut files = String::from(",\n    files={\n");
+            for part in parts {
+                match part {
+                    GenPart::Text { name, value } => files.push_str(&format!(
+                        "        \"{}\": (None, \"{}\"),\n",
+                        esc(name),
+                        esc(value)
+                    )),
+                    GenPart::File {
+                        name,
+                        file_name,
+                        content_type,
+                    } => files.push_str(&format!(
+                        "        \"{}\": (\"{}\", open(\"{}\", \"rb\"), \"{}\"),\n",
+                        esc(name),
+                        esc(file_name),
+                        esc(file_name),
+                        esc(content_type)
+                    )),
+                }
+            }
+            files.push_str("    }");
+            files
+        }
     };
 
     format!(
@@ -292,6 +414,40 @@ fn gen_go(d: &Dispatch) -> String {
                 "bytes.NewReader(body)".to_string(),
             )
         }
+        GenBody::Multipart(parts) => {
+            imports.push("bytes");
+            imports.push("mime/multipart");
+            if d.body.has_files() {
+                imports.push("net/textproto");
+                imports.push("os");
+            }
+            let mut setup =
+                String::from("\tbody := &bytes.Buffer{}\n\twriter := multipart.NewWriter(body)\n");
+            for part in parts {
+                match part {
+                    GenPart::Text { name, value } => setup.push_str(&format!(
+                        "\twriter.WriteField(\"{}\", \"{}\")\n",
+                        esc(name),
+                        esc(value)
+                    )),
+                    GenPart::File {
+                        name,
+                        file_name,
+                        content_type,
+                    } => setup.push_str(&format!(
+                        "\t{{\n\t\th := make(textproto.MIMEHeader)\n\t\th.Set(\"Content-Disposition\", \"{}\")\n\t\th.Set(\"Content-Type\", \"{}\")\n\t\tpart, _ := writer.CreatePart(h)\n\t\tdata, _ := os.ReadFile(\"{}\")\n\t\tpart.Write(data)\n\t}}\n",
+                        esc(&format!(
+                            "form-data; name=\"{}\"; filename=\"{}\"",
+                            name, file_name
+                        )),
+                        esc(content_type),
+                        esc(file_name)
+                    )),
+                }
+            }
+            setup.push_str("\twriter.Close()\n");
+            (setup, "body".to_string())
+        }
     };
     imports.sort_unstable();
 
@@ -308,6 +464,9 @@ fn gen_go(d: &Dispatch) -> String {
             esc(name),
             esc(value)
         ));
+    }
+    if matches!(d.body, GenBody::Multipart(_)) {
+        header_lines.push_str("\treq.Header.Set(\"Content-Type\", writer.FormDataContentType())\n");
     }
 
     format!(
@@ -355,6 +514,34 @@ fn gen_csharp(d: &Dispatch) -> String {
                 "request.Content = new ByteArrayContent(Convert.FromBase64String(\"{}\"));\n",
                 base64_of(data)
             ));
+        }
+        GenBody::Multipart(parts) => {
+            lines.push_str("var form = new MultipartFormDataContent();\n");
+            let mut file_ctr = 0;
+            for part in parts {
+                match part {
+                    GenPart::Text { name, value } => lines.push_str(&format!(
+                        "form.Add(new StringContent(\"{}\"), \"{}\");\n",
+                        esc(value),
+                        esc(name)
+                    )),
+                    GenPart::File {
+                        name,
+                        file_name,
+                        content_type,
+                    } => {
+                        file_ctr += 1;
+                        lines.push_str(&format!(
+                            "var file{n} = new ByteArrayContent(File.ReadAllBytes(\"{file}\"));\nfile{n}.Headers.ContentType = System.Net.Http.Headers.MediaTypeHeaderValue.Parse(\"{ct}\");\nform.Add(file{n}, \"{name}\", \"{file}\");\n",
+                            n = file_ctr,
+                            file = esc(file_name),
+                            ct = esc(content_type),
+                            name = esc(name),
+                        ));
+                    }
+                }
+            }
+            lines.push_str("request.Content = form;\n");
         }
     }
 
@@ -414,9 +601,52 @@ fn gen_java(d: &Dispatch) -> String {
             "HttpRequest.BodyPublishers.ofByteArray(java.util.Base64.getDecoder().decode(\"{}\"))",
             base64_of(data)
         ),
+        GenBody::Multipart(_) => {
+            "HttpRequest.BodyPublishers.ofByteArray(body.toByteArray())".to_string()
+        }
     };
 
     let mut builder = String::new();
+    // java.net.http has no multipart support, so the body is assembled manually
+    if let GenBody::Multipart(parts) = &d.body {
+        builder.push_str(
+            "            String boundary = \"ApicizeBoundary\" + java.util.UUID.randomUUID();\n",
+        );
+        builder.push_str(
+            "            java.io.ByteArrayOutputStream body = new java.io.ByteArrayOutputStream();\n",
+        );
+        let utf8 = ".getBytes(java.nio.charset.StandardCharsets.UTF_8)";
+        for part in parts {
+            match part {
+                GenPart::Text { name, value } => builder.push_str(&format!(
+                    "            body.write((\"--\" + boundary + \"{}\"){utf8});\n",
+                    esc(&format!(
+                        "\r\nContent-Disposition: form-data; name=\"{name}\"\r\n\r\n{value}\r\n"
+                    ))
+                )),
+                GenPart::File {
+                    name,
+                    file_name,
+                    content_type,
+                } => {
+                    builder.push_str(&format!(
+                        "            body.write((\"--\" + boundary + \"{}\"){utf8});\n",
+                        esc(&format!(
+                            "\r\nContent-Disposition: form-data; name=\"{name}\"; filename=\"{file_name}\"\r\nContent-Type: {content_type}\r\n\r\n"
+                        ))
+                    ));
+                    builder.push_str(&format!(
+                        "            body.write(java.nio.file.Files.readAllBytes(java.nio.file.Path.of(\"{}\")));\n",
+                        esc(file_name)
+                    ));
+                    builder.push_str(&format!("            body.write(\"\\r\\n\"{utf8});\n"));
+                }
+            }
+        }
+        builder.push_str(&format!(
+            "            body.write((\"--\" + boundary + \"--\\r\\n\"){utf8});\n"
+        ));
+    }
     builder.push_str(&format!(
         "            HttpRequest request = HttpRequest.newBuilder()\n                .uri(URI.create(\"{}\"))\n",
         esc(&d.url)
@@ -427,6 +657,11 @@ fn gen_java(d: &Dispatch) -> String {
             esc(name),
             esc(value)
         ));
+    }
+    if matches!(d.body, GenBody::Multipart(_)) {
+        builder.push_str(
+            "                .header(\"Content-Type\", \"multipart/form-data; boundary=\" + boundary)\n",
+        );
     }
     builder.push_str(&format!(
         "                .method(\"{}\", {})\n                .build();",
@@ -508,6 +743,57 @@ mod tests {
         let expected = BASE64.encode([0u8, 1, 2, 3, 255]);
         assert!(code.contains(&expected));
         assert!(code.contains("getDecoder().decode"));
+    }
+
+    fn multipart_body() -> Option<ApicizeBody> {
+        let mut data = HashMap::new();
+        data.insert(
+            "note".to_string(),
+            ApicizeMultipartFormValue::Text("hello".to_string()),
+        );
+        data.insert(
+            "upload".to_string(),
+            ApicizeMultipartFormValue::File {
+                file_name: "photo.png".to_string(),
+                content_type: "image/png".to_string(),
+                size: 10,
+            },
+        );
+        Some(ApicizeBody::MultipartForm { data })
+    }
+
+    #[test]
+    fn multipart_body_generates_parts_for_all_languages() {
+        let langs = [
+            CodeGenLanguage::NodeJs,
+            CodeGenLanguage::Python,
+            CodeGenLanguage::Go,
+            CodeGenLanguage::CSharp,
+            CodeGenLanguage::Java,
+        ];
+        for lang in langs {
+            let d = Dispatch::from_http(&sample(multipart_body()), true, lang);
+            let code = match lang {
+                CodeGenLanguage::NodeJs => gen_node_fetch_async(&d),
+                CodeGenLanguage::Python => gen_python(&d),
+                CodeGenLanguage::Go => gen_go(&d),
+                CodeGenLanguage::CSharp => gen_csharp(&d),
+                CodeGenLanguage::Java => gen_java(&d),
+            };
+            assert!(code.contains("photo.png"), "{:?} missing file name", lang);
+            assert!(
+                code.contains("image/png"),
+                "{:?} missing content type",
+                lang
+            );
+            assert!(code.contains("hello"), "{:?} missing text value", lang);
+            // Dispatched Content-Type is dropped so the client generates its own boundary
+            assert!(
+                !code.contains("application/json"),
+                "{:?} retained dispatched Content-Type",
+                lang
+            );
+        }
     }
 
     #[test]

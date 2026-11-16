@@ -22,7 +22,16 @@ declare enum BodyType {
     XML = 'XML',
     GraphQL = 'GraphQL',
     Form = 'Form',
+    MultipartForm = 'MultipartForm',
     Raw = 'Raw'
+}
+
+/**
+ * Type of multipart form item
+ */
+declare enum MultipartFormItemType {
+    Text = 'Text',
+    File = 'File'
 }
 
 /**
@@ -94,6 +103,38 @@ declare interface SetupBodyForm {
 }
 
 /**
+ * Multipart form item, either a text value or file contents
+ */
+declare interface SetupMultipartFormItem {
+    name: string
+    /**
+     * Item type (defaults to Text)
+     */
+    type?: MultipartFormItemType
+    /**
+     * Value (Text items only)
+     */
+    value?: string
+    /**
+     * File name (File items only)
+     */
+    fileName?: string
+    /**
+     * Base64 encoded file contents (File items only, arrays of bytes, typed arrays and ArrayBuffers are base64 encoded automatically)
+     */
+    data?: string | number[] | Uint8Array | ArrayBufferView | ArrayBuffer
+    disabled?: boolean
+}
+
+/**
+ * Multipart form body data
+ */
+declare interface SetupBodyMultipartForm {
+    type: BodyType.MultipartForm
+    data: SetupMultipartFormItem[]
+}
+
+/**
  * Raw body data
  */
 declare interface SetupBodyRaw {
@@ -107,7 +148,7 @@ declare interface SetupBodyRaw {
 /**
  * Body to submit with request
  */
-declare type SetupBody = SetupBodyText | SetupBodyJSON | SetupBodyXML | SetupBodyGraphQL | SetupBodyForm | SetupBodyRaw
+declare type SetupBody = SetupBodyText | SetupBodyJSON | SetupBodyXML | SetupBodyGraphQL | SetupBodyForm | SetupBodyMultipartForm | SetupBodyRaw
 
 /**
  * Apicize request information, updates are applied before the request is dispatched

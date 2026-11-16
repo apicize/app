@@ -4,7 +4,15 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-base-to-string */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-import { Body, BodyForm, BodyGraphQL, BodyJSON, BodyNone, BodyRaw, BodyText, BodyType, BodyXML, NameValuePair } from "@apicize/lib-typescript";
+import { Body, BodyForm, BodyGraphQL, BodyJSON, BodyMultipartForm, BodyNone, BodyRaw, BodyText, BodyType, BodyXML, MultipartFormItem, MultipartFormItemType, NameValuePair } from "@apicize/lib-typescript";
+
+/**
+ * Multipart form File item and its position, retained when converting to a body type that cannot hold files
+ */
+export interface RetainedMultipartFile {
+    index: number
+    item: MultipartFormItem
+}
 import { EditableNameValuePair } from "../models/workspace/editable-name-value-pair";
 import { GenerateIdentifier } from "./random-identifier-generator";
 import { Parser, Builder } from 'xml2js'
@@ -24,6 +32,8 @@ export class BodyConversion {
                 return this.toXML()
             case BodyType.Form:
                 return this.toForm()
+            case BodyType.MultipartForm:
+                return this.toMultipartForm()
             case BodyType.Raw:
                 return this.toRaw()
             case BodyType.Text:
@@ -76,6 +86,8 @@ export class BodyConversion {
                     data: parsed !== undefined ? JSON.stringify(parsed, undefined, '   ') : ''
                 }
             }
+            case BodyType.MultipartForm:
+                return new BodyConversion(BodyConversion.multipartToForm(this.source)).toJson()
             case BodyType.None:
                 return { type: BodyType.JSON, data: '' }
             case BodyType.GraphQL:
@@ -132,6 +144,8 @@ export class BodyConversion {
                     data: parsed !== undefined ? (new Builder()).buildObject(parsed) : ''
                 }
             }
+            case BodyType.MultipartForm:
+                return new BodyConversion(BodyConversion.multipartToForm(this.source)).toXML()
             case BodyType.None:
                 return { type: BodyType.XML, data: '' }
             case BodyType.GraphQL:
@@ -164,6 +178,8 @@ export class BodyConversion {
                     type: BodyType.Text,
                     data: (this.source.data ?? []).map((nv) => `${nv.name.replace(',', '\\,')}=${nv.value.replace(',', '\\,')}`).join(', ')
                 }
+            case BodyType.MultipartForm:
+                return new BodyConversion(BodyConversion.multipartToForm(this.source)).toText()
             case BodyType.None:
                 return { type: BodyType.Text, data: '' }
             case BodyType.GraphQL:
@@ -223,6 +239,8 @@ export class BodyConversion {
                         JSON.stringify(BodyConversion.parsePairData(this.source.data ?? []))
                     ))
                 }
+            case BodyType.MultipartForm:
+                return new BodyConversion(BodyConversion.multipartToForm(this.source)).toRaw()
             case BodyType.None:
                 return { type: BodyType.Raw, data: '' }
             case BodyType.GraphQL:
@@ -279,11 +297,68 @@ export class BodyConversion {
                     data: BodyConversion.objectToFormPairs(parsed)
                 }
             }
+            case BodyType.MultipartForm:
+                return BodyConversion.multipartToForm(this.source)
             case BodyType.None:
             case BodyType.GraphQL:
                 return { type: BodyType.Form, data: [] }
             default:
                 throw new Error(`Unhandled body type: ${type satisfies never}`)
+        }
+    }
+
+    /**
+     * Output body as Multipart Form (all items will be Text)
+     */
+    public async toMultipartForm(): Promise<BodyMultipartForm> {
+        if (this.source.type === BodyType.MultipartForm) {
+            return this.source
+        }
+        const form = await this.toForm()
+        return {
+            type: BodyType.MultipartForm,
+            data: form.data.map(pair => ({
+                name: pair.name,
+                value: pair.value,
+                disabled: pair.disabled
+            }))
+        }
+    }
+
+    /**
+     * Return File items (and their positions) from a multipart form body
+     */
+    public static extractMultipartFiles(body: BodyMultipartForm): RetainedMultipartFile[] {
+        return body.data
+            .map((item, index) => ({ index, item }))
+            .filter(f => f.item.type === MultipartFormItemType.File)
+    }
+
+    /**
+     * Return a multipart form body with retained File items re-inserted at their original positions
+     */
+    public static restoreMultipartFiles(body: BodyMultipartForm, files: RetainedMultipartFile[]): BodyMultipartForm {
+        const data = [...body.data]
+        for (const { index, item } of files) {
+            data.splice(Math.min(index, data.length), 0, item)
+        }
+        return { type: BodyType.MultipartForm, data }
+    }
+
+    /**
+     * Converts multipart form Text items to a (non-multipart) form; File items are dropped
+     */
+    private static multipartToForm(source: BodyMultipartForm): BodyForm {
+        return {
+            type: BodyType.Form,
+            data: source.data
+                .filter(item => item.type !== MultipartFormItemType.File)
+                .map(item => ({
+                    id: GenerateIdentifier(),
+                    name: item.name,
+                    value: item.value ?? '',
+                    disabled: item.disabled
+                }))
         }
     }
 
@@ -500,6 +575,7 @@ export class BodyConversion {
                 }
             }
             case BodyType.Form:
+            case BodyType.MultipartForm:
             case BodyType.None:
                 return { type: BodyType.GraphQL, data: { query: '' } }
             default:

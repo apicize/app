@@ -2,6 +2,7 @@ import React, {  } from "react"
 import { EditableNameValuePair } from "../../models/workspace/editable-name-value-pair";
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
+import Checkbox from '@mui/material/Checkbox'
 import Grid from '@mui/material/Grid'
 import IconButton from '@mui/material/IconButton'
 import Stack from '@mui/material/Stack'
@@ -53,12 +54,31 @@ export const NameValueEditor = React.memo(({ values, title, nameHeader, valueHea
         }
     }
 
+    const updateEnabled = (id: string, enabled: boolean) => {
+        if (!values) return
+        const vals = toJS(values)
+        const match = vals.find(v => v.id === id)
+        if (match) {
+            match.disabled = enabled ? undefined : true
+            onUpdate(vals)
+        }
+    }
+
     let ctr = 0
     return <Stack direction='column' position='relative' spacing={4} width='100%'>
         {
             (values ?? []).map(value => [
                 <Grid container key={`nv-${ctr++}`} rowSpacing={2} spacing={1} size={12} columns={12}>
-                    <Grid size={4}>
+                    <Grid size='auto'>
+                        <Checkbox
+                            id={`${value.id}-enabled`}
+                            aria-label='enabled'
+                            title={value.disabled ? 'Disabled' : 'Enabled'}
+                            checked={!value.disabled}
+                            onChange={(e) => updateEnabled(value.id, e.target.checked)}
+                        />
+                    </Grid>
+                    <Grid size={4} sx={{ opacity: value.disabled ? 0.5 : 1 }}>
                         <TextField
                             id={`${value.id}-name`}
                             label={nameHeader}
@@ -69,7 +89,7 @@ export const NameValueEditor = React.memo(({ values, title, nameHeader, valueHea
                             fullWidth
                         />
                     </Grid>
-                    <Grid size={7}>
+                    <Grid size='grow' sx={{ opacity: value.disabled ? 0.5 : 1 }}>
                         <TextField
                             id={`${value.id}-value`}
                             label={valueHeader}

@@ -3,7 +3,7 @@ import * as core from '@tauri-apps/api/core'
 import * as dialog from '@tauri-apps/plugin-dialog'
 import * as path from '@tauri-apps/api/path'
 import { exists, readFile, readTextFile } from "@tauri-apps/plugin-fs"
-import { base64Encode, FileOperationsContext, FileOperationsStore, OpenDataSetFileResponse, SshFileType, ToastSeverity, useApicizeSettings, useFeedback, WorkspaceStore } from "@apicize/toolkit";
+import { base64Encode, FileOperationsContext, FileOperationsStore, OpenDataSetFileResponse, OpenedFile, SshFileType, ToastSeverity, useApicizeSettings, useFeedback, WorkspaceStore } from "@apicize/toolkit";
 import { ApicizeSettings, DataSourceType } from "@apicize/lib-typescript";
 import { extname, join, resourceDir } from '@tauri-apps/api/path';
 import { EditableSettings } from "@apicize/toolkit/dist/models/editable-settings";
@@ -326,7 +326,7 @@ export function FileOperationsProvider(
      * Open a data file and return its results
      * @returns base64 encoded string or null if no result
      */
-    const openFile = async (): Promise<Uint8Array | null> => {
+    const openFile = async (): Promise<OpenedFile | null> => {
         feedback.setModal(true)
         const fileName = await dialog.open({
             multiple: false,
@@ -350,7 +350,10 @@ export function FileOperationsProvider(
         //     pathName = (await path.dirname(fileName)).substring(0, i)
         // }
 
-        return await readFile(fileName)
+        return {
+            fileName: await path.basename(fileName),
+            data: await readFile(fileName)
+        }
     }
 
     const selectWorkbookDirectory = async (): Promise<string | null> => {

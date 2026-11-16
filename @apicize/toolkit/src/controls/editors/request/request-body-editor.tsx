@@ -4,7 +4,7 @@ import { FileDropOverlay } from '../file-drop-overlay'
 import { NameValueEditor } from '../name-value-editor'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import FormatListBulletedAddIcon from '@mui/icons-material/FormatListBulletedAdd';
-import { BodyType, BodyTypes } from '@apicize/lib-typescript'
+import { BodyType, BodyTypes, MultipartFormItemType } from '@apicize/lib-typescript'
 import { observer } from 'mobx-react-lite'
 import { useClipboard } from '../../../contexts/clipboard.context'
 import { useFileOperations } from '../../../contexts/file-operations.context'
@@ -25,6 +25,8 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { useMonacoClipboard } from '../../../hooks/use-monaco-clipboard';
 import { RawBodyEditor } from './body/raw-body-editor';
 import { GraphQLBodyEditor, GraphQLBodyEditorHandle } from './body/graphql-body-editor';
+import { MultipartFormEditor } from './body/multipart-form-editor';
+import { base64Encode } from '../../../services/base64';
 
 /**
  * Describe the body type a dropped file will be loaded as (see onDrop)
@@ -41,8 +43,19 @@ function describeDropBodyType(extensions: string[]) {
   }
 }
 
+function describeBodyType(bodyType: BodyType) {
+  switch (bodyType) {
+    case BodyType.Raw:
+      return 'Binary'
+    case BodyType.MultipartForm:
+      return 'Multipart Form'
+    default:
+      return bodyType
+  }
+}
+
 const BODY_TYPE_MENU_ITEMS = BodyTypes.map(bodyType => (
-  <MenuItem key={bodyType} value={bodyType}>{bodyType === BodyType.Raw ? 'Binary' : bodyType}</MenuItem>
+  <MenuItem key={bodyType} value={bodyType}>{describeBodyType(bodyType)}</MenuItem>
 ))
 
 export const RequestBodyEditor = observer(({ request }: { request: EditableRequest }) => {
@@ -92,6 +105,21 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
         },
         onDrop: (file: DroppedFile) => {
           setIsDragging(false)
+          // Multipart form bodies add the dropped file as a File item rather than replacing the body
+          if (request.body.type === BodyType.MultipartForm) {
+            const data = file.type === 'binary' ? file.data : new TextEncoder().encode(file.data)
+            request.setBodyData([
+              ...toJS(request.body.data),
+              {
+                id: GenerateIdentifier(),
+                name: '',
+                type: MultipartFormItemType.File,
+                fileName: file.fileName,
+                data: base64Encode(data)
+              }
+            ]).catch(e => feedback.toastError(e))
+            return
+          }
           switch (file.type) {
             case 'binary':
               request.setBodyFromRawData(file.data).catch(e => feedback.toastError(e))
@@ -222,9 +250,9 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
 
   const openFile = () => {
     fileOps.openFile()
-      .then(data => {
-        if (data) {
-          request.setBodyFromRawData(data).catch(e => feedback.toastError(e))
+      .then(file => {
+        if (file) {
+          request.setBodyFromRawData(file.data).catch(e => feedback.toastError(e))
         }
       })
       .catch(e => feedback.toast(`Unable to open file - ${e}`, ToastSeverity.Error))
@@ -234,6 +262,7 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
   const allowBeautify = [BodyType.JSON, BodyType.XML, BodyType.GraphQL].includes(request.body.type)
   switch (request.body.type) {
     case BodyType.Form:
+    case BodyType.MultipartForm:
     case BodyType.JSON:
     case BodyType.XML:
     case BodyType.Text:
@@ -249,10 +278,16 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
 
   return (
     <Box id='request-body-container' ref={refContainer} position='relative' width='100%' height='100%'>
-      <FileDropOverlay
-        visible={isDragging}
-        title='Drop file to replace request body'
-        subtitle={`Body type: ${dropBodyType}`} />
+      {
+        request.body.type === BodyType.MultipartForm
+          ? <FileDropOverlay
+            visible={isDragging}
+            title='Drop file to add to multipart form' />
+          : <FileDropOverlay
+            visible={isDragging}
+            title='Drop file to replace request body'
+            subtitle={`Body type: ${dropBodyType}`} />
+      }
 
       <Stack direction='column' spacing={3} position='relative' width='100%' height='100%'>
         <Grid container direction='row' display='flex' justifyContent='space-between' maxWidth='65em' paddingTop='0.5rem'>
@@ -265,7 +300,7 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
                 value={request.body.type}
                 label="Body Content Type"
                 sx={{
-                  width: "10em"
+                  width: "13em"
                 }}
                 size='small'
                 open={showBodyTypeMenu}
@@ -332,42 +367,48 @@ export const RequestBodyEditor = observer(({ request }: { request: EditableReque
               onUpdate={(data) => {
                 request.setBodyData(data ?? []).catch(e => feedback.toastError(e))
               }} />
-            : request.body.type == BodyType.Raw
-              ? <RawBodyEditor
-                bodyLength={request.bodyLength}
-                bodyMimeType={request.bodyMimeType}
-                data={request.body.data}
-                hasClipboardImage={clipboard.hasImage}
-                onOpenFile={openFile}
-                onPasteFromClipboard={pasteImageFromClipboard}
-              />
-              : request.body.type === BodyType.GraphQL
-                ? <GraphQLBodyEditor ref={graphqlEditor} request={request} />
-                : <ApicizeMonacoEditor
-                  key={`${request.id}:${request.bodyLanguage}`}
-                  language={request.bodyLanguage ?? undefined}
-                  width='100%'
-                  height='100%'
-                  theme={settings.colorScheme === "dark" ? 'vs-dark' : 'vs-light'}
-                  value={request.body.data}
-                  onChange={(text: string) => {
-                    request.setBodyData(text).catch(e => feedback.toastError(e))
-                  }}
-                  editorDidMount={(me) => {
-                    editor.current = me
-                  }}
-                  options={{
-                    automaticLayout: true,
-                    minimap: { enabled: false },
-                    model,
-                    detectIndentation: settings.editorDetectExistingIndent,
-                    tabSize: settings.editorIndentSize,
-                    autoIndent: 'full',
-                    formatOnType: true,
-                    formatOnPaste: true,
-                    fontSize: settings.fontSize
-                  }}
+            : request.body.type == BodyType.MultipartForm
+              ? <MultipartFormEditor
+                values={request.body.data}
+                onUpdate={(data) => {
+                  request.setBodyData(data).catch(e => feedback.toastError(e))
+                }} />
+              : request.body.type == BodyType.Raw
+                ? <RawBodyEditor
+                  bodyLength={request.bodyLength}
+                  bodyMimeType={request.bodyMimeType}
+                  data={request.body.data}
+                  hasClipboardImage={clipboard.hasImage}
+                  onOpenFile={openFile}
+                  onPasteFromClipboard={pasteImageFromClipboard}
                 />
+                : request.body.type === BodyType.GraphQL
+                  ? <GraphQLBodyEditor ref={graphqlEditor} request={request} />
+                  : <ApicizeMonacoEditor
+                    key={`${request.id}:${request.bodyLanguage}`}
+                    language={request.bodyLanguage ?? undefined}
+                    width='100%'
+                    height='100%'
+                    theme={settings.colorScheme === "dark" ? 'vs-dark' : 'vs-light'}
+                    value={request.body.data}
+                    onChange={(text: string) => {
+                      request.setBodyData(text).catch(e => feedback.toastError(e))
+                    }}
+                    editorDidMount={(me) => {
+                      editor.current = me
+                    }}
+                    options={{
+                      automaticLayout: true,
+                      minimap: { enabled: false },
+                      model,
+                      detectIndentation: settings.editorDetectExistingIndent,
+                      tabSize: settings.editorIndentSize,
+                      autoIndent: 'full',
+                      formatOnType: true,
+                      formatOnPaste: true,
+                      fontSize: settings.fontSize
+                    }}
+                  />
         }
       </Stack>
     </Box>

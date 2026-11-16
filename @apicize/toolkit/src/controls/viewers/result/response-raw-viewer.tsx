@@ -10,6 +10,7 @@ import { editor } from 'monaco-editor'
 import { ApicizeBody, ExecutionResultDetail } from "@apicize/lib-typescript";
 import { useFeedback } from "../../../contexts/feedback.context";
 import { observer } from "mobx-react-lite";
+import { describeMultipartFormBody } from "../../../services/multipart-form-description";
 
 export const ResultRawPreview = observer(({ detail }: { detail: ExecutionResultDetail | null }) => {
     const workspace = useWorkspace()
@@ -65,6 +66,15 @@ export const ResultRawPreview = observer(({ detail }: { detail: ExecutionResultD
                 isResponse ? ResultEditSessionType.Base64 : ResultEditSessionType.Base64Request,
                 mode,
                 () => body.data ?? '')
+            break
+        case 'MultipartForm':
+            isBinary = false
+            mode = EditorMode.txt
+            model = workspace.getResultEditModel(
+                detail,
+                isResponse ? ResultEditSessionType.Raw : ResultEditSessionType.RawRequest,
+                mode,
+                () => describeMultipartFormBody(body))
             break
         default:
             isBinary = false

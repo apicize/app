@@ -18,13 +18,14 @@ export enum BodyType {
     GraphQL = 'GraphQL',
     XML = 'XML',
     Form = 'Form',
+    MultipartForm = 'MultipartForm',
     Raw = 'Raw',
 }
 
 export const BodyTypes = [BodyType.None, BodyType.Text, BodyType.JSON,
-BodyType.XML, BodyType.GraphQL, BodyType.Form, BodyType.Raw]
+BodyType.XML, BodyType.GraphQL, BodyType.Form, BodyType.MultipartForm, BodyType.Raw]
 
-export type Body = BodyNone | BodyJSON | BodyXML | BodyGraphQL | BodyText | BodyForm | BodyRaw
+export type Body = BodyNone | BodyJSON | BodyXML | BodyGraphQL | BodyText | BodyForm | BodyMultipartForm | BodyRaw
 
 export interface BodyNone {
     type: BodyType.None
@@ -58,6 +59,40 @@ export interface BodyGraphQL {
 export interface BodyForm {
     type: BodyType.Form
     data: NameValuePair[]
+}
+
+export enum MultipartFormItemType {
+    Text = 'Text',
+    File = 'File',
+}
+
+/**
+ * Item in a multipart form body, either a text value or file contents
+ */
+export interface MultipartFormItem {
+    name: string
+    /**
+     * Item type (defaults to Text if not specified)
+     */
+    type?: MultipartFormItemType
+    /**
+     * Value (Text items only)
+     */
+    value?: string
+    /**
+     * File name (File items only)
+     */
+    fileName?: string
+    /**
+     * Base64 encoded file contents (File items only)
+     */
+    data?: string
+    disabled?: boolean
+}
+
+export interface BodyMultipartForm {
+    type: BodyType.MultipartForm
+    data: MultipartFormItem[]
 }
 
 export interface BodyRaw {
