@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useState } from "react"
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Checkbox from '@mui/material/Checkbox'
@@ -44,10 +44,15 @@ export const MultipartFormEditor = React.memo(({ values, onUpdate }: {
         }
     }
 
+    // ID of the most recently added item, used to focus its name field
+    const [newId, setNewId] = useState<string | null>(null)
+
     const onAdd = () => {
+        const id = GenerateIdentifier()
+        setNewId(id)
         const vals = toJS(values ?? [])
         vals.push({
-            id: GenerateIdentifier(),
+            id,
             name: '',
             type: MultipartFormItemType.Text,
             value: ''
@@ -104,6 +109,7 @@ export const MultipartFormEditor = React.memo(({ values, onUpdate }: {
                             label='Name'
                             aria-label='Name'
                             size="small"
+                            autoFocus={item.id === newId}
                             value={item.name}
                             onChange={(e) => update(item.id, i => { i.name = e.target.value })}
                             fullWidth

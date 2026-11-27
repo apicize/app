@@ -1610,19 +1610,21 @@ export class WorkspaceStore implements EditableEntityContext {
             .catch((err) => this.feedback.toastError(err))
     }
 
-    public update(update: EntityUpdate) {
+    public async update(update: EntityUpdate) {
+        const result = await this.callbacks.update(update)
         switch (update.entityType) {
             case EntityType.Scenario:
             case EntityType.DataSet:
             case EntityType.Authorization:
             case EntityType.Certificate:
             case EntityType.Proxy:
-                if (update.name !== undefined) {
-                    this.clearParameterList()
+                // Refresh parameter list in place (rather than clearing it) so editors using it are not unmounted
+                if (update.name !== undefined && this.activeParameters) {
+                    this.initializeParameterList(this.activeParameters.requestOrGroupId)
                 }
                 break
         }
-        return this.callbacks.update(update)
+        return result
     }
 
     /**

@@ -1,5 +1,13 @@
 # Change Log
 
+## 0.49.1
+
+* Fix the OAuth2 Client authorization editor redrawing on each keystroke when editing the authorization's name
+* Add new scenario variables to the end of the list instead of the top
+* Focus the name field of newly added scenario variables, headers, query string parameters, and form and multipart form items
+* Focus the first cell of a new row, or the new column's cell in the first row, when adding to a CSV data set
+* Focus the name field of newly added requests and groups
+
 ## 0.49.0
 
 * Add Multipart Form support

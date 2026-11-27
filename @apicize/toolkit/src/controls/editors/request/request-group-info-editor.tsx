@@ -51,7 +51,7 @@ export const RequestGroupInfoEditor = observer(({ sx, group }: {
                         id='group-name'
                         label='Name'
                         aria-label='group name'
-                        // autoFocus={group.name === ''}
+                        autoFocus={group.name === ''}
                         size='small'
                         fullWidth
                         title="Name of group"

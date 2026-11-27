@@ -1,4 +1,4 @@
-import React, {  } from "react"
+import React, { useState } from "react"
 import { EditableNameValuePair } from "../../models/workspace/editable-name-value-pair";
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
@@ -19,10 +19,15 @@ export const NameValueEditor = React.memo(({ values, title, nameHeader, valueHea
     valueHeader: string,
     onUpdate: (pair: EditableNameValuePair[]) => void
 }) => {
+    // ID of the most recently added pair, used to focus its name field
+    const [newId, setNewId] = useState<string | null>(null)
+
     const onAdd = () => {
+        const id = GenerateIdentifier()
+        setNewId(id)
         const vals = toJS(values ?? [])
         vals.push({
-            id: GenerateIdentifier(),
+            id,
             name: '',
             value: ''
         })
@@ -64,11 +69,10 @@ export const NameValueEditor = React.memo(({ values, title, nameHeader, valueHea
         }
     }
 
-    let ctr = 0
     return <Stack direction='column' position='relative' spacing={4} width='100%'>
         {
-            (values ?? []).map(value => [
-                <Grid container key={`nv-${ctr++}`} rowSpacing={2} spacing={1} size={12} columns={12}>
+            (values ?? []).map(value => (
+                <Grid container key={value.id} rowSpacing={2} spacing={1} size={12} columns={12}>
                     <Grid size='auto'>
                         <Checkbox
                             id={`${value.id}-enabled`}
@@ -84,6 +88,7 @@ export const NameValueEditor = React.memo(({ values, title, nameHeader, valueHea
                             label={nameHeader}
                             aria-label={nameHeader}
                             size="small"
+                            autoFocus={value.id === newId}
                             value={value.name}
                             onChange={(e) => updateName(value.id, e.target.value)}
                             fullWidth
@@ -106,7 +111,7 @@ export const NameValueEditor = React.memo(({ values, title, nameHeader, valueHea
                         </IconButton>
                     </Grid>
                 </Grid>
-            ])
+            ))
         }
         <Box>
             <Button variant="outlined" aria-label="add" startIcon={<AddIcon />} size='small' onClick={() => onAdd()}>Add {title}</Button>

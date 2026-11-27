@@ -96,13 +96,31 @@ const JsonEditor = observer(forwardRef<JsonEditorHandle, {
 }))
 
 
-const CsvEditor = observer(({ dataSet, feedback, csvColumnWidths }: {
+type CsvCell = { id: string, field: string }
+
+const CsvEditor = observer(({ dataSet, feedback, csvColumnWidths, focusCell, setFocusCell }: {
     dataSet: EditableDataSet
     feedback: FeedbackStore
     csvColumnWidths: React.MutableRefObject<{ [field: string]: number }>
+    focusCell: CsvCell | null
+    setFocusCell: (cell: CsvCell | null) => void
 }) => {
     const dataGridRef = useRef<GridApiCommunity>(null)
     const unsizedColumns = dataSet.csvColumns.filter(c => !csvColumnWidths.current[c])
+
+    // Scroll to and focus a newly added cell once the grid has picked up its row and column
+    const csvRows = dataSet.csvRows
+    const csvColumns = dataSet.csvColumns
+    useEffect(() => {
+        const api = dataGridRef.current
+        if (!focusCell || !api || !api.getRow(focusCell.id) || !api.getColumn(focusCell.field)) return
+        api.scrollToIndexes({
+            rowIndex: api.getRowIndexRelativeToVisibleRows(focusCell.id),
+            colIndex: api.getColumnIndex(focusCell.field)
+        })
+        api.setCellFocus(focusCell.id, focusCell.field)
+        setFocusCell(null)
+    }, [focusCell, setFocusCell, csvRows, csvColumns])
 
     const CustomColumnMenu = useMemo(() => {
         return observer((props: GridColumnMenuProps) => {
@@ -115,8 +133,14 @@ const CsvEditor = observer(({ dataSet, feedback, csvColumnWidths }: {
 
             const handleAddColumn = (event: React.SyntheticEvent) => {
                 if (newColumnName.trim().length > 0) {
-                    dataSet.addColumnAfter(props.colDef.field, newColumnName.trim())
+                    const field = newColumnName.trim()
+                    dataSet.addColumnAfter(props.colDef.field, field)
                         .catch(err => feedback.toastError(err))
+                    // Focus the new column's cell in the first row (if there is one)
+                    const firstRow = dataSet.csvRows[0]
+                    if (firstRow) {
+                        setFocusCell({ id: firstRow._id, field })
+                    }
                     setNewColumnName('')
                     setShowAddColumnDialog(false)
                     props.hideMenu?.(event)
@@ -267,7 +291,7 @@ const CsvEditor = observer(({ dataSet, feedback, csvColumnWidths }: {
                 </>
             )
         })
-    }, [dataSet, feedback])
+    }, [dataSet, feedback, setFocusCell])
 
     const columnsWithActions: GridColDef[] = [
         {
@@ -366,6 +390,7 @@ export const DataSetEditor = observer(({ dataSet, sx }: { dataSet: EditableDataS
 
     const csvColumnWidths = useRef<{ [field: string]: number }>({})
     const jsonEditor = useRef<JsonEditorHandle>(null)
+    const [csvFocusCell, setCsvFocusCell] = useState<CsvCell | null>(null)
 
     useEffect(() => { workspace.nextHelpTopic = 'workspace/data-sets' }, [workspace])
 
@@ -616,6 +641,11 @@ export const DataSetEditor = observer(({ dataSet, sx }: { dataSet: EditableDataS
                                         title='Add New Row'
                                         onClick={() => runInAction(() => {
                                             dataSet.addRow().catch(err => feedback.toastError(err))
+                                            // Focus the first column of the new (last) row
+                                            const newRow = dataSet.csvRows[dataSet.csvRows.length - 1]
+                                            if (newRow && dataSet.csvColumns.length > 0) {
+                                                setCsvFocusCell({ id: newRow._id, field: dataSet.csvColumns[0] })
+                                            }
                                         })}>
                                         <AddIcon />
                                     </IconButton>
@@ -628,7 +658,7 @@ export const DataSetEditor = observer(({ dataSet, sx }: { dataSet: EditableDataS
                             dataSet.editType === EditableDataSetType.JSON
                                 ? <JsonEditor ref={jsonEditor} dataSet={dataSet} feedback={feedback} settings={settings} workspace={workspace} />
                                 : dataSet.editType === EditableDataSetType.CSV
-                                    ? <CsvEditor dataSet={dataSet} feedback={feedback} csvColumnWidths={csvColumnWidths} />
+                                    ? <CsvEditor dataSet={dataSet} feedback={feedback} csvColumnWidths={csvColumnWidths} focusCell={csvFocusCell} setFocusCell={setCsvFocusCell} />
                                     : <></>
                         }
                     </Grid>

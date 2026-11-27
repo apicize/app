@@ -86,31 +86,58 @@ class ResultsPage {
     return out
   }
 
-  /** Click a results-viewer panel toggle by aria-label (scoped to the results pane). */
+  /**
+   * Click a results-viewer panel toggle by aria-label (scoped to the results pane).
+   * Panel toggles stay disabled until the result summary is populated, and a click
+   * on a disabled button is ignored, so wait for it to be enabled and then selected.
+   */
   async showResultsPanel(ariaLabel: string): Promise<void> {
-    await browser.execute((label: string) => {
-      const pane = document.querySelector('#results-viewer') ?? document
-      const btn = pane.querySelector(`button[aria-label="${label}"]`) as HTMLElement | null
-      if (!btn) throw new Error(`Results panel button "${label}" not found`)
-      btn.click()
-    }, ariaLabel)
+    await browser.waitUntil(
+      async () =>
+        browser.execute((label: string) => {
+          const pane = document.querySelector('#results-viewer') ?? document
+          const btn = pane.querySelector(`button[aria-label="${label}"]`) as HTMLButtonElement | null
+          if (!btn || btn.disabled) return false
+          if (btn.getAttribute('aria-pressed') === 'true') return true
+          btn.click()
+          return false
+        }, ariaLabel),
+      { timeout: 10_000, interval: 250, timeoutMsg: `Results panel "${ariaLabel}" did not become enabled and selected` }
+    )
   }
 
-  /** Text of the response body shown in the results viewer's Monaco editor. */
+  /**
+   * Text of the response body shown in the results viewer's Monaco editor. Monaco
+   * renders its lines asynchronously after the editor is created, so wait for text.
+   */
   async getResponseBodyText(): Promise<string> {
-    return browser.execute(() => {
-      const lines = document.querySelector('#results-viewer .monaco-editor .view-lines')
-      return lines ? (lines as HTMLElement).innerText : ''
+    const read = () =>
+      browser.execute(() => {
+        const lines = document.querySelector('#results-viewer .monaco-editor .view-lines')
+        return lines ? (lines as HTMLElement).innerText : ''
+      })
+    await browser.waitUntil(async () => (await read()).trim().length > 0, {
+      timeout: 10_000,
+      interval: 100,
+      timeoutMsg: 'Results viewer body text did not render',
     })
+    return read()
   }
 
-  /** Whether the results viewer currently shows any response header rows. */
+  /** Whether the results viewer shows any response header rows (waits for them to render). */
   async hasResponseHeaders(): Promise<boolean> {
-    return browser.execute(() => {
-      const pane = document.querySelector('#results-viewer')
-      if (!pane) return false
-      return (pane.textContent ?? '').includes('Response Headers')
-    })
+    return browser
+      .waitUntil(
+        async () =>
+          browser.execute(() => {
+            const pane = document.querySelector('#results-viewer')
+            if (!pane) return false
+            return (pane.textContent ?? '').includes('Response Headers')
+          }),
+        { timeout: 10_000, interval: 100 }
+      )
+      .then(() => true)
+      .catch(() => false)
   }
 
   async clear(): Promise<void> {

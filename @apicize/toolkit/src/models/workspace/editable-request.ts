@@ -484,8 +484,9 @@ export class EditableRequest extends EditableRequestEntry {
             case BodyType.Form:
                 return {
                     type: BodyType.Form,
+                    // Retain existing IDs, since they are used as keys when rendering items
                     data: body.data.map(d => ({
-                        id: GenerateIdentifier(),
+                        id: (d as Partial<EditableNameValuePair>).id ?? GenerateIdentifier(),
                         name: d.name,
                         value: d.value,
                         disabled: d.disabled

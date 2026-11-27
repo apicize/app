@@ -30,15 +30,20 @@ export const ScenarioEditor = observer(({ scenario, sx }: { scenario: EditableSc
         })
     }, [feedback])
 
+    // ID of the most recently added variable, used to focus its name field
+    const [newVariableId, setNewVariableId] = useState<string | null>(null)
+
     const onAddVariable = () => {
+        const id = GenerateIdentifier()
+        setNewVariableId(id)
         scenario.setVariables([
+            ...scenario.variables,
             new EditableVariable(
-                GenerateIdentifier(),
+                id,
                 '',
                 VariableSourceType.Text,
                 ''
-            ),
-            ...scenario.variables
+            )
         ]).catch(err => feedback.toastError(err))
     }
 
@@ -80,14 +85,15 @@ export const ScenarioEditor = observer(({ scenario, sx }: { scenario: EditableSc
                         <Stack direction='column' paddingTop='2em'>
                             <Grid container spacing={3}>
                                 {
-                                    (scenario.variables ?? []).map(variable => [
-                                        <Grid container rowSpacing={2} spacing={1} size={12} columns={12}>
+                                    (scenario.variables ?? []).map(variable => (
+                                        <Grid key={variable.id} container rowSpacing={2} spacing={1} size={12} columns={12}>
                                             <Grid size={{ md: 3 }}>
                                                 <TextField
                                                     id={`${variable.id}-name`}
                                                     label='Variable Name'
                                                     aria-label='variable-name'
                                                     size="small"
+                                                    autoFocus={variable.id === newVariableId}
                                                     value={variable.name}
                                                     error={variable.nameInvalid}
                                                     helperText={variable.nameInvalid ? 'Variable name is required' : ''}
@@ -149,7 +155,7 @@ export const ScenarioEditor = observer(({ scenario, sx }: { scenario: EditableSc
                                                 </IconButton>
                                             </Grid>
                                         </Grid>
-                                    ])
+                                    ))
                                 }
                                 <Box>
                                     <Button variant="outlined" aria-label="add" startIcon={<AddIcon />} size='small' onClick={() => onAddVariable()}>Add Scenario Variable</Button>

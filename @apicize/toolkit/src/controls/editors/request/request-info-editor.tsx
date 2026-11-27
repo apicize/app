@@ -53,7 +53,7 @@ export const RequestInfoEditor = observer(({ request }: { request: EditableReque
                         id='request-name'
                         label="Name"
                         aria-label='request name'
-                        // autoFocus={request.name === ''}
+                        autoFocus={request.name === ''}
                         size="small"
                         title="Name of request"
                         value={request.name}
